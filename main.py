@@ -292,41 +292,47 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
 
 
 # =========================================================
-# 10. LMP (Liga Mexicana del Pacífico - Conector Sólido)
+# 10. LMP (Liga Mexicana del Pacífico - Cartelera Interactiva)
 # =========================================================
 elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Invernal)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Béisbol invernal con sincronización en vivo y análisis de Run Line (±1.5).*")
+    st.markdown("--- \n *Análisis cuantitativo de Run Line (±1.5) y valor EV+ para la LMP.*")
 
-    cartelera_lmp = obtener_eventos_cuantitativos("baseball", "mex.1", fecha_formato_api, fecha_formato_str)
-    if not cartelera_lmp:
-        cartelera_lmp = [
-            {
-                "partido_str": f"⚾ [{fecha_formato_str}] Naranjeros de Hermosillo @ Cañeros de Los Mochis",
-                "spread": -1.5,
-                "momio_spread": +130,
-                "mercados_disponibles": [
-                    {"tipo": "Run Line (Hándicap)", "seleccion": "Naranjeros de Hermosillo (-1.5)", "momio": +130, "prob_modelo": 54.0}
-                ]
-            }
-        ]
+    juegos_lmp_disponibles = [
+        "Naranjeros de Hermosillo @ Cañeros de Los Mochis",
+        "Yaquis de Obregón @ Tomateros de Culiacán",
+        "Mayos de Navojoa @ Charros de Jalisco",
+        "Algodoneros de Guasave @ Venados de Mazatlán",
+        "Sultanes de Monterrey @ Águilas de Mexicali"
+    ]
+
+    partido_seleccionado_lmp = st.selectbox("🏟️ Selecciona el encuentro de la jornada:", juegos_lmp_disponibles)
 
     col_l1, col_l2 = st.columns(2)
-    with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
-    with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_lmp")
+    with col_l1:
+        bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
+        equipo_apuesta = st.text_input("🎯 Selección con Run Line (ej. Naranjeros -1.5):", value="Naranjeros de Hermosillo (-1.5)")
+    with col_l2:
+        momio_lmp = st.number_input("📈 Momio Americano Oficial (ej. +130):", value=130, step=5, key="momio_lmp")
+        prob_modelo_lmp = st.slider("🤖 Probabilidad del Modelo (%):", 40.0, 80.0, 54.0, 0.5, key="prob_lmp")
+
+    edge_min_lmp = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 2.5, 0.5, key="edge_min_lmp")
 
     st.markdown("---")
-    for idx, op in enumerate(cartelera_lmp, 1):
-        m = op["mercados_disponibles"][0]
-        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-        edge = m["prob_modelo"] - prob_imp
+    st.subheader("📊 Resultado del Análisis Cuantitativo")
 
-        if edge >= edge_min_lmp:
-            st.success(f"### ⚾ Partido LMP Run Line #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
-            st.write(f"• **Selección Recomendada:** `{m['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
-            st.success("🎯 Regla de Oro Aprobada")
-            st.markdown("---")
+    prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
+    edge_lmp = prob_modelo_lmp - prob_imp_lmp
+
+    st.info(f"📅 Analizando partido: `{partido_seleccionado_lmp}` ({fecha_formato_str})")
+
+    if edge_lmp >= edge_min_lmp:
+        st.success(f"### 🟢 ¡OPORTUNIDAD EV+ DETECTADA! — Edge: `+{edge_lmp:.1f}%`")
+        st.write(f"• **Selección Recomendada:** `{equipo_apuesta}`")
+        st.write(f"• **Momio Oficial:** `{momio_lmp:+}` | Implícita: `{prob_imp_lmp:.1f}%` | Modelo: `{prob_modelo_lmp}%`")
+        st.success("🎯 **Regla de Oro Aprobada:** Excelente valor matemático en Run Line.")
+    else:
+        st.warning(f"⚠️ El Edge actual es de `+{edge_lmp:.1f}%`, por debajo del mínimo requerido ({edge_min_lmp}%). Se sugiere pasar de este juego.")
 
 
 # =========================================================
@@ -351,7 +357,7 @@ elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
 
     col_b1, col_b2 = st.columns(2)
     with col_b1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_mlb")
-    with col_b2: edge_min_mlb = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_mlb")
+    with col_b2: edge_min_mlb = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_min_mlb")
 
     st.markdown("---")
     for idx, op in enumerate(cartelera_mlb, 1):
