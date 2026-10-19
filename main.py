@@ -612,7 +612,7 @@ else:
     st.markdown("## ⚙️ **Panel de Escaneo Universitario**")
     col_n1, col_n2 = st.columns(2)
     with col_n1:
-      bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", min_value=100.0, value=5000.0, step500.0, key="bk_ncaa")
+      bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_ncaa")
     with col_n2:
       confianza_minima = st.slider("🎯 Confianza Mínima del Robot (%):", min_value=50.0, max_value=90.0, value=65.0, step=1.0, key="slider_conf_ncaa")
 
