@@ -4,29 +4,33 @@ import os
 import requests
 import streamlit as st
 
-# Configuración de la página
+# Configuración global de la página
 st.set_page_config(
-    page_title="Sistema Cuantitativo Pro - NFL & NCAA",
+    page_title="Central de Apuestas Pro - NFL & NCAA",
     page_icon="🛡️",
     layout="wide"
 )
 
 # ---------------------------------------------------------
-# SELECTOR DE MÓDULO (Barra Lateral)
+# SELECTOR DE MÓDULO (Barra Lateral Global)
 # ---------------------------------------------------------
-st.sidebar.title("🎯 Menú de Competiciones")
+st.sidebar.title("🎯 Menú del Sistema Pro")
 modulo_seleccionado = st.sidebar.radio(
-    "Selecciona el sistema:",
-    ["🛡️ Sistema Cuantitativo Pro NFL", "🎓 NCAA (Robot Universitario & Hándicap)"]
+    "Selecciona el módulo de análisis:",
+    [
+        "🛡️ Sistema Cuantitativo Pro NFL",
+        "🎯 Módulo de Props de Jugadores NFL",
+        "🎓 NCAA (Robot Universitario & Hándicap)"
+    ]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info("Sistema unificado conectado a modelos analíticos de valor.")
+st.sidebar.info("Motor analítico unificado con calibración estricta de valor y control de riesgo.")
 
 
-# ---------------------------------------------------------
-# MÓDULO 1: SISTEMA CUANTITATIVO PRO NFL (Tu código original)
-# ---------------------------------------------------------
+# =========================================================
+# MÓDULO 1: SISTEMA CUANTITATIVO PRO NFL (Partidos y Spreads)
+# =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL":
     FICHERO_HISTORIAL = "historial_apuestas_nfl.json"
 
@@ -300,9 +304,294 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL":
       st.info("Aún no tienes apuestas registradas en el historial.")
 
 
-# ---------------------------------------------------------
-# MÓDULO 2: NCAA (Robot Universitario & Hándicap)
-# ---------------------------------------------------------
+# =========================================================
+# MÓDULO 2: PROPS DE JUGADORES NFL (El código que acabas de aportar)
+# =========================================================
+elif modulo_seleccionado == "🎯 Módulo de Props de Jugadores NFL":
+    FICHERO_MEMORIA = "parlay_props_nfl.json"
+
+    def cargar_parlay_del_disco():
+      if os.path.exists(FICHERO_MEMORIA):
+        try:
+          with open(FICHERO_MEMORIA, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+            if isinstance(datos, list):
+              picks_limpios = []
+              for item in datos:
+                if isinstance(item, dict):
+                  equipo = item.get("equipo", "Jugador Prop")
+                  rival = item.get("rival", "NFL Partido en Vivo")
+                  jugada = item.get(
+                      "jugada", item.get("mercado", "Línea Calibrada")
+                  )
+                  momio_o = item.get("momio_o", -110)
+                  momio_a = item.get("momio_a", -110)
+                  picks_limpios.append({
+                      "equipo": equipo,
+                      "rival": rival,
+                      "jugada": jugada,
+                      "momio_o": momio_o,
+                      "momio_a": momio_a,
+                  })
+              return picks_limpios
+        except:
+          pass
+      return []
+
+    def guardar_parlay_al_disco(lista_picks):
+      try:
+        with open(FICHERO_MEMORIA, "w", encoding="utf-8") as f:
+          json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+      except:
+        pass
+
+    st.title("🎯 **Módulo de Props de Jugadores - NFL (Control Total y Directo)**")
+    st.markdown("---")
+
+    if "lista_props_nfl_parlay" not in st.session_state:
+      st.session_state.lista_props_nfl_parlay = cargar_parlay_del_disco()
+
+    @st.cache_data(ttl=3600)
+    def obtener_partidos_nfl_en_vivo_props():
+      try:
+        url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+          data = response.json()
+          eventos = data.get("events", [])
+          partidos_dict = {}
+
+          for evento in eventos:
+            competencia = evento["competitions"][0]
+            competidores = competencia["competitors"]
+
+            local, visitante = "", ""
+            for comp in competidores:
+              if comp["homeAway"] == "home":
+                local = comp["team"]["displayName"]
+              else:
+                visitante = comp["team"]["displayName"]
+
+            fecha_str = evento.get("date", "")[:10]
+            nombre_partido = f"🏈 {fecha_str}: {visitante} @ {local}"
+            partidos_dict[nombre_partido] = {
+                "equipo_local": local,
+                "equipo_visitante": visitante,
+            }
+          return partidos_dict
+      except Exception as e:
+        print(f"Error conectando a la API: {e}")
+
+      return {
+          "🏈 Partido de Respaldo (Cartelera)": {
+              "equipo_local": "Kansas City Chiefs",
+              "equipo_visitante": "San Francisco 49ers",
+          }
+      }
+
+    opciones_partidos_dict = obtener_partidos_nfl_en_vivo_props()
+
+    st.markdown("## 📊 **Configuración de Props por Jugador 🛡️**")
+
+    opciones_partidos = list(opciones_partidos_dict.keys())
+    partido_clave = st.selectbox(
+        "🏈 Selecciona el Encuentro:",
+        opciones_partidos,
+        key="partido_props_nfl_v3",
+    )
+    datos_partido = opciones_partidos_dict[partido_clave]
+
+    col1, col2 = st.columns(2)
+    with col1:
+      jugador_activo = st.text_input(
+          "👤 Nombre y Apellido del Jugador:",
+          value="Patrick Mahomes",
+          key="input_nombre_jugador_v3",
+      )
+
+      mercado_prop = st.selectbox(
+          "📈 Mercado del Prop:",
+          [
+              "Yardas de Pase (Passing Yards)",
+              "Touchdowns de Pase (Passing TDs)",
+              "Yardas por Tierra (Rushing Yards)",
+              "Yardas de Recepción (Receiving Yards)",
+              "Recepciones Atrapadas (Receptions)",
+              "Intentos de Pase",
+              "Intercepciones Lanzadas",
+          ],
+          key="select_mercado_prop_v3",
+      )
+
+      direccion_apuesta = st.radio(
+          "🎰 Dirección del Prop en Playdoit:",
+          ["Más de (Over)", "Menos de (Under)"],
+          key="dir_prop_nfl_v3",
+      )
+
+    with col2:
+      st.write("### 🎰 **Líneas y Cuotas del Casino:**")
+      linea_oficial = st.number_input(
+          "📋 Línea Oficial del Prop (Casino):",
+          min_value=0.5,
+          max_value=450.0,
+          value=245.5,
+          step=0.5,
+          key="lin_o_prop_nfl_v3",
+      )
+      momio_oficial = st.number_input(
+          "🎯 Momio Oficial del Prop:",
+          min_value=-500,
+          max_value=500,
+          value=-110,
+          step=5,
+          key="mom_o_prop_nfl_v3",
+      )
+      st.write("---")
+      ajuste_desplazamiento = st.slider(
+          "📐 Ajuste Fino de Línea (0.5 en 0.5):",
+          min_value=-10.0,
+          max_value=10.0,
+          value=0.0,
+          step=0.5,
+          key="col_manual_prop_nfl_v3",
+      )
+
+    linea_calculada_cruda = linea_oficial + ajuste_desplazamiento
+    linea_ajustada = float(round(linea_calculada_cruda * 2) / 2.0)
+
+    st.markdown("---")
+    st.markdown(
+        f"### 🚨 **PROP CALIBRADO:** `{jugador_activo}` | `{mercado_prop}`:"
+        f" **{direccion_apuesta} {linea_ajustada}**"
+    )
+
+    txt_momio_real = st.text_input(
+        f"🎯 Momio Real Ajustado en Playdoit:",
+        value=f"{momio_oficial:+}",
+        key="mom_txt_prop_nfl_v3",
+    )
+    try:
+      momio_filtrado = txt_momio_real.replace(" ", "")
+      momio_ajustado = (
+          int(momio_filtrado.replace("+", ""))
+          if momio_filtrado.startswith("+")
+          else int(momio_filtrado)
+      )
+    except:
+      momio_ajustado = momio_oficial
+
+    regla_aprobada = True
+    if momio_ajustado < -150:
+      regla_aprobada = False
+      st.error(
+          f"🚨 **RECHAZADO POR REGLA DE ORO:** Momio de `{momio_ajustado}` castiga"
+          " tu bankroll. Debe estar entre -110 y -150."
+      )
+    else:
+      st.success(
+          f"🎯 **PROPUESTA DE AUTORIDAD:** Prop analizado y validado con éxito."
+      )
+
+    st.markdown(
+        "### 🏛️ **REPORTE DE PROBABILIDADES REALES (PLAYER PROPS) - JAVIER"
+        " ALBERTO**"
+    )
+    st.info(
+        "🌪️ **CONDICIONES CLIMÁTICAS & ESTADIO:**\n• Clima óptimo evaluado para el"
+        " desempeño individual del atleta."
+    )
+    st.success(
+        "🛡️ **MATCHUP DEFENSIVO & COBERTURA:**\n• Análisis de debilidad del"
+        " rival frente a esta posición específica."
+    )
+    st.warning(
+        "📈 **VOLUMEN DE TARGETS / SNAPS PROYECTADOS:**\n• Modelo de utilización"
+        " basado en los últimos 3 partidos."
+    )
+    st.error(
+        "⚔️ **EFICIENCIA REAL DE CONVERSIÓN:**\n• Porcentaje de éxito del prop"
+        " estimado arriba del 56.4% bajo métricas sharp."
+    )
+
+    if regla_aprobada and st.button(
+        "🎯 Agregar Prop NFL a mi Parlay",
+        key="btn_add_prop_nfl_v3",
+        use_container_width=True,
+    ):
+      picks_actuales = cargar_parlay_del_disco()
+      identificador_pick = f"{jugador_activo} — {mercado_prop}"
+      if not any(x["equipo"] == identificador_pick for x in picks_actuales):
+        j_str = f"{mercado_prop}: {direccion_apuesta} {linea_ajustada}"
+        picks_actuales.append({
+            "equipo": identificador_pick,
+            "rival": partido_clave,
+            "jugada": j_str,
+            "momio_o": momio_oficial,
+            "momio_a": momio_ajustado,
+        })
+        guardar_parlay_al_disco(picks_actuales)
+        st.session_state.lista_props_nfl_parlay = picks_actuales
+        st.success(f"✅ ¡Prop guardado en tu ticket unificado!")
+        st.rerun()
+
+    ticket_impresion = cargar_parlay_del_disco()
+    if ticket_impresion:
+      if st.button(
+          "🗑️ Limpiar Todo el Ticket de Props",
+          key="btn_clr_prop_nfl_v3",
+          use_container_width=True,
+      ):
+        guardar_parlay_al_disco([])
+        st.session_state.lista_props_nfl_parlay = []
+        st.rerun()
+      st.markdown("## 🚨 **TICKET FINAL DE PROPS RESPALDADO EN DISCO 🛡️**")
+      monto_inversion = st.number_input(
+          "💰 Pesos a apostar (\$):",
+          min_value=10.0,
+          max_value=10000.0,
+          value=250.0,
+          step=50.0,
+          key="monto_inv_prop_nfl_v3",
+      )
+      ticket_lineas = [
+          "=========================================",
+          "🚨 JAVIER PROPS NFL - TICKET INTELIGENCIA REAL 🚨",
+          "=========================================",
+      ]
+      mult_momio = 1.0
+      for idx, item in enumerate(ticket_impresion, 1):
+        rival_txt = item.get("rival", "NFL Partido en Vivo")
+        jugada_txt = item.get("jugada", "Línea Seleccionada")
+        momio_val = item.get("momio_a", -110)
+        ticket_lineas.append(f"🎯 PROP #{idx}: {item['equipo']}")
+        ticket_lineas.append(f"   📋 ENCUENTRO: {rival_txt}")
+        ticket_lineas.append(
+            f"   🎯 LÍNEA: {jugada_txt} | 📉 MOMIO: {momio_val:+}"
+        )
+        ticket_lineas.append("-----------------------------------------")
+        m = momio_val
+        mult_momio *= (
+            ((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0)
+        )
+      ganancia_estimada = monto_inversion * (mult_momio - 1.0)
+      ticket_lineas.append(f"💰 Inversión Fija: \${monto_inversion:.2f} MXN")
+      ticket_lineas.append(
+          f"🔥 Ganancia Real Acumulada Parlay Props: \${ganancia_estimada:.2f} MXN"
+      )
+      ticket_lineas.append("🚨 APOSTAR AQUÍ (PLAYDOIT) 🚨")
+      ticket_lineas.append("=========================================")
+      st.text_area(
+          "📋 Copia directo a tu Bloc de Notas:",
+          value="\n".join(ticket_lineas),
+          height=250,
+          key="textarea_prop_nfl_v3",
+      )
+
+
+# =========================================================
+# MÓDULO 3: NCAA (Robot Universitario & Hándicap)
+# =========================================================
 else:
     st.title("🎓 **Robot Analítico y Hándicap - NCAA (Colegial)**")
     st.markdown(
