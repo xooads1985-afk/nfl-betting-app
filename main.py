@@ -338,7 +338,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL AUTOMÁTICO (MULTIMERCADO EV+)
+# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL AUTOMÁTICO (MEJOR OPCIÓN ÚNICA)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     FICHERO_MEMORIA_SOCCER = "parlay_soccer_auto.json"
@@ -358,8 +358,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 json.dump(lista_picks, f, ensure_ascii=False, indent=4)
         except: pass
 
-    st.title("⚽ **Módulo Global Automático de Fútbol — Multimercado EV+**")
-    st.markdown("--- \n *Escáner cuantitativo multitorneo con mercados de Money Line, Hándicap Asiático y Goles Totales (Over/Under).*")
+    st.title("⚽ **Módulo Global Automático de Fútbol — Máxima Opción EV+**")
+    st.markdown("--- \n *Escáner cuantitativo inteligente que selecciona automáticamente la mejor opción de valor por cada encuentro sin duplicados.*")
 
     if "lista_futbol_parlay" not in st.session_state:
         st.session_state.lista_futbol_parlay = cargar_parlay_soccer_disco()
@@ -373,7 +373,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "Real Madrid", "momio": -115, "prob_modelo": 61.4},
                     {"tipo": "Hándicap Asiático", "seleccion": "Real Madrid (-0.5)", "momio": -105, "prob_modelo": 58.0},
-                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 63.5}
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 65.0}
                 ],
                 "clima": "Noche fresca en Madrid (10 MPH Viento)", "hospital": "Real Madrid: Plantel sano / Bayern: Baja en lateral"
             },
@@ -390,7 +390,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "torneo": "Premier League (Inglaterra)", "local": "Arsenal", "visita": "Manchester City",
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "Arsenal", "momio": +120, "prob_modelo": 52.5},
-                    {"tipo": "Hándicap Asiático", "seleccion": "Arsenal (+0.5 Colchón)", "momio": -135, "prob_modelo": 65.0},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Arsenal (+0.5 Colchón)", "momio": -135, "prob_modelo": 66.0},
                     {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 58.0}
                 ],
                 "clima": "Llovizna ligera en Londres", "hospital": "Arsenal: Sin extremos lesionados"
@@ -400,7 +400,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "FC Barcelona", "momio": -130, "prob_modelo": 60.1},
                     {"tipo": "Hándicap Asiático", "seleccion": "FC Barcelona (-0.5)", "momio": -115, "prob_modelo": 57.5},
-                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 61.0}
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 63.0}
                 ],
                 "clima": "Noche despejada en Barcelona", "hospital": "Atlético: Central titular baja"
             },
@@ -409,7 +409,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "Club América", "momio": -115, "prob_modelo": 58.9},
                     {"tipo": "Hándicap Asiático", "seleccion": "Club América (-0.5)", "momio": +102, "prob_modelo": 54.0},
-                    {"tipo": "Goles Totales", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -120, "prob_modelo": 62.0}
+                    {"tipo": "Goles Totales", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -120, "prob_modelo": 64.0}
                 ],
                 "clima": "Estadio Ciudad de los Deportes (Altitud)", "hospital": "América: Plantel completo"
             },
@@ -418,7 +418,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "Flamengo", "momio": -125, "prob_modelo": 57.5},
                     {"tipo": "Hándicap Asiático", "seleccion": "Flamengo (-0.5)", "momio": -110, "prob_modelo": 56.0},
-                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": +105, "prob_modelo": 53.0}
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": +105, "prob_modelo": 58.0}
                 ],
                 "clima": "Calor húmedo en Maracaná", "hospital": "Palmeiras: Estelar disponible"
             },
@@ -427,7 +427,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 "mercados_disponibles": [
                     {"tipo": "Money Line (Ganador Local)", "seleccion": "Inter Miami", "momio": -140, "prob_modelo": 62.0},
                     {"tipo": "Hándicap Asiático", "seleccion": "Inter Miami (-0.5)", "momio": -120, "prob_modelo": 60.5},
-                    {"tipo": "Goles Totales", "seleccion": "Más de 3.5 Goles (Over)", "momio": +115, "prob_modelo": 55.0}
+                    {"tipo": "Goles Totales", "seleccion": "Más de 3.5 Goles (Over)", "momio": +115, "prob_modelo": 63.0}
                 ],
                 "clima": "Humedad alta en Florida", "hospital": "Galaxy: Lateral lesionado"
             }
@@ -435,7 +435,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
 
     cartelera_multimercado = obtener_cartelera_futbol_multimercado()
 
-    st.markdown("## ⚙️ **Panel de Escaneo y Filtro EV+ (Multimercado)**")
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro de Máximo Valor**")
     col_s1, col_s2 = st.columns(2)
     with col_s1:
         torneos_unicos = ["Todos los Torneos"] + sorted(list(set([p["torneo"] for p in cartelera_multimercado])))
@@ -444,18 +444,23 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
         edge_soccer_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_soccer_multi")
 
     st.markdown("---")
-    st.subheader("⚡ **Oportunidades de Fútbol con Valor Real (EV+) por Mercado**")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Partido (Sin Repeticiones)**")
 
     partidos_a_mostrar = cartelera_multimercado if torneo_sel == "Todos los Torneos" else [p for p in cartelera_multimercado if p["torneo"] == torneo_sel]
 
-    oportunidades_encontradas = []
+    mejores_opciones_por_partido = []
+
     for match in partidos_a_mostrar:
+        mejor_mercado_partido = None
+        mayor_edge_partido = -999.0
+
         for mercado in match["mercados_disponibles"]:
             prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
             edge = mercado["prob_modelo"] - prob_imp
 
-            if edge >= edge_soccer_min:
-                oportunidades_encontradas.append({
+            if edge >= edge_soccer_min and edge > mayor_edge_partido:
+                mayor_edge_partido = edge
+                mejor_mercado_partido = {
                     "torneo": match["torneo"],
                     "encuentro": f"{match['local']} vs {match['visita']}",
                     "tipo_mercado": mercado["tipo"],
@@ -465,13 +470,19 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                     "prob_modelo": mercado["prob_modelo"],
                     "clima": match["clima"],
                     "hospital": match["hospital"]
-                })
+                }
+        
+        if mejor_mercado_partido:
+            mejores_opciones_por_partido.append(mejor_mercado_partido)
 
-    if oportunidades_encontradas:
-        for idx, op in enumerate(oportunidades_encontradas, 1):
+    # Ordenar de mayor a menor Edge general
+    mejores_opciones_por_partido.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_por_partido:
+        for idx, op in enumerate(mejores_opciones_por_partido, 1):
             with st.container():
-                st.success(f"### ⚽ Oportunidad #{idx} [{op['torneo']}]: `{op['encuentro']}` — Edge: `+{op['edge']:.1f}%`")
-                st.write(f"• **Mercado:** `{op['tipo_mercado']}`")
+                st.success(f"### ⚽ Top Opción #{idx} [{op['torneo']}]: `{op['encuentro']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mejor Mercado Detectado:** `{op['tipo_mercado']}`")
                 st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
                 st.write(f"• **Auditoría Sofascore:** 🌪️ {op['clima']} | 🏥 {op['hospital']}")
 
@@ -480,7 +491,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Registrar Opción #{idx} en Ticket Global", key=f"btn_multi_soc_{idx}", use_container_width=True):
+                if st.button(f"📝 Registrar Opción #{idx} en Ticket Global", key=f"btn_unica_soc_{idx}", use_container_width=True):
                     picks_actuales = cargar_parlay_soccer_disco()
                     id_pick = f"{op['encuentro']} — {op['seleccion']}"
                     if not any(x['id'] == id_pick for x in picks_actuales):
@@ -491,24 +502,24 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                             "momio": op['momio']
                         })
                         guardar_parlay_soccer_disco(picks_actuales)
-                        st.success("✅ ¡Selección añadida al ticket multimercado con éxito!")
+                        st.success("✅ ¡Selección añadida al ticket con éxito!")
                         st.rerun()
                     else:
                         st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
                 st.markdown("---")
     else:
-        st.warning(f"⚠️ Ninguna opción supera el filtro de Edge del {edge_soccer_min}% con los parámetros actuales.")
+        st.warning(f"⚠️ Ningún encuentro supera el filtro de Edge del {edge_soccer_min}% con los parámetros actuales.")
 
-    st.markdown("## 📋 **Ticket Unificado Multimercado de Fútbol**")
+    st.markdown("## 📋 **Ticket Unificado de Fútbol (Mejores Opciones)**")
     ticket_soccer = cargar_parlay_soccer_disco()
     if ticket_soccer:
-        if st.button("🗑️ Limpiar Ticket Multimercado", key="clr_soc_multi", use_container_width=True):
+        if st.button("🗑️ Limpiar Ticket de Fútbol", key="clr_soc_unico", use_container_width=True):
             guardar_parlay_soccer_disco([])
             st.rerun()
 
         ticket_lineas = [
             "=========================================",
-            "🚨 TICKET MULTIMERCADO DE FÚTBOL — EV+ 🚨",
+            "🚨 TICKET FÚTBOL (MEJORES OPCIONES EV+) 🚨",
             "========================================="
         ]
         mult_soc = 1.0
@@ -524,9 +535,9 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
         ticket_lineas.append(f"🔥 Ganancia Estimada Parlay: ${ganancia_parlay_soc:.2f} MXN")
         ticket_lineas.append("=========================================")
 
-        st.text_area("Copia tu ticket multimercado listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_multi_soc_fin")
+        st.text_area("Copia tu ticket listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_unico_soc_fin")
     else:
-        st.info("Aún no tienes selecciones de fútbol añadidas a tu ticket multimercado.")
+        st.info("Aún no tienes selecciones de fútbol añadidas a tu ticket.")
 
 
 # =========================================================
