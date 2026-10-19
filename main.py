@@ -302,89 +302,55 @@ elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modu
 
 
 # =========================================================
-# 11. Béisbol Internacional (MLB & Caribe — Conectores por Liga)
+# 11. Béisbol Internacional (MLB & Caribe — Entrada Manual Interactiva)
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB & Caribe)":
     st.title(f"⚾ **Béisbol Internacional & Caribe ({fecha_formato_str})**")
-    st.markdown("--- \n *Escáner cuantitativo sincronizado con las carteleras de la MLB y Ligas Invernales del Caribe.*")
+    st.markdown("--- \n *Módulo con Ingreso Manual de Partidos: Introduce los datos reales de tu app de resultados para calcular el Edge exacto.*")
 
     liga_caribe = st.selectbox(
         "🌴 Selecciona la Liga del Caribe / Internacional:",
         [
+            "Serie Nacional de Cuba (Cuba)",
             "Liga Venezolana de Béisbol Profesional (LVBP)",
             "LIDOM (República Dominicana)",
-            "Serie Nacional de Cuba (Cuba)",
             "Liga Mexicana del Pacífico (LMP)",
             "LBPRC (Puerto Rico)",
             "Major League Baseball (MLB - USA)"
         ]
     )
 
-    @st.cache_data(ttl=300)
-    def obtener_cartelera_beisbol_inteligente(fecha_api_str, liga_seleccionada):
-        if "Venezolana" in liga_seleccionada or "LVBP" in liga_seleccionada:
-            return [
-                {"partido_str": "⚾ Leones del Caracas @ Navegantes del Magallanes", "seleccion": "Navegantes del Magallanes (-1.5)", "momio": +140, "prob_modelo": 52.5},
-                {"partido_str": "⚾ Tiburones de La Guaira @ Cardenales de Lara", "seleccion": "Cardenales de Lara (-1.5)", "momio": +135, "prob_modelo": 53.0},
-                {"partido_str": "⚾ Bravos de Margarita @ Tigres de Aragua", "seleccion": "Bravos de Margarita (-1.5)", "momio": +145, "prob_modelo": 51.5},
-                {"partido_str": "⚾ Caribes de Anzoátegui @ Águilas del Zulia", "seleccion": "Águilas del Zulia (-1.5)", "momio": +130, "prob_modelo": 54.0}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-        elif "Dominicana" in liga_seleccionada or "LIDOM" in liga_seleccionada:
-            return [
-                {"partido_str": "⚾ Tigres del Licey @ Leones del Escogido", "seleccion": "Tigres del Licey (-1.5)", "momio": +135, "prob_modelo": 53.2},
-                {"partido_str": "⚾ Águilas Cibaeñas @ Gigantes del Cibao", "seleccion": "Gigantes del Cibao (-1.5)", "momio": +140, "prob_modelo": 52.0},
-                {"partido_str": "⚾ Estrellas Orientales @ Toros del Este", "seleccion": "Estrellas Orientales (-1.5)", "momio": +130, "prob_modelo": 54.5}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-        elif "Cuba" in liga_seleccionada:
-            return [
-                {"partido_str": "⚾ Mayabeque @ Villa Clara", "seleccion": "Villa Clara (-1.5)", "momio": +135, "prob_modelo": 53.5},
-                {"partido_str": "⚾ Matanzas @ Cienfuegos", "seleccion": "Matanzas (-1.5)", "momio": +130, "prob_modelo": 54.0},
-                {"partido_str": "⚾ Avispas de Santiago... @ Guantánamo", "seleccion": "Avispas de Santiago (-1.5)", "momio": +125, "prob_modelo": 55.2},
-                {"partido_str": "⚾ Cachorros de Holguin @ Granma", "seleccion": "Granma (-1.5)", "momio": +140, "prob_modelo": 52.8},
-                {"partido_str": "⚾ Las Tunas @ Tigres de Ciego d...", "seleccion": "Las Tunas (-1.5)", "momio": +135, "prob_modelo": 53.0},
-                {"partido_str": "⚾ Industriales @ Vegueros de Pina...", "seleccion": "Industriales (-1.5)", "momio": +130, "prob_modelo": 54.5}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-        elif "Mexicana" in liga_seleccionada or "LMP" in liga_seleccionada:
-            return [
-                {"partido_str": "⚾ Naranjeros de Hermosillo @ Cañeros de Los Mochis", "seleccion": "Naranjeros (-1.5)", "momio": +130, "prob_modelo": 54.0},
-                {"partido_str": "⚾ Yaquis de Obregón @ Tomateros de Culiacán", "seleccion": "Tomateros (-1.5)", "momio": +135, "prob_modelo": 53.5}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-        elif "Puerto Rico" in liga_seleccionada or "LBPRC" in liga_seleccionada:
-            return [
-                {"partido_str": "⚾ Indios de Mayagüez @ Criollos de Caguas", "seleccion": "Criollos de Caguas (-1.5)", "momio": +145, "prob_modelo": 51.0},
-                {"partido_str": "⚾ Cangrejeros de Santurce @ Gigantes de Carolina", "seleccion": "Cangrejeros de Santurce (-1.5)", "momio": +135, "prob_modelo": 52.5}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-        else:
-            return [
-                {"partido_str": "⚾ New York Yankees @ Los Angeles Dodgers (MLB)", "seleccion": "Los Angeles Dodgers (-1.5)", "momio": +125, "prob_modelo": 54.0}
-            ], f"📅 Cartelera oficial sincronizada para {liga_seleccionada} ({fecha_formato_str}):"
-
-    partidos_beisbol, mensaje_estado = obtener_cartelera_beisbol_inteligente(fecha_formato_api, liga_caribe)
-
-    st.info(mensaje_estado)
     st.markdown("---")
+    st.markdown("### ✍️ Ingresa el Partido del Día")
+
+    col_i1, col_i2 = st.columns(2)
+    with col_i1:
+        equipo_visitante = st.text_input("⚾ Equipo Visitante:", value="Mayabeque")
+        equipo_local = st.text_input("⚾ Equipo Local:", value="Villa Clara")
+    with col_i2:
+        seleccion_apuesta = st.text_input("🎯 Selección con Run Line (ej. Villa Clara -1.5):", value="Villa Clara (-1.5)")
+        momio_ingresado = st.number_input("📈 Momio Americano Oficial (ej. +135):", value=135, step=5)
+        prob_modelo_ingresada = st.slider("🤖 Probabilidad Estimada de tu Modelo (%):", 40.0, 80.0, 53.5, 0.5)
 
     col_b1, col_b2 = st.columns(2)
     with col_b1: bankroll_caribe = st.number_input("💵 Bankroll Béisbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_caribe")
-    with col_b2: edge_min_caribe = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_caribe")
+    with col_b2: edge_min_caribe = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 2.5, 0.5, key="edge_caribe")
 
     st.markdown("---")
+    st.subheader("📊 Resultado del Análisis Cuantitativo")
 
-    for idx, p in enumerate(partidos_beisbol, 1):
-        prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
-        edge = p["prob_modelo"] - prob_imp
+    prob_imp = momio_a_probabilidad_implicita(momio_ingresado) * 100.0
+    edge = prob_modelo_ingresada - prob_imp
 
-        if edge >= edge_min_caribe:
-            st.success(f"### ⚾ Partido Run Line #{idx}: `{p['partido_str']}` — Edge: `+{edge:.1f}%`")
-            st.write(f"• **Selección Recomendada:** `{p['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Probabilidad del Modelo: `{p['prob_modelo']}%`")
-            st.success("🎯 Regla de Oro Aprobada (Excelente valor en Run Line)")
-            st.markdown("---")
+    st.info(f"📅 Analizando partido en **{liga_caribe}** para el **{fecha_formato_str}**: `{equipo_visitante} @ {equipo_local}`")
+
+    if edge >= edge_min_caribe:
+        st.success(f"### 🟢 ¡OPORTUNIDAD EV+ DETECTADA! — Edge: `+{edge:.1f}%`")
+        st.write(f"• **Selección Recomendada:** `{seleccion_apuesta}`")
+        st.write(f"• **Momio Oficial:** `{momio_ingresado:+}` | Probabilidad Implica: `{prob_imp:.1f}%` | Modelo: `{prob_modelo_ingresada}%`")
+        st.success("🎯 **Regla de Oro Aprobada:** Excelente valor matemático en Run Line.")
+    else:
+        st.warning(f"⚠️ El Edge actual es de `+{edge:.1f}%`, lo cual está por debajo de tu mínimo requerido ({edge_min_caribe}%). No se recomienda la apuesta.")
 
 
 # =========================================================
