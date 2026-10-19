@@ -12,6 +12,16 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
+# FUNCIÓN GLOBAL AUXILIAR (Accesible por todos los módulos)
+# ---------------------------------------------------------
+def momio_a_probabilidad_implicita(momio):
+  if momio > 0:
+    return 100.0 / (momio + 100.0)
+  else:
+    return abs(momio) / (abs(momio) + 100.0)
+
+
+# ---------------------------------------------------------
 # SELECTOR DE MÓDULO (Barra Lateral Global)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú del Sistema Pro")
@@ -51,12 +61,6 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Partidos)":
           json.dump(lista_picks, f, ensure_ascii=False, indent=4)
       except:
         pass
-
-    def momio_a_probabilidad_implicita(momio):
-      if momio > 0:
-        return 100.0 / (momio + 100.0)
-      else:
-        return abs(momio) / (abs(momio) + 100.0)
 
     st.title("🛡️ **Sistema Cuantitativo Pro NFL (Filtro de Precisión EV+)**")
     st.markdown(
@@ -281,7 +285,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Partidos)":
       st.warning(
           f"⚠️ Ningún partido supera el filtro estricto de Edge ({edge_minimo}%)"
           " con la calibración actual. Mueve la barra hacia abajo si deseas ver"
-          " more opciones."
+          " más opciones."
       )
 
     st.markdown("## 📈 **Historial de Inversiones Registradas**")
@@ -329,7 +333,6 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     st.title("🎯 **Módulo Automático de Props - NFL (Filtro EV+ y Modelado)**")
     st.markdown("--- \n *Escáner inteligente de actuaciones individuales basado en promedios de utilización y matchups defensivos.*")
 
-    # Base de datos simulada de jugadores estrella y líneas de referencia automáticas de la semana
     PROPS_BASE_AUTOMATICOS = [
         {"partido": "Kansas City Chiefs @ San Francisco 49ers", "jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "linea": 245.5, "momio": -115, "prob_modelo": 64.2, "matchup": "Defensa secundaria vulnerable por el centro"},
         {"partido": "Kansas City Chiefs @ San Francisco 49ers", "jugador": "Travis Kelce", "mercado": "Recepciones (Over 5.5)", "linea": 5.5, "momio": -110, "prob_modelo": 61.5, "matchup": "Alto volumen de targets en zona roja"},
@@ -384,7 +387,6 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     else:
       st.warning(f"⚠️ Ningún prop automático supera el filtro de Edge del {edge_prop_min}%. Baja el slider si deseas ver más opciones.")
 
-    # --- TICKET AUTOMÁTICO DE PROPS ---
     st.markdown("## 📋 **Ticket Unificado de Props Automáticos**")
     ticket_guardado = cargar_props_auto()
 
