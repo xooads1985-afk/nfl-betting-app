@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - NFL, NBA, NCAA & Soccer",
+    page_title="Central de Apuestas Pro - Master Suite 8 Deportes",
     page_icon="🛡️",
     layout="wide"
 )
@@ -31,9 +31,11 @@ modulo_seleccionado = st.sidebar.radio(
         "🛡️ Sistema Cuantitativo Pro NFL (Partidos)",
         "🎯 Módulo Automático de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (En Vivo)",
-        "🔥 Módulo Automático de Props NBA (NUEVO)",
+        "🔥 Módulo Automático de Props NBA",
         "⚽ Módulo Global de Fútbol (Soccer Automático)",
-        "🎓 NCAA (Robot Universitario & Hándicap)"
+        "🎓 NCAA (Robot Universitario & Hándicap)",
+        "🥊 Sistema Cuantitativo Pro UFC (Combates)",
+        "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)"
     ]
 )
 
@@ -543,9 +545,9 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (En Vivo)":
 
 
 # =========================================================
-# MÓDULO 4: MÓDULO AUTOMÁTICO DE PROPS NBA (NUEVO)
+# MÓDULO 4: MÓDULO AUTOMÁTICO DE PROPS NBA
 # =========================================================
-elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA (NUEVO)":
+elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
     FICHERO_PROPS_NBA = "parlay_props_nba.json"
 
     def cargar_props_nba():
@@ -611,7 +613,7 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA (NUEVO)":
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Guardar Prop NBA #{idx} en Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
+                if st.button(f"📝 Guardar Prop NBA #{idx} in Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
                     lista_actual = cargar_props_nba()
                     identificador = f"{p['jugador']} — {p['mercado']}"
                     if not any(x["id"] == identificador for x in lista_actual):
@@ -866,7 +868,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
 # =========================================================
 # MÓDULO 6: NCAA (Robot Universitario & Hándicap)
 # =========================================================
-else:
+elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title("🎓 **Robot Analítico y Hándicap - NCAA (Colegial)**")
     st.markdown("--- \n *Módulo automatizado especializado en el escaneo de partidos universitarios y cobertura de hándicap (Spread).* ")
 
@@ -899,3 +901,310 @@ else:
       st.json(datos_ncaa)
     else:
       st.info("El robot universitario está activo. Los mejores picks y partidos detectados con alta probabilidad de hándicap aparecerán aquí.")
+
+
+# =========================================================
+# MÓDULO 7: SISTEMA CUANTITATIVO PRO UFC (Combates)
+# =========================================================
+elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
+    FICHERO_UFC = "parlay_ufc.json"
+
+    def cargar_ufc_disco():
+        if os.path.exists(FICHERO_UFC):
+            try:
+                with open(FICHERO_UFC, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                    if isinstance(datos, list): return datos
+            except: pass
+        return []
+
+    def guardar_ufc_disco(lista_picks):
+        try:
+            with open(FICHERO_UFC, "w", encoding="utf-8") as f:
+                json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+        except: pass
+
+    st.title("🥊 **Sistema Cuantitativo Pro UFC — Cartelera & EV+**")
+    st.markdown("--- \n *Escáner cuantitativo para eventos de Artes Marciales Mixtas con análisis de estilos, alcance, wrestling y método de victoria (Sin Duplicados).*")
+
+    if "lista_ufc_parlay" not in st.session_state:
+        st.session_state.lista_ufc_parlay = cargar_ufc_disco()
+
+    CARTELERA_UFC = [
+        {
+            "evento": "UFC Fight Night: Estelar", "peleador_a": "Islam Makhachev", "peleador_b": "Arman Tsarukyan",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Combate (Money Line)", "seleccion": "Islam Makhachev", "momio": -130, "prob_modelo": 62.0},
+                {"tipo": "Método de Victoria", "seleccion": "Islam Makhachev por Sumisión o Decisión", "momio": -120, "prob_modelo": 60.5},
+                {"tipo": "Duración del Combate", "seleccion": "Más de 2.5 Asaltos (Over)", "momio": -115, "prob_modelo": 59.0}
+            ],
+            "analisis_estilos": "Control de piso superior y defensa de derribos de élite"
+        },
+        {
+            "evento": "UFC Pay-Per-View: Co-Estelar", "peleador_a": "Alex Pereira", "peleador_b": "Magomed Ankalaev",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Combate (Money Line)", "seleccion": "Alex Pereira", "momio": +115, "prob_modelo": 55.0},
+                {"tipo": "Método de Victoria", "seleccion": "Alex Pereira por KO / TKO (གas)", "momio": -110, "prob_modelo": 58.0},
+                {"tipo": "Duración del Combate", "seleccion": "Menos de 2.5 Asaltos (Under)", "momio": -115, "prob_modelo": 57.5}
+            ],
+            "analisis_estilos": "Poder de nocaut fulminante en los primeros asaltos de pie"
+        },
+        {
+            "evento": "UFC Fight Night: Peso Welter", "peleador_a": "Shavkat Rakhmonov", "peleador_b": "Kamaru Usman",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Combate (Money Line)", "seleccion": "Shavkat Rakhmonov", "momio": -125, "prob_modelo": 59.0},
+                {"tipo": "Método de Victoria", "seleccion": "Shavkat Rakhmonov por Finalización", "momio": +105, "prob_modelo": 54.0},
+                {"tipo": "Duración del Combate", "seleccion": "Más de 1.5 Asaltos (Over)", "momio": -130, "prob_modelo": 62.0}
+            ],
+            "analisis_estilos": "Imparable ritmo de finalización en sumisiones y striking técnico"
+        }
+    ]
+
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro UFC (EV+)**")
+    col_u1, col_u2 = st.columns(2)
+    with col_u1:
+        bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_ufc")
+    with col_u2:
+        edge_ufc_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_ufc")
+
+    st.markdown("---")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Combate UFC (Sin Duplicados)**")
+
+    mejores_opciones_ufc = []
+    for match in CARTELERA_UFC:
+        mejor_mercado = None
+        mayor_edge = -999.0
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
+            if edge >= edge_ufc_min and edge > mayor_edge:
+                mayor_edge = edge
+                mejor_mercado = {
+                    "evento": match["evento"],
+                    "pelea": f"{match['peleador_a']} vs {match['peleador_b']}",
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "estilos": match["analisis_estilos"]
+                }
+        if mejor_mercado:
+            mejores_opciones_ufc.append(mejor_mercado)
+
+    mejores_opciones_ufc.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_ufc:
+        for idx, op in enumerate(mejores_opciones_ufc, 1):
+            with st.container():
+                st.success(f"### 🥊 Top Opción UFC #{idx} [{op['evento']}]: `{op['pelea']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mejor Mercado Detectado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
+                st.write(f"• **Auditoría de Estilos:** 🥋 {op['estilos']}")
+
+                if op['momio'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Opción UFC #{idx} en Ticket", key=f"btn_ufc_{idx}", use_container_width=True):
+                    picks_actuales = cargar_ufc_disco()
+                    id_pick = f"{op['pelea']} — {op['seleccion']}"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "pelea": op['pelea'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
+                        })
+                        guardar_ufc_disco(picks_actuales)
+                        st.success("✅ ¡Selección añadida al ticket UFC con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ningún combate UFC supera el filtro de Edge del {edge_ufc_min}% con los parámetros actuales.")
+
+    st.markdown("## 📋 **Ticket Unificado de la UFC**")
+    ticket_ufc = cargar_ufc_disco()
+    if ticket_ufc:
+        if st.button("🗑️ Limpiar Ticket de la UFC", key="clr_ufc_ticket", use_container_width=True):
+            guardar_ufc_disco([])
+            st.rerun()
+
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET OFICIAL UFC — EV+ 🚨",
+            "========================================="
+        ]
+        mult_ufc = 1.0
+        for idx, item in enumerate(ticket_ufc, 1):
+            ticket_lineas.append(f"🥊 PICK #{idx}: {item['pelea']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append("-----------------------------------------")
+            m = item['momio']
+            mult_ufc *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_ufc = 250.0 * (mult_ufc - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay UFC: ${ganancia_parlay_ufc:.2f} MXN")
+        ticket_lineas.append("=========================================")
+
+        st.text_area("Copia tu ticket UFC listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_ufc_fin")
+    else:
+        st.info("Aún no tienes selecciones de la UFC añadidas a tu ticket.")
+
+
+# =========================================================
+# MÓDULO 8: SISTEMA CUANTITATIVO PRO TENIS (ATP / WTA)
+# =========================================================
+else:
+    FICHERO_TENIS = "parlay_tenis.json"
+
+    def cargar_tenis_disco():
+        if os.path.exists(FICHERO_TENIS):
+            try:
+                with open(FICHERO_TENIS, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                    if isinstance(datos, list): return datos
+            except: pass
+        return []
+
+    def guardar_tenis_disco(lista_picks):
+        try:
+            with open(FICHERO_TENIS, "w", encoding="utf-8") as f:
+                json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+        except: pass
+
+    st.title("🎾 **Sistema Cuantitativo Pro Tenis (ATP / WTA)**")
+    st.markdown("--- \n *Escáner cuantitativo especializado en circuitos profesionales con análisis de superficie (Arcilla, Dura, Hierba), fatiga y hándicap de juegos.*")
+
+    if "lista_tenis_parlay" not in st.session_state:
+        st.session_state.lista_tenis_parlay = cargar_tenis_disco()
+
+    CARTELERA_TENIS = [
+        {
+            "torneo": "ATP Masters 1000", "jugador_a": "Jannik Sinner", "jugador_b": "Carlos Alcaraz", "superficie": "Dura (Hard Court)",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Partido (Money Line)", "seleccion": "Jannik Sinner", "momio": -120, "prob_modelo": 60.5},
+                {"tipo": "Hándicap de Juegos", "seleccion": "Jannik Sinner (-2.5 Juegos)", "momio": -110, "prob_modelo": 57.5},
+                {"tipo": "Total de Juegos (Over/Under)", "seleccion": "Más de 22.5 Juegos (Over)", "momio": -115, "prob_modelo": 63.0}
+            ],
+            "fatiga": "Ambos tenistas con descanso óptimo y alta efectividad al saque"
+        },
+        {
+            "torneo": "WTA 1000 - Estelar", "jugador_a": "Aryna Sabalenka", "jugador_b": "Iga Swiatek", "superficie": "Arcilla (Clay Court)",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Partido (Money Line)", "seleccion": "Iga Swiatek", "momio": -130, "prob_modelo": 61.0},
+                {"tipo": "Hándicap de Juegos", "seleccion": "Iga Swiatek (-3.5 Juegos)", "momio": -110, "prob_modelo": 58.0},
+                {"tipo": "Total de Juegos (Over/Under)", "seleccion": "Menos de 21.5 Juegos (Under)", "momio": -110, "prob_modelo": 59.5}
+            ],
+            "fatiga": "Dominio histórico de Swiatek en intercambios largos sobre arcilla"
+        },
+        {
+            "torneo": "ATP 500", "jugador_a": "Alexander Zverev", "jugador_b": "Daniil Medvedev", "superficie": "Dura Bajo Techo (Indoor Hard)",
+            "mercados_disponibles": [
+                {"tipo": "Ganador del Partido (Money Line)", "seleccion": "Daniil Medvedev", "momio": +105, "prob_modelo": 56.0},
+                {"tipo": "Hándicap de Juegos", "seleccion": "Daniil Medvedev (+1.5 Juegos)", "momio": -115, "prob_modelo": 60.0},
+                {"tipo": "Total de Juegos (Over/Under)", "seleccion": "Más de 23.5 Juegos (Over)", "momio": -105, "prob_modelo": 58.5}
+            ],
+            "fatiga": "Encuentro de máxima paridad con tendencia a tres sets disputados"
+        }
+    ]
+
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro Tenis (EV+)**")
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_tenis")
+    with col_t2:
+        edge_tenis_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_tenis")
+
+    st.markdown("---")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Partido Tenis (Sin Duplicados)**")
+
+    mejores_opciones_tenis = []
+    for match in CARTELERA_TENIS:
+        mejor_mercado = None
+        mayor_edge = -999.0
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
+            if edge >= edge_tenis_min and edge > mayor_edge:
+                mayor_edge = edge
+                mejor_mercado = {
+                    "torneo": match["torneo"],
+                    "partido": f"{match['jugador_a']} vs {match['jugador_b']}",
+                    "superficie": match["superficie"],
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "fatiga": match["fatiga"]
+                }
+        if mejor_mercado:
+            mejores_opciones_tenis.append(mejor_mercado)
+
+    mejores_opciones_tenis.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_tenis:
+        for idx, op in enumerate(mejores_opciones_tenis, 1):
+            with st.container():
+                st.success(f"### 🎾 Top Opción Tenis #{idx} [{op['torneo']}]: `{op['partido']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Superficie:** `{op['superficie']}` | **Mejor Mercado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
+                st.write(f"• **Auditoría Física:** ⏱️ {op['fatiga']}")
+
+                if op['momio'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Opción Tenis #{idx} en Ticket", key=f"btn_tenis_{idx}", use_container_width=True):
+                    picks_actuales = cargar_tenis_disco()
+                    id_pick = f"{op['partido']} — {op['seleccion']}"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "partido": op['partido'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
+                        })
+                        guardar_tenis_disco(picks_actuales)
+                        st.success("✅ ¡Selección añadida al ticket de Tenis con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ningún partido de Tenis supera el filtro de Edge del {edge_tenis_min}% con los parámetros actuales.")
+
+    st.markdown("## 📋 **Ticket Unificado de Tenis**")
+    ticket_tenis = cargar_tenis_disco()
+    if ticket_tenis:
+        if st.button("🗑️ Limpiar Ticket de Tenis", key="clr_tenis_ticket", use_container_width=True):
+            guardar_tenis_disco([])
+            st.rerun()
+
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET OFICIAL TENIS — EV+ 🚨",
+            "========================================="
+        ]
+        mult_tenis = 1.0
+        for idx, item in enumerate(ticket_tenis, 1):
+            ticket_lineas.append(f"🎾 PICK #{idx}: {item['partido']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append("-----------------------------------------")
+            m = item['momio']
+            mult_tenis *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_tenis = 250.0 * (mult_tenis - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay Tenis: ${ganancia_parlay_tenis:.2f} MXN")
+        ticket_lineas.append("=========================================")
+
+        st.text_area("Copia tu ticket de Tenis listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_tenis_fin")
+    else:
+        st.info("Aún no tienes selecciones de Tenis añadidas a tu ticket.")
