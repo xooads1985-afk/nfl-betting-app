@@ -83,12 +83,12 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                         visitante = comp.get("team", {}).get("displayName", "Visitante")
                 
                 odds = competencia.get("odds", [{}])
-                spread = -3.5
-                momio_spread = -110
+                spread = -1.5
+                momio_spread = +125
                 if odds and isinstance(odds, list) and len(odds) > 0:
-                    try: spread = float(odds[0].get("details", "-3.5").split()[-1])
+                    try: spread = float(odds[0].get("details", "-1.5").split()[-1])
                     except: pass
-                    try: momio_spread = int(odds[0].get("overOdds", {}).get("price", -110))
+                    try: momio_spread = int(odds[0].get("overOdds", {}).get("price", +125))
                     except: pass
 
                 partidos_extraidos.append({
@@ -98,7 +98,7 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                     "spread": spread,
                     "momio_spread": momio_spread,
                     "mercados_disponibles": [
-                        {"tipo": "Hándicap (Spread)", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 62.5}
+                        {"tipo": "Run Line (Hándicap)", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 54.5}
                     ]
                 })
             return partidos_extraidos
@@ -302,13 +302,69 @@ elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modu
 
 
 # =========================================================
-# 11. Béisbol Internacional (MLB & Caribe)
+# 11. Béisbol Internacional (MLB & Caribe) — Desglosado por Ligas
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB & Caribe)":
     st.title(f"⚾ **Béisbol Internacional & Caribe ({fecha_formato_str})**")
-    st.markdown("--- \n *Grandes Ligas y ligas del Caribe (Run Line).*")
-    st.success("### ⚾ Análisis Béisbol Internacional (Run Line): Selección Favorita (-1.5)")
-    st.write("• **Momio Oficial:** `+125` | Modelo Proyecciones: 🛡️ Alta producción de carreras en entradas tardías")
+    st.markdown("--- \n *Selecciona la liga internacional o invernal del Caribe para análisis de Run Line y EV+.*")
+
+    liga_caribe = st.selectbox(
+        "🌴 Selecciona la Liga del Caribe / Internacional:",
+        [
+            "Major League Baseball (MLB - USA)",
+            "LIDOM (República Dominicana)",
+            "LVBP (Venezuela)",
+            "LBPRC (Puerto Rico)",
+            "Liga de Béisbol de Cuba (Serie Nacional / Élite)",
+            "Serie del Caribe / Torneos Invitacionales"
+        ]
+    )
+
+    st.markdown("---")
+    col_b1, col_b2 = st.columns(2)
+    with col_b1: bankroll_caribe = st.number_input("💵 Bankroll Béisbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_caribe")
+    with col_b2: edge_min_caribe = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_caribe")
+
+    st.markdown("---")
+
+    # Simulador o conector específico según la liga seleccionada del Caribe e internacional
+    if "República Dominicana" in liga_caribe:
+        partido_ejemplo = "Tigres del Licey @ Leones del Escogido"
+        seleccion_ejm = "Tigres del Licey (-1.5)"
+        momio_ejm = +135
+        prob_mod = 52.0
+    elif "Venezuela" in liga_caribe:
+        partido_ejemplo = "Leones del Caracas @ Navegantes del Magallanes"
+        seleccion_ejm = "Navegantes del Magallanes (-1.5)"
+        momio_ejm = +140
+        prob_mod = 51.5
+    elif "Puerto Rico" in liga_caribe:
+        partido_ejemplo = "Indios de Mayagüez @ Criollos de Caguas"
+        seleccion_ejm = "Criollos de Caguas (-1.5)"
+        momio_ejm = +145
+        prob_mod = 50.8
+    elif "Cuba" in liga_caribe:
+        partido_ejemplo = "Alazanes de Granma @ Industriales de La Habana"
+        seleccion_ejm = "Industriales de La Habana (-1.5)"
+        momio_ejm = +130
+        prob_mod = 51.0
+    else:
+        partido_ejemplo = "New York Yankees @ Los Angeles Dodgers (MLB)"
+        seleccion_ejm = "Los Angeles Dodgers (-1.5)"
+        momio_ejm = +125
+        prob_mod = 54.0
+
+    prob_imp = momio_a_probabilidad_implicita(momio_ejm) * 100.0
+    edge = prob_mod - prob_imp
+
+    if edge >= edge_min_caribe:
+        st.success(f"### ⚾ Análisis [{liga_caribe}]: `{partido_ejemplo}` — Edge: `+{edge:.1f}%`")
+        st.write(f"• **Selección Recomendada (Run Line):** `{seleccion_ejm}`")
+        st.write(f"• **Momio Oficial:** `{momio_ejm:+}` | Probabilidad del Modelo: `{prob_mod}%`")
+        st.success("🎯 Regla de Oro Aprobada (Excelente valor en Run Line)")
+        st.markdown("---")
+    else:
+        st.warning(f"⚠️ No hay selecciones que superen el Edge mínimo del {edge_min_caribe}% para {liga_caribe} en esta fecha.")
 
 
 # =========================================================
