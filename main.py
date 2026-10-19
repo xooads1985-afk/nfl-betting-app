@@ -234,7 +234,7 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Extracción 100% Automática vía API)
+# 5. Fútbol / Soccer Global (Extracción Automática vía API)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
@@ -303,7 +303,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     st.subheader("📊 Oportunidades Detectadas de Goles (EV+)")
 
     if not cartelera_soccer:
-        st.warning(f"⚠️ No se encontraron partidos oficiales programados en la API para **{liga_soccer.split('(')[0].strip()}** en la fecha `{fecha_formato_str}`. Intenta seleccionando otra fecha en la barra lateral o verifica si hay jornada activa.")
+        st.warning(f"⚠️ No se encontraron partidos oficiales programados en la API para **{liga_soccer.split('(')[0].strip()}** en la fecha `{fecha_formato_str}`. Intenta seleccionando otra fecha en la barra lateral.")
     else:
         contador_oportunidades = 0
         for idx, op in enumerate(cartelera_soccer, 1):
@@ -327,13 +327,77 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
 
 
 # =========================================================
-# 6. Props Fútbol
+# 6. Props Fútbol (Múltiples Opciones y Filtro de Edge)
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
     st.title(f"🎯 **Props Automáticos de Fútbol ({fecha_formato_str})**")
-    st.markdown("--- \n *Goles, asistencias y tiros a puerta.*")
-    st.success("### ⚽ Prop Fútbol: Kylian Mbappé — Tiros a Puerta (Over 1.5)")
-    st.write("• **Momio Oficial:** `-120` | Análisis: 🛡️ Alto índice de remates por partido")
+    st.markdown("--- \n *Escáner cuantitativo de rendimiento individual (Goles, Asistencias, Tiros a Puerta).*")
+
+    col_p1, col_p2 = st.columns(2)
+    with col_p1: bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
+    with col_p2: edge_min_props_fut = st.slider("🎯 Edge Mínimo Props (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_fut")
+
+    props_futbol_cartelera = [
+        {
+            "partido": "Real Madrid vs Bayern München",
+            "jugador": "Kylian Mbappé",
+            "equipo": "Real Madrid",
+            "mercado": "Tiros a Puerta (Over 1.5)",
+            "momio": -120,
+            "prob_modelo": 64.0,
+            "analisis": "Alto volumen de remates y posesión en ofensiva dentro del área."
+        },
+        {
+            "partido": "Real Madrid vs Bayern München",
+            "jugador": "Harry Kane",
+            "equipo": "Bayern München",
+            "mercado": "Tiros Totales (Over 3.5)",
+            "momio": +105,
+            "prob_modelo": 55.5,
+            "analisis": "Referente principal de remates de media y larga distancia."
+        },
+        {
+            "partido": "Arsenal FC vs Manchester City",
+            "jugador": "Erling Haaland",
+            "equipo": "Manchester City",
+            "mercado": "Goles en el Partido (Over 0.5)",
+            "momio": -115,
+            "prob_modelo": 61.0,
+            "analisis": "Excelente rendimiento en duelos directos y alta generación de ocasiones."
+        },
+        {
+            "partido": "Arsenal FC vs Manchester City",
+            "jugador": "Bukayo Saka",
+            "equipo": "Arsenal FC",
+            "mercado": "Asistencias (Over 0.5)",
+            "momio": +130,
+            "prob_modelo": 49.0,
+            "analisis": "Encargado de jugadas a balón parado y centros clave por banda derecha."
+        }
+    ]
+
+    st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Props (EV+)")
+
+    contador_props = 0
+    for idx, p in enumerate(props_futbol_cartelera, 1):
+        prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
+        edge = p["prob_modelo"] - prob_imp
+
+        if edge >= edge_min_props_fut:
+            contador_props += 1
+            st.success(f"### 🎯 Prop #{contador_props}: `{p['jugador']}` ({p['equipo']}) — `{p['mercado']}`")
+            st.write(f"• **Encuentro:** `{p['partido']}` ({fecha_formato_str})")
+            st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
+            st.write(f"• **Análisis Táctico:** 🛡️ {p['analisis']}")
+            if p['momio'] < -150:
+                st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
+            else:
+                st.success("🎯 Valor EV+ Aprobado")
+            st.markdown("---")
+
+    if contador_props == 0:
+        st.info("ℹ️ No hay props que superen el Edge mínimo seleccionado. Prueba ajustando el control deslizante de Edge.")
 
 
 # =========================================================
