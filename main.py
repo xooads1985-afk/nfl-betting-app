@@ -973,7 +973,6 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
         except Exception as e:
             print(f"Error API UFC: {e}")
 
-        # Respaldo en caso de periodo entre eventos
         return [
             {
                 "evento": "UFC Fight Night: Estelar", "peleador_a": "Islam Makhachev", "peleador_b": "Arman Tsarukyan",
@@ -1044,7 +1043,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Registrar Opción UFC #{idx} en Ticket", key=f"btn_ufc_{idx}", use_container_width=True):
+                if st.button(f"📝 Registrar Opción UFC #{idx} in Ticket", key=f"btn_ufc_{idx}", use_container_width=True):
                     picks_actuales = cargar_ufc_disco()
                     id_pick = f"{op['pelea']} — {op['seleccion']}"
                     if not any(x['id'] == id_pick for x in picks_actuales):
@@ -1134,17 +1133,4 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
             "torneo": "WTA 1000 - Estelar", "jugador_a": "Aryna Sabalenka", "jugador_b": "Iga Swiatek", "superficie": "Arcilla (Clay Court)",
             "mercados_disponibles": [
                 {"tipo": "Ganador del Partido (Money Line)", "seleccion": "Iga Swiatek", "momio": -130, "prob_modelo": 61.0},
-                {"tipo": "Hándicap de Juegos", "seleccion": "Iga Swiatek (-3.5 Juegos)", "momio": -110, "prob_modelo": 58.0},
-                {"tipo": "Total de Juegos (Over/Under)", "seleccion": "Menos de 21.5 Juegos (Under)", "momio": -110, "prob_modelo": 59.5}
-            ],
-            "fatiga": "Dominio histórico de Swiatek en intercambios largos sobre arcilla"
-        },
-        {
-            "torneo": "ATP 500", "jugador_a": "Alexander Zverev", "jugador_b": "Daniil Medvedev", "superficie": "Dura Bajo Techo (Indoor Hard)",
-            "mercados_disponibles": [
-                {"tipo": "Ganador del Partido (Money Line)", "seleccion": "Daniil Medvedev", "momio": +105, "prob_modelo": 56.0},
-                {"tipo": "Hándicap de Juegos", "seleccion": "Daniil Medvedev (+1.5 Juegos)", "momio": -115, "prob_modelo": 60.0},
-                {"tipo": "Total de Juegos (Over/Under)", "seleccion": "Más de 23.5 Juegos (Over)", "momio": -105, "prob_modelo": 58.5}
-            ],
-            "fatiga": "Encuentro de máxima paridad con tendencia a tres sets disputados"
-        
+                {"
