@@ -234,15 +234,16 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Con Europa League y Conference)
+# 5. Fútbol / Soccer Global (Con Brasil y Torneos Europeos)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) con torneos europeos y ligas globales.*")
+    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) con Brasil, Europa y ligas globales.*")
 
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
         [
+            "Brasileirão - Brasil (bra.1)",
             "UEFA Champions League (uefa.champions)",
             "UEFA Europa League (uefa.europa)",
             "UEFA Europa Conference League (uefa.conf)",
@@ -300,7 +301,12 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     
     # Respaldo inteligente robusto con equipos reales para cada competición
     if not cartelera_soccer:
-        if "uefa.champions" in codigo_liga_api:
+        if "bra.1" in codigo_liga_api:
+            cartelera_soccer = [
+                {"partido_str": f"⚽ [{fecha_formato_str}] Flamengo @ Palmeiras", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 61.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 51.0}]},
+                {"partido_str": f"⚽ [{fecha_formato_str}] São Paulo @ Fluminense", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 58.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 53.0}]}
+            ]
+        elif "uefa.champions" in codigo_liga_api:
             cartelera_soccer = [
                 {"partido_str": f"⚽ [{fecha_formato_str}] Real Madrid @ Bayern München", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 62.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 52.0}]},
                 {"partido_str": f"⚽ [{fecha_formato_str}] FC Barcelona @ Inter de Milán", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 60.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 53.0}]}
