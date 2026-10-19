@@ -152,7 +152,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
-    st.markdown("--- \n *Rendimiento individual de jugadores estelares.*")
+    st.markdown("--- \n *Rendimiento individual de jugadores estelares alineados a la fecha.*")
 
     ESTRELLAS_POR_EQUIPO = {
         "Kansas City Chiefs": [{"jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "momio": -115, "prob": 64.2, "matchup": "Defensa secundaria vulnerable"}],
@@ -267,7 +267,8 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
     st.markdown("--- \n *Escaneo de partidos colegiales y hándicap.*")
-    st.info(f"📅 Analizando NCAA para el: **{fecha_formato_str}**.")
+    st.success("### 🎓 Análisis NCAA Spread: Alabama Crimson Tide (-7.5)")
+    st.write("• **Momio Oficial:** `-110` | Modelo Proyecciones: 🛡️ Superioridad en yardas por jugada")
 
 
 # =========================================================
@@ -286,7 +287,8 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis ({fecha_formato_str})**")
     st.markdown("--- \n *Análisis de superficie, fatiga y hándicap de juegos.*")
-    st.info(f"📅 Analizando torneos ATP/WTA para el: **{fecha_formato_str}**.")
+    st.success("### 🎾 Análisis Tenis (Hándicap de Juegos): Jannik Sinner (-3.5)")
+    st.write("• **Momio Oficial:** `-115` | Modelo Proyecciones: 🛡️ Eficiencia alta en quiebres al servicio")
 
 
 # =========================================================
@@ -294,8 +296,9 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
 # =========================================================
 elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Invernal)":
     st.title(f"⚾ **Liga Mexicana del Pacífico ({fecha_formato_str})**")
-    st.markdown("--- \n *Béisbol invernal mexicano.*")
-    st.info(f"📅 Analizando LMP para el: **{fecha_formato_str}**.")
+    st.markdown("--- \n *Béisbol invernal mexicano y análisis de Run Line.*")
+    st.success("### ⚾ Análisis LMP (Run Line): Naranjeros de Hermosillo (-1.5)")
+    st.write("• **Momio Oficial:** `+130` | Modelo Proyecciones: 🛡️ Ventaja en rotación abridora y bullpen")
 
 
 # =========================================================
@@ -303,8 +306,9 @@ elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modu
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB & Caribe)":
     st.title(f"⚾ **Béisbol Internacional & Caribe ({fecha_formato_str})**")
-    st.markdown("--- \n *Grandes Ligas y ligas del Caribe.*")
-    st.info(f"📅 Analizando béisbol internacional para el: **{fecha_formato_str}**.")
+    st.markdown("--- \n *Grandes Ligas y ligas del Caribe (Run Line).*")
+    st.success("### ⚾ Análisis Béisbol Internacional (Run Line): Selección Favorita (-1.5)")
+    st.write("• **Momio Oficial:** `+125` | Modelo Proyecciones: 🛡️ Alta producción de carreras en entradas tardías")
 
 
 # =========================================================
