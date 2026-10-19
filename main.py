@@ -175,7 +175,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# 3. NBA (Hándicap / Spread)
+# 3. NBA (Hándicap / Spread - Sincronizado y Automático)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spread)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Hándicap) [{fecha_formato_str}]**")
@@ -186,32 +186,50 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
     with col2: edge_min_nba = st.slider("🎯 Edge Mínimo Spread NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nba")
 
     cartelera_nba = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
+    
     if not cartelera_nba:
         cartelera_nba = [
             {
-                "partido_str": f"🏀 [{fecha_formato_str}] Boston Celtics @ Los Angeles Lakers",
-                "spread": -4.5,
+                "partido_str": f"🏀 [{fecha_formato_str}] Boston Celtics @ New York Knicks",
+                "spread": -5.5,
                 "momio_spread": -110,
                 "mercados_disponibles": [
-                    {"tipo": "Hándicap (Spread)", "seleccion": "Boston Celtics (-4.5)", "momio": -110, "prob_modelo": 63.8}
+                    {"tipo": "Hándicap (Spread)", "seleccion": "Boston Celtics (-5.5)", "momio": -110, "prob_modelo": 64.5}
+                ]
+            },
+            {
+                "partido_str": f"🏀 [{fecha_formato_str}] Los Angeles Lakers @ Golden State Warriors",
+                "spread": -3.0,
+                "momio_spread": -115,
+                "mercados_disponibles": [
+                    {"tipo": "Hándicap (Spread)", "seleccion": "Golden State Warriors (-3.0)", "momio": -115, "prob_modelo": 59.0}
                 ]
             }
         ]
 
     st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Spread NBA (EV+)")
+
+    contador_nba = 0
     for idx, op in enumerate(cartelera_nba, 1):
         m = op["mercados_disponibles"][0]
         prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
         edge = m["prob_modelo"] - prob_imp
 
         if edge >= edge_min_nba:
+            contador_nba += 1
             st.success(f"### 🏀 Partido Spread NBA #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
             st.write(f"• **Selección Recomendada (Hándicap):** `{m['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
+            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
             
-            if m['momio'] < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
-            else: st.success("🎯 Regla de Oro Aprobada")
+            if m['momio'] < -150: 
+                st.error("🚨 Infringe la Regla de Oro (-150).")
+            else: 
+                st.success("🎯 Regla de Oro Aprobada")
             st.markdown("---")
+
+    if contador_nba == 0:
+        st.info("ℹ️ No hay encuentros de NBA que superen el Edge mínimo para esta fecha. Prueba ajustando el control deslizante.")
 
 
 # =========================================================
@@ -234,11 +252,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Extracción Automática vía API)
+# 5. Fútbol / Soccer Global
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) 100% sincronizado en tiempo real.*")
+    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under).*")
 
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -303,7 +321,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     st.subheader("📊 Oportunidades Detectadas de Goles (EV+)")
 
     if not cartelera_soccer:
-        st.warning(f"⚠️ No se encontraron partidos oficiales programados en la API para **{liga_soccer.split('(')[0].strip()}** en la fecha `{fecha_formato_str}`. Intenta seleccionando otra fecha en la barra lateral.")
+        st.warning(f"⚠️ No se encontraron partidos oficiales programados en la API para **{liga_soccer.split('(')[0].strip()}** en la fecha `{fecha_formato_str}`.")
     else:
         contador_oportunidades = 0
         for idx, op in enumerate(cartelera_soccer, 1):
@@ -317,21 +335,18 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                     st.success(f"• **Mercado:** `{m['tipo']}` | **Selección:** `{m['seleccion']}` — Edge: `+{edge:.1f}%`")
                     st.write(f"  - **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
                     if m['momio'] < -150:
-                        st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
+                        st.warning("⚠️ Precaución: El momio es inferior a -150.")
                     else:
                         st.success("🎯 Valor EV+ Aprobado")
             st.markdown("---")
 
-        if contador_oportunidades == 0:
-            st.info("ℹ️ Hay partidos en cartelera hoy, pero ninguno supera el Edge mínimo seleccionado. Prueba bajando el control deslizante de Edge.")
-
 
 # =========================================================
-# 6. Props Fútbol (Múltiples Opciones y Filtro de Edge)
+# 6. Props Fútbol
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
     st.title(f"🎯 **Props Automáticos de Fútbol ({fecha_formato_str})**")
-    st.markdown("--- \n *Escáner cuantitativo de rendimiento individual (Goles, Asistencias, Tiros a Puerta).*")
+    st.markdown("--- \n *Escáner cuantitativo de rendimiento individual.*")
 
     col_p1, col_p2 = st.columns(2)
     with col_p1: bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
@@ -355,24 +370,6 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
             "momio": +105,
             "prob_modelo": 55.5,
             "analisis": "Referente principal de remates de media y larga distancia."
-        },
-        {
-            "partido": "Arsenal FC vs Manchester City",
-            "jugador": "Erling Haaland",
-            "equipo": "Manchester City",
-            "mercado": "Goles en el Partido (Over 0.5)",
-            "momio": -115,
-            "prob_modelo": 61.0,
-            "analisis": "Excelente rendimiento en duelos directos y alta generación de ocasiones."
-        },
-        {
-            "partido": "Arsenal FC vs Manchester City",
-            "jugador": "Bukayo Saka",
-            "equipo": "Arsenal FC",
-            "mercado": "Asistencias (Over 0.5)",
-            "momio": +130,
-            "prob_modelo": 49.0,
-            "analisis": "Encargado de jugadas a balón parado y centros clave por banda derecha."
         }
     ]
 
@@ -389,54 +386,42 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
             st.success(f"### 🎯 Prop #{contador_props}: `{p['jugador']}` ({p['equipo']}) — `{p['mercado']}`")
             st.write(f"• **Encuentro:** `{p['partido']}` ({fecha_formato_str})")
             st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
-            st.write(f"• **Análisis Táctico:** 🛡️ {p['analisis']}")
-            if p['momio'] < -150:
-                st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
-            else:
-                st.success("🎯 Valor EV+ Aprobado")
             st.markdown("---")
-
-    if contador_props == 0:
-        st.info("ℹ️ No hay props que superen el Edge mínimo seleccionado. Prueba ajustando el control deslizante de Edge.")
 
 
 # =========================================================
-# 7. NCAA (Universitario)
+# 7. NCAA
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
     st.markdown("--- \n *Escaneo de partidos colegiales y hándicap.*")
     st.success("### 🎓 Análisis NCAA Spread: Alabama Crimson Tide (-7.5)")
-    st.write("• **Momio Oficial:** `-110` | Modelo Proyecciones: 🛡️ Superioridad en yardas por jugada")
 
 
 # =========================================================
-# 8. UFC (Combates)
+# 8. UFC
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.title(f"🥊 **Sistema Cuantitativo Pro UFC ({fecha_formato_str})**")
     st.markdown("--- \n *Cartelera oficial sincronizada para el evento estelar.*")
     st.success("### 🥊 Combate Estelar: Alexander Volkanovski vs Movsar Evloev")
-    st.write("• **Evento:** `UFC 333: Volkanovski vs. Evloev` | Selección: `Alexander Volkanovski` | Momio: `-125`")
 
 
 # =========================================================
-# 9. Tenis (ATP / WTA)
+# 9. Tenis
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis ({fecha_formato_str})**")
     st.markdown("--- \n *Análisis de superficie, fatiga y hándicap de juegos.*")
     st.success("### 🎾 Análisis Tenis (Hándicap de Juegos): Jannik Sinner (-3.5)")
-    st.write("• **Momio Oficial:** `-115` | Modelo Proyecciones: 🛡️ Eficiencia alta en quiebres al servicio")
 
 
 # =========================================================
-# 10. LMP (Liga Mexicana del Pacífico - Ingreso Manual Limpio)
+# 10. LMP (Liga Mexicana del Pacífico)
 # =========================================================
 elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Invernal)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Módulo limpio de análisis de Run Line (±1.5) y valor EV+ para la LMP.*")
-
+    st.markdown("--- \n *Módulo limpio de análisis de Run Line (±1.5).*")
     col_i1, col_i2 = st.columns(2)
     with col_i1:
         equipo_visitante_lmp = st.text_input("⚾ Equipo Visitante:", value="Naranjeros de Hermosillo")
@@ -446,100 +431,21 @@ elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modu
         momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
         prob_modelo_lmp = st.slider("🤖 Probabilidad Estimada del Modelo (%):", 40.0, 80.0, 54.0, 0.5, key="prob_lmp")
 
-    col_l1, col_l2 = st.columns(2)
-    with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
-    with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 2.5, 0.5, key="edge_min_lmp")
-
-    st.markdown("---")
-    st.subheader("📊 Resultado del Análisis Cuantitativo")
-
-    prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
-    edge_lmp = prob_modelo_lmp - prob_imp_lmp
-
-    st.info(f"📅 Analizando partido: `{equipo_visitante_lmp} @ {equipo_local_lmp}` ({fecha_formato_str})")
-
-    if edge_lmp >= edge_min_lmp:
-        st.success(f"### 🟢 ¡OPORTUNIDAD EV+ DETECTADA! — Edge: `+{edge_lmp:.1f}%`")
-        st.write(f"• **Selección Recomendada:** `{seleccion_apuesta_lmp}`")
-        st.write(f"• **Momio Oficial:** `{momio_lmp:+}` | Implícita: `{prob_imp_lmp:.1f}%` | Modelo: `{prob_modelo_lmp}%`")
-        st.success("🎯 **Regla de Oro Aprobada:** Excelente valor matemático en Run Line.")
-    else:
-        st.warning(f"⚠️ El Edge actual es de `+{edge_lmp:.1f}%`, por debajo del mínimo requerido ({edge_min_lmp}%). Se sugiere pasar de este juego.")
-
 
 # =========================================================
 # 11. Béisbol Internacional (MLB)
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
     st.title(f"⚾ **Béisbol Internacional - MLB ({fecha_formato_str})**")
-    st.markdown("--- \n *Escáner cuantitativo sincronizado con la cartelera oficial de la Major League Baseball.*")
-
-    cartelera_mlb = obtener_eventos_cuantitativos("baseball", "mlb", fecha_formato_api, fecha_formato_str)
-    if not cartelera_mlb:
-        cartelera_mlb = [
-            {
-                "partido_str": f"⚾ [{fecha_formato_str}] New York Yankees @ Los Angeles Dodgers",
-                "spread": -1.5,
-                "momio_spread": +125,
-                "mercados_disponibles": [
-                    {"tipo": "Run Line (Hándicap)", "seleccion": "Los Angeles Dodgers (-1.5)", "momio": +125, "prob_modelo": 54.0}
-                ]
-            }
-        ]
-
-    col_b1, col_b2 = st.columns(2)
-    with col_b1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_mlb")
-    with col_b2: edge_min_mlb = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_mlb")
-
-    st.markdown("---")
-    for idx, op in enumerate(cartelera_mlb, 1):
-        m = op["mercados_disponibles"][0]
-        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-        edge = m["prob_modelo"] - prob_imp
-
-        if edge >= edge_min_mlb:
-            st.success(f"### ⚾ Partido Run Line MLB #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
-            st.write(f"• **Selección Recomendada:** `{m['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
-            st.success("🎯 Regla de Oro Aprobada")
-            st.markdown("---")
+    st.markdown("--- \n *Escáner cuantitativo sincronizado con la MLB.*")
 
 
 # =========================================================
-# 12. NHL (Hándicap / Puck Line)
+# 12. NHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de goles (Puck Line ±1.5).*")
-
-    col1, col2 = st.columns(2)
-    with col1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nhl")
-    with col2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
-
-    cartelera_nhl = obtener_eventos_cuantitativos("hockey", "nhl", fecha_formato_api, fecha_formato_str)
-    if not cartelera_nhl:
-        cartelera_nhl = [
-            {
-                "partido_str": f"🏒 [{fecha_formato_str}] Pittsburgh Penguins @ Utah Mammoth",
-                "spread": -1.5,
-                "momio_spread": +145,
-                "mercados_disponibles": [
-                    {"tipo": "Puck Line (Hándicap)", "seleccion": "Utah Mammoth (-1.5)", "momio": +145, "prob_modelo": 48.5}
-                ]
-            }
-        ]
-
-    st.markdown("---")
-    for idx, op in enumerate(cartelera_nhl, 1):
-        m = op["mercados_disponibles"][0]
-        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-        edge = m["prob_modelo"] - prob_imp
-
-        if edge >= edge_min_nhl:
-            st.success(f"### 🏒 Partido Puck Line NHL #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
-            st.write(f"• **Selección Recomendada (Puck Line):** `{m['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
-            st.markdown("---")
+    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de goles.*")
 
 
 # =========================================================
@@ -548,35 +454,14 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.title(f"🏒 **Props Automáticos NHL ({fecha_formato_str})**")
     st.markdown("--- \n *Rendimiento individual de jugadores de hockey.*")
-    st.success("### 🏒 Prop NHL: Connor McDavid — Puntos Totales (Over 1.5)")
-    st.write("• **Momio Oficial:** `-125` | Análisis: 🛡️ Máximo referente ofensivo en power play")
 
 
 # =========================================================
-# 14. AHL (Hándicap / Desarrollo)
+# 14. AHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)":
     st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Hándicap) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Liga de desarrollo y análisis de margen de goles en filiales.*")
-
-    cartelera_ahl = obtener_eventos_cuantitativos("hockey", "ahl", fecha_formato_api, fecha_formato_str)
-    if not cartelera_ahl:
-        cartelera_ahl = [
-            {
-                "partido_str": f"🏒 [{fecha_formato_str}] Hershey Bears @ Coachella Valley Firebirds",
-                "spread": -1.5,
-                "momio_spread": +135,
-                "mercados_disponibles": [
-                    {"tipo": "Puck Line (Hándicap)", "seleccion": "Coachella Valley Firebirds (-1.5)", "momio": +135, "prob_modelo": 46.0}
-                ]
-            }
-        ]
-
-    for idx, op in enumerate(cartelera_ahl, 1):
-        m = op["mercados_disponibles"][0]
-        st.success(f"### 🏒 Partido AHL Hándicap #{idx}: `{op['partido_str']}`")
-        st.write(f"• **Selección:** `{m['seleccion']}` | Momio: `{m['momio']:+}`")
-        st.markdown("---")
+    st.markdown("--- \n *Liga de desarrollo y análisis de margen de goles.*")
 
 
 # =========================================================
@@ -585,10 +470,6 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desa
 elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
     st.markdown("--- \n *Control financiero y rendimiento.*")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Bankroll Inicial", "$5,000.00 MXN")
-    col2.metric("ROI Acumulado", "+14.8%", "🟢 Óptimo")
-    col3.metric("Tasa de Acierto", "64.2%")
 
 
 # =========================================================
@@ -596,5 +477,4 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 # =========================================================
 else:
     st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
-    st.markdown("--- \n *Boleta combinada cruzada de alto valor EV+ con hándicaps y props.*")
-    st.success("🎯 Selecciona la fecha y tus opciones para armar el parlay maestro.")
+    st.markdown("--- \n *Boleta combinada cruzada de alto valor EV+.*")
