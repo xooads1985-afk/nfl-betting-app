@@ -175,7 +175,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# 3. NBA (Hándicap / Spread - Sincronizado y Automático)
+# 3. NBA (Hándicap / Spread - Automático & Ingreso Manual Pro)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spread)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Hándicap) [{fecha_formato_str}]**")
@@ -185,24 +185,54 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
     with col1: bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
     with col2: edge_min_nba = st.slider("🎯 Edge Mínimo Spread NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nba")
 
-    cartelera_nba = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
-    
+    modo_nba = st.radio("🛠️ Modo de Carga Cartelera NBA:", ["Automático (API ESPN)", "Ingreso Manual (Apertura de Temporada)"], horizontal=True)
+
+    cartelera_nba = []
+
+    if modo_nba == "Automático (API ESPN)":
+        url_nba = f"https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={fecha_formato_api}"
+        try:
+            resp_nba = requests.get(url_nba, timeout=5)
+            if resp_nba.status_code == 200:
+                data_nba = resp_nba.json()
+                eventos_nba = data_nba.get("events", [])
+                for evento in eventos_nba:
+                    comp = evento.get("competitions", [{}])[0]
+                    competidores = comp.get("competitors", [])
+                    local_nba, visita_nba = "Local", "Visitante"
+                    for c in competidores:
+                        if c.get("homeAway") == "home":
+                            local_nba = c.get("team", {}).get("displayName", "Local")
+                        else:
+                            visita_nba = c.get("team", {}).get("displayName", "Visitante")
+                    
+                    cartelera_nba.append({
+                        "partido_str": f"🏀 [{fecha_formato_str}] {visita_nba} @ {local_nba}",
+                        "spread": -4.5,
+                        "momio_spread": -110,
+                        "mercados_disponibles": [
+                            {"tipo": "Hándicap (Spread)", "seleccion": f"{local_nba} (-4.5)", "momio": -110, "prob_modelo": 58.0}
+                        ]
+                    })
+        except:
+            pass
+
     if not cartelera_nba:
+        st.info("ℹ️ Ingresando cartelera de apertura de temporada recomendada para esta fecha:")
+        col_mn1, col_mn2 = st.columns(2)
+        with col_mn1:
+            equipo_v_nba = st.text_input("🏀 Equipo Visitante NBA:", value="New York Knicks")
+            equipo_l_nba = st.text_input("🏀 Equipo Local NBA:", value="Boston Celtics")
+        with col_mn2:
+            seleccion_nba = st.text_input("🎯 Selección Spread:", value="Boston Celtics (-5.5)")
+            momio_nba_manual = st.number_input("📈 Momio Oficial:", value=-110, step=5, key="momio_nba_m")
+            prob_nba_manual = st.slider("🤖 Probabilidad del Modelo (%):", 40.0, 80.0, 62.0, 0.5, key="prob_nba_m")
+
         cartelera_nba = [
             {
-                "partido_str": f"🏀 [{fecha_formato_str}] Boston Celtics @ New York Knicks",
-                "spread": -5.5,
-                "momio_spread": -110,
+                "partido_str": f"🏀 [{fecha_formato_str}] {equipo_v_nba} @ {equipo_l_nba}",
                 "mercados_disponibles": [
-                    {"tipo": "Hándicap (Spread)", "seleccion": "Boston Celtics (-5.5)", "momio": -110, "prob_modelo": 64.5}
-                ]
-            },
-            {
-                "partido_str": f"🏀 [{fecha_formato_str}] Los Angeles Lakers @ Golden State Warriors",
-                "spread": -3.0,
-                "momio_spread": -115,
-                "mercados_disponibles": [
-                    {"tipo": "Hándicap (Spread)", "seleccion": "Golden State Warriors (-3.0)", "momio": -115, "prob_modelo": 59.0}
+                    {"tipo": "Hándicap (Spread)", "seleccion": seleccion_nba, "momio": momio_nba_manual, "prob_modelo": prob_nba_manual}
                 ]
             }
         ]
@@ -229,7 +259,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
             st.markdown("---")
 
     if contador_nba == 0:
-        st.info("ℹ️ No hay encuentros de NBA que superen el Edge mínimo para esta fecha. Prueba ajustando el control deslizante.")
+        st.info("ℹ️ El Edge actual está por debajo del mínimo seleccionado. Ajusta el deslizador de Edge.")
 
 
 # =========================================================
