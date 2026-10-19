@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite 8 Deportes",
+    page_title="Central de Apuestas Pro - Master Suite 9 Deportes",
     page_icon="🛡️",
     layout="wide"
 )
@@ -35,7 +35,8 @@ modulo_seleccionado = st.sidebar.radio(
         "⚽ Módulo Global de Fútbol (Soccer Automático)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
-        "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)"
+        "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)",
+        "⚾ Liga Mexicana del Pacífico (LMP Invernal)"
     ]
 )
 
@@ -613,7 +614,7 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Guardar Prop NBA #{idx} in Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
+                if st.button(f"📝 Guardar Prop NBA #{idx} en Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
                     lista_actual = cargar_props_nba()
                     identificador = f"{p['jugador']} — {p['mercado']}"
                     if not any(x["id"] == identificador for x in lista_actual):
@@ -944,7 +945,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
             "evento": "UFC Pay-Per-View: Co-Estelar", "peleador_a": "Alex Pereira", "peleador_b": "Magomed Ankalaev",
             "mercados_disponibles": [
                 {"tipo": "Ganador del Combate (Money Line)", "seleccion": "Alex Pereira", "momio": +115, "prob_modelo": 55.0},
-                {"tipo": "Método de Victoria", "seleccion": "Alex Pereira por KO / TKO (གas)", "momio": -110, "prob_modelo": 58.0},
+                {"tipo": "Método de Victoria", "seleccion": "Alex Pereira por KO / TKO", "momio": -110, "prob_modelo": 58.0},
                 {"tipo": "Duración del Combate", "seleccion": "Menos de 2.5 Asaltos (Under)", "momio": -115, "prob_modelo": 57.5}
             ],
             "analisis_estilos": "Poder de nocaut fulminante en los primeros asaltos de pie"
@@ -1059,7 +1060,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 # =========================================================
 # MÓDULO 8: SISTEMA CUANTITATIVO PRO TENIS (ATP / WTA)
 # =========================================================
-else:
+elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
     FICHERO_TENIS = "parlay_tenis.json"
 
     def cargar_tenis_disco():
@@ -1205,6 +1206,159 @@ else:
         ticket_lineas.append(f"🔥 Ganancia Estimada Parlay Tenis: ${ganancia_parlay_tenis:.2f} MXN")
         ticket_lineas.append("=========================================")
 
-        st.text_area("Copia tu ticket de Tenis listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_tenis_fin")
+        st.text_area("Copia tu ticket de Tenis listo para apostar:", value="\n".join(ticket_lineas), height=250, key="txt_area_tenis_fin")
     else:
         st.info("Aún no tienes selecciones de Tenis añadidas a tu ticket.")
+
+
+# =========================================================
+# MÓDULO 9: LIGA MEXICANA DEL PACÍFICO (LMP INVERNAL)
+# =========================================================
+else:
+    FICHERO_LMP = "parlay_lmp.json"
+
+    def cargar_lmp_disco():
+        if os.path.exists(FICHERO_LMP):
+            try:
+                with open(FICHERO_LMP, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                    if isinstance(datos, list): return datos
+            except: pass
+        return []
+
+    def guardar_lmp_disco(lista_picks):
+        try:
+            with open(FICHERO_LMP, "w", encoding="utf-8") as f:
+                json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+        except: pass
+
+    st.title("⚾ **Liga Mexicana del Pacífico (LMP Invernal — EV+)**")
+    st.markdown("--- \n *Escáner cuantitativo especializado en el rey de los deportes invernal en México: análisis de rotaciones abridores, bullpen, factor parque y carreras (Sin Duplicados).*")
+
+    if "lista_lmp_parlay" not in st.session_state:
+        st.session_state.lista_lmp_parlay = cargar_lmp_disco()
+
+    CARTELERA_LMP = [
+        {
+            "serie": "Clásico del Pacífico", "local": "Venados de Mazatlán", "visita": "Tomateros de Culiacán",
+            "mercados_disponibles": [
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Venados de Mazatlán", "momio": +105, "prob_modelo": 56.0},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Venados de Mazatlán (+1.5 Carreras)", "momio": -130, "prob_modelo": 63.5},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.5 Carreras (Under)", "momio": -115, "prob_modelo": 60.0}
+            ],
+            "parque": "Estadio Teodoro Mariscal (Factor brisa y pitcheo profundo)"
+        },
+        {
+            "serie": "Duelo de Zona Norte", "local": "Naranjeros de Hermosillo", "visita": "Yaquis de Obregón",
+            "mercados_disponibles": [
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Naranjeros de Hermosillo", "momio": -125, "prob_modelo": 61.0},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Naranjeros de Hermosillo (-1.5 Carreras)", "momio": +110, "prob_modelo": 54.0},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Más de 9.0 Carreras (Over)", "momio": -110, "prob_modelo": 58.5}
+            ],
+            "parque": "Estadio Fernando Valenzuela (Ofensiva con alto poder de extrabases)"
+        },
+        {
+            "serie": "Furia del Norte", "local": "Cañeros de Los Mochis", "visita": "Algodoneros de Guasave",
+            "mercados_disponibles": [
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Cañeros de Los Mochis", "momio": -120, "prob_modelo": 59.5},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Cañeros de Los Mochis (-1.5 Carreras)", "momio": +115, "prob_modelo": 53.5},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.0 Carreras (Under)", "momio": -110, "prob_modelo": 62.0}
+            ],
+            "parque": "Estadio Chevron Park (Duelo de herméticos bullpens invernales)"
+        }
+    ]
+
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro LMP (EV+)**")
+    col_l1, col_l2 = st.columns(2)
+    with col_l1:
+        bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_lmp")
+    with col_l2:
+        edge_lmp_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_lmp")
+
+    st.markdown("---")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Serie LMP (Sin Duplicados)**")
+
+    mejores_opciones_lmp = []
+    for match in CARTELERA_LMP:
+        mejor_mercado = None
+        mayor_edge = -999.0
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
+            if edge >= edge_lmp_min and edge > mayor_edge:
+                mayor_edge = edge
+                mejor_mercado = {
+                    "serie": match["serie"],
+                    "encuentro": f"{match['visita']} @ {match['local']}",
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "parque": match["parque"]
+                }
+        if mejor_mercado:
+            mejores_opciones_lmp.append(mejor_mercado)
+
+    mejores_opciones_lmp.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_lmp:
+        for idx, op in enumerate(mejores_opciones_lmp, 1):
+            with st.container():
+                st.success(f"### ⚾ Top Opción LMP #{idx} [{op['serie']}]: `{op['encuentro']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mejor Mercado Detectado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
+                st.write(f"• **Auditoría de Parque:** 🏟️ {op['parque']}")
+
+                if op['momio'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Opción LMP #{idx} en Ticket", key=f"btn_lmp_{idx}", use_container_width=True):
+                    picks_actuales = cargar_lmp_disco()
+                    id_pick = f"{op['encuentro']} — {op['seleccion']}"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "encuentro": op['encuentro'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
+                        })
+                        guardar_lmp_disco(picks_actuales)
+                        st.success("✅ ¡Selección añadida al ticket LMP con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ninguna serie de la LMP supera el filtro de Edge del {edge_lmp_min}% con los parámetros actuales.")
+
+    st.markdown("## 📋 **Ticket Unificado de la LMP**")
+    ticket_lmp = cargar_lmp_disco()
+    if ticket_lmp:
+        if st.button("🗑️ Limpiar Ticket de la LMP", key="clr_lmp_ticket", use_container_width=True):
+            guardar_lmp_disco([])
+            st.rerun()
+
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET OFICIAL LMP — EV+ 🚨",
+            "========================================="
+        ]
+        mult_lmp = 1.0
+        for idx, item in enumerate(ticket_lmp, 1):
+            ticket_lineas.append(f"⚾ PICK #{idx}: {item['encuentro']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append("-----------------------------------------")
+            m = item['momio']
+            mult_lmp *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_lmp = 250.0 * (mult_lmp - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay LMP: ${ganancia_parlay_lmp:.2f} MXN")
+        ticket_lineas.append("=========================================")
+
+        st.text_area("Copia tu ticket LMP listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_lmp_fin")
+    else:
+        st.info("Aún no tienes selecciones de la Liga Mexicana del Pacífico añadidas a tu ticket.")
