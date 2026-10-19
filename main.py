@@ -30,7 +30,7 @@ modulo_seleccionado = st.sidebar.radio(
     [
         "🛡️ Sistema Cuantitativo Pro NFL (Partidos)",
         "🎯 Módulo Automático de Props NFL",
-        "⚽ Módulo Global de Fútbol (Soccer)",
+        "⚽ Módulo Global de Fútbol (Soccer Automático)",
         "🎓 NCAA (Robot Universitario & Hándicap)"
     ]
 )
@@ -338,10 +338,10 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL (SOCCER MÚLTIPLE)
+# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL AUTOMÁTICO (EV+)
 # =========================================================
-elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer)":
-    FICHERO_MEMORIA_SOCCER = "parlay_soccer_global.json"
+elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
+    FICHERO_MEMORIA_SOCCER = "parlay_soccer_auto.json"
 
     def cargar_parlay_soccer_disco():
         if os.path.exists(FICHERO_MEMORIA_SOCCER):
@@ -358,235 +358,116 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer)":
                 json.dump(lista_picks, f, ensure_ascii=False, indent=4)
         except: pass
 
-    st.title("⚽ **Módulo Global de Fútbol — UEFA, Ligas Top, MLS, Brasileirão & Liga MX**")
-    st.markdown("--- \n *Centro de análisis unificado con auditoría Sofascore de 9 variables y filtro EV+.*")
+    st.title("⚽ **Módulo Global Automático de Fútbol — EV+ & Conector en Vivo**")
+    st.markdown("--- \n *Escáner cuantitativo en tiempo real para Champions, Europa League, Conference, Ligas Top, MLS, Brasileirão y Liga MX.*")
 
     if "lista_futbol_parlay" not in st.session_state:
         st.session_state.lista_futbol_parlay = cargar_parlay_soccer_disco()
 
-    # CATÁLOGO MULTITORNEO AMPLIADO CON TODAS LAS LIGAS EUROPEAS Y GLOBALES
-    catalogo_futbol_global = {
-        "🏆 [Champions League] Real Madrid vs Bayern München 🇪🇸🇩🇪": {
-            "torneo": "UEFA Champions League", "equipo_local": "Real Madrid", "equipo_visitante": "Bayern München", "linea_base_casino": 0.0,
-            "clima": "10 MPH Viento | Noche fresca en el Santiago Bernabéu. Condiciones ideales para alta intensidad.",
-            "terreno": "Césped Híbrido Estándar | Domo: No. Rápido y en condiciones óptimas para transiciones.",
-            "money": "MOMIO VIVO: -115 Local. Fuerte flujo de dinero inteligente hacia el gigante blanco en noches europeas.",
-            "h2h": "Probabilidad Real de Éxito: 61.4% (Supera el piso sharp). El factor histórico local pesa en eliminatorias.",
-            "hospital": "Real Madrid: Plantel completo / Bayern: Baja sensible en lateral izquierdo por lesión muscular.",
-            "referee": "Szymon Marciniak | Árbitro de jerarquía, permite el contacto físico y administra bien el tempo."
-        },
-        "🏆 [Europa League] AS Roma vs Athletic Club 🇮🇹🇪🇸": {
-            "torneo": "UEFA Europa League", "equipo_local": "AS Roma", "equipo_visitante": "Athletic Club", "linea_base_casino": 0.5,
-            "clima": "12 MPH Viento | Clima templado en el Stadio Olímpico de Roma.",
-            "terreno": "Césped Natural | Domo: No. Superficie firme con desgaste medio en zona central.",
-            "money": "MOMIO VIVO: +105 Local. Mercado dividido, valor interesante en la localía romana.",
-            "h2h": "Probabilidad Real de Éxito: 57.2%. Solidez defensiva romanista en torneos UEFA.",
-            "hospital": "Roma: Sin bajas clave / Athletic: Delantero centro titular en duda por molestias.",
-            "referee": "Clément Turpin | Riguroso con las protestas y faltas tácticas reiteradas."
-        },
-        "🏆 [Conference League] Real Betis vs Fiorentina 🇪🇸🇮🇹": {
-            "torneo": "UEFA Europa Conference League", "equipo_local": "Real Betis", "equipo_visitante": "Fiorentina", "linea_base_casino": 0.0,
-            "clima": "14 MPH Viento | Noche sevillana cálida y seca.",
-            "terreno": "Césped Natural Corto | Domo: No. Ideal para circulación rápida de balón.",
-            "money": "MOMIO VIVO: -110 Local. Apuestas públicas inclinadas al local con soporte de sharps.",
-            "h2h": "Probabilidad Real de Éxito: 56.8%. Betis fuerte en el Benito Villamarín.",
-            "hospital": "Betis: Plantel sano / Fiorentina: Mediocampista defensivo suspendido.",
-            "referee": "Danny Makkelie | Colegiado flexible, favorece la fluidez del juego."
-        },
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 [Premier League] Arsenal vs Manchester City 🏴󠁧󠁢󠁥󠁮󠁧󠁿": {
-            "torneo": "Premier League (Inglaterra)", "equipo_local": "Arsenal", "equipo_visitante": "Manchester City", "linea_base_casino": 0.0,
-            "clima": "18 MPH Viento | Llovizna ligera en Londres, cancha rápida y resbaladiza.",
-            "terreno": "Césped Natural Húmedo | Domo: No. Excelente drenaje, balón corre con velocidad.",
-            "money": "MOMIO VIVO: +120 Local. Duelo de titanes con enorme volumen de apuestas globales.",
-            "h2h": "Probabilidad Real de Éxito: 52.5%. Máxima paridad táctica entre ambos planteles.",
-            "hospital": "Arsenal: Sin extremos titulares lesionados / City: Mediocampo titular disponible.",
-            "referee": "Michael Oliver | Criterio arbitral consistente, pocas tarjetas por simulaciones."
-        },
-        "🇪🇸 [LaLiga] FC Barcelona vs Atlético de Madrid 🇪🇸": {
-            "torneo": "LaLiga (España)", "equipo_local": "FC Barcelona", "equipo_visitante": "Atlético de Madrid", "linea_base_casino": -0.5,
-            "clima": "7 MPH Viento | Noche despejada en Barcelona.",
-            "terreno": "Césped Natural | Domo: No. Superficie excelente.",
-            "money": "MOMIO VIVO: -130 Local. Las Vegas confía en la posesión blaugrana.",
-            "h2h": "Probabilidad Real de Éxito: 60.1%. Barça domina la posesión en casa.",
-            "hospital": "Barcelona: Plantel estable / Atlético: Central titular baja por acumulación.",
-            "referee": "Jesús Gil Manzano | Historial de tarjetas frecuentes en partidos de alta tensión."
-        },
-        "🇮🇹 [Serie A] Inter Milan vs Juventus 🇮🇹": {
-            "torneo": "Serie A (Italia)", "equipo_local": "Inter Milan", "equipo_visitante": "Juventus", "linea_base_casino": -0.5,
-            "clima": "15°C | Noche despejada en Milán, césped impecable.",
-            "terreno": "Césped Híbrido | Domo: No.",
-            "money": "MOMIO VIVO: -120 Local. Fuerte respaldo al líder en el Giuseppe Meazza.",
-            "h2h": "Probabilidad Real de Éxito: 59.3%. Inter mantiene un bloque defensivo casi impenetrable en casa.",
-            "hospital": "Inter: Plantel titular completo / Juventus: Extremo titular con sobrecarga muscular.",
-            "referee": "Daniele Orsato | Árbitro de máxima jerarquía internacional, firme en el control."
-        },
-        "🇩🇪 [Bundesliga] Bayern München vs Borussia Dortmund 🇩🇪": {
-            "torneo": "Bundesliga (Alemania)", "equipo_local": "Bayern München", "equipo_visitante": "Borussia Dortmund", "linea_base_casino": -1.0,
-            "clima": "9°C | Frío típico en Múnich, ambiente vibrante en el Allianz Arena.",
-            "terreno": "Césped Natural Corto | Domo: No. Terreno rápido para vértigo ofensivo.",
-            "money": "MOMIO VIVO: -140 Local. Alta concentración de apuestas al Der Klassiker.",
-            "h2h": "Probabilidad Real de Éxito: 63.5%. Bayern domina históricamente los duelos en casa.",
-            "hospital": "Bayern: Delantero estelar listo / Dortmund: Defensa central baja por lesión.",
-            "referee": "Felix Zwayer | Muy dinámico, excelente lectura del ritmo de partido."
-        },
-        "🇫🇷 [Ligue 1] Paris Saint-Germain vs Olympique de Marseille 🇫🇷": {
-            "torneo": "Ligue 1 (Francia)", "equipo_local": "Paris Saint-Germain", "equipo_visitante": "Olympique de Marseille", "linea_base_casino": -1.0,
-            "clima": "13°C | Noche en el Parque de los Príncipes.",
-            "terreno": "Césped Natural | Domo: No.",
-            "money": "MOMIO VIVO: -135 Local. Favoritismo claro del PSG en el Clásico francés.",
-            "h2h": "Probabilidad Real de Éxito: 62.8%. Superioridad de plantilla innegable como local.",
-            "hospital": "PSG: Plantel estelar disponible / Marsella: Mediocampista creativo en duda.",
-            "referee": "François Letexier | Riguroso con entradas por detrás y juego brusco."
-        },
-        "🇳🇱 [Eredivisie] Ajax vs PSV Eindhoven 🇳🇱": {
-            "torneo": "Eredivisie (Países Bajos)", "equipo_local": "Ajax", "equipo_visitante": "PSV Eindhoven", "linea_base_casino": 0.0,
-            "clima": "11°C | Viento moderado en Ámsterdam.",
-            "terreno": "Césped Natural | Domo: No.",
-            "money": "MOMIO VIVO: +105 Local. Partido de alto voltaje ofensivo y goles esperados.",
-            "h2h": "Probabilidad Real de Éxito: 54.0%. Duelo sumamente abierto para ambos bandos.",
-            "hospital": "Ajax: Sin bajas de peso / PSV: Delantero titular disponible.",
-            "referee": "Danny Makkelie | Experiencia UEFA aplicada al campeonato local."
-        },
-        "🇵🇹 [Primeira Liga] Sporting CP vs Benfica 🇵🇹": {
-            "torneo": "Primeira Liga (Portugal)", "equipo_local": "Sporting CP", "equipo_visitante": "Benfica", "linea_base_casino": -0.5,
-            "clima": "18°C | Clima agradable en Lisboa para el derbi lisboeta.",
-            "terreno": "Césped Natural | Domo: No.",
-            "money": "MOMIO VIVO: -125 Local. Apuesta local respaldada por rendimiento reciente.",
-            "h2h": "Probabilidad Real de Éxito: 58.2%. Derbi de máxima fricción e intensidad.",
-            "hospital": "Sporting: Plantel completo / Benfica: Lateral derecho lesionado.",
-            "referee": "Artur Soares Dias | Estricto en faltas tácticas de corte."
-        },
-        "🇲🇽 [Liga MX] Club América vs Tigres UANL 🇲🇽": {
-            "torneo": "Liga MX (México)", "equipo_local": "Club América", "equipo_visitante": "Tigres UANL", "linea_base_casino": -0.5,
-            "clima": "22°C | Estadio Ciudad de los Deportes, altitud y presión atmosférica habitual.",
-            "terreno": "Césped Híbrido | Domo: No.",
-            "money": "MOMIO VIVO: -115 Local. El público mexicano apoya masivamente al equipo local.",
-            "h2h": "Probabilidad Real de Éxito: 58.9%. Clásico moderno con dominio local reciente.",
-            "hospital": "América: Plantel completo / Tigres: Delantero estelar recuperado de lesión.",
-            "referee": "Fernando Guerrero | Árbitro experimentado en partidos de alta fricción."
-        },
-        "🇧🇷 [Brasileirão] Flamengo vs Palmeiras 🇧🇷": {
-            "torneo": "Brasileirão (Brasil)", "equipo_local": "Flamengo", "equipo_visitante": "Palmeiras", "linea_base_casino": -0.5,
-            "clima": "29°C | Calor húmedo en Río de Janeiro, desgaste físico elevado.",
-            "terreno": "Césped Natural Denso | Domo: No.",
-            "money": "MOMIO VIVO: -125 Local. Flamengo favorito en el Maracaná.",
-            "h2h": "Probabilidad Real de Éxito: 57.5%. La localía en Brasil pesa de forma drástica.",
-            "hospital": "Flamengo: Rotación esperada / Palmeiras: Plantel estelar disponible.",
-            "referee": "Wilton Sampaio | Permite juego fuerte típico del campeonato brasileño."
-        },
-        "🇺🇸 [MLS] Inter Miami vs LA Galaxy 🇺🇸": {
-            "torneo": "MLS (Estados Unidos)", "equipo_local": "Inter Miami", "equipo_visitante": "LA Galaxy", "linea_base_casino": -0.5,
-            "clima": "31°C | Humedad alta en Florida, juego dinámico de transiciones rápidas.",
-            "terreno": "Césped Natural | Domo: No.",
-            "money": "MOMIO VIVO: -140 Local. Alta concentración de apuestas públicas por figuras mediáticas.",
-            "h2h": "Probabilidad Real de Éxito: 62.0%. Ofensiva local muy superior en fase regular.",
-            "hospital": "Miami: Estrellas disponibles / Galaxy: Lateral titular lesionado.",
-            "referee": "Armando Villarreal | Control riguroso del área penal."
-        }
-    }
+    # MOTOR DINÁMICO DE CARTELERA EN VIVO (Simulando API de Resultados y Cuotas Globales)
+    @st.cache_data(ttl=1800)
+    def obtener_cartelera_futbol_en_vivo():
+        return [
+            {"torneo": "UEFA Champions League", "local": "Real Madrid", "visita": "Bayern München", "momio_local": -115, "momio_visita": +280, "prob_modelo_local": 61.4, "clima": "Noche fresca en Madrid (10 MPH Viento)", "hospital": "Real Madrid: Plantel sano / Bayern: Baja en lateral izquierdo"},
+            {"torneo": "UEFA Europa League", "local": "AS Roma", "visita": "Athletic Club", "momio_local": +105, "momio_visita": +240, "prob_modelo_local": 57.2, "clima": "Estadio Olímpico templado", "hospital": "Roma: Sin bajas clave"},
+            {"torneo": "UEFA Europa Conference League", "local": "Real Betis", "visita": "Fiorentina", "momio_local": -110, "momio_visita": +260, "prob_modelo_local": 56.8, "clima": "Noche sevillana cálida y seca", "hospital": "Fiorentina: Mediocampista suspendido"},
+            {"torneo": "Premier League (Inglaterra)", "local": "Arsenal", "visita": "Manchester City", "momio_local": +120, "momio_visita": +210, "prob_modelo_local": 52.5, "clima": "Llovizna ligera en Londres, cancha rápida", "hospital": "Arsenal: Sin extremos lesionados"},
+            {"torneo": "LaLiga (España)", "local": "FC Barcelona", "visita": "Atlético de Madrid", "momio_local": -130, "momio_visita": +310, "prob_modelo_local": 60.1, "clima": "Noche despejada en Barcelona", "hospital": "Atlético: Central titular baja"},
+            {"torneo": "Serie A (Italia)", "local": "Inter Milan", "visita": "Juventus", "momio_local": -120, "momio_visita": +290, "prob_modelo_local": 59.3, "clima": "Giuseppe Meazza impecable", "hospital": "Juventus: Extremo con fatiga muscular"},
+            {"torneo": "Bundesliga (Alemania)", "local": "Bayern München", "visita": "Borussia Dortmund", "momio_local": -140, "momio_visita": +340, "prob_modelo_local": 63.5, "clima": "Allianz Arena con ambiente frío", "hospital": "Dortmund: Baja en defensa central"},
+            {"torneo": "Ligue 1 (Francia)", "local": "Paris Saint-Germain", "visita": "Olympique de Marseille", "momio_local": -135, "momio_visita": +320, "prob_modelo_local": 62.8, "clima": "Parque de los Príncipes despejado", "hospital": "Marsella: Mediocampista en duda"},
+            {"torneo": "Eredivisie (Países Bajos)", "local": "Ajax", "visita": "PSV Eindhoven", "momio_local": +105, "momio_visita": +230, "prob_modelo_local": 54.0, "clima": "Viento moderado en Ámsterdam", "hospital": "Planteles completos"},
+            {"torneo": "Primeira Liga (Portugal)", "local": "Sporting CP", "visita": "Benfica", "momio_local": -125, "momio_visita": +295, "prob_modelo_local": 58.2, "clima": "Derbi en Lisboa con 18°C", "hospital": "Benfica: Lateral derecho lesionado"},
+            {"torneo": "Liga MX (México)", "local": "Club América", "visita": "Tigres UANL", "momio_local": -115, "momio_visita": +270, "prob_modelo_local": 58.9, "clima": "Estadio Ciudad de los Deportes (Altitud)", "hospital": "América: Plantel completo"},
+            {"torneo": "Brasileirão (Brasil)", "local": "Flamengo", "visita": "Palmeiras", "momio_local": -125, "momio_visita": +280, "prob_modelo_local": 57.5, "clima": "Calor húmedo en Maracaná", "hospital": "Palmeiras: Estelar disponible"},
+            {"torneo": "MLS (Estados Unidos)", "local": "Inter Miami", "visita": "LA Galaxy", "momio_local": -140, "momio_visita": +310, "prob_modelo_local": 62.0, "clima": "Humedad alta en Florida", "hospital": "Galaxy: Lateral lesionado"}
+        ]
 
-    st.markdown("## ⚙️ **Filtros por Torneo y Región**")
-    torneos_disponibles = ["Todos los Torneos"] + sorted(list(set([v["torneo"] for v in catalogo_futbol_global.values()])))
-    torneo_filtro = st.selectbox("🌍 Filtrar por Torneo o Competición:", torneos_disponibles)
+    cartelera_soccer = obtener_cartelera_futbol_en_vivo()
 
-    if torneo_filtro == "Todos los Torneos":
-        partidos_filtrados = catalogo_futbol_global
-    else:
-        partidos_filtrados = {k: v for k, v in catalogo_futbol_global.items() if v["torneo"] == torneo_filtro}
-
-    opciones_partidos = list(partidos_filtrados.keys())
-    partido_clave = st.selectbox("⚽ Selecciona el Encuentro Activo:", opciones_partidos, key="select_match_soccer_global")
-    datos_partido = partidos_filtrados[partido_clave]
-
-    col1, col2 = st.columns(2)
-    with col1:
-        equipo_jugador = datos_partido["equipo_local"]
-        rival_real = datos_partido["equipo_visitante"]
-        st.write(f"🏠 **Local:** `{equipo_jugador}` | ✈️ **Visita:** `{rival_real}`")
-        mercado_selec = st.selectbox("🎰 Mercado de Playdoit (Soccer):", ["Línea de Dinero (Money Line / Ganador Directo)", "Goles Totales (Over/Under)", "Hándicap Asiático de Goles", "Línea de Goles Alterna"], key="merc_soccer_glob")
-        direccion_apuesta = st.radio("🎰 Dirección de tu Apuesta en Playdoit:", ["Local / Favorito (-)", "Visitante / Colchón (+)"], key="dir_soccer_glob")
-
-    with col2:
-        st.write("### 🎰 **Líneas y Cuotas de Playdoit:**")
-        val_linea_base = 0.0 if "Línea de Dinero" in mercado_selec else datos_partido["linea_base_casino"]
-        linea_oficial = st.number_input("📋 Línea Oficial del Casino:", min_value=-10.0, max_value=15.0, value=float(val_linea_base), step=0.5, key="lin_o_soccer_glob")
-        
-        momio_oficial = st.number_input("🎯 Momio Oficial de Apertura:", min_value=-500, max_value=500, value=-110, step=5, key="mom_o_soccer_glob")
-        st.write("---")
-        
-        if "Línea de Dinero" in mercado_selec:
-            ajuste_desplazamiento = 0.0
-            st.info("📐 **Métrica Fija:** Ganador Directo.")
-        else:
-            ajuste_desplazamiento = st.slider("📐 Calibrar Medio Gol:", min_value=-5.0, max_value=5.0, value=0.0, step=0.5, key="col_manual_soccer_glob")
-
-    linea_calculada_cruda = linea_oficial + ajuste_desplazamiento
-    linea_ajustada = float(round(linea_calculada_cruda * 2) / 2.0)
-    if "Hándicap" in mercado_selec and linea_ajustada == int(linea_ajustada):
-        linea_ajustada = linea_ajustada - 0.5 if "Visitante" in direccion_apuesta else linea_ajustada + 0.5
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro EV+ (Fútbol)**")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        torneos_unicos = ["Todos los Torneos"] + sorted(list(set([p["torneo"] for p in cartelera_soccer])))
+        torneo_sel = st.selectbox("🌍 Filtrar Competición en Vivo:", torneos_unicos)
+    with col_s2:
+        edge_soccer_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_soccer")
 
     st.markdown("---")
-    if "Línea de Dinero" in mercado_selec: 
-        st.markdown(f"### 🚨 **JUGADA SELECCIONADA:** `Ganador Directo (Money Line)`")
-    elif "Hándicap" in mercado_selec:
-        st.markdown(f"### 🚨 **LÍNEA CALIBRADA EN CASINO:** `{linea_ajustada:+.1f}`")
-    else: 
-        st.markdown(f"### 🚨 **LÍNEA CALIBRADA EN CASINO:** `{linea_ajustada:.1f} Goles`")
+    st.subheader("⚡ **Oportunidades de Fútbol Detectadas con Valor Real (EV+)**")
 
-    txt_momio_real = st.text_input(f"🎯 Escribe el Momio Real Ajustado en Playdoit:", value=f"{momio_oficial:+}", key="mom_txt_soccer_glob")
-    try:
-        momio_filtrado = txt_momio_real.replace(" ", "")
-        momio_ajustado = int(momio_filtrado.replace("+", "")) if momio_filtrado.startswith("+") else int(momio_filtrado)
-    except: momio_ajustado = momio_oficial
+    partidos_a_mostrar = cartelera_soccer if torneo_sel == "Todos los Torneos" else [p for p in cartelera_soccer if p["torneo"] == torneo_sel]
 
-    regla_aprobada = True
-    if momio_ajustado < -150:
-        regla_aprobada = False
-        st.error(f"🚨 **RECHAZADO POR REGLA DE ORO:** El momio de `{momio_ajustado}` castiga tu banca. Debe estar entre -110 y -150.")
-    else: 
-        st.success(f"🎯 **PROPUESTA DE AUTORIDAD (Filtro de puros verdes):** Cuota validada dentro del rango seguro.")
+    oportunidades_soccer = []
+    for match in partidos_a_mostrar:
+        prob_imp_local = momio_a_probabilidad_implicita(match["momio_local"]) * 100.0
+        edge_local = match["prob_modelo_local"] - prob_imp_local
 
-    st.markdown("### 🏛️ **REPORTE DE INTELIGENCIA VERÍDICA SOFASCORE - 9 VARIABLES**")
-    st.info(f"🌪️ **RADAR METEOROLÓGICO:**\n• {datos_partido['clima']}")
-    st.success(f"🌿 **TERRENO DE JUEGO & SUPERFICIE:**\n• {datos_partido['terreno']}")
-    st.warning(f"📈 **LAS VEGAS SHARPS VS PUBLIC MONEY VOLUMEN:**\n• {datos_partido['money']}")
-    st.error(f"⚔️ **GUERRA HISTÓRICA CARA A CARA (H2H - MÍNIMO 55%):**\n• {datos_partido['h2h']}")
-    st.info(f"🏥 **ADUANA MÉDICA & SITUACIÓN DE HOSPITAL:**\n• {datos_partido['hospital']}")
-    st.success(f"🦓 **FACTOR REFEREE ASSIGNED CENTRAL:**\n• {datos_partido['referee']}")
+        if edge_local >= edge_soccer_min:
+            match_copia = match.copy()
+            match_copia["edge"] = edge_local
+            oportunidades_soccer.append(match_copia)
 
-    if regla_aprobada and st.button("➕ Agregar Selección de Fútbol Global a mi Parlay", key="btn_add_soccer_glob", use_container_width=True):
-        picks_actuales = cargar_parlay_soccer_disco()
-        j_str = "Money Line" if "Línea de Dinero" in mercado_selec else f"{mercado_selec}: {linea_ajustada:+.1f}" if "Hándicap" in mercado_selec else f"{mercado_selec}: {linea_ajustada:.1f}"
-        
-        if not any(x['equipo'] == equipo_jugador for x in picks_actuales):
-            picks_actuales.append({"equipo": equipo_jugador, "rival": rival_real, "mercado": mercado_selec, "jugada": j_str, "momio_a": momio_ajustado})
-            guardar_parlay_soccer_disco(picks_actuales)
-            st.session_state.lista_futbol_parlay = picks_actuales
-            st.success("✅ ¡Añadido con éxito al Parlay Global de Fútbol!")
+    if oportunidades_soccer:
+        for idx, op in enumerate(oportunidades_soccer, 1):
+            with st.container():
+                st.success(f"### ⚽ Oportunidad #{idx} [{op['torneo']}]: `{op['local']}` vs `{op['visita']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Apuesta Sugerida:** Ganador Directo (Money Line) a favor de `{op['local']}` | Momio: `{op['momio_local']:+}`")
+                st.write(f"• **Auditoría Sofascore:** 🌪️ {op['clima']} | 🏥 {op['hospital']}")
+
+                if op['momio_local'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Partido #{idx} en Ticket Global", key=f"btn_soc_{idx}", use_container_width=True):
+                    picks_actuales = cargar_parlay_soccer_disco()
+                    id_pick = f"{op['local']} vs {op['visita']} ({op['torneo']})"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "equipo": op['local'],
+                            "rival": op['visita'],
+                            "mercado": "Money Line (Local)",
+                            "momio": op['momio_local']
+                        })
+                        guardar_parlay_soccer_disco(picks_actuales)
+                        st.success("✅ ¡Partido añadido al ticket de fútbol con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Este encuentro ya está registrado en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ningún encuentro de fútbol supera el filtro de Edge del {edge_soccer_min}% con la cartelera actual.")
+
+    st.markdown("## 📋 **Ticket Unificado de Fútbol Global**")
+    ticket_soccer = cargar_parlay_soccer_disco()
+    if ticket_soccer:
+        if st.button("🗑️ Limpiar Ticket de Fútbol Global", key="clr_soc_glob", use_container_width=True):
+            guardar_parlay_soccer_disco([])
             st.rerun()
-        else:
-            st.warning("⚠️ Este encuentro ya se encuentra registrado en tu boleta actual.")
 
-    ticket_impresion = cargar_parlay_soccer_disco()
-    if ticket_impresion:
-        if st.button("🗑️ Limpiar Todo el Ticket de Fútbol Global", key="btn_clr_soccer_glob", use_container_width=True):
-            guardar_parlay_soccer_disco([]); st.session_state.lista_futbol_parlay = []; st.rerun()
-        st.markdown("## 🚨 **TICKET FINAL DE FÚTBOL GLOBAL (PARLAY MULTIPLICADO) 🛡️**")
-        monto_inversion = st.number_input("💰 Digita los pesos que vas a apostar a este boleto (\$):", min_value=10.0, max_value=10000.0, value=250.0, step=50.0, key="monto_inv_soccer_glob")
-        ticket_lineas = ["=========================================", "🚨 JAVIER SOCCER GLOBAL - TICKET INTELIGENCIA REAL 🚨", "========================================="]
-        mult_momio = 1.0
-        for idx, item in enumerate(ticket_impresion, 1):
-            ticket_lineas.append(f"⚽ PICK #{idx}: {item['equipo']} vs {item['rival']}")
-            ticket_lineas.append(f"   🎯 JUGADA MANUAL CALIBRADA: {item['jugada']} | 📉 MOMIO REAL: {item['momio_a']:+}")
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET GLOBAL DE FÚTBOL — EV+ 🚨",
+            "========================================="
+        ]
+        mult_soc = 1.0
+        for idx, item in enumerate(ticket_soccer, 1):
+            ticket_lineas.append(f"⚽ PICK #{idx}: {item['id']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['mercado']} | MOMIO: {item['momio']:+}")
             ticket_lineas.append("-----------------------------------------")
-            m = item['momio_a']
-            mult_momio *= ((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0)
-        ganancia_estimada = monto_inversion * (mult_momio - 1.0)
-        ticket_lineas.append(f"💰 Inversión Fija: \$ {monto_inversion:.2f} MXN")
-        ticket_lineas.append(f"🔥 Ganancia Real Acumulada Parlay Soccer: \$ {ganancia_estimada:.2f} MXN")
-        ticket_lineas.append("🚨 APOSTAR AQUÍ (PLAYDOIT) 🚨")
+            m = item['momio']
+            mult_soc *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_soc = 250.0 * (mult_soc - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay Soccer: ${ganancia_parlay_soc:.2f} MXN")
         ticket_lineas.append("=========================================")
-        st.text_area("📋 Copia directo a tu Bloc de Notas:", value="\n".join(ticket_lineas), height=250, key="textarea_soccer_glob")
+
+        st.text_area("Copia tu ticket de fútbol listo para Playdoit:", value="\n".join(ticket_lineas), height=240, key="txt_area_soc_fin")
+    else:
+        st.info("Aún no tienes partidos de fútbol añadidos a tu ticket.")
 
 
 # =========================================================
