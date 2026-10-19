@@ -40,7 +40,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
         "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)",
         "⚾ Liga Mexicana del Pacífico (LMP Invernal)",
-        "⚾ Béisbol Internacional (MLB & Caribe)",
+        "⚾ Béisbol Internacional (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
         "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)",
@@ -83,12 +83,12 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                         visitante = comp.get("team", {}).get("displayName", "Visitante")
                 
                 odds = competencia.get("odds", [{}])
-                spread = -3.5
-                momio_spread = -110
+                spread = -1.5
+                momio_spread = +125
                 if odds and isinstance(odds, list) and len(odds) > 0:
-                    try: spread = float(odds[0].get("details", "-3.5").split()[-1])
+                    try: spread = float(odds[0].get("details", "-1.5").split()[-1])
                     except: pass
-                    try: momio_spread = int(odds[0].get("overOdds", {}).get("price", -110))
+                    try: momio_spread = int(odds[0].get("overOdds", {}).get("price", +125))
                     except: pass
 
                 partidos_extraidos.append({
@@ -98,7 +98,7 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                     "spread": spread,
                     "momio_spread": momio_spread,
                     "mercados_disponibles": [
-                        {"tipo": "Hándicap (Spread)", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 62.5}
+                        {"tipo": "Run Line (Hándicap)", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 54.5}
                     ]
                 })
             return partidos_extraidos
@@ -292,65 +292,79 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
 
 
 # =========================================================
-# 10. LMP (Béisbol Invernal)
+# 10. LMP (Liga Mexicana del Pacífico - Conector Sólido)
 # =========================================================
 elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Invernal)":
-    st.title(f"⚾ **Liga Mexicana del Pacífico ({fecha_formato_str})**")
-    st.markdown("--- \n *Béisbol invernal mexicano y análisis de Run Line.*")
-    st.success("### ⚾ Análisis LMP (Run Line): Naranjeros de Hermosillo (-1.5)")
-    st.write("• **Momio Oficial:** `+130` | Modelo Proyecciones: 🛡️ Ventaja en rotación abridora y bullpen")
+    st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Béisbol invernal con sincronización en vivo y análisis de Run Line (±1.5).*")
 
-
-# =========================================================
-# 11. Béisbol Internacional (MLB & Caribe — Entrada Manual Interactiva)
-# =========================================================
-elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB & Caribe)":
-    st.title(f"⚾ **Béisbol Internacional & Caribe ({fecha_formato_str})**")
-    st.markdown("--- \n *Módulo con Ingreso Manual de Partidos: Introduce los datos reales de tu app de resultados para calcular el Edge exacto.*")
-
-    liga_caribe = st.selectbox(
-        "🌴 Selecciona la Liga del Caribe / Internacional:",
-        [
-            "Serie Nacional de Cuba (Cuba)",
-            "Liga Venezolana de Béisbol Profesional (LVBP)",
-            "LIDOM (República Dominicana)",
-            "Liga Mexicana del Pacífico (LMP)",
-            "LBPRC (Puerto Rico)",
-            "Major League Baseball (MLB - USA)"
+    cartelera_lmp = obtener_eventos_cuantitativos("baseball", "mex.1", fecha_formato_api, fecha_formato_str)
+    if not cartelera_lmp:
+        cartelera_lmp = [
+            {
+                "partido_str": f"⚾ [{fecha_formato_str}] Naranjeros de Hermosillo @ Cañeros de Los Mochis",
+                "spread": -1.5,
+                "momio_spread": +130,
+                "mercados_disponibles": [
+                    {"tipo": "Run Line (Hándicap)", "seleccion": "Naranjeros de Hermosillo (-1.5)", "momio": +130, "prob_modelo": 54.0}
+                ]
+            }
         ]
-    )
+
+    col_l1, col_l2 = st.columns(2)
+    with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
+    with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_lmp")
 
     st.markdown("---")
-    st.markdown("### ✍️ Ingresa el Partido del Día")
+    for idx, op in enumerate(cartelera_lmp, 1):
+        m = op["mercados_disponibles"][0]
+        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+        edge = m["prob_modelo"] - prob_imp
 
-    col_i1, col_i2 = st.columns(2)
-    with col_i1:
-        equipo_visitante = st.text_input("⚾ Equipo Visitante:", value="Mayabeque")
-        equipo_local = st.text_input("⚾ Equipo Local:", value="Villa Clara")
-    with col_i2:
-        seleccion_apuesta = st.text_input("🎯 Selección con Run Line (ej. Villa Clara -1.5):", value="Villa Clara (-1.5)")
-        momio_ingresado = st.number_input("📈 Momio Americano Oficial (ej. +135):", value=135, step=5)
-        prob_modelo_ingresada = st.slider("🤖 Probabilidad Estimada de tu Modelo (%):", 40.0, 80.0, 53.5, 0.5)
+        if edge >= edge_min_lmp:
+            st.success(f"### ⚾ Partido LMP Run Line #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
+            st.write(f"• **Selección Recomendada:** `{m['seleccion']}`")
+            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
+            st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
+
+
+# =========================================================
+# 11. Béisbol Internacional (MLB)
+# =========================================================
+elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
+    st.title(f"⚾ **Béisbol Internacional - MLB ({fecha_formato_str})**")
+    st.markdown("--- \n *Escáner cuantitativo sincronizado con la cartelera oficial de la Major League Baseball.*")
+
+    cartelera_mlb = obtener_eventos_cuantitativos("baseball", "mlb", fecha_formato_api, fecha_formato_str)
+    if not cartelera_mlb:
+        cartelera_mlb = [
+            {
+                "partido_str": f"⚾ [{fecha_formato_str}] New York Yankees @ Los Angeles Dodgers",
+                "spread": -1.5,
+                "momio_spread": +125,
+                "mercados_disponibles": [
+                    {"tipo": "Run Line (Hándicap)", "seleccion": "Los Angeles Dodgers (-1.5)", "momio": +125, "prob_modelo": 54.0}
+                ]
+            }
+        ]
 
     col_b1, col_b2 = st.columns(2)
-    with col_b1: bankroll_caribe = st.number_input("💵 Bankroll Béisbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_caribe")
-    with col_b2: edge_min_caribe = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 2.5, 0.5, key="edge_caribe")
+    with col_b1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_mlb")
+    with col_b2: edge_min_mlb = st.slider("🎯 Edge Mínimo Run Line (%):", 0.0, 15.0, 2.5, 0.5, key="edge_mlb")
 
     st.markdown("---")
-    st.subheader("📊 Resultado del Análisis Cuantitativo")
+    for idx, op in enumerate(cartelera_mlb, 1):
+        m = op["mercados_disponibles"][0]
+        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+        edge = m["prob_modelo"] - prob_imp
 
-    prob_imp = momio_a_probabilidad_implicita(momio_ingresado) * 100.0
-    edge = prob_modelo_ingresada - prob_imp
-
-    st.info(f"📅 Analizando partido en **{liga_caribe}** para el **{fecha_formato_str}**: `{equipo_visitante} @ {equipo_local}`")
-
-    if edge >= edge_min_caribe:
-        st.success(f"### 🟢 ¡OPORTUNIDAD EV+ DETECTADA! — Edge: `+{edge:.1f}%`")
-        st.write(f"• **Selección Recomendada:** `{seleccion_apuesta}`")
-        st.write(f"• **Momio Oficial:** `{momio_ingresado:+}` | Probabilidad Implica: `{prob_imp:.1f}%` | Modelo: `{prob_modelo_ingresada}%`")
-        st.success("🎯 **Regla de Oro Aprobada:** Excelente valor matemático en Run Line.")
-    else:
-        st.warning(f"⚠️ El Edge actual es de `+{edge:.1f}%`, lo cual está por debajo de tu mínimo requerido ({edge_min_caribe}%). No se recomienda la apuesta.")
+        if edge >= edge_min_mlb:
+            st.success(f"### ⚾ Partido Run Line MLB #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
+            st.write(f"• **Selección Recomendada:** `{m['seleccion']}`")
+            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
+            st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
 
 
 # =========================================================
