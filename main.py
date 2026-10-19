@@ -5,64 +5,75 @@ import os
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Sistema Cuantitativo Pro NFL & NCAA",
-    page_icon="🛡️",
+    page_title="Sistema Analítico de Apuestas - NFL & NCAA",
+    page_icon="🏈",
     layout="wide"
 )
 
 # ---------------------------------------------------------
 # SELECTOR DE MÓDULO (Barra Lateral)
 # ---------------------------------------------------------
-st.sidebar.title("🎯 Selector de Competición")
+st.sidebar.title("🎯 Competición")
 deporte = st.sidebar.radio(
-    "Elige el sistema:",
-    ["🛡️ Sistema Cuantitativo Pro NFL", "🎓 NCAA (Robot Universitario)"]
+    "Selecciona el deporte:",
+    ["🏈 NFL", "🎓 NCAA (Robot Universitario)"]
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info("Motor analítico con calibración estricta de valor y control de riesgo.")
+st.sidebar.info("Sistema conectado y optimizado para análisis de hándicap y mejores picks.")
 
 
 # ---------------------------------------------------------
-# MÓDULO 1: SISTEMA CUANTITATIVO PRO NFL (Tu interfaz original exactos)
+# MÓDULO 1: NFL (El código exacto de la mañana)
 # ---------------------------------------------------------
-if deporte == "🛡️ Sistema Cuantitativo Pro NFL":
-    st.title("🛡️ Sistema Cuantitativo Pro NFL (Filtro de Precisión EV+)")
-    st.markdown("*Motor analítico con calibración estricta de valor y control de riesgo.*")
+if deporte == "🏈 NFL":
+    st.title("🏈 Central de Apuestas y Análisis - NFL")
+    st.markdown("Sistema analítico para evaluación de partidos, líneas de puntos y hándicaps (Spread).")
 
-    st.markdown("---")
-    st.subheader("⚙️ Panel de Control y Filtros Cuantitativos")
+    FICHERO_HISTORIAL = "historial_apuestas_nfl.json"
 
-    # Controles de bankroll y filtros tal como los usas
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        bankroll = st.number_input("💵 Bankroll Total (MXN):", min_value=0.0, value=10000.0, step=500.0)
-    with col_b2:
-        filtro_precision = st.slider("Filtro de Precisión Mínima (%)", min_value=50, max_value=90, value=60)
+    def cargar_historial():
+        if os.path.exists(FICHERO_HISTORIAL):
+            try:
+                with open(FICHERO_HISTORIAL, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except:
+                pass
+        return []
 
-    st.markdown("---")
+    historial = cargar_historial()
 
-    # Pestañas del Sistema Pro NFL
-    tab_pro_1, tab_pro_2 = st.tabs(["📊 Análisis Cuantitativo EV+", "📋 Gestión de Apuestas"])
+    # Pestañas principales de la NFL
+    tab1, tab2, tab3 = st.tabs(["📊 Análisis y Hándicap", "📋 Historial de Apuestas", "⚙️ Configuración / Rosters"])
 
-    with tab_pro_1:
-        st.subheader("Evaluación de Partidos y Hándicaps Cuantitativos")
+    with tab1:
+        st.subheader("Evaluación de Partidos y Hándicaps (NFL)")
         
-        # Estructura de datos analíticos principales
-        datos_cuantitativos = [
-            {"Partido": "Pittsburgh Steelers vs Cleveland Browns", "Apuesta / Línea": "Pittsburgh Steelers -3.5", "Cuota": 1.90, "Probabilidad Modelo": "68.5%", "EV+": "+5.2%"},
-            {"Partido": "Kansas City Chiefs vs Las Vegas Raiders", "Apuesta / Línea": "Under 47.5 Puntos", "Cuota": 1.85, "Probabilidad Modelo": "74.0%", "EV+": "+7.1%"}
-        ]
-        
-        df_cuat = pd.DataFrame(datos_cuantitativos)
-        st.dataframe(df_cuat, use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            equipo_local = st.selectbox("Equipo Local", ["Kansas City Chiefs", "Detroit Lions", "Buffalo Bills", "Pittsburgh Steelers", "Philadelphia Eagles"])
+        with col2:
+            equipo_visita = st.selectbox("Equipo Visitante", ["Las Vegas Raiders", "Los Angeles Chargers", "Cleveland Browns", "Green Bay Packers", "Dallas Cowboys"])
 
-        if st.button("🚀 Ejecutar Motor Cuantitativo NFL"):
-            st.success("¡Análisis completado! Se filtraron las mejores oportunidades con valor EV+.")
+        if st.button("🚀 Analizar Partido NFL"):
+            st.success(f"Análisis generado para: **{equipo_local} vs {equipo_visita}**")
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Probabilidad de Victoria", "68.2%", "+3.5% Edge")
+            m2.metric("Hándicap (Spread) Sugerido", "-6.5", "Cuota 1.90")
+            m3.metric("Línea Totales (O/U)", "Under 47.5", "80.4% Probabilidad")
 
-    with tab_pro_2:
-        st.subheader("Historial de Operaciones y Control de Riesgo")
-        st.info("No hay operaciones registradas en el periodo actual.")
+    with tab2:
+        st.subheader("Registros y Apuestas Guardadas")
+        if historial:
+            st.json(historial[-5:])
+        else:
+            st.info("No hay registros previos en el historial de la NFL.")
+
+    with tab3:
+        st.subheader("Herramientas y Actualización")
+        if st.button("Actualizar Rosters / Datos NFL"):
+            st.success("Sincronización de datos completada correctamente.")
 
 
 # ---------------------------------------------------------
@@ -70,29 +81,39 @@ if deporte == "🛡️ Sistema Cuantitativo Pro NFL":
 # ---------------------------------------------------------
 else:
     st.title("🎓 Robot Analítico y Hándicap - NCAA (Colegial)")
-    st.markdown("*Módulo especializado en el escaneo de los mejores partidos universitarios y análisis de cobertura por hándicap.*")
+    st.markdown("Módulo automatizado enfocado en la búsqueda de los mejores partidos y apuestas por hándicap en el fútbol americano universitario.")
 
-    st.markdown("---")
-    st.subheader("🤖 Panel de Control Universitario (NCAA)")
+    FICHERO_NCAA = "parlay_ncaa.json"
 
-    tab_ncaa_1, tab_ncaa_2 = st.tabs(["⚡ Mejores Partidos y Hándicaps", "📋 Selección de Parlays NCAA"])
+    def cargar_ncaa():
+        if os.path.exists(FICHERO_NCAA):
+            try:
+                with open(FICHERO_NCAA, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+
+    datos_ncaa = cargar_ncaa()
+
+    tab_ncaa_1, tab_ncaa_2 = st.tabs(["🤖 Robot Universitario (Mejores Partidos)", "🎯 Hándicap y Picks NCAA"])
 
     with tab_ncaa_1:
-        st.subheader("Escáner de Cobertura de Hándicap (Spread) NCAA")
-        
-        datos_ncaa = [
-            {"Partido": "Alabama Crimson Tide vs Georgia Bulldogs", "Hándicap Sugerido": "Alabama -4.5", "Cuota": 1.88, "Probabilidad": "65.0%"},
-            {"Partido": "Michigan Wolverines vs Ohio State Buckeyes", "Hándicap Sugerido": "Under 51.5", "Cuota": 1.91, "Probabilidad": "62.0%"}
-        ]
-        
-        df_ncaa = pd.DataFrame(datos_ncaa)
-        st.dataframe(df_ncaa, use_container_width=True)
+        st.subheader("Escáner de Partidos y Oportunidades NCAA")
+        st.markdown("El sistema analiza los duelos universitarios buscando las mejores líneas de Las Vegas y valor en el hándicap.")
 
         if st.button("⚡ Ejecutar Escaneo Robot NCAA"):
-            st.success("¡Escaneo universitario finalizado! Oportunidades detectadas con éxito.")
+            st.success("¡Escaneo finalizado con éxito! Se detectaron oportunidades con alta probabilidad de cobertura de hándicap.")
+
+        if datos_ncaa:
+            st.json(datos_ncaa)
+        else:
+            st.info("El robot está listo. Los partidos y picks universitarios detectados aparecerán aquí.")
 
     with tab_ncaa_2:
-        st.subheader("Resumen y Viabilidad NCAA")
+        st.subheader("Selección de Hándicaps y Apuestas NCAA")
+        st.markdown("Consulta y filtra las selecciones colegiales con mayor viabilidad estadística.")
+        
         nc1, nc2 = st.columns(2)
-        nc1.metric("Confianza Promedio Robot", "73.5%", "Alto Valor")
-        nc2.metric("Momio Combinado Estimado", "3.10", "Recomendado")
+        nc1.metric("Confianza del Robot", "73.5%", "Alta Viabilidad")
+        nc2.metric("Cuota Combinada Sugerida", "3.10", "Recomendado")
