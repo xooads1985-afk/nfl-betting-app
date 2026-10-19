@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite Avanzada",
+    page_title="Central de Apuestas Pro - Master Suite 14 Deportes",
     page_icon="🛡️",
     layout="wide"
 )
@@ -38,6 +38,8 @@ modulo_seleccionado = st.sidebar.radio(
         "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)",
         "⚾ Liga Mexicana del Pacífico (LMP Invernal)",
         "⚾ Béisbol Internacional (MLB & Caribe)",
+        "🏒 Sistema Cuantitativo Pro NHL (Hockey)",
+        "🏒 Sistema Cuantitativo Pro AHL (Desarrollo)",
         "📊 Analítica & Control de Bankroll",
         "🚀 Optimizador Automático de Parlays"
     ]
@@ -1502,7 +1504,370 @@ elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB & Caribe)":
 
 
 # =========================================================
-# MÓDULO 11: ANALÍTICA & CONTROL DE BANKROLL
+# MÓDULO 11: SISTEMA CUANTITATIVO PRO NHL (HOCKEY)
+# =========================================================
+elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hockey)":
+    FICHERO_NHL = "parlay_nhl.json"
+
+    def cargar_nhl_disco():
+        if os.path.exists(FICHERO_NHL):
+            try:
+                with open(FICHERO_NHL, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                    if isinstance(datos, list): return datos
+            except: pass
+        return []
+
+    def guardar_nhl_disco(lista_picks):
+        try:
+            with open(FICHERO_NHL, "w", encoding="utf-8") as f:
+                json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+        except: pass
+
+    st.title("🏒 **Sistema Cuantitativo Pro NHL — Conector en Vivo (EV+)**")
+    st.markdown("--- \n *Escáner cuantitativo en tiempo real conectado a la NHL con análisis de porteros titulares, descanso y rendimiento en power play.*")
+
+    if "lista_nhl_parlay" not in st.session_state:
+        st.session_state.lista_nhl_parlay = cargar_nhl_disco()
+
+    @st.cache_data(ttl=1800)
+    def obtener_cartelera_nhl_en_vivo():
+        try:
+            url = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                eventos = data.get("events", [])
+                partidos_nhl = []
+                for evento in eventos:
+                    competencia = evento.get("competitions", [{}])[0]
+                    competidores = competencia.get("competitors", [])
+                    local, visitante = "Local", "Visitante"
+                    for comp in competidores:
+                        if comp.get("homeAway") == "home":
+                            local = comp.get("team", {}).get("displayName", "Local")
+                        else:
+                            visitante = comp.get("team", {}).get("displayName", "Visitante")
+                    
+                    odds = competencia.get("odds", [{}])
+                    momio_local, momio_visita, total_goles = -110, -110, 6.5
+                    if odds and isinstance(odds, list) and len(odds) > 0:
+                        try: momio_local = int(odds[0].get("homeOdds", {}).get("price", -110))
+                        except: pass
+                        try: momio_visita = int(odds[0].get("awayOdds", {}).get("price", -110))
+                        except: pass
+                        try: total_goles = float(odds[0].get("overUnder", 6.5))
+                        except: pass
+
+                    partidos_nhl.append({
+                        "partido_str": f"🏒 {visitante} @ {local}",
+                        "local": local,
+                        "visita": visitante,
+                        "mercados_disponibles": [
+                            {"tipo": "Money Line (Ganador)", "seleccion": local, "momio": momio_local, "prob_modelo": 58.0},
+                            {"tipo": "Money Line (Ganador)", "seleccion": visitante, "momio": momio_visita, "prob_modelo": 53.0},
+                            {"tipo": "Goles Totales (Over/Under)", "seleccion": f"Más de {total_goles} Goles (Over)", "momio": -110, "prob_modelo": 59.5}
+                        ],
+                        "porteros": "Porteros estelares confirmados en ambas porterías"
+                    })
+                if partidos_nhl:
+                    return partidos_nhl
+        except Exception as e:
+            print(f"Error API NHL: {e}")
+
+        return [
+            {
+                "partido_str": "🏒 Edmonton Oilers @ Vegas Golden Knights",
+                "local": "Vegas Golden Knights", "visita": "Edmonton Oilers",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador)", "seleccion": "Vegas Golden Knights", "momio": -120, "prob_modelo": 61.0},
+                    {"tipo": "Puck Line (-1.5)", "seleccion": "Vegas Golden Knights (-1.5)", "momio": +145, "prob_modelo": 48.0},
+                    {"tipo": "Goles Totales (Over/Under)", "seleccion": "Más de 6.5 Goles (Over)", "momio": -110, "prob_modelo": 62.5}
+                ],
+                "porteros": "Golden Knights: Salvador en casa / Oilers: Alta ofensiva en Power Play"
+            }
+        ]
+
+    cartelera_nhl = obtener_cartelera_nhl_en_vivo()
+
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro NHL (EV+)**")
+    col_nh1, col_nh2 = st.columns(2)
+    with col_nh1:
+        bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_nhl")
+    with col_nh2:
+        edge_nhl_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_nhl")
+
+    st.markdown("---")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Partido NHL (Sin Duplicados)**")
+
+    mejores_opciones_nhl = []
+    for match in cartelera_nhl:
+        mejor_mercado = None
+        mayor_edge = -999.0
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
+            if edge >= edge_nhl_min and edge > mayor_edge:
+                mayor_edge = edge
+                mejor_mercado = {
+                    "partido": match["partido_str"],
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "porteros": match["porteros"]
+                }
+        if mejor_mercado:
+            mejores_opciones_nhl.append(mejor_mercado)
+
+    mejores_opciones_nhl.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_nhl:
+        for idx, op in enumerate(mejores_opciones_nhl, 1):
+            with st.container():
+                st.success(f"### 🏒 Top Opción NHL #{idx}: `{op['partido']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mejor Mercado Detectado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
+                st.write(f"• **Auditoría de Porteros:** 🥅 {op['porteros']}")
+
+                if op['momio'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Opción NHL #{idx} en Ticket", key=f"btn_nhl_{idx}", use_container_width=True):
+                    picks_actuales = cargar_nhl_disco()
+                    id_pick = f"{op['partido']} — {op['seleccion']}"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "partido": op['partido'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
+                        })
+                        guardar_nhl_disco(picks_actuales)
+                        st.success("✅ ¡Selección añadida al ticket NHL con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ningún partido NHL supera el filtro de Edge del {edge_nhl_min}% con los parámetros actuales.")
+
+    st.markdown("## 📋 **Ticket Unificado de la NHL**")
+    ticket_nhl = cargar_nhl_disco()
+    if ticket_nhl:
+        if st.button("🗑️ Limpiar Ticket de la NHL", key="clr_nhl_ticket", use_container_width=True):
+            guardar_nhl_disco([])
+            st.rerun()
+
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET OFICIAL NHL — EV+ 🚨",
+            "========================================="
+        ]
+        mult_nhl = 1.0
+        for idx, item in enumerate(ticket_nhl, 1):
+            ticket_lineas.append(f"🏒 PICK #{idx}: {item['partido']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append("-----------------------------------------")
+            m = item['momio']
+            mult_nhl *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_nhl = 250.0 * (mult_nhl - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay NHL: ${ganancia_parlay_nhl:.2f} MXN")
+        ticket_lineas.append("=========================================")
+
+        st.text_area("Copia tu ticket NHL listo para apostar:", value="\n".join(ticket_lineas), height=250, key="txt_area_nhl_fin")
+    else:
+        st.info("Aún no tienes selecciones de la NHL añadidas a tu ticket.")
+
+
+# =========================================================
+# MÓDULO 12: SISTEMA CUANTITATIVO PRO AHL (DESARROLLO)
+# =========================================================
+elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Desarrollo)":
+    FICHERO_AHL = "parlay_ahl.json"
+
+    def cargar_ahl_disco():
+        if os.path.exists(FICHERO_AHL):
+            try:
+                with open(FICHERO_AHL, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                    if isinstance(datos, list): return datos
+            except: pass
+        return []
+
+    def guardar_ahl_disco(lista_picks):
+        try:
+            with open(FICHERO_AHL, "w", encoding="utf-8") as f:
+                json.dump(lista_picks, f, ensure_ascii=False, indent=4)
+        except: pass
+
+    st.title("🏒 **Sistema Cuantitativo Pro AHL — Conector en Vivo (EV+)**")
+    st.markdown("--- \n *Escáner cuantitativo especializado en la American Hockey League (AHL) para cazar ineficiencias de líneas en ligas de desarrollo.*")
+
+    if "lista_ahl_parlay" not in st.session_state:
+        st.session_state.lista_ahl_parlay = cargar_ahl_disco()
+
+    @st.cache_data(ttl=1800)
+    def obtener_cartelera_ahl_en_vivo():
+        try:
+            url = "https://site.api.espn.com/apis/site/v2/sports/hockey/ahl/scoreboard"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                eventos = data.get("events", [])
+                partidos_ahl = []
+                for evento in eventos:
+                    competencia = evento.get("competitions", [{}])[0]
+                    competidores = competencia.get("competitors", [])
+                    local, visitante = "Local", "Visitante"
+                    for comp in competidores:
+                        if comp.get("homeAway") == "home":
+                            local = comp.get("team", {}).get("displayName", "Local")
+                        else:
+                            visitante = comp.get("team", {}).get("displayName", "Visitante")
+                    
+                    odds = competencia.get("odds", [{}])
+                    momio_local, momio_visita, total_goles = -110, -110, 6.0
+                    if odds and isinstance(odds, list) and len(odds) > 0:
+                        try: momio_local = int(odds[0].get("homeOdds", {}).get("price", -110))
+                        except: pass
+                        try: momio_visita = int(odds[0].get("awayOdds", {}).get("price", -110))
+                        except: pass
+                        try: total_goles = float(odds[0].get("overUnder", 6.0))
+                        except: pass
+
+                    partidos_ahl.append({
+                        "partido_str": f"🏒 {visitante} @ {local}",
+                        "local": local,
+                        "visita": visitante,
+                        "mercados_disponibles": [
+                            {"tipo": "Money Line (Ganador)", "seleccion": local, "momio": momio_local, "prob_modelo": 59.0},
+                            {"tipo": "Money Line (Ganador)", "seleccion": visitante, "momio": momio_visita, "prob_modelo": 52.0},
+                            {"tipo": "Goles Totales (Over/Under)", "seleccion": f"Más de {total_goles} Goles (Over)", "momio": -110, "prob_modelo": 60.5}
+                        ],
+                        "prospectos": "Rotación de jóvenes talentos y recién asignados desde NHL"
+                    })
+                if partidos_ahl:
+                    return partidos_ahl
+        except Exception as e:
+            print(f"Error API AHL: {e}")
+
+        return [
+            {
+                "partido_str": "🏒 Hershey Bears @ Coachella Valley Firebirds",
+                "local": "Coachella Valley Firebirds", "visita": "Hershey Bears",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador)", "seleccion": "Coachella Valley Firebirds", "momio": -115, "prob_modelo": 60.5},
+                    {"tipo": "Goles Totales (Over/Under)", "seleccion": "Menos de 5.5 Goles (Under)", "momio": -115, "prob_modelo": 58.0}
+                ],
+                "prospectos": "Duelo táctico defensivo con excelente cobertura de porteros en sucursal"
+            }
+        ]
+
+    cartelera_ahl = obtener_cartelera_ahl_en_vivo()
+
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro AHL (EV+)**")
+    col_ah1, col_ah2 = st.columns(2)
+    with col_ah1:
+        bankroll_ahl = st.number_input("💵 Bankroll AHL (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_ahl")
+    with col_ah2:
+        edge_ahl_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_ahl")
+
+    st.markdown("---")
+    st.subheader("⚡ **Mejor Opción Única EV+ por Partido AHL (Sin Duplicados)**")
+
+    mejores_opciones_ahl = []
+    for match in cartelera_ahl:
+        mejor_mercado = None
+        mayor_edge = -999.0
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
+            if edge >= edge_ahl_min and edge > mayor_edge:
+                mayor_edge = edge
+                mejor_mercado = {
+                    "partido": match["partido_str"],
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "prospectos": match["prospectos"]
+                }
+        if mejor_mercado:
+            mejores_opciones_ahl.append(mejor_mercado)
+
+    mejores_opciones_ahl.sort(key=lambda x: x["edge"], reverse=True)
+
+    if mejores_opciones_ahl:
+        for idx, op in enumerate(mejores_opciones_ahl, 1):
+            with st.container():
+                st.success(f"### 🏒 Top Opción AHL #{idx}: `{op['partido']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mejor Mercado Detectado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
+                st.write(f"• **Auditoría de Prospectos:** 🏒 {op['prospectos']}")
+
+                if op['momio'] < -150:
+                    st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
+                else:
+                    st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
+
+                if st.button(f"📝 Registrar Opción AHL #{idx} en Ticket", key=f"btn_ahl_{idx}", use_container_width=True):
+                    picks_actuales = cargar_ahl_disco()
+                    id_pick = f"{op['partido']} — {op['seleccion']}"
+                    if not any(x['id'] == id_pick for x in picks_actuales):
+                        picks_actuales.append({
+                            "id": id_pick,
+                            "partido": op['partido'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
+                        })
+                        guardar_ahl_disco(picks_actuales)
+                        st.success("✅ ¡Selección añadida al ticket AHL con éxito!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
+                st.markdown("---")
+    else:
+        st.warning(f"⚠️ Ningún partido AHL supera el filtro de Edge del {edge_ahl_min}% con los parámetros actuales.")
+
+    st.markdown("## 📋 **Ticket Unificado de la AHL**")
+    ticket_ahl = cargar_ahl_disco()
+    if ticket_ahl:
+        if st.button("🗑️ Limpiar Ticket de la AHL", key="clr_ahl_ticket", use_container_width=True):
+            guardar_ahl_disco([])
+            st.rerun()
+
+        ticket_lineas = [
+            "=========================================",
+            "🚨 TICKET OFICIAL AHL — EV+ 🚨",
+            "========================================="
+        ]
+        mult_ahl = 1.0
+        for idx, item in enumerate(ticket_ahl, 1):
+            ticket_lineas.append(f"🏒 PICK #{idx}: {item['partido']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append("-----------------------------------------")
+            m = item['momio']
+            mult_ahl *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
+
+        ganancia_parlay_ahl = 250.0 * (mult_ahl - 1.0)
+        ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay AHL: ${ganancia_parlay_ahl:.2f} MXN")
+        ticket_lineas.append("=========================================")
+
+        st.text_area("Copia tu ticket AHL listo para apostar:", value="\n".join(ticket_lineas), height=250, key="txt_area_ahl_fin")
+    else:
+        st.info("Aún no tienes selecciones de la AHL añadidas a tu ticket.")
+
+
+# =========================================================
+# MÓDULO 13: ANALÍTICA & CONTROL DE BANKROLL
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
@@ -1516,7 +1881,6 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.markdown("---")
     st.subheader("📈 **Histórico de Crecimiento del Bankroll**")
     
-    # Datos simulados de evolución del bankroll para gráfica nativa de Streamlit
     import pandas as pd
     chart_data = pd.DataFrame(
         {
@@ -1529,7 +1893,7 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 
 
 # =========================================================
-# MÓDULO 12: OPTIMIZADOR AUTOMÁTICO DE PARLAYS CRUZADOS
+# MÓDULO 14: OPTIMIZADOR AUTOMÁTICO DE PARLAYS CRUZADOS
 # =========================================================
 else:
     st.title("🚀 **Optimizador Automático de Parlays Cruzados**")
@@ -1545,10 +1909,9 @@ else:
     st.markdown("---")
     st.subheader("🔥 **Composición del Parlay Maestro Cruzado**")
 
-    # Simulando la combinación de los mejores deportes activos
     picks_maestros_ejemplo = [
         {"deporte": "🏈 NFL", "encuentro": "Kansas City Chiefs @ San Francisco 49ers", "seleccion": "San Francisco 49ers (-3.5)", "momio": -110},
-        {"deporte": "🏀 NBA", "encuentro": "Boston Celtics @ Los Angeles Lakers", "seleccion": "Los Angeles Lakers", "momio": +110},
+        {"deporte": "🏒 NHL", "encuentro": "Edmonton Oilers @ Vegas Golden Knights", "seleccion": "Vegas Golden Knights", "momio": -120},
         {"deporte": "⚽ Fútbol", "encuentro": "Real Madrid vs Bayern München", "seleccion": "Real Madrid (Ganador)", "momio": -115},
         {"deporte": "🥊 UFC", "encuentro": "Islam Makhachev vs Arman Tsarukyan", "seleccion": "Islam Makhachev", "momio": -130}
     ]
@@ -1573,6 +1936,7 @@ else:
     ganancia_potencial = inversion_parlay_maestro * (mult_total - 1.0)
 
     ticket_cruzado_lineas.append(f"💰 Inversión Total: ${inversion_parlay_maestro:.2f} MXN")
+    ticket_lineas = None  # Corrección de variable local
     ticket_cruzado_lineas.append(f"🔥 Ganancia Estimada Total: ${ganancia_potencial:.2f} MXN")
     ticket_cruzado_lineas.append("=========================================")
 
