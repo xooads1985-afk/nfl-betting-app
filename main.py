@@ -364,7 +364,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer)":
     if "lista_futbol_parlay" not in st.session_state:
         st.session_state.lista_futbol_parlay = cargar_parlay_soccer_disco()
 
-    # CATÁLOGO MULTITORNEO AMPLIADO (Champions, Europa, Conference, Ligas Top, MLS, Brasileirao, Liga MX)
+    # CATÁLOGO MULTITORNEO AMPLIADO CON TODAS LAS LIGAS EUROPEAS Y GLOBALES
     catalogo_futbol_global = {
         "🏆 [Champions League] Real Madrid vs Bayern München 🇪🇸🇩🇪": {
             "torneo": "UEFA Champions League", "equipo_local": "Real Madrid", "equipo_visitante": "Bayern München", "linea_base_casino": 0.0,
@@ -411,14 +411,59 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer)":
             "hospital": "Barcelona: Plantel estable / Atlético: Central titular baja por acumulación.",
             "referee": "Jesús Gil Manzano | Historial de tarjetas frecuentes en partidos de alta tensión."
         },
+        "🇮🇹 [Serie A] Inter Milan vs Juventus 🇮🇹": {
+            "torneo": "Serie A (Italia)", "equipo_local": "Inter Milan", "equipo_visitante": "Juventus", "linea_base_casino": -0.5,
+            "clima": "15°C | Noche despejada en Milán, césped impecable.",
+            "terreno": "Césped Híbrido | Domo: No.",
+            "money": "MOMIO VIVO: -120 Local. Fuerte respaldo al líder en el Giuseppe Meazza.",
+            "h2h": "Probabilidad Real de Éxito: 59.3%. Inter mantiene un bloque defensivo casi impenetrable en casa.",
+            "hospital": "Inter: Plantel titular completo / Juventus: Extremo titular con sobrecarga muscular.",
+            "referee": "Daniele Orsato | Árbitro de máxima jerarquía internacional, firme en el control."
+        },
+        "🇩🇪 [Bundesliga] Bayern München vs Borussia Dortmund 🇩🇪": {
+            "torneo": "Bundesliga (Alemania)", "equipo_local": "Bayern München", "equipo_visitante": "Borussia Dortmund", "linea_base_casino": -1.0,
+            "clima": "9°C | Frío típico en Múnich, ambiente vibrante en el Allianz Arena.",
+            "terreno": "Césped Natural Corto | Domo: No. Terreno rápido para vértigo ofensivo.",
+            "money": "MOMIO VIVO: -140 Local. Alta concentración de apuestas al Der Klassiker.",
+            "h2h": "Probabilidad Real de Éxito: 63.5%. Bayern domina históricamente los duelos en casa.",
+            "hospital": "Bayern: Delantero estelar listo / Dortmund: Defensa central baja por lesión.",
+            "referee": "Felix Zwayer | Muy dinámico, excelente lectura del ritmo de partido."
+        },
+        "🇫🇷 [Ligue 1] Paris Saint-Germain vs Olympique de Marseille 🇫🇷": {
+            "torneo": "Ligue 1 (Francia)", "equipo_local": "Paris Saint-Germain", "equipo_visitante": "Olympique de Marseille", "linea_base_casino": -1.0,
+            "clima": "13°C | Noche en el Parque de los Príncipes.",
+            "terreno": "Césped Natural | Domo: No.",
+            "money": "MOMIO VIVO: -135 Local. Favoritismo claro del PSG en el Clásico francés.",
+            "h2h": "Probabilidad Real de Éxito: 62.8%. Superioridad de plantilla innegable como local.",
+            "hospital": "PSG: Plantel estelar disponible / Marsella: Mediocampista creativo en duda.",
+            "referee": "François Letexier | Riguroso con entradas por detrás y juego brusco."
+        },
+        "🇳🇱 [Eredivisie] Ajax vs PSV Eindhoven 🇳🇱": {
+            "torneo": "Eredivisie (Países Bajos)", "equipo_local": "Ajax", "equipo_visitante": "PSV Eindhoven", "linea_base_casino": 0.0,
+            "clima": "11°C | Viento moderado en Ámsterdam.",
+            "terreno": "Césped Natural | Domo: No.",
+            "money": "MOMIO VIVO: +105 Local. Partido de alto voltaje ofensivo y goles esperados.",
+            "h2h": "Probabilidad Real de Éxito: 54.0%. Duelo sumamente abierto para ambos bandos.",
+            "hospital": "Ajax: Sin bajas de peso / PSV: Delantero titular disponible.",
+            "referee": "Danny Makkelie | Experiencia UEFA aplicada al campeonato local."
+        },
+        "🇵🇹 [Primeira Liga] Sporting CP vs Benfica 🇵🇹": {
+            "torneo": "Primeira Liga (Portugal)", "equipo_local": "Sporting CP", "equipo_visitante": "Benfica", "linea_base_casino": -0.5,
+            "clima": "18°C | Clima agradable en Lisboa para el derbi lisboeta.",
+            "terreno": "Césped Natural | Domo: No.",
+            "money": "MOMIO VIVO: -125 Local. Apuesta local respaldada por rendimiento reciente.",
+            "h2h": "Probabilidad Real de Éxito: 58.2%. Derbi de máxima fricción e intensidad.",
+            "hospital": "Sporting: Plantel completo / Benfica: Lateral derecho lesionado.",
+            "referee": "Artur Soares Dias | Estricto en faltas tácticas de corte."
+        },
         "🇲🇽 [Liga MX] Club América vs Tigres UANL 🇲🇽": {
             "torneo": "Liga MX (México)", "equipo_local": "Club América", "equipo_visitante": "Tigres UANL", "linea_base_casino": -0.5,
             "clima": "22°C | Estadio Ciudad de los Deportes, altitud y presión atmosférica habitual.",
             "terreno": "Césped Híbrido | Domo: No.",
-            "money": "MOMIO VIVO: -115 Local. El público mexicano apoya masivamente al bicampeón.",
+            "money": "MOMIO VIVO: -115 Local. El público mexicano apoya masivamente al equipo local.",
             "h2h": "Probabilidad Real de Éxito: 58.9%. Clásico moderno con dominio local reciente.",
             "hospital": "América: Plantel completo / Tigres: Delantero estelar recuperado de lesión.",
-            "referee": "Fernando Guerrero | Árbitro experimentado en finales y partidos de alta fricción."
+            "referee": "Fernando Guerrero | Árbitro experimentado en partidos de alta fricción."
         },
         "🇧🇷 [Brasileirão] Flamengo vs Palmeiras 🇧🇷": {
             "torneo": "Brasileirão (Brasil)", "equipo_local": "Flamengo", "equipo_visitante": "Palmeiras", "linea_base_casino": -0.5,
@@ -567,7 +612,7 @@ else:
     st.markdown("## ⚙️ **Panel de Escaneo Universitario**")
     col_n1, col_n2 = st.columns(2)
     with col_n1:
-      bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", min_value=100.0, value=5000.0, step=500.0, key="bk_ncaa")
+      bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", min_value=100.0, value=5000.0, step500.0, key="bk_ncaa")
     with col_n2:
       confianza_minima = st.slider("🎯 Confianza Mínima del Robot (%):", min_value=50.0, max_value=90.0, value=65.0, step=1.0, key="slider_conf_ncaa")
 
