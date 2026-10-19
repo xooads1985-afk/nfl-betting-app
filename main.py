@@ -234,19 +234,19 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Con Brasil y Torneos Europeos)
+# 5. Fútbol / Soccer Global (Extracción 100% Automática vía API)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) con Brasil, Europa y ligas globales.*")
+    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) 100% sincronizado en tiempo real.*")
 
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
         [
-            "Brasileirão - Brasil (bra.1)",
             "UEFA Champions League (uefa.champions)",
             "UEFA Europa League (uefa.europa)",
             "UEFA Europa Conference League (uefa.conf)",
+            "Brasileirão - Brasil (bra.1)",
             "Premier League de Inglaterra (eng.1)",
             "La Liga de España (esp.1)",
             "Serie A de Italia (ita.1)",
@@ -265,8 +265,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     with col_f1: bankroll_soccer = st.number_input("💵 Bankroll Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_soccer")
     with col_f2: edge_min_soccer = st.slider("🎯 Edge Mínimo Goles (%):", 0.0, 15.0, 3.0, 0.5, key="edge_soccer")
 
-    @st.cache_data(ttl=300)
-    def obtener_partidos_soccer_goles(fecha_api_str, liga_codigo, fecha_humana):
+    @st.cache_data(ttl=60)
+    def obtener_partidos_soccer_goles_automatico(fecha_api_str, liga_codigo, fecha_humana):
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{liga_codigo}/scoreboard?dates={fecha_api_str}"
         try:
             response = requests.get(url, timeout=5)
@@ -297,92 +297,33 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
             pass
         return []
 
-    cartelera_soccer = obtener_partidos_soccer_goles(fecha_formato_api, codigo_liga_api, fecha_formato_str)
+    cartelera_soccer = obtener_partidos_soccer_goles_automatico(fecha_formato_api, codigo_liga_api, fecha_formato_str)
     
-    # Respaldo inteligente robusto con equipos reales para cada competición
-    if not cartelera_soccer:
-        if "bra.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Flamengo @ Palmeiras", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 61.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 51.0}]},
-                {"partido_str": f"⚽ [{fecha_formato_str}] São Paulo @ Fluminense", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 58.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 53.0}]}
-            ]
-        elif "uefa.champions" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Real Madrid @ Bayern München", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 62.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 52.0}]},
-                {"partido_str": f"⚽ [{fecha_formato_str}] FC Barcelona @ Inter de Milán", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 60.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 53.0}]}
-            ]
-        elif "uefa.europa" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] AS Roma @ AC Milan", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 59.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 52.0}]},
-                {"partido_str": f"⚽ [{fecha_formato_str}] Villarreal @ Olympique de Marsella", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 61.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 50.0}]}
-            ]
-        elif "uefa.conf" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Fiorentina @ Aston Villa", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 62.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": +100, "prob_modelo": 48.0}]}
-            ]
-        elif "eng.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Arsenal FC @ Manchester City", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": +105, "prob_modelo": 58.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -125, "prob_modelo": 52.0}]}
-            ]
-        elif "esp.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Atlético de Madrid @ Real Madrid", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 57.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 53.0}]}
-            ]
-        elif "ita.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Juventus @ Napoli", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 58.5}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 51.5}]}
-            ]
-        elif "ger.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Borussia Dortmund @ Bayer Leverkusen", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -125, "prob_modelo": 65.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": +100, "prob_modelo": 48.0}]}
-            ]
-        elif "fra.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Olympique de Marsella @ Paris Saint-Germain", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 63.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -100, "prob_modelo": 50.0}]}
-            ]
-        elif "mex.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Club América @ Cruz Azul", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 59.5}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 52.0}]}
-            ]
-        elif "ned.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Feyenoord @ PSV Eindhoven", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 62.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": +100, "prob_modelo": 50.0}]}
-            ]
-        elif "por.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Sporting CP @ FC Porto", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 58.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 52.0}]}
-            ]
-        elif "usa.1" in codigo_liga_api:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Inter Miami CF @ LA Galaxy", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -130, "prob_modelo": 66.0}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": +105, "prob_modelo": 45.0}]}
-            ]
-        else:
-            cartelera_soccer = [
-                {"partido_str": f"⚽ [{fecha_formato_str}] Equipo Visitante @ Equipo Local", "mercados": [{"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 58.5}, {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 52.0}]}
-            ]
-
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas de Goles (EV+)")
 
-    contador_oportunidades = 0
-    for idx, op in enumerate(cartelera_soccer, 1):
-        st.markdown(f"### ⚽ Encuentro #{idx}: `{op['partido_str']}`")
-        for m in op["mercados"]:
-            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-            edge = m["prob_modelo"] - prob_imp
+    if not cartelera_soccer:
+        st.warning(f"⚠️ No se encontraron partidos oficiales programados en la API para **{liga_soccer.split('(')[0].strip()}** en la fecha `{fecha_formato_str}`. Intenta seleccionando otra fecha en la barra lateral o verifica si hay jornada activa.")
+    else:
+        contador_oportunidades = 0
+        for idx, op in enumerate(cartelera_soccer, 1):
+            st.markdown(f"### ⚽ Encuentro #{idx}: `{op['partido_str']}`")
+            for m in op["mercados"]:
+                prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+                edge = m["prob_modelo"] - prob_imp
 
-            if edge >= edge_min_soccer:
-                contador_oportunidades += 1
-                st.success(f"• **Mercado:** `{m['tipo']}` | **Selección:** `{m['seleccion']}` — Edge: `+{edge:.1f}%`")
-                st.write(f"  - **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
-                if m['momio'] < -150:
-                    st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
-                else:
-                    st.success("🎯 Valor EV+ Aprobado")
-        st.markdown("---")
+                if edge >= edge_min_soccer:
+                    contador_oportunidades += 1
+                    st.success(f"• **Mercado:** `{m['tipo']}` | **Selección:** `{m['seleccion']}` — Edge: `+{edge:.1f}%`")
+                    st.write(f"  - **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
+                    if m['momio'] < -150:
+                        st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
+                    else:
+                        st.success("🎯 Valor EV+ Aprobado")
+            st.markdown("---")
 
-    if contador_oportunidades == 0:
-        st.info("ℹ️ No hay encuentros que superen el Edge mínimo seleccionado para esta fecha en esta liga. Prueba ajustando el control deslizante de Edge o seleccionando otra liga del catálogo.")
+        if contador_oportunidades == 0:
+            st.info("ℹ️ Hay partidos en cartelera hoy, pero ninguno supera el Edge mínimo seleccionado. Prueba bajando el control deslizante de Edge.")
 
 
 # =========================================================
