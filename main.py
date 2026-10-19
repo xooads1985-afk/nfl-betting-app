@@ -614,7 +614,7 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Guardar Prop NBA #{idx} en Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
+                if st.button(f"📝 Guardar Prop NBA #{idx} in Ticket", key=f"btn_prop_nba_{idx}", use_container_width=True):
                     lista_actual = cargar_props_nba()
                     identificador = f"{p['jugador']} — {p['mercado']}"
                     if not any(x["id"] == identificador for x in lista_actual):
@@ -1233,38 +1233,47 @@ else:
         except: pass
 
     st.title("⚾ **Liga Mexicana del Pacífico (LMP Invernal — EV+)**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en el rey de los deportes invernal en México: análisis de rotaciones abridores, bullpen, factor parque y carreras (Sin Duplicados).*")
+    st.markdown("--- \n *Escáner cuantitativo actualizado para las series de esta semana en el béisbol invernal (Sin Duplicados).*")
 
     if "lista_lmp_parlay" not in st.session_state:
         st.session_state.lista_lmp_parlay = cargar_lmp_disco()
 
     CARTELERA_LMP = [
         {
-            "serie": "Clásico del Pacífico", "local": "Venados de Mazatlán", "visita": "Tomateros de Culiacán",
+            "serie": "Jornada Martes 20 de Octubre", "local": "Charros de Jalisco", "visita": "Jaguares de Nayarit",
             "mercados_disponibles": [
-                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Venados de Mazatlán", "momio": +105, "prob_modelo": 56.0},
-                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Venados de Mazatlán (+1.5 Carreras)", "momio": -130, "prob_modelo": 63.5},
-                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.5 Carreras (Under)", "momio": -115, "prob_modelo": 60.0}
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Charros de Jalisco", "momio": -140, "prob_modelo": 64.0},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Charros de Jalisco (-1.5)", "momio": +115, "prob_modelo": 55.0},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Más de 9.0 Carreras (Over)", "momio": -110, "prob_modelo": 59.0}
             ],
-            "parque": "Estadio Teodoro Mariscal (Factor brisa y pitcheo profundo)"
+            "parque": "Estadio Panamericano, Zapopan, Jalisco"
         },
         {
-            "serie": "Duelo de Zona Norte", "local": "Naranjeros de Hermosillo", "visita": "Yaquis de Obregón",
+            "serie": "Jornada Martes 20 de Octubre", "local": "Tomateros de Culiacán", "visita": "Venados de Mazatlán",
             "mercados_disponibles": [
-                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Naranjeros de Hermosillo", "momio": -125, "prob_modelo": 61.0},
-                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Naranjeros de Hermosillo (-1.5 Carreras)", "momio": +110, "prob_modelo": 54.0},
-                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Más de 9.0 Carreras (Over)", "momio": -110, "prob_modelo": 58.5}
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Tomateros de Culiacán", "momio": -130, "prob_modelo": 62.0},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Tomateros de Culiacán (-1.5)", "momio": +120, "prob_modelo": 53.0},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.5 Carreras (Under)", "momio": -115, "prob_modelo": 61.0}
             ],
-            "parque": "Estadio Fernando Valenzuela (Ofensiva con alto poder de extrabases)"
+            "parque": "Estadio Tomateros, Culiacán, Sinaloa"
         },
         {
-            "serie": "Furia del Norte", "local": "Cañeros de Los Mochis", "visita": "Algodoneros de Guasave",
+            "serie": "Jornada Martes 20 de Octubre", "local": "Yaquis de Obregón", "visita": "Mayos de Navojoa",
             "mercados_disponibles": [
-                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Cañeros de Los Mochis", "momio": -120, "prob_modelo": 59.5},
-                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Cañeros de Los Mochis (-1.5 Carreras)", "momio": +115, "prob_modelo": 53.5},
-                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.0 Carreras (Under)", "momio": -110, "prob_modelo": 62.0}
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Yaquis de Obregón", "momio": -125, "prob_modelo": 60.5},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Yaquis de Obregón (-1.5)", "momio": +110, "prob_modelo": 54.0},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Más de 8.5 Carreras (Over)", "momio": -110, "prob_modelo": 58.0}
             ],
-            "parque": "Estadio Chevron Park (Duelo de herméticos bullpens invernales)"
+            "parque": "Estadio Yaquis, Ciudad Obregón, Sonora"
+        },
+        {
+            "serie": "Jornada Martes 20 de Octubre", "local": "Cañeros de Los Mochis", "visita": "Algodoneros de Guasave",
+            "mercados_disponibles": [
+                {"tipo": "Money Line (Ganador del Juego)", "seleccion": "Cañeros de Los Mochis", "momio": -115, "prob_modelo": 58.0},
+                {"tipo": "Run Line (Hándicap de Carreras)", "seleccion": "Cañeros de Los Mochis (-1.5)", "momio": +125, "prob_modelo": 52.0},
+                {"tipo": "Carreras Totales (Over/Under)", "seleccion": "Menos de 8.0 Carreras (Under)", "momio": -120, "prob_modelo": 63.0}
+            ],
+            "parque": "Chevron Park, Los Mochis, Sinaloa"
         }
     ]
 
@@ -1359,6 +1368,6 @@ else:
         ticket_lineas.append(f"🔥 Ganancia Estimada Parlay LMP: ${ganancia_parlay_lmp:.2f} MXN")
         ticket_lineas.append("=========================================")
 
-        st.text_area("Copia tu ticket LMP listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_lmp_fin")
+        st.text_area("Copia tu ticket LMP listo para apostar:", value="\n".join(ticket_lineas), height=250, key="txt_area_lmp_fin")
     else:
         st.info("Aún no tienes selecciones de la Liga Mexicana del Pacífico añadidas a tu ticket.")
