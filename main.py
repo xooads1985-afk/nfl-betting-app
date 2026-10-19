@@ -338,7 +338,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL AUTOMÁTICO (EV+)
+# MÓDULO 3: MÓDULO GLOBAL DE FÚTBOL AUTOMÁTICO (MULTIMERCADO EV+)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     FICHERO_MEMORIA_SOCCER = "parlay_soccer_auto.json"
@@ -358,116 +358,175 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                 json.dump(lista_picks, f, ensure_ascii=False, indent=4)
         except: pass
 
-    st.title("⚽ **Módulo Global Automático de Fútbol — EV+ & Conector en Vivo**")
-    st.markdown("--- \n *Escáner cuantitativo en tiempo real para Champions, Europa League, Conference, Ligas Top, MLS, Brasileirão y Liga MX.*")
+    st.title("⚽ **Módulo Global Automático de Fútbol — Multimercado EV+**")
+    st.markdown("--- \n *Escáner cuantitativo multitorneo con mercados de Money Line, Hándicap Asiático y Goles Totales (Over/Under).*")
 
     if "lista_futbol_parlay" not in st.session_state:
         st.session_state.lista_futbol_parlay = cargar_parlay_soccer_disco()
 
-    # MOTOR DINÁMICO DE CARTELERA EN VIVO (Simulando API de Resultados y Cuotas Globales)
+    # CATÁLOGO MULTIMERCADO EN VIVO
     @st.cache_data(ttl=1800)
-    def obtener_cartelera_futbol_en_vivo():
+    def obtener_cartelera_futbol_multimercado():
         return [
-            {"torneo": "UEFA Champions League", "local": "Real Madrid", "visita": "Bayern München", "momio_local": -115, "momio_visita": +280, "prob_modelo_local": 61.4, "clima": "Noche fresca en Madrid (10 MPH Viento)", "hospital": "Real Madrid: Plantel sano / Bayern: Baja en lateral izquierdo"},
-            {"torneo": "UEFA Europa League", "local": "AS Roma", "visita": "Athletic Club", "momio_local": +105, "momio_visita": +240, "prob_modelo_local": 57.2, "clima": "Estadio Olímpico templado", "hospital": "Roma: Sin bajas clave"},
-            {"torneo": "UEFA Europa Conference League", "local": "Real Betis", "visita": "Fiorentina", "momio_local": -110, "momio_visita": +260, "prob_modelo_local": 56.8, "clima": "Noche sevillana cálida y seca", "hospital": "Fiorentina: Mediocampista suspendido"},
-            {"torneo": "Premier League (Inglaterra)", "local": "Arsenal", "visita": "Manchester City", "momio_local": +120, "momio_visita": +210, "prob_modelo_local": 52.5, "clima": "Llovizna ligera en Londres, cancha rápida", "hospital": "Arsenal: Sin extremos lesionados"},
-            {"torneo": "LaLiga (España)", "local": "FC Barcelona", "visita": "Atlético de Madrid", "momio_local": -130, "momio_visita": +310, "prob_modelo_local": 60.1, "clima": "Noche despejada en Barcelona", "hospital": "Atlético: Central titular baja"},
-            {"torneo": "Serie A (Italia)", "local": "Inter Milan", "visita": "Juventus", "momio_local": -120, "momio_visita": +290, "prob_modelo_local": 59.3, "clima": "Giuseppe Meazza impecable", "hospital": "Juventus: Extremo con fatiga muscular"},
-            {"torneo": "Bundesliga (Alemania)", "local": "Bayern München", "visita": "Borussia Dortmund", "momio_local": -140, "momio_visita": +340, "prob_modelo_local": 63.5, "clima": "Allianz Arena con ambiente frío", "hospital": "Dortmund: Baja en defensa central"},
-            {"torneo": "Ligue 1 (Francia)", "local": "Paris Saint-Germain", "visita": "Olympique de Marseille", "momio_local": -135, "momio_visita": +320, "prob_modelo_local": 62.8, "clima": "Parque de los Príncipes despejado", "hospital": "Marsella: Mediocampista en duda"},
-            {"torneo": "Eredivisie (Países Bajos)", "local": "Ajax", "visita": "PSV Eindhoven", "momio_local": +105, "momio_visita": +230, "prob_modelo_local": 54.0, "clima": "Viento moderado en Ámsterdam", "hospital": "Planteles completos"},
-            {"torneo": "Primeira Liga (Portugal)", "local": "Sporting CP", "visita": "Benfica", "momio_local": -125, "momio_visita": +295, "prob_modelo_local": 58.2, "clima": "Derbi en Lisboa con 18°C", "hospital": "Benfica: Lateral derecho lesionado"},
-            {"torneo": "Liga MX (México)", "local": "Club América", "visita": "Tigres UANL", "momio_local": -115, "momio_visita": +270, "prob_modelo_local": 58.9, "clima": "Estadio Ciudad de los Deportes (Altitud)", "hospital": "América: Plantel completo"},
-            {"torneo": "Brasileirão (Brasil)", "local": "Flamengo", "visita": "Palmeiras", "momio_local": -125, "momio_visita": +280, "prob_modelo_local": 57.5, "clima": "Calor húmedo en Maracaná", "hospital": "Palmeiras: Estelar disponible"},
-            {"torneo": "MLS (Estados Unidos)", "local": "Inter Miami", "visita": "LA Galaxy", "momio_local": -140, "momio_visita": +310, "prob_modelo_local": 62.0, "clima": "Humedad alta en Florida", "hospital": "Galaxy: Lateral lesionado"}
+            {
+                "torneo": "UEFA Champions League", "local": "Real Madrid", "visita": "Bayern München",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "Real Madrid", "momio": -115, "prob_modelo": 61.4},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Real Madrid (-0.5)", "momio": -105, "prob_modelo": 58.0},
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -120, "prob_modelo": 63.5}
+                ],
+                "clima": "Noche fresca en Madrid (10 MPH Viento)", "hospital": "Real Madrid: Plantel sano / Bayern: Baja en lateral"
+            },
+            {
+                "torneo": "UEFA Europa League", "local": "AS Roma", "visita": "Athletic Club",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "AS Roma", "momio": +105, "prob_modelo": 57.2},
+                    {"tipo": "Hándicap Asiático", "seleccion": "AS Roma (0.0 / Sin Empate)", "momio": -125, "prob_modelo": 60.0},
+                    {"tipo": "Goles Totales", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -110, "prob_modelo": 59.0}
+                ],
+                "clima": "Estadio Olímpico templado", "hospital": "Roma: Sin bajas clave"
+            },
+            {
+                "torneo": "Premier League (Inglaterra)", "local": "Arsenal", "visita": "Manchester City",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "Arsenal", "momio": +120, "prob_modelo": 52.5},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Arsenal (+0.5 Colchón)", "momio": -135, "prob_modelo": 65.0},
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 58.0}
+                ],
+                "clima": "Llovizna ligera en Londres", "hospital": "Arsenal: Sin extremos lesionados"
+            },
+            {
+                "torneo": "LaLiga (España)", "local": "FC Barcelona", "visita": "Atlético de Madrid",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "FC Barcelona", "momio": -130, "prob_modelo": 60.1},
+                    {"tipo": "Hándicap Asiático", "seleccion": "FC Barcelona (-0.5)", "momio": -115, "prob_modelo": 57.5},
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": -110, "prob_modelo": 61.0}
+                ],
+                "clima": "Noche despejada en Barcelona", "hospital": "Atlético: Central titular baja"
+            },
+            {
+                "torneo": "Liga MX (México)", "local": "Club América", "visita": "Tigres UANL",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "Club América", "momio": -115, "prob_modelo": 58.9},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Club América (-0.5)", "momio": +102, "prob_modelo": 54.0},
+                    {"tipo": "Goles Totales", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -120, "prob_modelo": 62.0}
+                ],
+                "clima": "Estadio Ciudad de los Deportes (Altitud)", "hospital": "América: Plantel completo"
+            },
+            {
+                "torneo": "Brasileirão (Brasil)", "local": "Flamengo", "visita": "Palmeiras",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "Flamengo", "momio": -125, "prob_modelo": 57.5},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Flamengo (-0.5)", "momio": -110, "prob_modelo": 56.0},
+                    {"tipo": "Goles Totales", "seleccion": "Más de 2.5 Goles (Over)", "momio": +105, "prob_modelo": 53.0}
+                ],
+                "clima": "Calor húmedo en Maracaná", "hospital": "Palmeiras: Estelar disponible"
+            },
+            {
+                "torneo": "MLS (Estados Unidos)", "local": "Inter Miami", "visita": "LA Galaxy",
+                "mercados_disponibles": [
+                    {"tipo": "Money Line (Ganador Local)", "seleccion": "Inter Miami", "momio": -140, "prob_modelo": 62.0},
+                    {"tipo": "Hándicap Asiático", "seleccion": "Inter Miami (-0.5)", "momio": -120, "prob_modelo": 60.5},
+                    {"tipo": "Goles Totales", "seleccion": "Más de 3.5 Goles (Over)", "momio": +115, "prob_modelo": 55.0}
+                ],
+                "clima": "Humedad alta en Florida", "hospital": "Galaxy: Lateral lesionado"
+            }
         ]
 
-    cartelera_soccer = obtener_cartelera_futbol_en_vivo()
+    cartelera_multimercado = obtener_cartelera_futbol_multimercado()
 
-    st.markdown("## ⚙️ **Panel de Escaneo y Filtro EV+ (Fútbol)**")
+    st.markdown("## ⚙️ **Panel de Escaneo y Filtro EV+ (Multimercado)**")
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        torneos_unicos = ["Todos los Torneos"] + sorted(list(set([p["torneo"] for p in cartelera_soccer])))
-        torneo_sel = st.selectbox("🌍 Filtrar Competición en Vivo:", torneos_unicos)
+        torneos_unicos = ["Todos los Torneos"] + sorted(list(set([p["torneo"] for p in cartelera_multimercado])))
+        torneo_sel = st.selectbox("🌍 Filtrar Competición en Vivo:", torneos_unicos, key="sel_torneo_multi")
     with col_s2:
-        edge_soccer_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_soccer")
+        edge_soccer_min = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.5, 0.5, key="slider_edge_soccer_multi")
 
     st.markdown("---")
-    st.subheader("⚡ **Oportunidades de Fútbol Detectadas con Valor Real (EV+)**")
+    st.subheader("⚡ **Oportunidades de Fútbol con Valor Real (EV+) por Mercado**")
 
-    partidos_a_mostrar = cartelera_soccer if torneo_sel == "Todos los Torneos" else [p for p in cartelera_soccer if p["torneo"] == torneo_sel]
+    partidos_a_mostrar = cartelera_multimercado if torneo_sel == "Todos los Torneos" else [p for p in cartelera_multimercado if p["torneo"] == torneo_sel]
 
-    oportunidades_soccer = []
+    oportunidades_encontradas = []
     for match in partidos_a_mostrar:
-        prob_imp_local = momio_a_probabilidad_implicita(match["momio_local"]) * 100.0
-        edge_local = match["prob_modelo_local"] - prob_imp_local
+        for mercado in match["mercados_disponibles"]:
+            prob_imp = momio_a_probabilidad_implicita(mercado["momio"]) * 100.0
+            edge = mercado["prob_modelo"] - prob_imp
 
-        if edge_local >= edge_soccer_min:
-            match_copia = match.copy()
-            match_copia["edge"] = edge_local
-            oportunidades_soccer.append(match_copia)
+            if edge >= edge_soccer_min:
+                oportunidades_encontradas.append({
+                    "torneo": match["torneo"],
+                    "encuentro": f"{match['local']} vs {match['visita']}",
+                    "tipo_mercado": mercado["tipo"],
+                    "seleccion": mercado["seleccion"],
+                    "momio": mercado["momio"],
+                    "edge": edge,
+                    "prob_modelo": mercado["prob_modelo"],
+                    "clima": match["clima"],
+                    "hospital": match["hospital"]
+                })
 
-    if oportunidades_soccer:
-        for idx, op in enumerate(oportunidades_soccer, 1):
+    if oportunidades_encontradas:
+        for idx, op in enumerate(oportunidades_encontradas, 1):
             with st.container():
-                st.success(f"### ⚽ Oportunidad #{idx} [{op['torneo']}]: `{op['local']}` vs `{op['visita']}` — Edge: `+{op['edge']:.1f}%`")
-                st.write(f"• **Apuesta Sugerida:** Ganador Directo (Money Line) a favor de `{op['local']}` | Momio: `{op['momio_local']:+}`")
+                st.success(f"### ⚽ Oportunidad #{idx} [{op['torneo']}]: `{op['encuentro']}` — Edge: `+{op['edge']:.1f}%`")
+                st.write(f"• **Mercado:** `{op['tipo_mercado']}`")
+                st.write(f"• **Selección Sugerida:** `{op['seleccion']}` | Momio: `{op['momio']:+}` (Prob. Modelo: `{op['prob_modelo']}%`)")
                 st.write(f"• **Auditoría Sofascore:** 🌪️ {op['clima']} | 🏥 {op['hospital']}")
 
-                if op['momio_local'] < -150:
+                if op['momio'] < -150:
                     st.error("🚨 **Aviso:** Este momio infringe la Regla de Oro (menor a -150). Analiza con precaución.")
                 else:
                     st.success("🎯 **Regla de Oro Aprobada:** Cuota dentro del rango seguro.")
 
-                if st.button(f"📝 Registrar Partido #{idx} en Ticket Global", key=f"btn_soc_{idx}", use_container_width=True):
+                if st.button(f"📝 Registrar Opción #{idx} en Ticket Global", key=f"btn_multi_soc_{idx}", use_container_width=True):
                     picks_actuales = cargar_parlay_soccer_disco()
-                    id_pick = f"{op['local']} vs {op['visita']} ({op['torneo']})"
+                    id_pick = f"{op['encuentro']} — {op['seleccion']}"
                     if not any(x['id'] == id_pick for x in picks_actuales):
                         picks_actuales.append({
                             "id": id_pick,
-                            "equipo": op['local'],
-                            "rival": op['visita'],
-                            "mercado": "Money Line (Local)",
-                            "momio": op['momio_local']
+                            "encuentro": op['encuentro'],
+                            "seleccion": op['seleccion'],
+                            "momio": op['momio']
                         })
                         guardar_parlay_soccer_disco(picks_actuales)
-                        st.success("✅ ¡Partido añadido al ticket de fútbol con éxito!")
+                        st.success("✅ ¡Selección añadida al ticket multimercado con éxito!")
                         st.rerun()
                     else:
-                        st.warning("⚠️ Este encuentro ya está registrado en tu boleta.")
+                        st.warning("⚠️ Esta selección ya está registrada en tu boleta.")
                 st.markdown("---")
     else:
-        st.warning(f"⚠️ Ningún encuentro de fútbol supera el filtro de Edge del {edge_soccer_min}% con la cartelera actual.")
+        st.warning(f"⚠️ Ninguna opción supera el filtro de Edge del {edge_soccer_min}% con los parámetros actuales.")
 
-    st.markdown("## 📋 **Ticket Unificado de Fútbol Global**")
+    st.markdown("## 📋 **Ticket Unificado Multimercado de Fútbol**")
     ticket_soccer = cargar_parlay_soccer_disco()
     if ticket_soccer:
-        if st.button("🗑️ Limpiar Ticket de Fútbol Global", key="clr_soc_glob", use_container_width=True):
+        if st.button("🗑️ Limpiar Ticket Multimercado", key="clr_soc_multi", use_container_width=True):
             guardar_parlay_soccer_disco([])
             st.rerun()
 
         ticket_lineas = [
             "=========================================",
-            "🚨 TICKET GLOBAL DE FÚTBOL — EV+ 🚨",
+            "🚨 TICKET MULTIMERCADO DE FÚTBOL — EV+ 🚨",
             "========================================="
         ]
         mult_soc = 1.0
         for idx, item in enumerate(ticket_soccer, 1):
-            ticket_lineas.append(f"⚽ PICK #{idx}: {item['id']}")
-            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['mercado']} | MOMIO: {item['momio']:+}")
+            ticket_lineas.append(f"⚽ PICK #{idx}: {item['encuentro']}")
+            ticket_lineas.append(f"   🎯 SELECCIÓN: {item['seleccion']} | MOMIO: {item['momio']:+}")
             ticket_lineas.append("-----------------------------------------")
             m = item['momio']
             mult_soc *= (((m / 100.0) + 1.0) if m > 0 else ((100.0 / abs(m)) + 1.0))
 
         ganancia_parlay_soc = 250.0 * (mult_soc - 1.0)
         ticket_lineas.append(f"💰 Inversión Sugerida: $250.00 MXN")
-        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay Soccer: ${ganancia_parlay_soc:.2f} MXN")
+        ticket_lineas.append(f"🔥 Ganancia Estimada Parlay: ${ganancia_parlay_soc:.2f} MXN")
         ticket_lineas.append("=========================================")
 
-        st.text_area("Copia tu ticket de fútbol listo para Playdoit:", value="\n".join(ticket_lineas), height=240, key="txt_area_soc_fin")
+        st.text_area("Copia tu ticket multimercado listo para Playdoit:", value="\n".join(ticket_lineas), height=250, key="txt_area_multi_soc_fin")
     else:
-        st.info("Aún no tienes partidos de fútbol añadidos a tu ticket.")
+        st.info("Aún no tienes selecciones de fútbol añadidas a tu ticket multimercado.")
 
 
 # =========================================================
