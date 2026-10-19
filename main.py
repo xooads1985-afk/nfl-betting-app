@@ -309,7 +309,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Partidos)":
 
 
 # =========================================================
-# MÓDULO 2: MÓDULO AUTOMÁTICO DE PROPS NFL (Nuevo Motor)
+# MÓDULO 2: MÓDULO AUTOMÁTICO DE PROPS NFL (Diccionario Ampliado)
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     FICHERO_PROPS_AUTO = "parlay_props_auto_nfl.json"
@@ -330,26 +330,33 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
       except:
         pass
 
-    st.title("🎯 **Módulo Automático de Props - NFL (Filtro EV+ y Modelado)**")
-    st.markdown("--- \n *Escáner inteligente de actuaciones individuales basado en promedios de utilización y matchups defensivos.*")
+    st.title("🎯 **Módulo Automático de Props - NFL (Diccionario Estelar Ampliado)**")
+    st.markdown("--- \n *Escáner inteligente con catálogo expandido de estrellas, volumen de targets y eficiencia de conversión.*")
 
+    # DICCIONARIO AMPLIADO DE ESTRELLAS Y PROPS DE LA NFL
     PROPS_BASE_AUTOMATICOS = [
         {"partido": "Kansas City Chiefs @ San Francisco 49ers", "jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "linea": 245.5, "momio": -115, "prob_modelo": 64.2, "matchup": "Defensa secundaria vulnerable por el centro"},
         {"partido": "Kansas City Chiefs @ San Francisco 49ers", "jugador": "Travis Kelce", "mercado": "Recepciones (Over 5.5)", "linea": 5.5, "momio": -110, "prob_modelo": 61.5, "matchup": "Alto volumen de targets en zona roja"},
+        {"partido": "Kansas City Chiefs @ San Francisco 49ers", "jugador": "Christian McCaffrey", "mercado": "Yardas Totales (Over 89.5)", "linea": 89.5, "momio": -110, "prob_modelo": 65.0, "matchup": "Uso constante por tierra y rutas cortas de pase"},
         {"partido": "Buffalo Bills @ Miami Dolphins", "jugador": "Josh Allen", "mercado": "Yardas Totales (Over 275.5)", "linea": 275.5, "momio": -120, "prob_modelo": 66.8, "matchup": "Partido divisional con alta proyección ofensiva"},
+        {"partido": "Buffalo Bills @ Miami Dolphins", "jugador": "James Cook", "mercado": "Yardas por Tierra (Over 62.5)", "linea": 62.5, "momio": -115, "prob_modelo": 58.9, "matchup": "Espacios abiertos por formaciones abiertas"},
         {"partido": "Green Bay Packers @ Chicago Bears", "jugador": "Josh Jacobs", "mercado": "Yardas por Tierra (Over 68.5)", "linea": 68.5, "momio": -110, "prob_modelo": 59.4, "matchup": "Buen clima y control de reloj por tierra"},
-        {"partido": "Dallas Cowboys @ Philadelphia Eagles", "jugador": "CeeDee Lamb", "mercado": "Yardas de Recepción (Over 79.5)", "linea": 79.5, "momio": -115, "prob_modelo": 63.0, "matchup": "Esquema ofensivo depende de jugadas explosivas"}
+        {"partido": "Green Bay Packers @ Chicago Bears", "jugador": "Jordan Love", "mercado": "Pases de Anotación (Over 1.5)", "linea": 1.5, "momio": -125, "prob_modelo": 63.4, "matchup": "Excelente efectividad de ofensiva en zona roja"},
+        {"partido": "Dallas Cowboys @ Philadelphia Eagles", "jugador": "CeeDee Lamb", "mercado": "Yardas de Recepción (Over 79.5)", "linea": 79.5, "momio": -115, "prob_modelo": 63.0, "matchup": "Esquema ofensivo depende de jugadas explosivas"},
+        {"partido": "Dallas Cowboys @ Philadelphia Eagles", "jugador": "Saquon Barkley", "mercado": "Yardas por Tierra (Over 78.5)", "linea": 78.5, "momio": -110, "prob_modelo": 66.1, "matchup": "Cargas masivas de balón contra defensa débil en corridas de poder"},
+        {"partido": "Baltimore Ravens @ Cincinnati Bengals", "jugador": "Lamar Jackson", "mercado": "Yardas por Tierra (Over 52.5)", "linea": 52.5, "momio": -115, "prob_modelo": 64.5, "matchup": "Diseños de jugadas terrestres abiertas en terceras oportunidades"},
+        {"partido": "Baltimore Ravens @ Cincinnati Bengals", "jugador": "Ja'Marr Chase", "mercado": "Recepciones (Over 6.5)", "linea": 6.5, "momio": -110, "prob_modelo": 62.0, "matchup": "Alto volumen de pases cortos y medianos esperados"}
     ]
 
     st.markdown("## ⚙️ **Filtros de Precisión para Props Automáticos**")
     col_ap1, col_ap2 = st.columns(2)
     with col_ap1:
-      edge_prop_min = st.slider("🎯 Edge Mínimo de Prop (%):", 0.0, 15.0, 5.0, 0.5, key="slider_edge_prop")
+      edge_prop_min = st.slider("🎯 Edge Mínimo de Prop (%):", 0.0, 15.0, 4.5, 0.5, key="slider_edge_prop")
     with col_ap2:
       bankroll_props = st.number_input("💵 Bankroll para Props (MXN):", 100.0, 10000.0, 3000.0, 500.0, key="bk_props")
 
     st.markdown("---")
-    st.subheader("🤖 **Props con Valor Detectados por el Modelo Automático**")
+    st.subheader("🤖 **Props con Valor Detectados en el Catálogo Ampliado**")
 
     props_detectados = []
     for prop in PROPS_BASE_AUTOMATICOS:
@@ -369,7 +376,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
           st.write(f"• **Análisis Automático:** 🛡️ {p['matchup']}")
           st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Probabilidad Modelo: `{p['prob_modelo']}%`")
           
-          if st.button(f"📝 Guardar Prop Automático #{idx} en Ticket", key=f"btn_prop_auto_{idx}", use_container_width=True):
+          if st.button(f"📝 Guardar Prop Ampliado #{idx} en Ticket", key=f"btn_prop_auto_{idx}", use_container_width=True):
             lista_actual = cargar_props_auto()
             identificador = f"{p['jugador']} — {p['mercado']}"
             if not any(x["id"] == identificador for x in lista_actual):
