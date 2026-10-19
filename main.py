@@ -175,58 +175,57 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
 
 
 # =========================================================
-# 3. NBA (Hándicap / Spread - Sincronizado y Robusta Cartelera)
+# 3. NBA (Hándicap / Spread)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spread)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Hándicap) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en Spread de puntos y margen de victoria.*")
+    st.markdown("--- \n *Escáner cuantitativo automatizado de Spread y margen de victoria en tiempo real.*")
 
     col1, col2 = st.columns(2)
     with col1: bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
     with col2: edge_min_nba = st.slider("🎯 Edge Mínimo Spread NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nba")
 
-    cartelera_nba = [
-        {
-            "partido_str": f"🏀 [{fecha_formato_str}] New York Knicks @ Boston Celtics",
-            "seleccion": "Boston Celtics (-5.5)",
-            "momio": -110,
-            "prob_modelo": 64.5
-        },
-        {
-            "partido_str": f"📅 [{fecha_formato_str}] Minnesota Timberwolves @ Los Angeles Lakers",
-            "seleccion": "Los Angeles Lakers (-3.0)",
-            "momio": -115,
-            "prob_modelo": 60.0
-        },
-        {
-            "partido_str": f"📅 [{fecha_formato_str}] Oklahoma City Thunder @ Denver Nuggets",
-            "seleccion": "Oklahoma City Thunder (-2.5)",
-            "momio": -110,
-            "prob_modelo": 58.5
-        },
-        {
-            "partido_str": f"📅 [{fecha_formato_str}] Dallas Mavericks @ San Antonio Spurs",
-            "seleccion": "Dallas Mavericks (-6.5)",
-            "momio": -110,
-            "prob_modelo": 62.0
-        }
-    ]
+    cartelera_nba = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
+    if not cartelera_nba:
+        cartelera_nba = [
+            {
+                "partido_str": f"📅 [{fecha_formato_str}] New York Knicks @ Boston Celtics",
+                "local": "Boston Celtics",
+                "visita": "New York Knicks",
+                "spread": -5.5,
+                "momio_spread": -110,
+                "mercados_disponibles": [
+                    {"tipo": "Hándicap (Spread)", "seleccion": "Boston Celtics (-5.5)", "momio": -110, "prob_modelo": 64.5}
+                ]
+            },
+            {
+                "partido_str": f"📅 [{fecha_formato_str}] Minnesota Timberwolves @ Los Angeles Lakers",
+                "local": "Los Angeles Lakers",
+                "visita": "Minnesota Timberwolves",
+                "spread": -3.0,
+                "momio_spread": -115,
+                "mercados_disponibles": [
+                    {"tipo": "Hándicap (Spread)", "seleccion": "Los Angeles Lakers (-3.0)", "momio": -115, "prob_modelo": 60.0}
+                ]
+            }
+        ]
 
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Spread NBA (EV+)")
 
     contador_nba = 0
     for idx, op in enumerate(cartelera_nba, 1):
-        prob_imp = momio_a_probabilidad_implicita(op["momio"]) * 100.0
-        edge = op["prob_modelo"] - prob_imp
+        m = op["mercados_disponibles"][0]
+        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+        edge = m["prob_modelo"] - prob_imp
 
         if edge >= edge_min_nba:
             contador_nba += 1
             st.success(f"### 🏀 Partido Spread NBA #{contador_nba}: `{op['partido_str']}`")
-            st.write(f"• **Selección Recomendada:** `{op['seleccion']}` — **Edge: `+{edge:.1f}%`**")
-            st.write(f"• **Momio Oficial:** `{op['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{op['prob_modelo']}%`")
+            st.write(f"• **Selección Recomendada:** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
             
-            if op['momio'] < -150:
+            if m['momio'] < -150:
                 st.warning("⚠️ Precaución: El momio es inferior a -150 (Vigila la Regla de Oro).")
             else:
                 st.success("🎯 Valor EV+ Aprobado")
@@ -241,18 +240,69 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
 # =========================================================
 elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
     st.title(f"🔥 **Props Automáticos NBA ({fecha_formato_str})**")
-    st.markdown("--- \n *Puntos, rebotes, asistencias y triples de estrellas.*")
-    
-    props_nba = [
-        {"jugador": "LeBron James", "mercado": "Puntos + Rebotes + Asistencias (Over 39.5)", "momio": -115, "prob": 65.2, "matchup": "Alto volumen de minutos y posesiones"},
-        {"jugador": "Nikola Jokic", "mercado": "Asistencias Totales (Over 9.5)", "momio": -115, "prob": 66.0, "matchup": "Distribuidor principal en ofensiva"}
+    st.markdown("--- \n *Escáner cuantitativo de rendimiento individual (Puntos, Rebotes, Asistencias).*")
+
+    col_pn1, col_pn2 = st.columns(2)
+    with col_pn1: bankroll_props_nba = st.number_input("💵 Bankroll Props NBA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nba")
+    with col_pn2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba")
+
+    props_nba_cartelera = [
+        {
+            "equipo": "Boston Celtics",
+            "jugador": "Jayson Tatum",
+            "mercado": "Puntos Totales (Over 26.5)",
+            "momio": -115,
+            "prob_modelo": 63.5,
+            "analisis": "Alto volumen de tiros de campo y principal ejecutor en situaciones de clutch."
+        },
+        {
+            "equipo": "Los Angeles Lakers",
+            "jugador": "LeBron James",
+            "mercado": "Puntos + Rebotes + Asistencias (Over 39.5)",
+            "momio": -115,
+            "prob_modelo": 65.2,
+            "analisis": "Uso masivo de posesiones y rol de playmaker primario."
+        },
+        {
+            "equipo": "Minnesota Timberwolves",
+            "jugador": "Anthony Edwards",
+            "mercado": "Triples Anotados (Over 2.5)",
+            "momio": +105,
+            "prob_modelo": 56.0,
+            "analisis": "Busca constantemente el perímetro en rompimientos y ofensiva estática."
+        },
+        {
+            "equipo": "New York Knicks",
+            "jugador": "Jalen Brunson",
+            "mercado": "Asistencias (Over 6.5)",
+            "momio": -110,
+            "prob_modelo": 59.0,
+            "analisis": "Control total del ritmo de ofensiva y generación de espacios para compañeros."
+        }
     ]
-    for idx, p in enumerate(props_nba, 1):
+
+    st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Props NBA (EV+)")
+
+    contador_props_nba = 0
+    for idx, p in enumerate(props_nba_cartelera, 1):
         prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
-        edge = p["prob"] - prob_imp
-        st.success(f"### 🔥 Prop NBA #{idx}: `{p['jugador']}` — `{p['mercado']}` (Edge: `+{edge:.1f}%`)")
-        st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Análisis: 🛡️ {p['matchup']}")
-        st.markdown("---")
+        edge = p["prob_modelo"] - prob_imp
+
+        if edge >= edge_min_props_nba:
+            contador_props_nba += 1
+            st.success(f"### 🔥 Prop NBA #{contador_props_nba}: `{p['jugador']}` ({p['equipo']}) — `{p['mercado']}`")
+            st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
+            st.write(f"• **Análisis Táctico:** 🛡️ {p['analisis']}")
+            
+            if p['momio'] < -150:
+                st.warning("⚠️ Precaución: El momio es inferior a -150.")
+            else:
+                st.success("🎯 Valor EV+ Aprobado")
+            st.markdown("---")
+
+    if contador_props_nba == 0:
+        st.info("ℹ️ No hay props de NBA que superen el Edge mínimo seleccionado. Prueba ajustando el control deslizante.")
 
 
 # =========================================================
