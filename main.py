@@ -234,20 +234,28 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Con Análisis de Goles y Edge)
+# 5. Fútbol / Soccer Global (Catálogo Ampliado de Ligas y Goles)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) y ligas internacionales.*")
+    st.markdown("--- \n *Escáner cuantitativo de mercados de goles (Over/Under) con catálogo ampliado de ligas.*")
 
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
         [
             "UEFA Champions League (uefa.champions)",
             "Premier League de Inglaterra (eng.1)",
-            "Liga MX (mex.1)",
             "La Liga de España (esp.1)",
-            "Serie A de Italia (ita.1)"
+            "Serie A de Italia (ita.1)",
+            "Bundesliga de Alemania (ger.1)",
+            "Ligue 1 de Francia (fra.1)",
+            "Liga MX (mex.1)",
+            "Eredivisie de Países Bajos (ned.1)",
+            "Primeira Liga de Portugal (por.1)",
+            "Copa Libertadores (conmebol.libertadores)",
+            "Copa Sudamericana (conmebol.sudamericana)",
+            "MLS - Estados Unidos (usa.1)",
+            "Saudi Pro League - Arabia Saudita (ksa.1)"
         ]
     )
 
@@ -293,17 +301,10 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     if not cartelera_soccer:
         cartelera_soccer = [
             {
-                "partido_str": f"⚽ [{fecha_formato_str}] Real Madrid @ Bayern München",
+                "partido_str": f"⚽ [{fecha_formato_str}] Partido de Ejemplo @ {liga_soccer.split('(')[0].strip()}",
                 "mercados": [
-                    {"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 63.2},
-                    {"tipo": "Total de Goles", "seleccion": "Menos de 3.5 Goles (Under)", "momio": -140, "prob_modelo": 61.0}
-                ]
-            },
-            {
-                "partido_str": f"⚽ [{fecha_formato_str}] Arsenal FC @ Manchester City",
-                "mercados": [
-                    {"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": +105, "prob_modelo": 55.0},
-                    {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -125, "prob_modelo": 54.5}
+                    {"tipo": "Total de Goles", "seleccion": "Más de 2.5 Goles (Over)", "momio": -115, "prob_modelo": 60.0},
+                    {"tipo": "Total de Goles", "seleccion": "Menos de 2.5 Goles (Under)", "momio": -105, "prob_modelo": 53.0}
                 ]
             }
         ]
@@ -329,7 +330,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
         st.markdown("---")
 
     if contador_oportunidades == 0:
-        st.info("ℹ️ No hay encuentros que superen el Edge mínimo seleccionado para esta fecha. Prueba ajustando el control deslizante de Edge o cambiando de liga.")
+        st.info("ℹ️ No hay encuentros que superen el Edge mínimo seleccionado para esta fecha en esta liga. Prueba ajustando el control deslizante de Edge o seleccionando otra liga del catálogo.")
 
 
 # =========================================================
