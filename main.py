@@ -76,23 +76,31 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
                 
-                local, visitante = f"Tenista Local {idx_ev}", f"Tenista Visitante {idx_ev}"
+                local, visitante = f"Jugador Local {idx_ev}", f"Jugador Visitante {idx_ev}"
                 
                 if deporte == "tennis":
                     nombres = []
                     for comp in competidores:
-                        # Ruta 1: Objeto 'athlete' directo
+                        # Búsqueda estructurada en objetos de tenis de ESPN
+                        nombre = None
+                        # 1. Intentar dentro de 'athlete'
                         atleta = comp.get("athlete", {})
-                        nombre = atleta.get("displayName") or atleta.get("shortName") or atleta.get("name")
+                        if atleta:
+                            nombre = atleta.get("displayName") or atleta.get("fullName") or atleta.get("shortName")
                         
-                        # Ruta 2: Objeto 'team'
+                        # 2. Intentar buscar en lista de atletas si viene anidado
+                        if not nombre and "athletes" in comp:
+                            ats = comp.get("athletes", [])
+                            if ats and isinstance(ats, list):
+                                nombre = ats[0].get("displayName") or ats[0].get("fullName")
+                        
+                        # 3. Intentar en 'team' o propiedades directas del competidor
                         if not nombre:
                             team = comp.get("team", {})
                             nombre = team.get("displayName") or team.get("name")
                         
-                        # Ruta 3: Texto plano dentro del competidor
                         if not nombre:
-                            nombre = comp.get("displayName") or comp.get("name")
+                            nombre = comp.get("displayName") or comp.get("sourceText")
                             
                         if nombre:
                             nombres.append(nombre)
@@ -516,7 +524,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico Reforzado)
+# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico Ultra-Reforzado)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
