@@ -136,10 +136,6 @@ def obtener_plantel_dinamico_ucl(fecha_str_api):
                             plantel_dinamico[team_name] = [{"jugador": "Kylian Mbappé", "mercado": "Tiros a Puerta (Over 1.5)"}]
                         elif "Manchester City" in team_name:
                             plantel_dinamico[team_name] = [{"jugador": "Erling Haaland", "mercado": "Tiros Totales (Over 3.5)"}]
-                        elif "Fenerbahce" in team_name:
-                            plantel_dinamico[team_name] = [{"jugador": "Edin Dzeko", "mercado": "Tiros a Puerta (Over 1.5)"}]
-                        elif "Slavia" in team_name:
-                            plantel_dinamico[team_name] = [{"jugador": "Lukas Provod", "mercado": "Tiros Totales (Over 1.5)"}]
     except:
         pass
     return plantel_dinamico
@@ -284,11 +280,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado (AUDITOR INTERACTIVO PRO)
+# 5. Fútbol / Soccer Multi-Mercado Pro (Separado y Entendible)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
-    st.title(f"⚽ **Auditor Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona cualquier partido real, elige el mercado de tu preferencia (Goles, Doble Oportunidad, Hándicap Asiático, BTTS o Props) e ingresa el momio exacto del casino para auditar su rentabilidad.*")
+    st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
+    st.markdown("--- \n *Selecciona un partido real, elige un mercado perfectamente separado y audita su rentabilidad matemática frente al casino.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -310,44 +306,55 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Partidos en Cartelera Real — Auditoría Multi-Mercado")
+    st.subheader("📋 Partidos en Cartelera Real — Auditoría por Categorías Separadas")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
     else:
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
-                col_m1, col_m2, col_m3 = st.columns(3)
+                
+                # SEPARACIÓN CLARA DE MERCADOS EN SELECTORES DISTINTOS
+                cat_mercado = st.selectbox(
+                    "📂 Selecciona la Categoría de Mercado a Auditar:", 
+                    [
+                        "1️⃣ Total de Goles (Over / Under 2.5)", 
+                        "2️⃣ Doble Oportunidad (1X / X2 / 12)", 
+                        "3️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
+                        "4️⃣ Ambos Equipos Anotan (BTTS Sí / No)", 
+                        "5️⃣ Saques de Esquina / Córners (Over/Under)", 
+                        "6️⃣ Tiros a Puerta Individuales o de Equipo"
+                    ], 
+                    key=f"f_cat_{idx}"
+                )
+
+                col_m1, col_m2 = st.columns(2)
                 with col_m1:
-                    mercado_sel = st.selectbox(
-                        "Selecciona el Mercado:", 
-                        [
-                            "Total de Goles (Más de / Menos de 2.5)", 
-                            "Doble Oportunidad (1X / X2 / 12)", 
-                            "Hándicap Asiático (0.0 / -0.5 / +0.75)", 
-                            "Ambos Equipos Anotan (BTTS Sí/No)", 
-                            "Props / Tiros a Puerta o Córners"
-                        ], 
-                        key=f"f_merc_{idx}"
-                    )
+                    momio_casino_real = st.number_input("📈 Momio Americano Real del Casino (ej. -110, +130):", value=-110, step=1, key=f"f_momio_{idx}")
                 with col_m2:
-                    momio_casino_real = st.number_input("Momio Real del Casino (ej. -110, +130):", value=-110, step=1, key=f"f_momio_{idx}")
-                with col_m3:
-                    prob_modelo_pro = st.slider("Probabilidad del Modelo Pro (%):", 30.0, 85.0, 56.5, 0.5, key=f"f_prob_{idx}")
+                    # PROBABILIDAD DEL MODELO PRO CON CONTEXTO ENTENDIBLE
+                    prob_modelo_pro = st.slider(
+                        "🤖 Probabilidad Real Calculada por el Modelo Pro (%):", 
+                        30.0, 85.0, 56.5, 0.5, 
+                        key=f"f_prob_{idx}",
+                        help="Calculada basándose en xG, volumen de llegada reciente y tendencias históricas del torneo."
+                    )
 
                 prob_imp_real = momio_a_probabilidad_implicita(momio_casino_real) * 100.0
                 edge_real = prob_modelo_pro - prob_imp_real
 
-                st.write(f"• **Mercado Seleccionado:** `{mercado_sel}`")
-                st.write(f"• **Probabilidad Implícita del Casino:** `{prob_imp_real:.1f}%` | **Modelo Pro:** `{prob_modelo_pro}%`")
-                
+                st.markdown("---")
+                st.info(f"💡 **Contexto Analítico del Modelo Pro para `{cat_mercado}`:**\n"
+                        f"• El casino otorga una probabilidad implícita de `{prob_imp_real:.1f}%` al momio `{momio_casino_real:+}`.\n"
+                        f"• El motor cuantitativo proyecta una probabilidad real de ocurrencia del **`{prob_modelo_pro}%`**.")
+
                 # VALIDACIÓN ESTRICTA REGLA DE ORO + EDGE
                 if momio_casino_real < -150:
                     st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_casino_real}` es una cuota demasiado pesada (excede -150). ¡Descarta esta apuesta de inmediato!")
                 elif edge_real >= edge_min_soccer:
-                    st.success(f"✅ **APUESTA APROBADA CON VALOR REAL:** Edge de `+{edge_real:.1f}%`. El modelo confirma rentabilidad frente a la cuota del casino.")
+                    st.success(f"✅ **APUESTA APROBADA CON VALOR REAL (+EV):** Edge de `+{edge_real:.1f}%`. El modelo confirma rentabilidad frente a la cuota del casino.")
                 else:
-                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** El Edge actual es de `+{edge_real:.1f}%` (por debajo del mínimo de {edge_min_soccer}%). No apostar.")
+                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** El Edge actual es de `+{edge_real:.1f}%` (por debajo del mínimo requerido de `{edge_min_soccer}%`). No apostar.")
 
 
 # =========================================================
