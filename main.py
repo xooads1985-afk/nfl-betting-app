@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Minas de Oro)",
+    page_title="Central de Apuestas Pro - Master Suite (Minas de Oro & Live)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -295,11 +295,20 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRINCIPAL CON MINAS DE ORO: ASIÁTICOS Y GOLES TARDIOS)
+# 5. FÚTBOL (MÓDULO PRINCIPAL CON MINAS DE ORO Y GUÍA LIVE/PREMATCH)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & Minas de Oro)":
     st.title(f"⚽ **Cazador de Minas de Oro & Goles — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia: Over/Under Clásico, Líneas Asiáticas de Cuarto (0.25/0.75) y Goles Tardíos / Segundas Mitades (Minuto 75+).*")
+    st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia: Over/Under Clásico, Líneas Asiáticas de Cuarto (0.25/0.75) y Goles Tardíos.*")
+    
+    # GUÍA ESTRATÉGICA PREMATCH VS LIVE
+    with st.expander("💡 🧠 **Guía Estratégica: Cuándo cazar estas Minas de Oro (Prematch vs. Live)**", expanded=False):
+        st.markdown("""
+        • **📅 En la Previa (Prematch):** 
+          Úsalo antes de que empiece el partido para auditar líneas asiáticas o totales donde el casino haya sobreestimado o subestimado el ritmo de los equipos basándose en xG y estadísticas recientes. Te permite asegurar cuotas altas con calma.
+        • **⚡ En Vivo (Live / Durante el Partido):** 
+          **¡Aquí explotan al máximo las minas de oro!** Si al minuto 65–70 el juego va cerrado y notas cansancio táctico, ingresa rápidamente el momio en vivo del **Under de Goles Tardíos (Min. 75+)** o líneas asiáticas en caliente para cazar cuotas exageradas con un Edge masivo.
+        """)
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -329,7 +338,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                # Selector de Tipo de Mercado (Incluyendo las Minas de Oro)
                 tipo_mercado_mina = st.selectbox(
                     "💎 Selecciona el Tipo de Mercado a Auditar:",
                     [
@@ -358,7 +366,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
                 except:
                     momio_casino_real = -110
 
-                # Sugerencia inteligente adaptada a la mina de oro
                 prob_sugerida_inicial = 59.0 if "Mina" in tipo_mercado_mina else 56.5
 
                 prob_modelo_pro = st.slider(
@@ -461,7 +468,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.markdown("--- \n *Auditoría de combates de artes marciales mixtas con cálculo universal de Edge.*")
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
+    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -511,7 +518,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.markdown("---")
     st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp_lmp:.2f}%` | Modelo: `{prob_modelo_lmp:.2f}%` | Edge Neto: **`{edge_lmp:+.2f}%`**")
 
-    if momio_lmp < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+    if momio_lmp < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_lmp >= edge_min_lmp: st.success(f"✅ Aprobado LMP (+EV). Edge: `{edge_lmp:+.2f}%`")
     else: st.warning(f"⚠️ Sin Edge suficiente (`{edge_lmp:+.2f}%`).")
 
@@ -524,7 +531,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Consola cuantitativa especializada para béisbol con precisión exacta de Edge.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
@@ -541,7 +548,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("---")
     st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge Neto: **`{edge_mlb:+.2f}%`**")
 
-    if momio_mlb < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+    if momio_mlb < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_mlb >= edge_min_mlb: st.success(f"✅ Aprobado MLB (+EV). Edge: `{edge_mlb:+.2f}%`")
     else: st.warning(f"⚠️ Sin Edge suficiente (`{edge_mlb:+.2f}%`).")
 
