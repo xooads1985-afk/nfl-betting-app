@@ -42,7 +42,7 @@ modulo_seleccionado = st.sidebar.radio(
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
-        "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)",
+        "🏒 Sistema Cuantitativo Pro AHL (Automático / Desarrollo)",
         "📊 Analítica & Control de Bankroll",
         "🚀 Optimizador Automático de Parlays"
     ]
@@ -95,6 +95,8 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
 
                 if deporte == "soccer":
                     mercados = [{"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de 2.5 Goles", "momio": -115, "prob_modelo": 61.0}]
+                elif deporte == "hockey":
+                    mercados = [{"tipo": "Puck Line / Hándicap", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 56.5}]
                 else:
                     mercados = [{"tipo": "Hándicap / Spread", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 58.5}]
 
@@ -602,7 +604,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
     with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
 
-    cartelera_nhl = obtener_eventos_nhl_pro(fecha_formato_api, fecha_formato_str)
+    cartelera_nhl = obtener_eventos_cuantitativos("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Puck Line NHL (EV+)")
 
@@ -610,8 +612,12 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
         st.info(f"ℹ️ No hay partidos oficiales de la NHL registrados en la API para la fecha `{fecha_formato_str}`.")
     else:
         for idx, op in enumerate(cartelera_nhl, 1):
-            st.success(f"### 🏒 Partido NHL #{idx}: `{op['partido_str']}` — Selección: `{op['seleccion']}`")
-            st.markdown("---")
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
+            if edge >= edge_min_nhl:
+                st.success(f"### 🏒 Partido NHL #{idx}: `{op['partido_str']}` — Selección: `{m['seleccion']}` (Edge: `+{edge:.1f}%`)")
+                st.markdown("---")
 
 
 # =========================================================
@@ -624,7 +630,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
     with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
 
-    cartelera_nhl_hoy = obtener_eventos_nhl_pro(fecha_formato_api, fecha_formato_str)
+    cartelera_nhl_hoy = obtener_eventos_cuantitativos("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     ESTRELLAS_NHL = {
         "Edmonton Oilers": [{"jugador": "Connor McDavid", "mercado": "Puntos Totales (Over 1.5)", "momio": -115, "prob_modelo": 62.0}],
         "Toronto Maple Leafs": [{"jugador": "Auston Matthews", "mercado": "Tiros a Puerta (Over 4.5)", "momio": +105, "prob_modelo": 56.5}]
@@ -646,56 +652,37 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 13. AHL (Liga de Desarrollo - Consola de Entrada Directa Pro)
+# 13. AHL (Sistema Cuantitativo Pro - Conexión Automática API)
 # =========================================================
-elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)":
-    st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Consola cuantitativa especializada para la liga de desarrollo de hockey con entrada directa de partidos.*")
+elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Automático / Desarrollo)":
+    st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Automático) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Escáner cuantitativo sincronizado con la API oficial de la American Hockey League.*")
 
     col_ahl1, col_ahl2 = st.columns(2)
     with col_ahl1: bankroll_ahl = st.number_input("💵 Bankroll AHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ahl")
     with col_ahl2: edge_min_ahl = st.slider("🎯 Edge Mínimo AHL (%):", 0.0, 15.0, 2.5, 0.5, key="edge_ahl")
 
+    # Conexión directa y autónoma al endpoint oficial de la AHL en ESPN
+    cartelera_ahl = obtener_eventos_cuantitativos("hockey", "ahl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("✍️ Ingreso Manual del Enfrentamiento AHL de Hoy")
-    st.info("💡 Escribe los filiales de la AHL que juegan hoy para evitar desfasajes de calendario y calcular tu Edge de inmediato.")
+    st.subheader("📊 Oportunidades Detectadas en Cartelera AHL (EV+)")
 
-    col_inah1, col_inah2 = st.columns(2)
-    with col_inah1:
-        equipo_ahl_visita = st.text_input("Equipo Visitante (AHL):", value="Hershey Bears")
-    with col_inah2:
-        equipo_ahl_local = st.text_input("Equipo Local (AHL):", value="Coachella Valley Firebirds")
-
-    col_pa1, col_pa2, col_pa3 = st.columns(3)
-    with col_pa1:
-        seleccion_ahl = st.selectbox("🎯 Selección con Puck Line:", [f"{equipo_ahl_visita} (+1.5)", f"{equipo_ahl_local} (+1.5)", f"{equipo_ahl_visita} (-1.5)", f"{equipo_ahl_local} (-1.5)"])
-    with col_pa2:
-        momio_ahl = st.number_input("📈 Momio Americano Oficial:", value=125, step=5, key="momio_ahl")
-    with col_pa3:
-        prob_modelo_ahl = st.slider("🤖 Probabilidad del Modelo Pro (%):", 40.0, 80.0, 56.0, 0.5, key="prob_ahl")
-
-    st.markdown("---")
-    st.subheader(f"📊 Resultado del Análisis Cuantitativo AHL [EV+] — `{fecha_formato_str}`")
-
-    if equipo_ahl_visita.strip() and equipo_ahl_local.strip():
-        prob_imp_ahl = momio_a_probabilidad_implicita(momio_ahl) * 100.0
-        edge_ahl = prob_modelo_ahl - prob_imp_ahl
-
-        if edge_ahl >= edge_min_ahl:
-            st.success(f"### 🏒 Partido AHL: `{equipo_ahl_visita} @ {equipo_ahl_local}`")
-            st.write(f"• **Selección Recomendada:** `{seleccion_ahl}` — **Edge: `+{edge_ahl:.1f}%`**")
-            st.write(f"• **Momio Oficial:** `{momio_ahl:+}` | Prob. Implícita: `{prob_imp_ahl:.1f}%` | Modelo: `{prob_modelo_ahl}%`")
-            st.write(f"• **Análisis Táctico:** 🛡️ Evaluación cuantitativa de prospectos en power play, rotación de porteros suplentes y rendimiento en gira para la fecha `{fecha_formato_str}`.")
-            
-            if momio_ahl < -150:
-                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
-            else:
-                st.success("🎯 Regla de Oro Aprobada")
-            st.markdown("---")
-        else:
-            st.info(f"ℹ️ El Edge actual (`+{edge_ahl:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_ahl}%`).")
+    if not cartelera_ahl:
+        st.info(f"ℹ️ No hay partidos oficiales de la AHL registrados en la API para la fecha `{fecha_formato_str}`.")
     else:
-        st.warning("⚠️ Por favor ingresa los nombres de ambos equipos de la AHL para ejecutar el análisis.")
+        for idx, op in enumerate(cartelera_ahl, 1):
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
+            if edge >= edge_min_ahl:
+                st.success(f"### 🏒 Partido AHL #{idx}: `{op['partido_str']}`")
+                st.write(f"• **Selección (Puck Line):** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo Pro: `{m['prob_modelo']}%`")
+                if m['momio'] < -150:
+                    st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+                else:
+                    st.success("🎯 Regla de Oro Aprobada")
+                st.markdown("---")
 
 
 # =========================================================
