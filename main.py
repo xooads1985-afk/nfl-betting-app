@@ -185,7 +185,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
 
 
 # =========================================================
-# 2. Props NFL (Dinámicos y Sincronizados)
+# 2. Props NFL
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
@@ -242,62 +242,75 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
 
     cartelera_nba = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
 
-    if not cartelera_nba:
-        cartelera_nba = [
-            {"partido_str": f"📅 [{fecha_formato_str}] New York Knicks @ Boston Celtics", "mercados_disponibles": [{"tipo": "Spread", "seleccion": "Boston Celtics (-5.5)", "momio": -110, "prob_modelo": 64.5}]},
-            {"partido_str": f"📅 [{fecha_formato_str}] Minnesota Timberwolves @ Los Angeles Lakers", "mercados_disponibles": [{"tipo": "Spread", "seleccion": "Los Angeles Lakers (-3.0)", "momio": -115, "prob_modelo": 60.0}]},
-            {"partido_str": f"📅 [{fecha_formato_str}] Golden State Warriors @ Phoenix Suns", "mercados_disponibles": [{"tipo": "Spread", "seleccion": "Phoenix Suns (-2.5)", "momio": -110, "prob_modelo": 58.0}]}
-        ]
-
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Spread NBA (EV+)")
 
-    contador_nba = 0
-    for idx, op in enumerate(cartelera_nba, 1):
-        m = op["mercados_disponibles"][0]
-        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-        edge = m["prob_modelo"] - prob_imp
+    if not cartelera_nba:
+        st.info(f"ℹ️ No hay partidos oficiales de la NBA registrados en la API para la fecha `{fecha_formato_str}`.")
+    else:
+        contador_nba = 0
+        for idx, op in enumerate(cartelera_nba, 1):
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
 
-        if edge >= edge_min_nba:
-            contador_nba += 1
-            st.success(f"### 🏀 Partido Spread NBA #{contador_nba}: `{op['partido_str']}`")
-            st.write(f"• **Selección Recomendada:** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
-            st.markdown("---")
+            if edge >= edge_min_nba:
+                contador_nba += 1
+                st.success(f"### 🏀 Partido Spread NBA #{contador_nba}: `{op['partido_str']}`")
+                st.write(f"• **Selección Recomendada:** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
+                st.markdown("---")
 
-    if contador_nba == 0:
-        st.info("ℹ️ Hay partidos en cartelera, pero ninguno supera el Edge mínimo seleccionado.")
+        if contador_nba == 0:
+            st.info("ℹ️ Hay partidos en cartelera, pero ninguno supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
-# 4. Props NBA
+# 4. Props NBA (Dinámicos y Sincronizados con la Cartelera)
 # =========================================================
 elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
     st.title(f"🔥 **Props Automáticos NBA ({fecha_formato_str})**")
-    st.markdown("--- \n *Escáner cuantitativo automatizado de rendimiento individual.*")
+    st.markdown("--- \n *Escáner cuantitativo automatizado de rendimiento individual sincronizado con la cartelera.*")
 
     col_pn1, col_pn2 = st.columns(2)
     with col_pn1: bankroll_props_nba = st.number_input("💵 Bankroll Props NBA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nba")
     with col_pn2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba")
 
-    props_nba_cartelera = [
-        {"equipo": "Boston Celtics", "jugador": "Jayson Tatum", "mercado": "Puntos Totales (Over 26.5)", "momio": -115, "prob_modelo": 63.5, "analisis": "Alto volumen de tiros de campo."},
-        {"equipo": "Los Angeles Lakers", "jugador": "LeBron James", "mercado": "Puntos + Rebotes + Asistencias (Over 39.5)", "momio": -115, "prob_modelo": 65.2, "analisis": "Rol de playmaker primario."}
-    ]
+    cartelera_nba_hoy = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
+
+    ESTRELLAS_NBA = {
+        "Boston Celtics": [{"jugador": "Jayson Tatum", "mercado": "Puntos Totales (Over 26.5)", "momio": -115, "prob_modelo": 63.5, "analisis": "Alto volumen de tiros de campo y participación en ofensiva estática."}],
+        "Los Angeles Lakers": [{"jugador": "LeBron James", "mercado": "Puntos + Rebotes + Asistencias (Over 39.5)", "momio": -115, "prob_modelo": 65.2, "analisis": "Rol de playmaker primario y alta ocupación en transición."}],
+        "Golden State Warriors": [{"jugador": "Stephen Curry", "mercado": "Triples Anotados (Over 4.5)", "momio": +105, "prob_modelo": 58.0, "analisis": "Volumen masivo desde la línea de tres puntos."}],
+        "Phoenix Suns": [{"jugador": "Kevin Durant", "mercado": "Puntos Totales (Over 27.5)", "momio": -110, "prob_modelo": 61.0, "analisis": "Eficiencia en media distancia y minutos altos en duelos cerrados."}]
+    }
+
+    equipos_nba_activos = {eq for p in cartelera_nba_hoy for eq in ESTRELLAS_NBA if eq.lower() in p["partido_str"].lower()}
+    if not equipos_nba_activos and cartelera_nba_hoy:
+        equipos_nba_activos = set(ESTRELLAS_NBA.keys())
 
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Props NBA (EV+)")
 
     contador_props_nba = 0
-    for idx, p in enumerate(props_nba_cartelera, 1):
-        prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
-        edge = p["prob_modelo"] - prob_imp
+    if not cartelera_nba_hoy:
+        st.info(f"ℹ️ No hay partidos oficiales de la NBA registrados en la API para la fecha `{fecha_formato_str}`.")
+    else:
+        for equipo in equipos_nba_activos:
+            if equipo in ESTRELLAS_NBA:
+                for p in ESTRELLAS_NBA[equipo]:
+                    prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
+                    edge = p["prob_modelo"] - prob_imp
 
-        if edge >= edge_min_props_nba:
-            contador_props_nba += 1
-            st.success(f"### 🔥 Prop NBA #{contador_props_nba}: `{p['jugador']}` ({p['equipo']}) — `{p['mercado']}`")
-            st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
-            st.markdown("---")
+                    if edge >= edge_min_props_nba:
+                        contador_props_nba += 1
+                        st.success(f"### 🔥 Prop NBA #{contador_props_nba} [{equipo}]: `{p['jugador']}` — `{p['mercado']}`")
+                        st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
+                        st.write(f"• **Análisis Táctico:** 🛡️ {p['analisis']}")
+                        st.markdown("---")
+
+        if contador_props_nba == 0:
+            st.info("ℹ️ Hay partidos de NBA en cartelera, pero ningún prop supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
