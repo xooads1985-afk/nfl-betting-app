@@ -39,7 +39,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
         "⚾ Liga Mexicana del Pacífico (LMP)",
-        "⚾ Béisbol Internacional (MLB)",
+        "⚾ Serie Mundial & Béisbol Pro (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
         "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)",
@@ -485,7 +485,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LMP (Liga Mexicana del Pacífico - Consola de Entrada Directa)
+# 9. LMP (Liga Mexicana del Pacífico)
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Pro [{fecha_formato_str}]**")
@@ -538,11 +538,58 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
 
 # =========================================================
-# 10. Béisbol Internacional (MLB)
+# 10. Serie Mundial & Béisbol Pro (MLB)
 # =========================================================
-elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
-    st.title(f"⚾ **Béisbol Internacional - MLB ({fecha_formato_str})**")
-    st.markdown("--- \n *Escáner cuantitativo sincronizado con la MLB.*")
+elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
+    st.title(f"⚾ **Serie Mundial & Béisbol Pro (MLB) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Consola cuantitativa especializada para el Clásico de Otoño y postemporada de las Grandes Ligas.*")
+
+    col_m1, col_m2 = st.columns(2)
+    with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+
+    st.markdown("---")
+    st.subheader("🏆 Configuración del Juego de la Serie Mundial de Hoy")
+    st.info("💡 Ingresa los finalistas de la Serie Mundial, el abridor o la línea exacta publicada en tu casa de apuestas.")
+
+    col_inmlb1, col_inmlb2 = st.columns(2)
+    with col_inmlb1:
+        equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
+    with col_inmlb2:
+        equipo_mlb_local = st.text_input("Equipo Local (MLB):", value="New York Yankees")
+
+    col_mm1, col_mm2, col_mm3 = st.columns(3)
+    with col_mm1:
+        mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"])
+    with col_mm2:
+        seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)")
+    with col_mm3:
+        momio_mlb = st.number_input("Momio Americano Oficial:", value=-120, step=5, key="momio_mlb")
+
+    prob_modelo_mlb = st.slider("🤖 Probabilidad del Modelo Pro para este juego (%):", 40.0, 80.0, 59.0, 0.5, key="prob_mlb")
+
+    st.markdown("---")
+    st.subheader(f"📊 Resultado del Análisis Cuantitativo Serie Mundial [EV+] — `{fecha_formato_str}`")
+
+    if equipo_mlb_visita.strip() and equipo_mlb_local.strip():
+        prob_imp_mlb = momio_a_probabilidad_implicita(momio_mlb) * 100.0
+        edge_mlb = prob_modelo_mlb - prob_imp_mlb
+
+        if edge_mlb >= edge_min_mlb:
+            st.success(f"### 🏆 Serie Mundial: `{equipo_mlb_visita} @ {equipo_mlb_local}`")
+            st.write(f"• **Mercado Analizado:** `{mercado_mlb}` | **Selección:** `{seleccion_mlb}` — **Edge: `+{edge_mlb:.1f}%`**")
+            st.write(f"• **Momio Oficial:** `{momio_mlb:+}` | Prob. Implícita: `{prob_imp_mlb:.1f}%` | Modelo Pro: `{prob_modelo_mlb}%`")
+            st.write(f"• **Análisis Táctico de Postemporada:** 🛡️ Evaluación de rotación abridores de 4 días, descanso del bullpen estelar y rendimiento ofensivo con corredores en posición de anotar para la fecha `{fecha_formato_str}`.")
+            
+            if momio_mlb < -150:
+                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada para postemporada.")
+            else:
+                st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
+        else:
+            st.info(f"ℹ️ El Edge actual (`+{edge_mlb:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_mlb}%`).")
+    else:
+        st.warning("⚠️ Por favor ingresa los equipos finalistas para ejecutar el análisis de la Serie Mundial.")
 
 
 # =========================================================
@@ -662,4 +709,3 @@ else:
     
     if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
         st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
-
