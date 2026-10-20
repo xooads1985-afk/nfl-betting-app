@@ -185,7 +185,6 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
     with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (%):", 0.0, 15.0, 4.0, 0.5, key="edge_nfl")
 
     cartelera = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
-    
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Spread NFL (EV+)")
 
@@ -196,11 +195,8 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
             m = op["mercados_disponibles"][0]
             prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
             edge = m["prob_modelo"] - prob_imp
-
             if edge >= edge_min:
                 st.success(f"### 🏈 Partido Spread #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
-                st.write(f"• **Selección Recomendada (Hándicap):** `{m['seleccion']}`")
-                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
                 st.markdown("---")
 
 
@@ -359,15 +355,17 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol":
 
     cartelera_ucl = obtener_eventos_cuantitativos("soccer", "uefa.champions", fecha_formato_api, fecha_formato_str)
 
-    # 🌟 PLANTILLA REAL Y ACTUALIZADA DE ESTRELLAS DE LA CHAMPIONS LEAGUE 🌟
+    # 🌟 PLANTILLA REAL Y ACTUALIZADA DE ESTRELLAS DE LA CHAMPIONS LEAGUE (Con Kevin De Bruyne en el Napoli) 🌟
     ESTRELLAS_CHAMPIONS_REAL = {
         "Real Madrid": [
             {"jugador": "Kylian Mbappé", "mercado": "Tiros a Puerta (Over 1.5)", "momio": -120, "prob_modelo": 64.0, "analisis": "Alto volumen de remates y desmarques en ruptura."},
             {"jugador": "Jude Bellingham", "mercado": "Tiros Totales (Over 1.5)", "momio": -115, "prob_modelo": 61.5, "analisis": "Llegada constante desde segunda línea al área rival."}
         ],
         "Manchester City": [
-            {"jugador": "Erling Haaland", "mercado": "Tiros Totales (Over 3.5)", "momio": -115, "prob_modelo": 62.5, "analisis": "Generación masiva de xG y remates dentro del área."},
-            {"jugador": "Kevin De Bruyne", "mercado": "Asistencias (Over 0.5)", "momio": +105, "prob_modelo": 57.0, "analisis": "Visión de juego y centros precisos a balón parado o en jugada."}
+            {"jugador": "Erling Haaland", "mercado": "Tiros Totales (Over 3.5)", "momio": -115, "prob_modelo": 62.5, "analisis": "Generación masiva de xG y remates dentro del área."}
+        ],
+        "SSC Napoli": [
+            {"jugador": "Kevin De Bruyne", "mercado": "Asistencias (Over 0.5)", "momio": +105, "prob_modelo": 59.0, "analisis": "Distribución clave en zona de creación y ejecución a balón parado."}
         ],
         "FC Barcelona": [
             {"jugador": "Lamine Yamal", "mercado": "Tiros a Puerta (Over 1.5)", "momio": +110, "prob_modelo": 58.5, "analisis": "Desequilibrio constante hacia adentro desde el costado derecho."},
