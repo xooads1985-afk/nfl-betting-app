@@ -280,11 +280,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado Pro (Separado y Entendible)
+# 5. Fútbol / Soccer Multi-Mercado Pro (Separación Quirúrgica)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
     st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona un partido real, elige un mercado perfectamente separado y audita su rentabilidad matemática frente al casino.*")
+    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico de equipo o partido (sin mezclar opciones) y audita su rentabilidad frente al casino.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -306,7 +306,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Partidos en Cartelera Real — Auditoría por Categorías Separadas")
+    st.subheader("📋 Partidos en Cartelera Real — Mercados Separados y Específicos")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -314,16 +314,18 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                # SEPARACIÓN CLARA DE MERCADOS EN SELECTORES DISTINTOS
+                # MERCADOS TOTALMENTE SEPARADOS Y SIN MEZCLAS
                 cat_mercado = st.selectbox(
-                    "📂 Selecciona la Categoría de Mercado a Auditar:", 
+                    "📂 Selecciona el Mercado Específico a Auditar:", 
                     [
                         "1️⃣ Total de Goles (Over / Under 2.5)", 
-                        "2️⃣ Doble Oportunidad (1X / X2 / 12)", 
-                        "3️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
-                        "4️⃣ Ambos Equipos Anotan (BTTS Sí / No)", 
-                        "5️⃣ Saques de Esquina / Córners (Over/Under)", 
-                        "6️⃣ Tiros a Puerta Individuales o de Equipo"
+                        "2️⃣ Doble Oportunidad: Local o Empate [1X]", 
+                        "3️⃣ Doble Oportunidad: Visita o Empate [X2]", 
+                        "4️⃣ Doble Oportunidad: Local o Visita [12]", 
+                        "5️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
+                        "6️⃣ Ambos Equipos Anotan (BTTS Sí / No)", 
+                        "7️⃣ Saques de Esquina / Córners (Totales Equipo/Partido)", 
+                        "8️⃣ Tiros a Puerta Colectivos (Totales del Equipo)"
                     ], 
                     key=f"f_cat_{idx}"
                 )
@@ -332,12 +334,11 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
                 with col_m1:
                     momio_casino_real = st.number_input("📈 Momio Americano Real del Casino (ej. -110, +130):", value=-110, step=1, key=f"f_momio_{idx}")
                 with col_m2:
-                    # PROBABILIDAD DEL MODELO PRO CON CONTEXTO ENTENDIBLE
                     prob_modelo_pro = st.slider(
                         "🤖 Probabilidad Real Calculada por el Modelo Pro (%):", 
                         30.0, 85.0, 56.5, 0.5, 
                         key=f"f_prob_{idx}",
-                        help="Calculada basándose en xG, volumen de llegada reciente y tendencias históricas del torneo."
+                        help="Calculada basándose en xG, volumen de llegada reciente y métricas colectivas del torneo."
                     )
 
                 prob_imp_real = momio_a_probabilidad_implicita(momio_casino_real) * 100.0
