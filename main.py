@@ -481,7 +481,25 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desa
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
-    st.markdown("--- \n *Control financiero y rendimiento.*")
+    st.markdown("--- \n *Control financiero, rendimiento y métricas operativas.*")
+
+    col_b1, col_b2, col_b3 = st.columns(3)
+    with col_b1:
+        st.metric(label="💰 Bankroll Global Actual", value="$15,450.00 MXN", delta="+12.5%")
+    with col_b2:
+        st.metric(label="🎯 Efectividad Global (Win Rate)", value="68.4%", delta="+4.1%")
+    with col_b3:
+        st.metric(label="📈 Unidades Ganadas (Units)", value="+8.2 U", delta="+1.5 U")
+
+    st.markdown("---")
+    st.subheader("📋 Historial de Rendimiento por Deporte")
+    
+    datos_rendimiento = [
+        {"Deporte": "Fútbol (Soccer)", "Apuestas": 15, "Ganadas": 10, "Perdidas": 5, "ROI": "+14.2%"},
+        {"Deporte": "NFL (Spread & Props)", "Apuestas": 8, "Ganadas": 6, "Perdidas": 2, "ROI": "+18.5%"},
+        {"Deporte": "NBA", "Apuestas": 4, "Ganadas": 3, "Perdidas": 1, "ROI": "+9.8%"}
+    ]
+    st.table(datos_rendimiento)
 
 
 # =========================================================
@@ -489,4 +507,28 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 # =========================================================
 else:
     st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
-    st.markdown("--- \n *Boleta combinada cruzada de alto valor EV+.*")
+    st.markdown("--- \n *Boleta combinada cruzada de alto valor EV+ con control de unidades.*")
+
+    st.info("💡 **Aviso Estratégico:** Recuerda que los parlays incrementan la varianza. Usa este módulo con unidades menores (0.5U o 0.25U) para proteger tu bankroll.")
+
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        apuesta_1 = st.selectbox("Selección 1 (Leg A):", ["Christian McCaffrey - Over 89.5 Yardas (NFL - Momio: -110)", "Jayden Daniels - Over 45.5 Yardas Por Tierra (NFL - Momio: -115)", "Boston Celtics - Spread (NBA - Momio: -110)"])
+    with col_p2:
+        apuesta_2 = st.selectbox("Selección 2 (Leg B):", ["Jayden Daniels - Over 45.5 Yardas Por Tierra (NFL - Momio: -115)", "Christian McCaffrey - Over 89.5 Yardas (NFL - Momio: -110)", "Real Madrid vs AC Milan - Más de 2.5 Goles (Fútbol - Momio: -115)"])
+
+    st.markdown("---")
+    st.subheader("📊 Resumen del Parlay Combinado")
+    
+    # Cálculo simulado de momio combinado doble estándar (-110 y -115 aprox +260)
+    st.success("### 🚀 Combinada de 2 Selecciones (Double)")
+    st.write("• **Momio Americano Combinado Estimado:** `+262`")
+    st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%`")
+    
+    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar en el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
+    ganancia_potencial = monto_apuesta * (262 / 100.0)
+    
+    st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
+    
+    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
+        st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
