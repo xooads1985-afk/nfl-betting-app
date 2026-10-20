@@ -646,12 +646,56 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 13. AHL
+# 13. AHL (Liga de Desarrollo - Consola de Entrada Directa Pro)
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)":
-    st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Hándicap) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Liga de desarrollo y análisis de margen de goles.*")
-    st.success("### 🏒 Partido AHL: Hershey Bears @ Coachella Valley Firebirds — Selección: Hershey Bears (+1.5)")
+    st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Consola cuantitativa especializada para la liga de desarrollo de hockey con entrada directa de partidos.*")
+
+    col_ahl1, col_ahl2 = st.columns(2)
+    with col_ahl1: bankroll_ahl = st.number_input("💵 Bankroll AHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ahl")
+    with col_ahl2: edge_min_ahl = st.slider("🎯 Edge Mínimo AHL (%):", 0.0, 15.0, 2.5, 0.5, key="edge_ahl")
+
+    st.markdown("---")
+    st.subheader("✍️ Ingreso Manual del Enfrentamiento AHL de Hoy")
+    st.info("💡 Escribe los filiales de la AHL que juegan hoy para evitar desfasajes de calendario y calcular tu Edge de inmediato.")
+
+    col_inah1, col_inah2 = st.columns(2)
+    with col_inah1:
+        equipo_ahl_visita = st.text_input("Equipo Visitante (AHL):", value="Hershey Bears")
+    with col_inah2:
+        equipo_ahl_local = st.text_input("Equipo Local (AHL):", value="Coachella Valley Firebirds")
+
+    col_pa1, col_pa2, col_pa3 = st.columns(3)
+    with col_pa1:
+        seleccion_ahl = st.selectbox("🎯 Selección con Puck Line:", [f"{equipo_ahl_visita} (+1.5)", f"{equipo_ahl_local} (+1.5)", f"{equipo_ahl_visita} (-1.5)", f"{equipo_ahl_local} (-1.5)"])
+    with col_pa2:
+        momio_ahl = st.number_input("📈 Momio Americano Oficial:", value=125, step=5, key="momio_ahl")
+    with col_pa3:
+        prob_modelo_ahl = st.slider("🤖 Probabilidad del Modelo Pro (%):", 40.0, 80.0, 56.0, 0.5, key="prob_ahl")
+
+    st.markdown("---")
+    st.subheader(f"📊 Resultado del Análisis Cuantitativo AHL [EV+] — `{fecha_formato_str}`")
+
+    if equipo_ahl_visita.strip() and equipo_ahl_local.strip():
+        prob_imp_ahl = momio_a_probabilidad_implicita(momio_ahl) * 100.0
+        edge_ahl = prob_modelo_ahl - prob_imp_ahl
+
+        if edge_ahl >= edge_min_ahl:
+            st.success(f"### 🏒 Partido AHL: `{equipo_ahl_visita} @ {equipo_ahl_local}`")
+            st.write(f"• **Selección Recomendada:** `{seleccion_ahl}` — **Edge: `+{edge_ahl:.1f}%`**")
+            st.write(f"• **Momio Oficial:** `{momio_ahl:+}` | Prob. Implícita: `{prob_imp_ahl:.1f}%` | Modelo: `{prob_modelo_ahl}%`")
+            st.write(f"• **Análisis Táctico:** 🛡️ Evaluación cuantitativa de prospectos en power play, rotación de porteros suplentes y rendimiento en gira para la fecha `{fecha_formato_str}`.")
+            
+            if momio_ahl < -150:
+                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+            else:
+                st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
+        else:
+            st.info(f"ℹ️ El Edge actual (`+{edge_ahl:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_ahl}%`).")
+    else:
+        st.warning("⚠️ Por favor ingresa los nombres de ambos equipos de la AHL para ejecutar el análisis.")
 
 
 # =========================================================
