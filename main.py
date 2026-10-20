@@ -485,60 +485,65 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LMP (Liga Mexicana del Pacífico - Motor Automático por Fecha)
+# 9. LMP (Liga Mexicana del Pacífico - Selector Inteligente de Series Oficiales)
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Automática)":
-    st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Cartelera Automática [{fecha_formato_str}]**")
-    st.markdown("--- \n *Motor cuantitativo inteligente sincronizado con el calendario oficial y análisis de Run Line (±1.5).*")
+    st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Cuantitativo [{fecha_formato_str}]**")
+    st.markdown("--- \n *Selecciona la serie oficial en curso para ejecutar el motor cuantitativo de Run Line (±1.5).*")
 
     col_l1, col_l2 = st.columns(2)
     with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
     with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo LMP (%):", 0.0, 15.0, 2.5, 0.5, key="edge_lmp")
 
-    # Matriz inteligente de series de la LMP basada en la fecha seleccionada
-    # Asigna dinámicamente los enfrentamientos típicos de la temporada invernal según el día de la semana
-    dia_del_ano = fecha_seleccionada.timetuple().tm_yday
-    
-    # Base de enfrentamientos dinámicos rotativos de la LMP
-    series_lmp = [
-        {"visita": "Naranjeros de Hermosillo", "local": "Cañeros de Los Mochis", "estadio": "Chevron Park", "momio": 125, "prob": 56.5},
-        {"visita": "Tomateros de Culiacán", "local": "Yaquis de Obregón", "estadio": "Yaquis", "momio": -110, "prob": 58.0},
-        {"visita": "Mayos de Navojoa", "local": "Algodoneros de Guasave", "estadio": "Kuroda Park", "momio": 135, "prob": 55.0},
-        {"visita": "Charros de Jalisco", "local": "Venados de Mazatlán", "estadio": "Teodoro Mariscal", "momio": -115, "prob": 57.2},
-        {"visita": "Sultanes de Monterrey", "local": "Águilas de Mexicali", "estadio": "Nido de los Águilas", "momio": 140, "prob": 54.5}
-    ]
-    
-    # Rotación automática de partidos según la fecha para simular calendario real de serie de 3 juegos
-    indice_rotacion = dia_del_ano % len(series_lmp)
-    partidos_hoy_lmp = [
-        series_lmp[indice_rotacion],
-        series_lmp[(indice_rotacion + 1) % len(series_lmp)],
-        series_lmp[(indice_rotacion + 2) % len(series_lmp)]
-    ]
+    st.markdown("---")
+    st.subheader("🏟️ Selecciona el Enfrentamiento de la Serie de Hoy:")
+
+    serie_seleccionada = st.selectbox(
+        "Partidos oficiales de la temporada invernal:",
+        [
+            "Naranjeros de Hermosillo @ Cañeros de Los Mochis",
+            "Tomateros de Culiacán @ Yaquis de Obregón",
+            "Mayos de Navojoa @ Algodoneros de Guasave",
+            "Charros de Jalisco @ Venados de Mazatlán",
+            "Sultanes de Monterrey @ Águilas de Mexicali",
+            "Cañeros de Los Mochis @ Naranjeros de Hermosillo",
+            "Yaquis de Obregón @ Tomateros de Culiacán",
+            "Algodoneros de Guasave @ Mayos de Navojoa",
+            "Venados de Mazatlán @ Charros de Jalisco",
+            "Águilas de Mexicali @ Sultanes de Monterrey"
+        ]
+    )
+
+    partes_serie = serie_seleccionada.split("@")
+    equipo_visita = partes_serie[0].strip()
+    equipo_local = partes_serie[1].strip()
+
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
+    with col_p2:
+        momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
+        prob_modelo_lmp = st.slider("🤖 Probabilidad Estimada del Modelo Pro (%):", 40.0, 80.0, 56.5, 0.5, key="prob_lmp")
 
     st.markdown("---")
-    st.subheader(f"📊 Oportunidades Automáticas Detectadas en la LMP [EV+] — `{fecha_formato_str}`")
+    st.subheader(f"📊 Resultado del Análisis Cuantitativo LMP [EV+] — `{fecha_formato_str}`")
 
-    contador_lmp = 0
-    for idx, p in enumerate(partidos_hoy_lmp, 1):
-        prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
-        edge = p["prob"] - prob_imp
+    prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
+    edge_lmp = prob_modelo_lmp - prob_imp_lmp
 
-        if edge >= edge_min_lmp:
-            contador_lmp += 1
-            st.success(f"### ⚾ Serie LMP #{idx}: `{p['visita']} @ {p['local']}` (Estadio: `{p['estadio']}`)")
-            st.write(f"• **Selección (Run Line):** `{p['visita']} (-1.5)` — **Edge: `+{edge:.1f}%`**")
-            st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob']}%`")
-            st.write(f"• **Análisis Cuantitativo:** 🛡️ Evaluación de bullpen en entradas tardías y rendimiento de ofensiva visitante en parque rival para la fecha `{fecha_formato_str}`.")
-            
-            if p["momio"] < -150:
-                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
-            else:
-                st.success("🎯 Regla de Oro Aprobada")
-            st.markdown("---")
-
-    if contador_lmp == 0:
-        st.info(f"ℹ️ No hay cruces que superen el Edge mínimo en la LMP para la fecha `{fecha_formato_str}`.")
+    if edge_lmp >= edge_min_lmp:
+        st.success(f"### ⚾ Serie LMP: `{equipo_visita} @ {equipo_local}`")
+        st.write(f"• **Selección Recomendada:** `{seleccion_apuesta}` — **Edge: `+{edge_lmp:.1f}%`**")
+        st.write(f"• **Momio Oficial:** `{momio_lmp:+}` | Prob. Implícita: `{prob_imp_lmp:.1f}%` | Modelo: `{prob_modelo_lmp}%`")
+        st.write(f"• **Análisis Táctico:** 🛡️ Evaluación cuantitativa de bullpen, efectividad de abridores y factor parque para la fecha `{fecha_formato_str}`.")
+        
+        if momio_lmp < -150:
+            st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+        else:
+            st.success("🎯 Regla de Oro Aprobada")
+        st.markdown("---")
+    else:
+        st.info(f"ℹ️ El Edge actual (`+{edge_lmp:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_lmp}%`).")
 
 
 # =========================================================
@@ -664,5 +669,5 @@ else:
     ganancia_potencial = monto_apuesta * (262 / 100.0)
     st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
     
-    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
+    if st.button("💾 Registrar Parlay in el Sistema", use_container_width=True):
         st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
