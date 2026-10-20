@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite 15 Módulos",
+    page_title="Central de Apuestas Pro - Master Suite 14 Módulos",
     page_icon="🛡️",
     layout="wide"
 )
@@ -42,7 +42,6 @@ modulo_seleccionado = st.sidebar.radio(
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
-        "🏒 Sistema Cuantitativo Pro AHL (Automático / Desarrollo)",
         "📊 Analítica & Control de Bankroll",
         "🚀 Optimizador Automático de Parlays"
     ]
@@ -652,41 +651,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 13. AHL (Sistema Cuantitativo Pro - Conexión Automática API)
-# =========================================================
-elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Automático / Desarrollo)":
-    st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Automático) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo sincronizado con la API oficial de la American Hockey League.*")
-
-    col_ahl1, col_ahl2 = st.columns(2)
-    with col_ahl1: bankroll_ahl = st.number_input("💵 Bankroll AHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ahl")
-    with col_ahl2: edge_min_ahl = st.slider("🎯 Edge Mínimo AHL (%):", 0.0, 15.0, 2.5, 0.5, key="edge_ahl")
-
-    # Conexión directa y autónoma al endpoint oficial de la AHL en ESPN
-    cartelera_ahl = obtener_eventos_cuantitativos("hockey", "ahl", fecha_formato_api, fecha_formato_str)
-    st.markdown("---")
-    st.subheader("📊 Oportunidades Detectadas en Cartelera AHL (EV+)")
-
-    if not cartelera_ahl:
-        st.info(f"ℹ️ No hay partidos oficiales de la AHL registrados en la API para la fecha `{fecha_formato_str}`.")
-    else:
-        for idx, op in enumerate(cartelera_ahl, 1):
-            m = op["mercados_disponibles"][0]
-            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-            edge = m["prob_modelo"] - prob_imp
-            if edge >= edge_min_ahl:
-                st.success(f"### 🏒 Partido AHL #{idx}: `{op['partido_str']}`")
-                st.write(f"• **Selección (Puck Line):** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
-                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo Pro: `{m['prob_modelo']}%`")
-                if m['momio'] < -150:
-                    st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
-                else:
-                    st.success("🎯 Regla de Oro Aprobada")
-                st.markdown("---")
-
-
-# =========================================================
-# 14. Analítica & Bankroll
+# 13. Analítica & Bankroll
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
@@ -707,7 +672,7 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 
 
 # =========================================================
-# 15. Optimizador de Parlays
+# 14. Optimizador de Parlays
 # =========================================================
 else:
     st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
