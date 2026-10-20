@@ -75,19 +75,38 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
             for evento in eventos:
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
-                local, visitante = "Jugador 1", "Jugador 2"
-                for comp in competidores:
-                    if comp.get("homeAway") == "home":
-                        local = comp.get("athlete", {}).get("displayName", comp.get("team", {}).get("displayName", "Local"))
-                    else:
-                        visitante = comp.get("athlete", {}).get("displayName", comp.get("team", {}).get("displayName", "Visitante"))
+                
+                local, visitante = "Jugador Local", "Jugador Visitante"
+                
+                # Extracción robusta para Tenis y otros deportes
+                if deporte == "tennis":
+                    nombres_tenistas = []
+                    for comp in competidores:
+                        # En tenis, el atleta viene dentro de 'athlete' o 'team'
+                        atleta = comp.get("athlete", {})
+                        nombre = atleta.get("displayName") or atleta.get("shortName")
+                        if not nombre:
+                            nombre = comp.get("team", {}).get("displayName", "Tenista")
+                        nombres_tenistas.append(nombre)
+                    
+                    if len(nombres_tenistas) >= 2:
+                        visitante = nombres_tenistas[0]
+                        local = nombres_tenistas[1]
+                    elif len(nombres_tenistas) == 1:
+                        local = nombres_tenistas[0]
+                else:
+                    for comp in competidores:
+                        if comp.get("homeAway") == "home":
+                            local = comp.get("team", {}).get("displayName", "Local")
+                        else:
+                            visitante = comp.get("team", {}).get("displayName", "Visitante")
                 
                 odds = competencia.get("odds", [{}])
-                spread = -3.5
+                spread = -3.5 if deporte == "tennis" else -1.5
                 momio_spread = -110
 
                 if odds and isinstance(odds, list) and len(odds) > 0:
-                    try: spread = float(odds[0].get("details", "-3.5").split()[-1])
+                    try: spread = float(odds[0].get("details", f"{spread}").split()[-1])
                     except: pass
                     try: momio_spread = int(odds[0].get("spreadOdds", {}).get("price", -110))
                     except: 
@@ -96,8 +115,10 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
 
                 if deporte == "soccer":
                     mercados = [{"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de 2.5 Goles", "momio": -115, "prob_modelo": 61.0}]
-                else:
+                elif deporte == "tennis":
                     mercados = [{"tipo": "Hándicap de Juegos", "seleccion": f"{local} ({spread:+.1f} juegos)", "momio": momio_spread, "prob_modelo": 59.0}]
+                else:
+                    mercados = [{"tipo": "Hándicap / Spread", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 58.5}]
 
                 partidos_extraidos.append({
                     "partido_str": f"📅 [{fecha_str_humana}] {visitante} vs {local}",
@@ -125,7 +146,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
                 peleador_1, peleador_2 = "Peleador A", "Peleador B"
-                momio_1, momio_2 = -120, +100
+                momio_1 = -120
                 
                 if len(competidores) >= 2:
                     peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
@@ -487,7 +508,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico)
+# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico Corregido)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
@@ -506,7 +527,6 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     with col_t1: bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_tenis")
     with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
 
-    # Definir listas de ligas a escanear según la selección
     ligas_a_escanear = []
     if "ATP" in circuito_tenis:
         ligas_a_escanear.append(("tennis", "atp"))
@@ -683,7 +703,7 @@ else:
     st.write("• **Momio Americano Combinado Estimado:** `+262`")
     st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%`")
     
-    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar en el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
+    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar enල් el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
     ganancia_potencial = monto_apuesta * (262 / 100.0)
     st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
     
