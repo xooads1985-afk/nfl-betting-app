@@ -38,7 +38,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
-        "⚾ Liga Mexicana del Pacífico (LMP Automática)",
+        "⚾ Liga Mexicana del Pacífico (LMP)",
         "⚾ Béisbol Internacional (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
@@ -485,65 +485,56 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LMP (Liga Mexicana del Pacífico - Selector Inteligente de Series Oficiales)
+# 9. LMP (Liga Mexicana del Pacífico - Consola de Entrada Directa)
 # =========================================================
-elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Automática)":
-    st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Cuantitativo [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona la serie oficial en curso para ejecutar el motor cuantitativo de Run Line (±1.5).*")
+elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
+    st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Pro [{fecha_formato_str}]**")
+    st.markdown("--- \n *Consola cuantitativa especializada con entrada directa para los juegos de la temporada invernal.*")
 
     col_l1, col_l2 = st.columns(2)
     with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
     with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo LMP (%):", 0.0, 15.0, 2.5, 0.5, key="edge_lmp")
 
     st.markdown("---")
-    st.subheader("🏟️ Selecciona el Enfrentamiento de la Serie de Hoy:")
+    st.subheader("✍️ Ingreso Manual del Enfrentamiento de Hoy")
+    st.info("💡 Escribe directamente los equipos que se enfrentan hoy en la LMP para asegurar precisión absoluta.")
 
-    serie_seleccionada = st.selectbox(
-        "Partidos oficiales de la temporada invernal:",
-        [
-            "Naranjeros de Hermosillo @ Cañeros de Los Mochis",
-            "Tomateros de Culiacán @ Yaquis de Obregón",
-            "Mayos de Navojoa @ Algodoneros de Guasave",
-            "Charros de Jalisco @ Venados de Mazatlán",
-            "Sultanes de Monterrey @ Águilas de Mexicali",
-            "Cañeros de Los Mochis @ Naranjeros de Hermosillo",
-            "Yaquis de Obregón @ Tomateros de Culiacán",
-            "Algodoneros de Guasave @ Mayos de Navojoa",
-            "Venados de Mazatlán @ Charros de Jalisco",
-            "Águilas de Mexicali @ Sultanes de Monterrey"
-        ]
-    )
+    col_in1, col_in2 = st.columns(2)
+    with col_in1:
+        equipo_visita = st.text_input("Equipo Visitante:", value="Naranjeros de Hermosillo")
+    with col_in2:
+        equipo_local = st.text_input("Equipo Local:", value="Cañeros de Los Mochis")
 
-    partes_serie = serie_seleccionada.split("@")
-    equipo_visita = partes_serie[0].strip()
-    equipo_local = partes_serie[1].strip()
-
-    col_p1, col_p2 = st.columns(2)
+    col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1:
         seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
     with col_p2:
         momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
-        prob_modelo_lmp = st.slider("🤖 Probabilidad Estimada del Modelo Pro (%):", 40.0, 80.0, 56.5, 0.5, key="prob_lmp")
+    with col_p3:
+        prob_modelo_lmp = st.slider("🤖 Probabilidad del Modelo Pro (%):", 40.0, 80.0, 56.5, 0.5, key="prob_lmp")
 
     st.markdown("---")
     st.subheader(f"📊 Resultado del Análisis Cuantitativo LMP [EV+] — `{fecha_formato_str}`")
 
-    prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
-    edge_lmp = prob_modelo_lmp - prob_imp_lmp
+    if equipo_visita.strip() and equipo_local.strip():
+        prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
+        edge_lmp = prob_modelo_lmp - prob_imp_lmp
 
-    if edge_lmp >= edge_min_lmp:
-        st.success(f"### ⚾ Serie LMP: `{equipo_visita} @ {equipo_local}`")
-        st.write(f"• **Selección Recomendada:** `{seleccion_apuesta}` — **Edge: `+{edge_lmp:.1f}%`**")
-        st.write(f"• **Momio Oficial:** `{momio_lmp:+}` | Prob. Implícita: `{prob_imp_lmp:.1f}%` | Modelo: `{prob_modelo_lmp}%`")
-        st.write(f"• **Análisis Táctico:** 🛡️ Evaluación cuantitativa de bullpen, efectividad de abridores y factor parque para la fecha `{fecha_formato_str}`.")
-        
-        if momio_lmp < -150:
-            st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+        if edge_lmp >= edge_min_lmp:
+            st.success(f"### ⚾ Serie LMP: `{equipo_visita} @ {equipo_local}`")
+            st.write(f"• **Selección Recomendada:** `{seleccion_apuesta}` — **Edge: `+{edge_lmp:.1f}%`**")
+            st.write(f"• **Momio Oficial:** `{momio_lmp:+}` | Prob. Implícita: `{prob_imp_lmp:.1f}%` | Modelo: `{prob_modelo_lmp}%`")
+            st.write(f"• **Análisis Táctico:** 🛡️ Evaluación cuantitativa de bullpen, efectividad de abridores y factor parque para la fecha `{fecha_formato_str}`.")
+            
+            if momio_lmp < -150:
+                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+            else:
+                st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
         else:
-            st.success("🎯 Regla de Oro Aprobada")
-        st.markdown("---")
+            st.info(f"ℹ️ El Edge actual (`+{edge_lmp:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_lmp}%`).")
     else:
-        st.info(f"ℹ️ El Edge actual (`+{edge_lmp:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_lmp}%`).")
+        st.warning("⚠️ Por favor ingresa los nombres de ambos equipos para ejecutar el análisis cuantitativo.")
 
 
 # =========================================================
@@ -669,5 +660,6 @@ else:
     ganancia_potencial = monto_apuesta * (262 / 100.0)
     st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
     
-    if st.button("💾 Registrar Parlay in el Sistema", use_container_width=True):
+    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
         st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
+
