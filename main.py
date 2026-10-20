@@ -85,8 +85,6 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                 odds = competencia.get("odds", [{}])
                 spread = -1.5
                 momio_spread = -110
-                over_under = 2.5
-                momio_over = -115
 
                 if odds and isinstance(odds, list) and len(odds) > 0:
                     try: 
@@ -98,20 +96,10 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                     except: 
                         try: momio_spread = int(odds[0].get("overOdds", {}).get("price", -110))
                         except: pass
-                    
-                    try:
-                        over_under = float(odds[0].get("overUnder", 2.5))
-                    except:
-                        pass
-                    try:
-                        momio_over = int(odds[0].get("overOdds", {}).get("price", -115))
-                    except:
-                        pass
 
                 if deporte == "soccer":
                     mercados = [
-                        {"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de {over_under} Goles (Over)", "momio": momio_over, "prob_modelo": 61.0},
-                        {"tipo": "Total de Goles (Over/Under)", "seleccion": f"Menos de {over_under} Goles (Under)", "momio": -105, "prob_modelo": 52.0}
+                        {"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de 2.5 Goles", "momio": -115, "prob_modelo": 61.0}
                     ]
                 else:
                     mercados = [
@@ -132,7 +120,6 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
 
 @st.cache_data(ttl=300)
 def obtener_plantel_dinamico_ucl(fecha_str_api):
-    """Consulta la cartelera y extrae dinámicamente equipos y referencias activas"""
     url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates={fecha_str_api}"
     plantel_dinamico = {}
     try:
@@ -144,7 +131,6 @@ def obtener_plantel_dinamico_ucl(fecha_str_api):
                 for comp in competencia.get("competitors", []):
                     team_name = comp.get("team", {}).get("displayName", "")
                     if team_name:
-                        # Asignación dinámica de referencias ofensivas por club en Champions
                         if "Real Madrid" in team_name:
                             plantel_dinamico[team_name] = [
                                 {"jugador": "Kylian Mbappé", "mercado": "Tiros a Puerta (Over 1.5)", "momio": -120, "prob_modelo": 64.0, "analisis": "Alto volumen de remates y desmarques en ruptura."},
@@ -381,19 +367,16 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
 
 
 # =========================================================
-# 6. Props Fútbol (Con Consulta Dinámica de Planteles UCL)
+# 6. Props Fútbol (Dinámico Champions League)
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
     st.title(f"🎯 **Props Automáticos de Fútbol (Dinámico) [{fecha_formato_str}]**")
     st.markdown("--- \n *Escáner cuantitativo de rendimiento individual con extracción dinámica de plantillas en Champions League.*")
-
     col_p1, col_p2 = st.columns(2)
     with col_p1: bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
     with col_p2: edge_min_props_fut = st.slider("🎯 Edge Mínimo Props (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_fut")
 
-    # 🔄 Extracción dinámica de la cartelera y planteles en tiempo real
     plantel_activo_ucl = obtener_plantel_dinamico_ucl(fecha_formato_api)
-
     st.markdown("---")
     st.subheader("📊 Oportunidades Dinámicas Detectadas en Props de la Champions League (EV+)")
 
@@ -405,25 +388,53 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
             for p in jugadores:
                 prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
                 edge = p["prob_modelo"] - prob_imp
-
                 if edge >= edge_min_props_fut:
                     contador_props_ucl += 1
                     st.success(f"### 🎯 Prop Dinámico Champions #{contador_props_ucl} [{equipo}]: `{p['jugador']}` — `{p['mercado']}`")
                     st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
-                    st.write(f"• **Análisis Táctico Dinámico:** 🛡️ {p['analisis']}")
                     st.markdown("---")
-
-        if contador_props_ucl == 0:
-            st.info("ℹ️ Hay partidos dinámicos en cartelera, pero ningún prop supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
-# 7. NCAA
+# 7. NCAA (Robot Universitario & Hándicap - Con Conector Pro)
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
-    st.markdown("--- \n *Escaneo de partidos colegiales y hándicap.*")
-    st.success("### 🎓 Análisis NCAA Spread: Alabama Crimson Tide (-7.5)")
+    st.markdown("--- \n *Escaneo cuantitativo automatizado de partidos universitarios y cobertura de hándicap (Spread).*")
+
+    col_nc1, col_nc2 = st.columns(2)
+    with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
+    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
+
+    # Extracción de cartelera real de la NCAA (Fútbol Americano Universitario / College Football)
+    cartelera_ncaa = obtener_eventos_cuantitativos("football", "college-football", fecha_formato_api, fecha_formato_str)
+
+    st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Spread NCAA (EV+)")
+
+    if not cartelera_ncaa:
+        st.info(f"ℹ️ No hay partidos oficiales de la NCAA programados en la API para la fecha `{fecha_formato_str}`.")
+    else:
+        contador_ncaa = 0
+        for idx, op in enumerate(cartelera_ncaa, 1):
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
+
+            if edge >= edge_min_ncaa:
+                contador_ncaa += 1
+                st.success(f"### 🎓 Partido Universitario NCAA #{contador_ncaa}: `{op['partido_str']}`")
+                st.write(f"• **Selección Recomendada (Spread):** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
+                
+                if m['momio'] < -150: 
+                    st.error("🚨 Infringe la Regla de Oro (-150).")
+                else: 
+                    st.success("🎯 Regla de Oro Aprobada")
+                st.markdown("---")
+
+        if contador_ncaa == 0:
+            st.info("ℹ️ Hay partidos colegiales en cartelera, pero ninguno supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
