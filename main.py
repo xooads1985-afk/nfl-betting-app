@@ -312,11 +312,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado Pro
+# 5. Fútbol / Soccer Multi-Mercado Pro (Con Líneas Dinámicas y Libres)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
     st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico (con hándicaps asiáticos y líneas de equipo totalmente separadas) y audita su rentabilidad.*")
+    st.markdown("--- \n *Selecciona un partido real, elige el mercado y configura con total libertad las líneas (Over/Under de goles, córners y tiros a puerta por equipo o partido).*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -338,7 +338,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Partidos en Cartelera Real — Mercados y Hándicaps Desglosados")
+    st.subheader("📋 Partidos en Cartelera Real — Mercados con Líneas Dinámicas Libres")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -347,28 +347,55 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
                 cat_mercado = st.selectbox(
-                    "📂 Selecciona el Mercado Específico a Auditar:", 
+                    "📂 Selecciona la Categoría de Mercado a Auditar:", 
                     [
-                        "1️⃣ Total de Goles: Más de 2.5 Goles (Over)", 
-                        "2️⃣ Total de Goles: Menos de 2.5 Goles (Under)", 
-                        "3️⃣ Doble Oportunidad: Local o Empate [1X]", 
-                        "4️⃣ Doble Oportunidad: Visita o Empate [X2]", 
-                        "5️⃣ Doble Oportunidad: Local o Visita [12]", 
-                        f"6️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Local ({op['local']})", 
-                        f"7️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Visitante ({op['visita']})", 
-                        f"8️⃣ Hándicap Asiático -0.5: Local ({op['local']})", 
-                        f"9️⃣ Hándicap Asiático +0.5: Visitante ({op['visita']})", 
-                        f"🔟 Hándicap Asiático -0.25 / +0.25: Local ({op['local']})", 
-                        f"1️⃣1️⃣ Hándicap Asiático -0.25 / +0.25: Visitante ({op['visita']})", 
-                        "1️⃣2️⃣ Ambos Equipos Anotan: Sí (BTTS)", 
-                        "1️⃣3️⃣ Ambos Equipos Anotan: No (BTTS)", 
-                        f"1️⃣4️⃣ Córners Totales: Equipo Local ({op['local']})", 
-                        f"1️⃣5️⃣ Córners Totales: Equipo Visitante ({op['visita']})", 
-                        f"1️⃣6️⃣ Tiros a Puerta Colectivos: Equipo Local ({op['local']})", 
-                        f"1️⃣7️⃣ Tiros a Puerta Colectivos: Equipo Visitante ({op['visita']})"
+                        "1️⃣ Goles Totales (Over / Under Libre)", 
+                        "2️⃣ Doble Oportunidad: Local o Empate [1X]", 
+                        "3️⃣ Doble Oportunidad: Visita o Empate [X2]", 
+                        "4️⃣ Doble Oportunidad: Local o Visita [12]", 
+                        f"5️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Local ({op['local']})", 
+                        f"6️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Visitante ({op['visita']})", 
+                        f"7️⃣ Hándicap Asiático -0.5: Local ({op['local']})", 
+                        f"8️⃣ Hándicap Asiático +0.5: Visitante ({op['visita']})", 
+                        f"9️⃣ Hándicap Asiático -0.25 / +0.25: Local ({op['local']})", 
+                        f"🔟 Hándicap Asiático -0.25 / +0.25: Visitante ({op['visita']})", 
+                        "1️⃣1️⃣ Ambos Equipos Anotan: Sí (BTTS)", 
+                        "1️⃣2️⃣ Ambos Equipos Anotan: No (BTTS)", 
+                        "1️⃣3️⃣ Saques de Esquina / Córners (Over / Under Libre por Equipo o Total)", 
+                        "1️⃣4️⃣ Tiros a Puerta Colectivos (Over / Under Libre por Equipo o Total)"
                     ], 
                     key=f"f_cat_{idx}"
                 )
+
+                # CAMPOS DINÁMICOS ADICIONALES SEGÚN EL MERCADO SELECCIONADO
+                tipo_apuesta_str = cat_mercado
+                if "Goles Totales" in cat_mercado:
+                    col_g1, col_g2 = st.columns(2)
+                    with col_g1:
+                        tipo_ou = st.selectbox("Selección Goles:", ["Over (Más de)", "Under (Menos de)"], key=f"g_ou_{idx}")
+                    with col_g2:
+                        linea_goles = st.text_input("Línea de Goles (ej. 1.5, 2.5, 3.5):", value="2.5", key=f"g_linea_{idx}")
+                    tipo_apuesta_str = f"Goles {tipo_ou} {linea_goles}"
+
+                elif "Saques de Esquina" in cat_mercado:
+                    col_c1, col_c2, col_c3 = st.columns(3)
+                    with col_c1:
+                        bando_c = st.selectbox("Aplicar a:", ["Total Partido", f"Equipo Local ({op['local']})", f"Equipo Visitante ({op['visitaForm'] if 'visitaForm' in op else op['visita']})"], key=f"c_bando_{idx}")
+                    with col_c2:
+                        tipo_ou_c = st.selectbox("Selección Córners:", ["Over (Más de)", "Under (Menos de)"], key=f"c_ou_{idx}")
+                    with col_c3:
+                        linea_c = st.text_input("Línea Córners (ej. 8.5, 9.5, 4.5):", value="9.5", key=f"c_linea_{idx}")
+                    tipo_apuesta_str = f"Córners [{bando_c}] {tipo_ou_c} {linea_c}"
+
+                elif "Tiros a Puerta Colectivos" in cat_mercado:
+                    col_t1, col_t2, col_t3 = st.columns(3)
+                    with col_t1:
+                        bando_t = st.selectbox("Aplicar a tiros:", [f"Equipo Local ({op['local']})", f"Equipo Visitante ({op['visita']})", "Total Partido"], key=f"t_bando_{idx}")
+                    with col_t2:
+                        tipo_ou_t = st.selectbox("Selección Tiros:", ["Over (Más de)", "Under (Menos de)"], key=f"t_ou_{idx}")
+                    with col_t3:
+                        linea_t = st.text_input("Línea Tiros a Puerta (ej. 3.5, 4.5, 5.5):", value="4.5", key=f"t_linea_{idx}")
+                    tipo_apuesta_str = f"Tiros a Puerta [{bando_t}] {tipo_ou_t} {linea_t}"
 
                 col_m1, col_m2 = st.columns(2)
                 with col_m1:
@@ -386,14 +413,14 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
                 edge_real = prob_modelo_pro - prob_imp_real
 
                 st.markdown("---")
-                st.info(f"💡 **Contexto Analítico del Modelo Pro para `{cat_mercado}`:**\n"
+                st.info(f"💡 **Contexto Analítico del Modelo Pro para `{tipo_apuesta_str}`:**\n"
                         f"• El casino otorga una probabilidad implícita de `{prob_imp_real:.1f}%` al momio `{momio_casino_real:+}`.\n"
                         f"• El motor cuantitativo proyecta una probabilidad real de ocurrencia del **`{prob_modelo_pro}%`**.")
 
                 if momio_casino_real < -150:
                     st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_casino_real}` es una cuota demasiado pesada (excede -150). ¡Descarta esta apuesta de inmediato!")
                 elif edge_real >= edge_min_soccer:
-                    st.success(f"✅ **APUESTA APROBADA CON VALOR REAL (+EV):** Edge de `+{edge_real:.1f}%`. El modelo confirma rentabilidad frente a la cuota del casino.")
+                    st.success(f"✅ **APUESTA APROBADA CON VALOR REAL (+EV):** Edge de `+{edge_real:.1f}%` para `{tipo_apuesta_str}`. El modelo confirma rentabilidad frente a la cuota del casino.")
                 else:
                     st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** El Edge actual es de `+{edge_real:.1f}%` (por debajo del mínimo requerido de `{edge_min_soccer}%`). No apostar.")
 
