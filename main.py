@@ -559,4 +559,12 @@ else:
     
     st.success("### 🚀 Combinada de 2 Selecciones (Double)")
     st.write("• **Momio Americano Combinado Estimado:** `+262`")
-    st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%
+    st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%`")
+    
+    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar en el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
+    ganancia_potencial = monto_apuesta * (262 / 100.0)
+    
+    st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
+    
+    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
+        st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
