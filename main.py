@@ -38,7 +38,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
-        "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)",
+        "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)",
         "⚾ Liga Mexicana del Pacífico (LMP Invernal)",
         "⚾ Béisbol Internacional (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
@@ -75,19 +75,19 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
             for evento in eventos:
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
-                local, visitante = "Local", "Visitante"
+                local, visitante = "Jugador 1", "Jugador 2"
                 for comp in competidores:
                     if comp.get("homeAway") == "home":
-                        local = comp.get("team", {}).get("displayName", "Local")
+                        local = comp.get("athlete", {}).get("displayName", comp.get("team", {}).get("displayName", "Local"))
                     else:
-                        visitante = comp.get("team", {}).get("displayName", "Visitante")
+                        visitante = comp.get("athlete", {}).get("displayName", comp.get("team", {}).get("displayName", "Visitante"))
                 
                 odds = competencia.get("odds", [{}])
-                spread = -1.5
+                spread = -3.5
                 momio_spread = -110
 
                 if odds and isinstance(odds, list) and len(odds) > 0:
-                    try: spread = float(odds[0].get("details", "-1.5").split()[-1])
+                    try: spread = float(odds[0].get("details", "-3.5").split()[-1])
                     except: pass
                     try: momio_spread = int(odds[0].get("spreadOdds", {}).get("price", -110))
                     except: 
@@ -97,10 +97,10 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                 if deporte == "soccer":
                     mercados = [{"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de 2.5 Goles", "momio": -115, "prob_modelo": 61.0}]
                 else:
-                    mercados = [{"tipo": "Hándicap / Spread", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 58.5}]
+                    mercados = [{"tipo": "Hándicap de Juegos", "seleccion": f"{local} ({spread:+.1f} juegos)", "momio": momio_spread, "prob_modelo": 59.0}]
 
                 partidos_extraidos.append({
-                    "partido_str": f"📅 [{fecha_str_humana}] {visitante} @ {local}",
+                    "partido_str": f"📅 [{fecha_str_humana}] {visitante} vs {local}",
                     "local": local,
                     "visita": visitante,
                     "mercados_disponibles": mercados
@@ -124,19 +124,15 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
                 nombre_evento = evento.get("name", "UFC Fight Night")
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
-                
                 peleador_1, peleador_2 = "Peleador A", "Peleador B"
                 momio_1, momio_2 = -120, +100
                 
                 if len(competidores) >= 2:
                     peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
                     peleador_2 = competidores[1].get("athlete", {}).get("displayName", "Peleador B")
-                    
                     odds = competencia.get("odds", [])
                     if odds and isinstance(odds, list):
                         try: momio_1 = int(odds[0].get("moneyLine", {}).get("price", -120))
-                        except: pass
-                        try: momio_2 = int(odds[1].get("moneyLine", {}).get("price", +100))
                         except: pass
 
                 combates_extraidos.append({
@@ -461,18 +457,16 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC (Sistema Cuantitativo Pro - Con Conector API)
+# 8. UFC
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.title(f"🥊 **Sistema Cuantitativo Pro UFC ({fecha_formato_str})**")
     st.markdown("--- \n *Escáner cuantitativo de carteleras oficiales de artes marciales mixtas y análisis de probabilidades.*")
-
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
     with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
-
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Cartelera UFC (EV+)")
 
@@ -483,31 +477,75 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
         for op in cartelera_ufc:
             prob_imp = momio_a_probabilidad_implicita(op["momio"]) * 100.0
             edge = op["prob_modelo"] - prob_imp
-
             if edge >= edge_min_ufc:
                 contador_ufc += 1
                 st.success(f"### 🥊 {op['evento_str']} — Combate: `{op['combate_str']}`")
-                st.write(f"• **Selección Recomendada (Money Line / Ganador):** `{op['seleccion']}` — **Edge: `+{edge:.1f}%`**")
-                st.write(f"• **Momio Oficial:** `{op['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{op['prob_modelo']}%`")
-                st.write(f"• **Análisis Táctico:** 🛡️ {op['analisis']}")
+                st.write(f"• **Selección Recomendada (Money Line):** `{op['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+                if op['momio'] < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+                else: st.success("🎯 Regla de Oro Aprobada")
+                st.markdown("---")
+
+
+# =========================================================
+# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico)
+# =========================================================
+elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
+    st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de juegos, análisis de superficie y circuitos profesionales (ATP y WTA).*")
+
+    circuito_tenis = st.selectbox(
+        "🏆 Selecciona el Circuito Profesional:",
+        [
+            "ATP (Circuito Varonil)",
+            "WTA (Circuito Femenil)",
+            "Ambos Circuitos (ATP + WTA)"
+        ]
+    )
+
+    col_t1, col_t2 = st.columns(2)
+    with col_t1: bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_tenis")
+    with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
+
+    # Definir listas de ligas a escanear según la selección
+    ligas_a_escanear = []
+    if "ATP" in circuito_tenis:
+        ligas_a_escanear.append(("tennis", "atp"))
+    if "WTA" in circuito_tenis:
+        ligas_a_escanear.append(("tennis", "wta"))
+
+    cartelera_tenis_total = []
+    for dep, lig in ligas_a_escanear:
+        eventos_liga = obtener_eventos_cuantitativos(dep, lig, fecha_formato_api, fecha_formato_str)
+        for ev in eventos_liga:
+            ev["circuito"] = lig.upper()
+            cartelera_tenis_total.append(ev)
+
+    st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Tenis Pro (EV+)")
+
+    if not cartelera_tenis_total:
+        st.info(f"ℹ️ No hay partidos oficiales de tenis registrados en la API para `{circuito_tenis}` en la fecha `{fecha_formato_str}`.")
+    else:
+        contador_tenis = 0
+        for idx, op in enumerate(cartelera_tenis_total, 1):
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
+
+            if edge >= edge_min_tenis:
+                contador_tenis += 1
+                st.success(f"### 🎾 [{op['circuito']}] Partido #{contador_tenis}: `{op['partido_str']}`")
+                st.write(f"• **Selección Recomendada:** `{m['seleccion']}` — **Edge: `+{edge:.1f}%`**")
+                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%`")
                 
-                if op['momio'] < -150:
+                if m['momio'] < -150:
                     st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
                 else:
                     st.success("🎯 Regla de Oro Aprobada")
                 st.markdown("---")
 
-        if contador_ufc == 0:
-            st.info("ℹ️ Hay cartelera de UFC, pero ningún combate supera el Edge mínimo seleccionado.")
-
-
-# =========================================================
-# 9. Tenis
-# =========================================================
-elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP/WTA)":
-    st.title(f"🎾 **Sistema Cuantitativo Pro Tenis ({fecha_formato_str})**")
-    st.markdown("--- \n *Análisis de superficie, fatiga y hándicap de juegos.*")
-    st.success("### 🎾 Análisis Tenis (Hándicap de Juegos): Jannik Sinner (-3.5)")
+        if contador_tenis == 0:
+            st.info(f"ℹ️ Hay partidos de `{circuito_tenis}` en cartelera, pero ninguno supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
