@@ -72,28 +72,36 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
             data = response.json()
             eventos = data.get("events", [])
             partidos_extraidos = []
-            for evento in eventos:
+            for idx_ev, evento in enumerate(eventos, 1):
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
                 
-                local, visitante = "Jugador Local", "Jugador Visitante"
+                local, visitante = f"Tenista Local {idx_ev}", f"Tenista Visitante {idx_ev}"
                 
-                # Extracción robusta para Tenis y otros deportes
                 if deporte == "tennis":
-                    nombres_tenistas = []
+                    nombres = []
                     for comp in competidores:
-                        # En tenis, el atleta viene dentro de 'athlete' o 'team'
+                        # Ruta 1: Objeto 'athlete' directo
                         atleta = comp.get("athlete", {})
-                        nombre = atleta.get("displayName") or atleta.get("shortName")
+                        nombre = atleta.get("displayName") or atleta.get("shortName") or atleta.get("name")
+                        
+                        # Ruta 2: Objeto 'team'
                         if not nombre:
-                            nombre = comp.get("team", {}).get("displayName", "Tenista")
-                        nombres_tenistas.append(nombre)
+                            team = comp.get("team", {})
+                            nombre = team.get("displayName") or team.get("name")
+                        
+                        # Ruta 3: Texto plano dentro del competidor
+                        if not nombre:
+                            nombre = comp.get("displayName") or comp.get("name")
+                            
+                        if nombre:
+                            nombres.append(nombre)
                     
-                    if len(nombres_tenistas) >= 2:
-                        visitante = nombres_tenistas[0]
-                        local = nombres_tenistas[1]
-                    elif len(nombres_tenistas) == 1:
-                        local = nombres_tenistas[0]
+                    if len(nombres) >= 2:
+                        visitante = nombres[0]
+                        local = nombres[1]
+                    elif len(nombres) == 1:
+                        local = nombres[0]
                 else:
                     for comp in competidores:
                         if comp.get("homeAway") == "home":
@@ -485,7 +493,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.markdown("--- \n *Escáner cuantitativo de carteleras oficiales de artes marciales mixtas y análisis de probabilidades.*")
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
+    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -508,7 +516,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico Corregido)
+# 9. Tenis Pro (ATP & WTA - Con Conector API Dinámico Reforzado)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
@@ -703,7 +711,7 @@ else:
     st.write("• **Momio Americano Combinado Estimado:** `+262`")
     st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%`")
     
-    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar enල් el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
+    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar en el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
     ganancia_potencial = monto_apuesta * (262 / 100.0)
     st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
     
