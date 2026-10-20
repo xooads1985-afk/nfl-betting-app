@@ -486,11 +486,11 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP 250 Almaty, Amberes & WTA - Consola Editable Profesional)
+# 9. Tenis Pro (ATP & WTA - Consola de Entrada Directa 100% Limpia)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Consola cuantitativa especializada con selector y entrada directa para los torneos en curso.*")
+    st.markdown("--- \n *Consola cuantitativa especializada para análisis de partidos del circuito en vivo.*")
 
     circuito_tenis = st.selectbox(
         "🏆 Selecciona el Circuito Profesional:",
@@ -506,31 +506,16 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
 
     st.markdown("---")
-    st.subheader("⚙️ Configuración del Partido en Vivo (ATP 250 Almaty / Amberes / WTA)")
+    st.subheader("✍️ Ingreso Manual del Partido en Curso")
+    st.info("💡 Escribe los datos exactos del partido que deseas analizar hoy (por ejemplo, los partidos del ATP 250 Almaty, Amberes o el torneo WTA vigente).")
 
-    # Selector rápido de partidos preconfigurados actuales de la gira o escritura libre
-    opcion_partido = st.selectbox(
-        "🎾 Selecciona o ingresa el encuentro de hoy:",
-        [
-            "ATP 250 Almaty: Adrian Mannarino vs Alexander Shevchenko",
-            "ATP 250 Almaty: Borna Coric vs Taro Daniel",
-            "ATP 250 Amberes: Stefanos Tsitsipas vs Roberto Bautista Agut",
-            "WTA Ningbo Open: Beatriz Haddad Maia vs Paula Badosa",
-            "WTA Ningbo Open: Daria Kasatkina vs Anna Kalinskaya",
-            "Personalizado (Escribir manualmente)"
-        ]
-    )
-
-    if "Personalizado" in opcion_partido:
-        torneo_ingresado = st.text_input("Nombre del Torneo:", value="ATP 250 Almaty")
-        tenista_1 = st.text_input("Tenista 1 (Local):", value="Jugador A")
-        tenista_2 = st.text_input("Tenista 2 (Visitante):", value="Jugador B")
-    else:
-        partes = opcion_partido.split(":")
-        torneo_ingresado = partes[0].strip()
-        nombres = partes[1].split("vs")
-        tenista_1 = nombres[0].strip()
-        tenista_2 = nombres[1].strip()
+    col_in1, col_in2 = st.columns(2)
+    with col_in1:
+        torneo_ingresado = st.text_input("Torneo Actual:", value="ATP 250 Almaty")
+        tenista_1 = st.text_input("Tenista 1 (Favorito / Local):", value="")
+    with col_in2:
+        ronda_ingresada = st.text_input("Ronda (ej. Cuartos de final):", value="Octavos de final")
+        tenista_2 = st.text_input("Tenista 2 (Rival):", value="")
 
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1: hándicap_juegos = st.number_input("Hándicap de Juegos (Spread):", value=-2.5, step=0.5)
@@ -538,25 +523,29 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     with col_m3: probabilidad_modelo = st.slider("Probabilidad del Modelo Pro (%):", 45.0, 80.0, 61.5, 0.5)
 
     st.markdown("---")
-    st.subheader(f"📊 Oportunidad Cuantitativa Detectada en `{torneo_ingresado}` [EV+] — `{fecha_formato_str}`")
+    st.subheader(f"📊 Resultado del Análisis Cuantitativo [EV+] — `{fecha_formato_str}`")
 
-    prob_imp_tenis = momio_a_probabilidad_implicita(momio_americano) * 100.0
-    edge_tenis = probabilidad_modelo - prob_imp_tenis
+    if tenista_1.strip() and tenista_2.strip():
+        prob_imp_tenis = momio_a_probabilidad_implicita(momio_americano) * 100.0
+        edge_tenis = probabilidad_modelo - prob_imp_tenis
 
-    if edge_tenis >= edge_min_tenis:
-        circuito_etiqueta = "WTA" if "WTA" in torneo_ingresado else "ATP"
-        st.success(f"### 🎾 [{circuito_etiqueta}] {torneo_ingresado} — Partido: `{tenista_1} vs {tenista_2}`")
-        st.write(f"• **Selección Recomendada:** `{tenista_1} ({hándicap_juegos:+.1f} juegos)` — **Edge: `+{edge_tenis:.1f}%`**")
-        st.write(f"• **Momio Oficial:** `{momio_americano:+}` | Prob. Implícita: `{prob_imp_tenis:.1f}%` | Modelo: `{probabilidad_modelo}%`")
-        st.write(f"• **Análisis Táctico:** 🛡️ Ventaja en eficiencia de servicio y dominio de intercambios en la gira actual (`{fecha_formato_str}`).")
-        
-        if momio_americano < -150:
-            st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+        if edge_tenis >= edge_min_tenis:
+            circuito_etiqueta = "WTA" if "WTA" in torneo_ingresado.upper() else "ATP"
+            st.success(f"### 🎾 [{circuito_etiqueta}] {torneo_ingresado} ({ronda_ingresada})")
+            st.write(f"• **Encuentro:** `{tenista_1} vs {tenista_2}`")
+            st.write(f"• **Selección Recomendada:** `{tenista_1} ({hándicap_juegos:+.1f} juegos)` — **Edge: `+{edge_tenis:.1f}%`**")
+            st.write(f"• **Momio Oficial:** `{momio_americano:+}` | Prob. Implícita: `{prob_imp_tenis:.1f}%` | Modelo: `{probabilidad_modelo}%`")
+            st.write(f"• **Análisis Táctico:** 🛡️ Superioridad proyectada en volumen de primeros servicios y eficiencia de quiebres para la fecha `{fecha_formato_str}`.")
+            
+            if momio_americano < -150:
+                st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
+            else:
+                st.success("🎯 Regla de Oro Aprobada")
+            st.markdown("---")
         else:
-            st.success("🎯 Regla de Oro Aprobada")
-        st.markdown("---")
+            st.info(f"ℹ️ El Edge actual (`+{edge_tenis:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_tenis}%`).")
     else:
-        st.info(f"ℹ️ El Edge actual (`+{edge_tenis:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_tenis}%`).")
+        st.warning("⚠️ Por favor ingresa el nombre de ambos tenistas para ejecutar el análisis cuantitativo.")
 
 
 # =========================================================
