@@ -486,11 +486,11 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP 250 Almaty, Amberes & WTA Interactivo)
+# 9. Tenis Pro (ATP 250 Almaty, Amberes & WTA - Consola Editable Profesional)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de juegos y torneos vigentes de la gira.*")
+    st.markdown("--- \n *Consola cuantitativa especializada con selector y entrada directa para los torneos en curso.*")
 
     circuito_tenis = st.selectbox(
         "🏆 Selecciona el Circuito Profesional:",
@@ -505,19 +505,37 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     with col_t1: bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_tenis")
     with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
 
-    # Módulo interactivo configurable por el usuario para alinear partidos exactos de la jornada si lo desea
     st.markdown("---")
-    st.subheader("⚙️ Configuración Rápida de Partido en Vivo (ATP 250 Almaty / Amberes / WTA)")
-    
-    col_config1, col_config2 = st.columns(2)
-    with col_config1:
-        torneo_ingresado = st.selectbox("Torneo Activo:", ["ATP 250 Almaty", "ATP 250 Amberes", "WTA Ningbo Open", "ATP 250 Estocolmo"])
-        tenista_1 = st.text_input("Tenista 1 (Local/Favorito):", value="Adrian Mannarino")
-        tenista_2 = st.text_input("Tenista 2 (Visitante):", value="Alexander Shevchenko")
-    with col_config2:
-        hándicap_juegos = st.number_input("Hándicap de Juegos (Spread):", value=-2.5, step=0.5)
-        momio_americano = st.number_input("Momio Americano Oficial:", value=-115, step=5)
-        probabilidad_modelo = st.slider("Probabilidad del Modelo Pro (%):", 45.0, 80.0, 61.5, 0.5)
+    st.subheader("⚙️ Configuración del Partido en Vivo (ATP 250 Almaty / Amberes / WTA)")
+
+    # Selector rápido de partidos preconfigurados actuales de la gira o escritura libre
+    opcion_partido = st.selectbox(
+        "🎾 Selecciona o ingresa el encuentro de hoy:",
+        [
+            "ATP 250 Almaty: Adrian Mannarino vs Alexander Shevchenko",
+            "ATP 250 Almaty: Borna Coric vs Taro Daniel",
+            "ATP 250 Amberes: Stefanos Tsitsipas vs Roberto Bautista Agut",
+            "WTA Ningbo Open: Beatriz Haddad Maia vs Paula Badosa",
+            "WTA Ningbo Open: Daria Kasatkina vs Anna Kalinskaya",
+            "Personalizado (Escribir manualmente)"
+        ]
+    )
+
+    if "Personalizado" in opcion_partido:
+        torneo_ingresado = st.text_input("Nombre del Torneo:", value="ATP 250 Almaty")
+        tenista_1 = st.text_input("Tenista 1 (Local):", value="Jugador A")
+        tenista_2 = st.text_input("Tenista 2 (Visitante):", value="Jugador B")
+    else:
+        partes = opcion_partido.split(":")
+        torneo_ingresado = partes[0].strip()
+        nombres = partes[1].split("vs")
+        tenista_1 = nombres[0].strip()
+        tenista_2 = nombres[1].strip()
+
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1: hándicap_juegos = st.number_input("Hándicap de Juegos (Spread):", value=-2.5, step=0.5)
+    with col_m2: momio_americano = st.number_input("Momio Americano Oficial:", value=-115, step=5)
+    with col_m3: probabilidad_modelo = st.slider("Probabilidad del Modelo Pro (%):", 45.0, 80.0, 61.5, 0.5)
 
     st.markdown("---")
     st.subheader(f"📊 Oportunidad Cuantitativa Detectada en `{torneo_ingresado}` [EV+] — `{fecha_formato_str}`")
@@ -530,7 +548,7 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
         st.success(f"### 🎾 [{circuito_etiqueta}] {torneo_ingresado} — Partido: `{tenista_1} vs {tenista_2}`")
         st.write(f"• **Selección Recomendada:** `{tenista_1} ({hándicap_juegos:+.1f} juegos)` — **Edge: `+{edge_tenis:.1f}%`**")
         st.write(f"• **Momio Oficial:** `{momio_americano:+}` | Prob. Implícita: `{prob_imp_tenis:.1f}%` | Modelo: `{probabilidad_modelo}%`")
-        st.write(f"• **Análisis Táctico:** 🛡️ Ventaja en eficiencia de servicio y dominio de intercambios en superficie dura para la fecha `{fecha_formato_str}`.")
+        st.write(f"• **Análisis Táctico:** 🛡️ Ventaja en eficiencia de servicio y dominio de intercambios en la gira actual (`{fecha_formato_str}`).")
         
         if momio_americano < -150:
             st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
@@ -538,7 +556,7 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
             st.success("🎯 Regla de Oro Aprobada")
         st.markdown("---")
     else:
-        st.info(f"ℹ️ El Edge actual (`+{edge_tenis:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_tenis}%`). Ajusta los parámetros o el Edge para visualizar la apuesta.")
+        st.info(f"ℹ️ El Edge actual (`+{edge_tenis:.1f}%`) está por debajo del mínimo seleccionado (`{edge_min_tenis}%`).")
 
 
 # =========================================================
@@ -680,5 +698,5 @@ else:
     ganancia_potencial = monto_apuesta * (262 / 100.0)
     st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
     
-    if st.button("💾 Registrar Parlay en el Sistema", use_content_width=True):
+    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
         st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
