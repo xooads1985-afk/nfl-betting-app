@@ -272,7 +272,7 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
                 edge = prob - prob_imp
 
                 if momio < -150:
-                    st.error("🚨 Infringe la Regla de Oro (-150).")
+                    st.error(f"🚨 Infringe la Regla de Oro (-150).")
                 elif edge >= edge_min_props_nba:
                     st.success(f"✅ Prop NBA Aprobada: `{jugador}` — `{mercado}` | Edge: `+{edge:.1f}%`")
                 else:
@@ -280,11 +280,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado Pro (Separación Quirúrgica)
+# 5. Fútbol / Soccer Multi-Mercado Pro (Separación Quirúrgica Absoluta)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
     st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico de equipo o partido (sin mezclar opciones) y audita su rentabilidad frente al casino.*")
+    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico (con Over/Under y Local/Visita totalmente separados) y audita su rentabilidad.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -306,7 +306,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Partidos en Cartelera Real — Mercados Separados y Específicos")
+    st.subheader("📋 Partidos en Cartelera Real — Mercados Desglosados Quirúrgicamente")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -314,18 +314,22 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                # MERCADOS TOTALMENTE SEPARADOS Y SIN MEZCLAS
+                # MERCADOS 100% SEPARADOS (OVER/UNDER Y LOCAL/VISITANTE AISLADOS)
                 cat_mercado = st.selectbox(
                     "📂 Selecciona el Mercado Específico a Auditar:", 
                     [
-                        "1️⃣ Total de Goles (Over / Under 2.5)", 
-                        "2️⃣ Doble Oportunidad: Local o Empate [1X]", 
-                        "3️⃣ Doble Oportunidad: Visita o Empate [X2]", 
-                        "4️⃣ Doble Oportunidad: Local o Visita [12]", 
-                        "5️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
-                        "6️⃣ Ambos Equipos Anotan (BTTS Sí / No)", 
-                        "7️⃣ Saques de Esquina / Córners (Totales Equipo/Partido)", 
-                        "8️⃣ Tiros a Puerta Colectivos (Totales del Equipo)"
+                        "1️⃣ Total de Goles: Más de 2.5 Goles (Over)", 
+                        "2️⃣ Total de Goles: Menos de 2.5 Goles (Under)", 
+                        "3️⃣ Doble Oportunidad: Local o Empate [1X]", 
+                        "4️⃣ Doble Oportunidad: Visita o Empate [X2]", 
+                        "5️⃣ Doble Oportunidad: Local o Visita [12]", 
+                        "6️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
+                        "7️⃣ Ambos Equipos Anotan: Sí (BTTS)", 
+                        "8️⃣ Ambos Equipos Anotan: No (BTTS)", 
+                        f"9️⃣ Córners Totales: Equipo Local ({op['local']})", 
+                        f"🔟 Córners Totales: Equipo Visitante ({op['visita']})", 
+                        f"1️⃣1️⃣ Tiros a Puerta: Equipo Local ({op['local']})", 
+                        f"1️⃣2️⃣ Tiros a Puerta: Equipo Visitante ({op['visita']})"
                     ], 
                     key=f"f_cat_{idx}"
                 )
