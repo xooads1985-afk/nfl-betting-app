@@ -113,7 +113,6 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
 
 @st.cache_data(ttl=300)
 def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
-    """Conector especializado para la cartelera de UFC / MMA en la API de ESPN"""
     url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}"
     combates_extraidos = []
     try:
@@ -126,8 +125,8 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
                 competencia = evento.get("competitions", [{}])[0]
                 competidores = competencia.get("competitors", [])
                 
-                 peleador_1, peleador_2 = "Peleador A", "Peleador B"
-                 momio_1, momio_2 = -120, +100
+                peleador_1, peleador_2 = "Peleador A", "Peleador B"
+                momio_1, momio_2 = -120, +100
                 
                 if len(competidores) >= 2:
                     peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
@@ -472,14 +471,13 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
     with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
 
-    # Extracción dinámica de la cartelera de UFC en la API
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
 
     st.markdown("---")
     st.subheader("📊 Oportunidades Detectadas en Cartelera UFC (EV+)")
 
     if not cartelera_ufc:
-        st.info(f"ℹ️ No hay eventos oficiales de la UFC registrados en la API para la fecha `{fecha_formato_str}`. (Los eventos se actualizan automáticamente según el calendario de la promotora).")
+        st.info(f"ℹ️ No hay eventos oficiales de la UFC registrados en la API para la fecha `{fecha_formato_str}`.")
     else:
         contador_ufc = 0
         for op in cartelera_ufc:
