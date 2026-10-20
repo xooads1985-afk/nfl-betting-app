@@ -151,7 +151,7 @@ def obtener_eventos_nhl_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (Hándicap / Spread)
+# 1. NFL (Hándicap / Spread - Con Respaldo Limpio)
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap) [{fecha_formato_str}]**")
@@ -162,30 +162,26 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
     with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (%):", 0.0, 15.0, 4.0, 0.5, key="edge_nfl")
 
     cartelera = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
-    if not cartelera:
-        cartelera = [
-            {
-                "partido_str": f"🏈 [{fecha_formato_str}] Washington Commanders @ Kansas City Chiefs",
-                "mercados_disponibles": [
-                    {"tipo": "Hándicap (Spread)", "seleccion": "Kansas City Chiefs (-6.5)", "momio": -110, "prob_modelo": 64.2}
-                ]
-            }
-        ]
     
     st.markdown("---")
-    for idx, op in enumerate(cartelera, 1):
-        m = op["mercados_disponibles"][0]
-        prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
-        edge = m["prob_modelo"] - prob_imp
+    st.subheader("📊 Oportunidades Detectadas en Spread NFL (EV+)")
 
-        if edge >= edge_min:
-            st.success(f"### 🏈 Partido Spread #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
-            st.write(f"• **Selección Recomendada (Hándicap):** `{m['seleccion']}`")
-            st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
-            
-            if m['momio'] < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
-            else: st.success("🎯 Regla de Oro Aprobada")
-            st.markdown("---")
+    if not cartelera:
+        st.info(f"ℹ️ No hay partidos oficiales de la NFL programados en la API para la fecha `{fecha_formato_str}`. (Los partidos se actualizan automáticamente según el calendario oficial de la liga).")
+    else:
+        for idx, op in enumerate(cartelera, 1):
+            m = op["mercados_disponibles"][0]
+            prob_imp = momio_a_probabilidad_implicita(m["momio"]) * 100.0
+            edge = m["prob_modelo"] - prob_imp
+
+            if edge >= edge_min:
+                st.success(f"### 🏈 Partido Spread #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
+                st.write(f"• **Selección Recomendada (Hándicap):** `{m['seleccion']}`")
+                st.write(f"• **Momio Oficial:** `{m['momio']:+}` | Probabilidad del Modelo: `{m['prob_modelo']}%`")
+                
+                if m['momio'] < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+                else: st.success("🎯 Regla de Oro Aprobada")
+                st.markdown("---")
 
 
 # =========================================================
