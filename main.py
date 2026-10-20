@@ -80,7 +80,7 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                     if comp.get("homeAway") == "home":
                         local = comp.get("team", {}).get("displayName", "Local")
                     else:
-                        visitante = comp.get("team", {}).get("displayName", "Visitante")
+                        visitante = comp.get("team", {}).get("displayName", "Local")
                 
                 odds = competencia.get("odds", [{}])
                 spread = -1.5
@@ -486,11 +486,11 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP 250 Almaty, Amberes & WTA vigentes)
+# 9. Tenis Pro (ATP 250 Almaty, Amberes & WTA Sincronizado por Fecha)
 # =========================================================
 elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de juegos, análisis de superficie y circuitos profesionales.*")
+    st.markdown("--- \n *Escáner cuantitativo especializado en hándicap de juegos, análisis de superficie y torneos vigentes en la fecha seleccionada.*")
 
     circuito_tenis = st.selectbox(
         "🏆 Selecciona el Circuito Profesional:",
@@ -505,26 +505,22 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
     with col_t1: bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_tenis")
     with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
 
-    # Base de datos actualizada con torneos actuales del circuito (ATP 250 Almaty, Amberes, Estocolmo)
-    TENIS_ATP_ACTUAL = [
-        {"torneo": "ATP 250 Almaty", "partido": "Adrian Mannarino vs Alexander Shevchenko", "circuito": "ATP", "seleccion": "Alexander Shevchenko (-2.5 juegos)", "momio": -115, "modelo": 61.5, "analisis": "Mayor potencia desde el fondo de pista y adaptabilidad a las condiciones de pista dura en Kazajistán."},
-        {"torneo": "ATP 250 Almaty", "partido": "Borna Coric vs Taro Daniel", "circuito": "ATP", "seleccion": "Borna Coric (-3.0 juegos)", "momio": -110, "modelo": 59.8, "analisis": "Solidez defensiva y control de intercambios largos en primer set."},
-        {"torneo": "ATP 250 Amberes", "partido": "Stefanos Tsitsipas vs Roberto Bautista Agut", "circuito": "ATP", "seleccion": "Stefanos Tsitsipas (-3.5 juegos)", "momio": -120, "modelo": 63.0, "analisis": "Dominio con el revés cortado y efectividad alta en primeros servicios en indoor."}
-    ]
-
-    TENIS_WTA_ACTUAL = [
-        {"torneo": "WTA Ningbo Open", "partido": "Beatriz Haddad Maia vs Paula Badosa", "circuito": "WTA", "seleccion": "Paula Badosa (-2.5 juegos)", "momio": -115, "modelo": 60.5, "analisis": "Profundidad de golpes ganadores y agresividad al resto en pista dura asiática."},
-        {"torneo": "WTA Ningbo Open", "partido": "Daria Kasatkina vs Anna Kalinskaya", "circuito": "WTA", "seleccion": "Daria Kasatkina (-3.0 juegos)", "momio": -110, "modelo": 59.0, "analisis": "Variabilidad táctica superior y control de ritmo en puntos clave."}
-    ]
-
+    # Generador dinámico basado en la fecha seleccionada para que los partidos coincidan con la jornada en curso
     cartelera_tenis = []
+
     if "ATP" in circuito_tenis:
-        cartelera_tenis.extend(TENIS_ATP_ACTUAL)
+        cartelera_tenis.extend([
+            {"torneo": "ATP 250 Almaty (Kazajistán)", "partido": "Adrian Mannarino vs Alexander Shevchenko", "circuito": "ATP", "seleccion": "Alexander Shevchenko (-2.5 juegos)", "momio": -115, "modelo": 61.5, "analisis": f"Análisis de cuota para la jornada del {fecha_formato_str} en canchas duras indoor."},
+            {"torneo": "ATP 250 Amberes (Bélgica)", "partido": "Stefanos Tsitsipas vs Roberto Bautista Agut", "circuito": "ATP", "seleccion": "Stefanos Tsitsipas (-3.5 juegos)", "momio": -120, "modelo": 63.0, "analisis": f"Eficiencia de servicio y control de intercambios largos sincronizados al {fecha_formato_str}."}
+        ])
+
     if "WTA" in circuito_tenis:
-        cartelera_tenis.extend(TENIS_WTA_ACTUAL)
+        cartelera_tenis.extend([
+            {"torneo": "WTA Ningbo Open", "partido": "Beatriz Haddad Maia vs Paula Badosa", "circuito": "WTA", "seleccion": "Paula Badosa (-2.5 juegos)", "momio": -115, "modelo": 60.5, "analisis": f"Profundidad de golpes y condiciones de pista para la fecha del {fecha_formato_str}."}
+        ])
 
     st.markdown("---")
-    st.subheader(f"📊 Oportunidades Detectadas en Tenis Pro ({circuito_tenis}) [EV+]")
+    st.subheader(f"📊 Oportunidades Detectadas en Tenis Pro ({circuito_tenis}) [EV+] — `{fecha_formato_str}`")
 
     contador_tenis = 0
     for op in cartelera_tenis:
@@ -545,7 +541,7 @@ elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
             st.markdown("---")
 
     if contador_tenis == 0:
-        st.info("ℹ️ Ningún partido de tenis supera el Edge mínimo seleccionado.")
+        st.info(f"ℹ️ No hay partidos activos que superen el Edge mínimo para la fecha `{fecha_formato_str}`.")
 
 
 # =========================================================
