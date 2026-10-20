@@ -140,7 +140,7 @@ def obtener_eventos_nhl_pro(fecha_str_api, fecha_str_humana):
                         pass
 
                 partidos_extraidos.append({
-                    "partido_str": f"📅 [{fecha_str_humana}] {visitante} @ {local}",
+                    "partido_str": f"📅 [{fecha_humana}] {visitante} @ {local}",
                     "seleccion": f"{local} ({spread:+.1f})",
                     "momio": momio,
                     "prob_modelo": 56.0
@@ -151,7 +151,7 @@ def obtener_eventos_nhl_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (Hándicap / Spread - Con Respaldo Limpio)
+# 1. NFL (Hándicap / Spread)
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap) [{fecha_formato_str}]**")
@@ -167,7 +167,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
     st.subheader("📊 Oportunidades Detectadas en Spread NFL (EV+)")
 
     if not cartelera:
-        st.info(f"ℹ️ No hay partidos oficiales de la NFL programados en la API para la fecha `{fecha_formato_str}`. (Los partidos se actualizan automáticamente según el calendario oficial de la liga).")
+        st.info(f"ℹ️ No hay partidos oficiales de la NFL programados en la API para la fecha `{fecha_formato_str}`.")
     else:
         for idx, op in enumerate(cartelera, 1):
             m = op["mercados_disponibles"][0]
@@ -185,28 +185,48 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
 
 
 # =========================================================
-# 2. Props NFL
+# 2. Props NFL (Dinámicos y Sincronizados)
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
     st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
-    st.markdown("--- \n *Rendimiento individual de jugadores.*")
+    st.markdown("--- \n *Rendimiento individual de jugadores estelares alineados a la cartelera.*")
 
-    ESTRELLAS_POR_EQUIPO = {
+    col_pnfl1, col_pnfl2 = st.columns(2)
+    with col_pnfl1: bankroll_props_nfl = st.number_input("💵 Bankroll Props NFL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nfl")
+    with col_pnfl2: edge_min_props_nfl = st.slider("🎯 Edge Mínimo Props NFL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nfl")
+
+    cartelera_nfl_hoy = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
+
+    ESTRELLAS_POR_EQUIPO_NFL = {
         "Kansas City Chiefs": [{"jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "momio": -115, "prob": 64.2, "matchup": "Defensa secundaria vulnerable"}],
+        "San Francisco 49ers": [{"jugador": "Christian McCaffrey", "mercado": "Yardas Totales (Over 89.5)", "momio": -110, "prob": 65.0, "matchup": "Uso constante por tierra y aire"}],
+        "Washington Commanders": [{"jugador": "Jayden Daniels", "mercado": "Yardas por Tierra (Over 45.5)", "momio": -115, "prob": 63.0, "matchup": "Uso de jugadas diseñadas por tierra"}]
     }
     
-    cartelera_nfl_hoy = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
-    equipos_en_cancha = {eq for p in cartelera_nfl_hoy for eq in ESTRELLAS_POR_EQUIPO if eq.lower() in p["partido_str"].lower()}
-    if not equipos_en_cancha: equipos_en_cancha = {"Kansas City Chiefs"}
+    equipos_nfl_en_cancha = {eq for p in cartelera_nfl_hoy for eq in ESTRELLAS_POR_EQUIPO_NFL if eq.lower() in p["partido_str"].lower()}
 
-    for equipo in equipos_en_cancha:
-        if equipo in ESTRELLAS_POR_EQUIPO:
-            for p in ESTRELLAS_POR_EQUIPO[equipo]:
-                prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
-                edge = p["prob"] - prob_imp
-                st.success(f"### 🎯 Prop NFL [{equipo}]: `{p['jugador']}` — `{p['mercado']}` (Edge: `+{edge:.1f}%`)")
-                st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Análisis: 🛡️ {p['matchup']}")
-                st.markdown("---")
+    st.markdown("---")
+    st.subheader("📊 Oportunidades Detectadas en Props NFL (EV+)")
+
+    if not cartelera_nfl_hoy:
+        st.info(f"ℹ️ No hay partidos ni props activos de la NFL para la fecha `{fecha_formato_str}`.")
+    else:
+        contador_props_nfl = 0
+        for equipo in equipos_nfl_en_cancha:
+            if equipo in ESTRELLAS_POR_EQUIPO_NFL:
+                for p in ESTRELLAS_POR_EQUIPO_NFL[equipo]:
+                    prob_imp = momio_a_probabilidad_implicita(p["momio"]) * 100.0
+                    edge = p["prob"] - prob_imp
+
+                    if edge >= edge_min_props_nfl:
+                        contador_props_nfl += 1
+                        st.success(f"### 🎯 Prop NFL #{contador_props_nfl} [{equipo}]: `{p['jugador']}` — `{p['mercado']}`")
+                        st.write(f"• **Momio Oficial:** `{p['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{p['prob']}%` — **Edge: `+{edge:.1f}%`**")
+                        st.write(f"• **Análisis Táctico:** 🛡️ {p['matchup']}")
+                        st.markdown("---")
+
+        if contador_props_nfl == 0:
+            st.info("ℹ️ Hay partidos de NFL en cartelera, pero ningún prop supera el Edge mínimo seleccionado.")
 
 
 # =========================================================
