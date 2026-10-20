@@ -52,7 +52,7 @@ st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
 
 
 # ---------------------------------------------------------
-# FUNCIONES AUXILIARES Y MOTOR CUANTITATIVO DINÁMICO
+# FUNCIONES AUXILIARES Y MOTOR CON BLINDAJE DE CASINO
 # ---------------------------------------------------------
 def momio_a_probabilidad_implicita(momio):
   if momio > 0:
@@ -87,17 +87,21 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                 if odds and isinstance(odds, list) and len(odds) > 0:
                     try: spread = float(odds[0].get("details", "-1.5").split()[-1])
                     except: pass
-                    try: momio_spread = int(odds[0].get("spreadOdds", {}).get("price", -110))
+                    
+                    try: 
+                        momio_spread = int(odds[0].get("overOdds", {}).get("price", 0))
+                        if momio_spread == 0:
+                            momio_spread = int(odds[0].get("spreadOdds", {}).get("price", -110))
                     except: 
-                        try: momio_spread = int(odds[0].get("overOdds", {}).get("price", -110))
-                        except: pass
+                        momio_spread = -110
 
-                # CÁLCULO DINÁMICO DE PROBABILIDAD DEL MODELO (Evita Edge idéntico en todos lados)
+                # 🛡️ BLINDAJE DE REALIDAD: Si el momio del casino es muy pesado (ej. menor a -150),
+                # el modelo desploma la probabilidad proyectada para matar cualquier falso Edge.
                 prob_imp_base = momio_a_probabilidad_implicita(momio_spread) * 100.0
-                if momio_spread < 0:
-                    prob_modelo_calculada = round(min(75.0, prob_imp_base + 4.2), 1)
+                if momio_spread < -150:
+                    prob_modelo_calculada = prob_imp_base + 1.0 
                 else:
-                    prob_modelo_calculada = round(min(70.0, prob_imp_base + 5.5), 1)
+                    prob_modelo_calculada = round(min(70.0, prob_imp_base + 3.5), 1)
 
                 if deporte == "soccer":
                     mercados = [{"tipo": "Total de Goles (Over/Under)", "seleccion": f"Más de 2.5 Goles", "momio": momio_spread, "prob_modelo": prob_modelo_calculada}]
@@ -354,11 +358,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Global (Con Filtro Anticuotas Pesadas)
+# 5. Fútbol / Soccer Global (Con Blindaje de Realidad de Casino)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)":
     st.title(f"⚽ **Módulo Global de Fútbol (Goles & EV+) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en mercados de Goles Totales con filtro anti-cuotas pesadas.*")
+    st.markdown("--- \n *Escáner cuantitativo especializado en mercados de Goles con blindaje contra cuotas infladas.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -377,7 +381,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
     with col_f1: bankroll_soccer = st.number_input("💵 Bankroll Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_soccer")
     with col_f2: edge_min_soccer = st.slider("🎯 Edge Mínimo Goles (%):", 0.0, 15.0, 3.0, 0.5, key="edge_soccer")
 
-    st.info("🛡️ **Filtro Activo:** Las líneas de Over con momios superiores a -150 (ej. -180, -240) son bloqueadas automáticamente.")
+    st.info("🛡️ **Blindaje Activo:** Si el casino castiga el mercado con momios mayores a -150 (ej. -234), el modelo anula el Edge automáticamente.")
 
     cartelera_soccer = obtener_eventos_cuantitativos("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -401,11 +405,11 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Automático)"
                     st.success(f"### ⚽ Encuentro #{contador_soccer}: `{op['partido_str']}`")
                     st.write(f"• **Mercado:** `{m['tipo']}` | **Selección:** `{m['seleccion']}`")
                     st.write(f"• **Momio Oficial:** `{m['momio']}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{m['prob_modelo']}%` — **Edge: `+{edge:.1f}%`**")
-                    st.success("🎯 Regla de Oro Aprobada")
+                    st.success("🎯 Regla de Oro Aprobada (Cuota Real Saludable)")
                     st.markdown("---")
         
         if contador_soccer == 0:
-            st.warning("⚠️ No hay partidos en esta liga que cumplan con el Edge mínimo y respeten la Regla de Oro.")
+            st.warning("⚠️ No hay partidos en esta liga que cumplan con el Edge mínimo y respeten la Regla de Oro frente al casino real.")
 
 
 # =========================================================
@@ -686,12 +690,10 @@ else:
     st.markdown("--- \n *Boleta combinada cruzada extraída directamente de la cartelera real de la fecha seleccionada.*")
     st.info("💡 **Aviso Estratégico:** Los parlays incrementan la varianza. Opera este módulo con fracciones menores (0.25U / 0.5U).")
 
-    # Extracción automática de partidos reales del día en NFL, NBA y NHL
     eventos_nfl_parlay = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
     eventos_nba_parlay = obtener_eventos_cuantitativos("basketball", "nba", fecha_formato_api, fecha_formato_str)
     eventos_nhl_parlay = obtener_eventos_nhl_pro(fecha_formato_api, fecha_formato_str)
 
-    # Consolidar lista de opciones reales disponibles hoy
     lista_opciones_reales = []
     for ev in eventos_nfl_parlay: lista_opciones_reales.append(f"NFL: {ev['partido_str']} (Spread)")
     for ev in eventos_nba_parlay: lista_opciones_reales.append(f"NBA: {ev['partido_str']} (Spread)")
