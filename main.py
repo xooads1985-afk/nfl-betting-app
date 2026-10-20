@@ -280,11 +280,11 @@ elif modulo_seleccionado == "🔥 Módulo Automático de Props NBA":
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado Pro (Separación Quirúrgica Absoluta)
+# 5. Fútbol / Soccer Multi-Mercado Pro (Hándicaps Asiáticos Desglosados)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
     st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico (con Over/Under y Local/Visita totalmente separados) y audita su rentabilidad.*")
+    st.markdown("--- \n *Selecciona un partido real, elige el mercado específico (con hándicaps asiáticos y líneas de equipo totalmente separadas) y audita su rentabilidad.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -306,7 +306,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Partidos en Cartelera Real — Mercados Desglosados Quirúrgicamente")
+    st.subheader("📋 Partidos en Cartelera Real — Mercados y Hándicaps Desglosados")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -314,7 +314,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                # MERCADOS 100% SEPARADOS (OVER/UNDER Y LOCAL/VISITANTE AISLADOS)
+                # MERCADOS Y HÁNDICAPS ASIÁTICOS 100% DESGLOSADOS
                 cat_mercado = st.selectbox(
                     "📂 Selecciona el Mercado Específico a Auditar:", 
                     [
@@ -323,13 +323,18 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
                         "3️⃣ Doble Oportunidad: Local o Empate [1X]", 
                         "4️⃣ Doble Oportunidad: Visita o Empate [X2]", 
                         "5️⃣ Doble Oportunidad: Local o Visita [12]", 
-                        "6️⃣ Hándicap Asiático (0.0 / -0.5 / +0.75)", 
-                        "7️⃣ Ambos Equipos Anotan: Sí (BTTS)", 
-                        "8️⃣ Ambos Equipos Anotan: No (BTTS)", 
-                        f"9️⃣ Córners Totales: Equipo Local ({op['local']})", 
-                        f"🔟 Córners Totales: Equipo Visitante ({op['visita']})", 
-                        f"1️⃣1️⃣ Tiros a Puerta: Equipo Local ({op['local']})", 
-                        f"1️⃣2️⃣ Tiros a Puerta: Equipo Visitante ({op['visita']})"
+                        f"6️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Local ({op['local']})", 
+                        f"7️⃣ Hándicap Asiático 0.0 (Empate No Cuenta): Visitante ({op['visita']})", 
+                        f"8️⃣ Hándicap Asiático -0.5: Local ({op['local']})", 
+                        f"9️⃣ Hándicap Asiático +0.5: Visitante ({op['visita']})", 
+                        f"🔟 Hándicap Asiático -0.25 / +0.25: Local ({op['local']})", 
+                        f"1️⃣1️⃣ Hándicap Asiático -0.25 / +0.25: Visitante ({op['visita']})", 
+                        "1️⃣2️⃣ Ambos Equipos Anotan: Sí (BTTS)", 
+                        "1️⃣3️⃣ Ambos Equipos Anotan: No (BTTS)", 
+                        f"1️⃣4️⃣ Córners Totales: Equipo Local ({op['local']})", 
+                        f"1️⃣5️⃣ Córners Totales: Equipo Visitante ({op['visita']})", 
+                        f"1️⃣6️⃣ Tiros a Puerta Colectivos: Equipo Local ({op['local']})", 
+                        f"1️⃣7️⃣ Tiros a Puerta Colectivos: Equipo Visitante ({op['visita']})"
                     ], 
                     key=f"f_cat_{idx}"
                 )
