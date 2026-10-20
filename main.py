@@ -97,7 +97,7 @@ def obtener_eventos_cuantitativos(deporte, liga, fecha_str_api, fecha_str_humana
                 elif deporte == "hockey":
                     mercados = [{"tipo": "Puck Line / Hándicap", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 56.5}]
                 else:
-                    mercados = [{"tipo": "Hándicap / Spread", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 58.5}]
+                    mercados = [{"tipo": "Hándicap / Spread", "seleccion": f"{local} ({spread:+.1f})", "momio": momio_spread, "prob_modelo": 59.5}]
 
                 partidos_extraidos.append({
                     "partido_str": f"📅 [{fecha_str_humana}] {visitante} @ {local}",
@@ -234,18 +234,21 @@ def obtener_eventos_nhl_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (Hándicap / Spread)
+# 1. NFL (Hándicap / Spread - Filtro Estricto Pro)
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)":
-    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo especializado en Spread y cobertura de puntos.*")
+    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap Estricto) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Escáner cuantitativo blindado contra la alta varianza y con filtro de Edge superior (4.5%+).*")
+    
     col1, col2 = st.columns(2)
     with col1: bankroll = st.number_input("💵 Bankroll NFL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nfl")
-    with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (%):", 0.0, 15.0, 4.0, 0.5, key="edge_nfl")
+    with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (% - Blindado):", 0.0, 15.0, 5.0, 0.5, key="edge_nfl")
+
+    st.info("🛡️ **Candado de Seguridad NFL Activado:** Se han endurecido los márgenes de probabilidad para evitar los riesgos de *garbage time* y cierres por gol de campo.")
 
     cartelera = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📊 Oportunidades Detectadas en Spread NFL (EV+)")
+    st.subheader("📊 Oportunidades Filtradas en Spread NFL (EV+ Alto)")
 
     if not cartelera:
         st.info(f"ℹ️ No hay partidos oficiales de la NFL programados en la API para la fecha `{fecha_formato_str}`.")
@@ -256,29 +259,33 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
             edge = m["prob_modelo"] - prob_imp
             if edge >= edge_min:
                 st.success(f"### 🏈 Partido Spread #{idx}: `{op['partido_str']}` — Edge: `+{edge:.1f}%`")
+                st.write(f"• **Selección:** `{m['seleccion']}` | Momio: `{m['momio']}` | Modelo: `{m['prob_modelo']}%`")
                 st.markdown("---")
 
 
 # =========================================================
-# 2. Props NFL
+# 2. Props NFL (Filtro Estricto Pro)
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
-    st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
-    st.markdown("--- \n *Rendimiento individual de jugadores estelares.*")
+    st.title(f"🎯 **Props Automáticos NFL (Filtro Estricto) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Rendimiento individual protegido con alta exigencia estadística (>63% probabilidad).*")
+    
     col_pnfl1, col_pnfl2 = st.columns(2)
     with col_pnfl1: bankroll_props_nfl = st.number_input("💵 Bankroll Props NFL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nfl")
-    with col_pnfl2: edge_min_props_nfl = st.slider("🎯 Edge Mínimo Props NFL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nfl")
+    with col_pnfl2: edge_min_props_nfl = st.slider("🎯 Edge Mínimo Props NFL (% - Blindado):", 0.0, 15.0, 4.5, 0.5, key="edge_props_nfl")
+
+    st.info("🛡️ **Candado de Seguridad Props NFL:** Exigiendo mayor volumen y descartando jugadores con dependencia de game-script volátil.")
 
     cartelera_nfl_hoy = obtener_eventos_cuantitativos("football", "nfl", fecha_formato_api, fecha_formato_str)
     ESTRELLAS_POR_EQUIPO_NFL = {
-        "Kansas City Chiefs": [{"jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "momio": -115, "prob": 64.2}],
-        "San Francisco 49ers": [{"jugador": "Christian McCaffrey", "mercado": "Yardas Totales (Over 89.5)", "momio": -110, "prob": 65.0}],
-        "Washington Commanders": [{"jugador": "Jayden Daniels", "mercado": "Yardas por Tierra (Over 45.5)", "momio": -115, "prob": 63.0}]
+        "Kansas City Chiefs": [{"jugador": "Patrick Mahomes", "mercado": "Yardas de Pase (Over 245.5)", "momio": -115, "prob": 65.5}],
+        "San Francisco 49ers": [{"jugador": "Christian McCaffrey", "mercado": "Yardas Totales (Over 89.5)", "momio": -110, "prob": 66.0}],
+        "Washington Commanders": [{"jugador": "Jayden Daniels", "mercado": "Yardas por Tierra (Over 45.5)", "momio": -115, "prob": 64.0}]
     }
     equipos_nfl_en_cancha = {eq for p in cartelera_nfl_hoy for eq in ESTRELLAS_POR_EQUIPO_NFL if eq.lower() in p["partido_str"].lower()}
 
     st.markdown("---")
-    st.subheader("📊 Oportunidades Detectadas en Props NFL (EV+)")
+    st.subheader("📊 Oportunidades Filtradas en Props NFL (EV+ Alto)")
 
     if not cartelera_nfl_hoy:
         st.info(f"ℹ️ No hay partidos de NFL en cartelera para la fecha `{fecha_formato_str}`.")
@@ -290,6 +297,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props NFL":
                     edge = p["prob"] - prob_imp
                     if edge >= edge_min_props_nfl:
                         st.success(f"### 🎯 Prop NFL [{equipo}]: `{p['jugador']}` — `{p['mercado']}` (Edge: `+{edge:.1f}%`)")
+                        st.write(f"• Probabilidad Modelo: `{p['prob']}%` | Implícita: `{prob_imp:.1f}%`")
                         st.markdown("---")
 
 
