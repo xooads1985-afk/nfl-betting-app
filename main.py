@@ -54,6 +54,15 @@ st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
 # ---------------------------------------------------------
 # FUNCIONES AUXILIARES Y MOTOR CARTELERA REAL
 # ---------------------------------------------------------
+def convertir_momio_a_entero(texto_momio):
+    """Limpia y convierte texto de momio (ej. '-110', '+130', '110') a entero."""
+    try:
+        limpio = texto_momio.strip().replace("+", "")
+        return int(limpio)
+    except:
+        return -110  # Valor predeterminado de seguridad si hay error de dedo
+
+
 def momio_a_probabilidad_implicita(momio):
   if momio > 0:
     return 100.0 / (momio + 100.0)
@@ -139,7 +148,9 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
     else:
         for idx, op in enumerate(cartelera, 1):
             with st.expander(f"🏈 {op['partido_str']}"):
-                momio_real = st.number_input(f"Momio Casino (Spread) para {op['visita']} @ {op['local']}:", value=-110, step=5, key=f"nfl_m_{idx}")
+                momio_txt = st.text_input(f"Momio Casino (ej. -110 o +120) para {op['visita']} @ {op['local']}:", value="-110", key=f"nfl_m_{idx}")
+                momio_real = convertir_momio_a_entero(momio_txt)
+                
                 prob_mod = st.slider(f"Probabilidad Proyectada del Modelo (%):", 40.0, 80.0, 58.0, 0.5, key=f"nfl_p_{idx}")
                 
                 prob_imp = momio_a_probabilidad_implicita(momio_real) * 100.0
@@ -188,7 +199,9 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
                     key=f"nfl_merc_{idx}"
                 )
             with col_p2:
-                momio_nfl_real = st.number_input("📈 Momio Americano Real del Casino:", value=-115, step=1, key=f"nfl_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115 o +120):", value="-115", key=f"nfl_mom_{idx}")
+                momio_nfl_real = convertir_momio_a_entero(momio_txt)
+                
                 prob_nfl_pro = st.slider("🤖 Probabilidad Real del Modelo Pro (%):", 30.0, 85.0, 62.5, 0.5, key=f"nfl_prob_{idx}")
 
             prob_imp_nfl = momio_a_probabilidad_implicita(momio_nfl_real) * 100.0
@@ -226,7 +239,9 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
     else:
         for idx, op in enumerate(cartelera_nba, 1):
             with st.expander(f"🏀 {op['partido_str']}"):
-                momio_nba = st.number_input(f"Momio Casino (Spread):", value=-110, step=5, key=f"nba_m_{idx}")
+                momio_txt = st.text_input(f"Momio Casino (Spread - ej. -110):", value="-110", key=f"nba_m_{idx}")
+                momio_nba = convertir_momio_a_entero(momio_txt)
+                
                 prob_nba = st.slider(f"Probabilidad Proyectada del Modelo (%):", 40.0, 80.0, 57.0, 0.5, key=f"nba_p_{idx}")
 
                 prob_imp = momio_a_probabilidad_implicita(momio_nba) * 100.0
@@ -275,7 +290,9 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
                     key=f"nba_merc_{idx}"
                 )
             with col_p2:
-                momio_nba_real = st.number_input("📈 Momio Americano Real del Casino:", value=-115, step=1, key=f"nba_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115):", value="-115", key=f"nba_mom_{idx}")
+                momio_nba_real = convertir_momio_a_entero(momio_txt)
+                
                 prob_nba_pro = st.slider("🤖 Probabilidad Real del Modelo Pro (%):", 30.0, 85.0, 63.5, 0.5, key=f"nba_prob_{idx}")
 
             prob_imp_nba = momio_a_probabilidad_implicita(momio_nba_real) * 100.0
@@ -355,7 +372,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
                 col_m1, col_m2 = st.columns(2)
                 with col_m1:
-                    momio_casino_real = st.number_input("📈 Momio Americano Real del Casino (ej. -110, +130):", value=-110, step=1, key=f"f_momio_{idx}")
+                    momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -110 o +130):", value="-110", key=f"f_momio_{idx}")
+                    momio_casino_real = convertir_momio_a_entero(momio_txt)
                 with col_m2:
                     prob_modelo_pro = st.slider(
                         "🤖 Probabilidad Real Calculada por el Modelo Pro (%):", 
@@ -381,7 +399,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 
 
 # =========================================================
-# 6. Auditor Interactivo de Props Fútbol (Champions & Ligas Mayores)
+# 6. Auditor Interactivo de Props Fútbol
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
     st.title(f"🎯 **Auditor Pro de Props Fútbol [{fecha_formato_str}]**")
@@ -427,7 +445,9 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
                     key=f"fut_merc_{idx}"
                 )
             with col_p2:
-                momio_fut_real = st.number_input("📈 Momio Americano Real del Casino:", value=120, step=1, key=f"fut_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115 o +120):", value="-115", key=f"fut_mom_{idx}")
+                momio_fut_real = convertir_momio_a_entero(momio_txt)
+                
                 prob_fut_pro = st.slider("🤖 Probabilidad Real del Modelo Pro (%):", 25.0, 80.0, 48.0, 0.5, key=f"fut_prob_{idx}")
 
             prob_imp_fut = momio_a_probabilidad_implicita(momio_fut_real) * 100.0
@@ -465,7 +485,9 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     else:
         for idx, op in enumerate(cartelera_ncaa, 1):
             with st.expander(f"🎓 {op['partido_str']}"):
-                momio = st.number_input("Momio Casino:", value=-110, step=5, key=f"ncaa_m_{idx}")
+                momio_txt = st.text_input("Momio Casino (ej. -110):", value="-110", key=f"ncaa_m_{idx}")
+                momio = convertir_momio_a_entero(momio_txt)
+                
                 prob = st.slider("Probabilidad Modelo (%):", 40.0, 80.0, 58.0, 0.5, key=f"ncaa_p_{idx}")
                 prob_imp = momio_a_probabilidad_implicita(momio) * 100.0
                 edge = prob - prob_imp
@@ -494,7 +516,9 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     else:
         for idx, op in enumerate(cartelera_ufc, 1):
             with st.expander(f"🥊 {op['evento_str']} — {op['combate_str']}"):
-                momio = st.number_input("Momio Casino:", value=-120, step=5, key=f"ufc_m_{idx}")
+                momio_txt = st.text_input("Momio Casino (ej. -120):", value="-120", key=f"ufc_m_{idx}")
+                momio = convertir_momio_a_entero(momio_txt)
+                
                 prob = st.slider("Probabilidad Modelo (%):", 40.0, 80.0, 62.0, 0.5, key=f"ufc_p_{idx}")
                 prob_imp = momio_a_probabilidad_implicita(momio) * 100.0
                 edge = prob - prob_imp
@@ -523,7 +547,9 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
     col_p1, col_p2, col_p3 = st.columns(3)
     with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
-    with col_p2: momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
+    with col_p2:
+        momio_lmp_txt = st.text_input("📈 Momio Americano Oficial (ej. +130 o -110):", value="130", key="momio_lmp_txt")
+        momio_lmp = convertir_momio_a_entero(momio_lmp_txt)
     with col_p3: prob_modelo_lmp = st.slider("🤖 Probabilidad del Modelo Pro (%):", 40.0, 80.0, 56.5, 0.5, key="prob_lmp")
 
     prob_imp_lmp = momio_a_probabilidad_implicita(momio_lmp) * 100.0
@@ -551,7 +577,10 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     col_mm1, col_mm2, col_mm3 = st.columns(3)
     with col_mm1: mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"])
     with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)")
-    with col_mm3: momio_mlb = st.number_input("Momio Americano Oficial:", value=-120, step=5, key="momio_mlb")
+    with col_mm3:
+        momio_mlb_txt = st.text_input("Momio Americano Oficial (ej. -120):", value="-120", key="momio_mlb_txt")
+        momio_mlb = convertir_momio_a_entero(momio_mlb_txt)
+        
     prob_modelo_mlb = st.slider("🤖 Probabilidad del Modelo Pro (%):", 40.0, 80.0, 59.0, 0.5, key="prob_mlb")
 
     prob_imp_mlb = momio_a_probabilidad_implicita(momio_mlb) * 100.0
@@ -581,7 +610,9 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     else:
         for idx, op in enumerate(cartelera_nhl, 1):
             with st.expander(f"🏒 {op['partido_str']}"):
-                momio = st.number_input("Momio Casino:", value=+120, step=5, key=f"nhl_m_{idx}")
+                momio_txt = st.text_input("Momio Casino (ej. +120 o -110):", value="+120", key=f"nhl_m_{idx}")
+                momio = convertir_momio_a_entero(momio_txt)
+                
                 prob = st.slider("Probabilidad Modelo (%):", 40.0, 80.0, 56.0, 0.5, key=f"nhl_p_{idx}")
                 prob_imp = momio_a_probabilidad_implicita(momio) * 100.0
                 edge = prob - prob_imp
@@ -612,7 +643,10 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
             with st.expander(f"🏒 Prop NHL: {op['partido_str']}"):
                 jugador = st.text_input("Jugador:", value="Connor McDavid", key=f"nhl_j_{idx}")
                 mercado = st.text_input("Mercado:", value="Puntos Totales Over 1.5", key=f"nhl_mer_{idx}")
-                momio = st.number_input("Momio Casino:", value=-115, step=5, key=f"nhl_mom_{idx}")
+                
+                momio_txt = st.text_input("Momio Casino (ej. -115):", value="-115", key=f"nhl_mom_{idx}")
+                momio = convertir_momio_a_entero(momio_txt)
+                
                 prob = st.slider("Probabilidad Modelo (%):", 40.0, 80.0, 62.0, 0.5, key=f"nhl_pr_{idx}")
 
                 prob_imp = momio_a_probabilidad_implicita(momio) * 100.0
