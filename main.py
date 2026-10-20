@@ -182,7 +182,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
 
                 st.markdown("---")
                 st.info(f"📊 **Desglose Matemático de Edge:**\n"
-                        f"• Probabilidad Implícita del Casino (`{momio_real:+}`): `{prob_imp:.2f}%`\n"
+                        f"• Probabilidad Implícita del Casino (Cuota `{momio_real:+}`): `{prob_imp:.2f}%`\n"
                         f"• Probabilidad del Modelo Pro: **`{prob_mod:.2f}%`**\n"
                         f"• 🎯 **Edge Neto Calculado:** **`{edge:+.2f}%`**")
 
@@ -220,7 +220,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_props_nfl: st.success(f"✅ Prop Aprobada (+EV). Edge: `{edge:+.2f}%`")
@@ -251,7 +251,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
 
                 prob_imp, edge = calcular_edge_real(momio_nba, prob_nba)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_nba:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio_nba < -150:
                     st.error(f"🚨 Alerta Regla de Oro: Momio {momio_nba} excede el límite -150.")
@@ -287,7 +287,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_props_nba: st.success(f"✅ Aprobado Prop NBA (+EV). Edge: `{edge:+.2f}%`")
@@ -301,7 +301,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
     st.title(f"⚽ **Cazador de Minas de Oro & Goles — Fútbol Pro [{fecha_formato_str}]**")
     st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia: Over/Under Clásico, Líneas Asiáticas de Cuarto (0.25/0.75) y Goles Tardíos.*")
     
-    # GUÍA ESTRATÉGICA PREMATCH VS LIVE
     with st.expander("💡 🧠 **Guía Estratégica: Cuándo cazar estas Minas de Oro (Prematch vs. Live)**", expanded=False):
         st.markdown("""
         • **📅 En la Previa (Prematch):** 
@@ -400,7 +399,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
     st.markdown("--- \n *Extracción dinámica de plantillas en Champions League con cálculo exacto de Edge.*")
     col_p1, col_p2 = st.columns(2)
     with col_p1: bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
-    with col_p2: edge_min_props_fut = st.slider("🎯 Edge Mínimo Props (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_fut")
+    with col_p2: edge_min_props_fut = st.slider("🎯 Edge Mínimo Props (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_props_fut")
 
     plantel_activo_ucl = obtener_plantel_dinamico_ucl(fecha_formato_api)
     st.markdown("---")
@@ -419,7 +418,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
                     prob_imp, edge = calcular_edge_real(momio_prop_ucl, prob_ucl)
 
-                    st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob_ucl:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                    st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_prop_ucl:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_ucl:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                     if momio_prop_ucl < -150:
                         st.error("🚨 Infringe la Regla de Oro (-150).")
@@ -453,7 +452,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
                 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_ncaa: st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
@@ -484,7 +483,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
                 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_ufc: st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
@@ -516,7 +515,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     prob_imp_lmp, edge_lmp = calcular_edge_real(momio_lmp, prob_modelo_lmp)
 
     st.markdown("---")
-    st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp_lmp:.2f}%` | Modelo: `{prob_modelo_lmp:.2f}%` | Edge Neto: **`{edge_lmp:+.2f}%`**")
+    st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_lmp:+}`): `{prob_imp_lmp:.2f}%` | Modelo: `{prob_modelo_lmp:.2f}%` | Edge Neto: **`{edge_lmp:+.2f}%`**")
 
     if momio_lmp < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_lmp >= edge_min_lmp: st.success(f"✅ Aprobado LMP (+EV). Edge: `{edge_lmp:+.2f}%`")
@@ -546,7 +545,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     prob_imp_mlb, edge_mlb = calcular_edge_real(momio_mlb, prob_modelo_mlb)
 
     st.markdown("---")
-    st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge Neto: **`{edge_mlb:+.2f}%`**")
+    st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_mlb:+}`): `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge Neto: **`{edge_mlb:+.2f}%`**")
 
     if momio_mlb < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_mlb >= edge_min_mlb: st.success(f"✅ Aprobado MLB (+EV). Edge: `{edge_mlb:+.2f}%`")
@@ -561,7 +560,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     st.markdown("--- \n *Auditoría de partidos de la NHL con cálculo universal de Edge.*")
     col_nh1, col_nh2 = st.columns(2)
     with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
-    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
+    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_nhl")
 
     cartelera_nhl = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -577,7 +576,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
                 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_nhl: st.success(f"✅ Aprobado NHL (+EV). Edge: `{edge:+.2f}%`")
@@ -592,7 +591,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.markdown("--- \n *Rendimiento individual de jugadores de hockey con precisión matemática de Edge.*")
     col_pnh1, col_pnh2 = st.columns(2)
     with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
-    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
+    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_props_nhl")
 
     cartelera_nhl_hoy = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -610,7 +609,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
 
-                st.info(f"📊 **Edge Calculado:** Implícita: `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_props_nhl: st.success(f"✅ Aprobado Prop NHL (+EV). Edge: `{edge:+.2f}%`")
