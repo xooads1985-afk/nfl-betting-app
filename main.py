@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (Barra Lateral)
+# SELECTOR GLOBAL DE FECHA, CONFIGURACIÓN Y MENÚ (Barra Lateral)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú del Sistema Pro")
 
@@ -24,6 +24,11 @@ if st.sidebar.button("🔄 Actualizar y Buscar Fecha", use_container_width=True)
     st.cache_data.clear()
     st.success(f"¡Buscando cartelera para el {fecha_formato_str}!")
     st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ Parámetros Cuantitativos Globales")
+# Edge Mínimo Global Fijo para todo el sistema (Controlado sin sliders en los módulos)
+edge_min_global = st.sidebar.slider("🎯 Edge Mínimo de Aprobación (%):", 0.0, 10.0, 3.5, 0.5)
 
 st.sidebar.markdown("---")
 
@@ -48,7 +53,7 @@ modulo_seleccionado = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
+st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}** | Edge Mínimo: **+{edge_min_global}%**")
 
 
 # ---------------------------------------------------------
@@ -72,20 +77,17 @@ def momio_a_probabilidad_implicita(momio):
 
 def calcular_probabilidad_modelo_pro(momio):
     """
-    MOTOR CUANTITATIVO AUTOMÁTICO:
-    Calcula la probabilidad real proyectada por el modelo matemático sin intervención humana,
-    aplicando un factor de ajuste algorítmico sobre la probabilidad implícita del mercado.
+    MOTOR CUANTITATIVO AUTOMÁTICO 100%:
+    Calcula de forma algorítmica y estricta la probabilidad real proyectada por el modelo matemático,
+    sin intervención manual ni deslizadores.
     """
     prob_imp = momio_a_probabilidad_implicita(momio)
     
-    # Modelo cuantitativo de corrección de valor (simula el edge histórico detectado por xG/métricas)
-    # A cuotas equilibradas (~ -110), busca un rendimiento ligeramente superior para buscar valor +EV
     if momio < 0:
         prob_modelo = (prob_imp * 100.0) + 3.8  
     else:
         prob_modelo = (prob_imp * 100.0) + 4.5
         
-    # Limitar entre rangos lógicos deportivos (20% a 92%)
     return max(20.0, min(92.0, prob_modelo))
 
 
@@ -152,11 +154,9 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap Estricto) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Auditoría automatizada de partidos y verificación de cuotas reales para la NFL.*")
+    st.markdown("--- \n *Auditoría 100% automatizada de partidos para la NFL.*")
     
-    col1, col2 = st.columns(2)
-    with col1: bankroll = st.number_input("💵 Bankroll NFL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nfl")
-    with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (%):", 0.0, 15.0, 4.0, 0.5, key="edge_nfl")
+    bankroll = st.number_input("💵 Bankroll NFL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nfl")
 
     cartelera = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -170,19 +170,18 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
                 momio_txt = st.text_input(f"Momio Casino (ej. -110 o +120) para {op['visita']} @ {op['local']}:", value="-110", key=f"nfl_m_{idx}")
                 momio_real = convertir_momio_a_entero(momio_txt)
                 
-                # CÁLKULO 100% AUTOMÁTICO
                 prob_mod = calcular_probabilidad_modelo_pro(momio_real)
                 prob_imp = momio_a_probabilidad_implicita(momio_real) * 100.0
                 edge = prob_mod - prob_imp
 
-                st.info(f"🤖 **Motor Automático:** Probabilidad Implícita del Casino: `{prob_imp:.1f}%` | Probabilidad Calculada del Modelo: **`{prob_mod:.1f}%`**")
+                st.info(f"🤖 **Motor Automático:** Probabilidad Implícita: `{prob_imp:.1f}%` | Probabilidad Modelo Pro: **`{prob_mod:.1f}%`**")
 
                 if momio_real < -150:
                     st.error(f"🚨 Alerta Regla de Oro: Momio {momio_real} demasiado pesado (excede -150). Descartado.")
-                elif edge >= edge_min:
+                elif edge >= edge_min_global:
                     st.success(f"✅ ¡Apuesta Aprobada con Valor Automático! Edge: `+{edge:.1f}%`")
                 else:
-                    st.info(f"ℹ️ Sin suficiente valor. Edge actual: `+{edge:.1f}%` (Mínimo requerido: {edge_min}%)")
+                    st.info(f"ℹ️ Sin suficiente valor. Edge actual: `+{edge:.1f}%` (Mínimo requerido global: `+{edge_min_global}%`)")
 
 
 # =========================================================
@@ -190,11 +189,9 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spr
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     st.title(f"🎯 **Auditor Pro de Props NFL [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona cualquier partido de la cartelera de NFL, ingresa el jugador y su momio real: el sistema calculará todo de forma automática.*")
+    st.markdown("--- \n *Auditoría automática de props individuales en la NFL.*")
     
-    col_pnfl1, col_pnfl2 = st.columns(2)
-    with col_pnfl1: bankroll_props_nfl = st.number_input("💵 Bankroll Props NFL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nfl")
-    with col_pnfl2: edge_min_props_nfl = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nfl")
+    bankroll_props_nfl = st.number_input("💵 Bankroll Props NFL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nfl")
 
     cartelera_nfl_hoy = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -220,10 +217,9 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
                     key=f"nfl_merc_{idx}"
                 )
             with col_p2:
-                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115 o +120):", value="-115", key=f"nfl_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino:", value="-115", key=f"nfl_mom_{idx}")
                 momio_nfl_real = convertir_momio_a_entero(momio_txt)
 
-            # CÁLKULO 100% AUTOMÁTICO
             prob_nfl_pro = calcular_probabilidad_modelo_pro(momio_nfl_real)
             prob_imp_nfl = momio_a_probabilidad_implicita(momio_nfl_real) * 100.0
             edge_nfl = prob_nfl_pro - prob_imp_nfl
@@ -235,10 +231,10 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
             if momio_nfl_real < -150:
                 st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_nfl_real}` excede el límite de -150. Descartado.")
-            elif edge_nfl >= edge_min_props_nfl:
+            elif edge_nfl >= edge_min_global:
                 st.success(f"✅ **PROP APROBADA CON VALOR (+EV):** Edge automático de `+{edge_nfl:.1f}%` para `{jugador_nfl}`.")
             else:
-                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_nfl:.1f}%` (Mínimo: {edge_min_props_nfl}%). No operar.")
+                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_nfl:.1f}%` (Mínimo requerido: `+{edge_min_global}%`). No operar.")
 
 
 # =========================================================
@@ -247,9 +243,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spread)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA [{fecha_formato_str}]**")
     st.markdown("--- \n *Auditoría automática de líneas en partidos de la NBA.*")
-    col1, col2 = st.columns(2)
-    with col1: bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
-    with col2: edge_min_nba = st.slider("🎯 Edge Mínimo Spread NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nba")
+    bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
 
     cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -263,7 +257,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
                 momio_txt = st.text_input(f"Momio Casino (Spread - ej. -110):", value="-110", key=f"nba_m_{idx}")
                 momio_nba = convertir_momio_a_entero(momio_txt)
                 
-                # CÁLKULO 100% AUTOMÁTICO
                 prob_nba = calcular_probabilidad_modelo_pro(momio_nba)
                 prob_imp = momio_a_probabilidad_implicita(momio_nba) * 100.0
                 edge = prob_nba - prob_imp
@@ -272,7 +265,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
 
                 if momio_nba < -150:
                     st.error(f"🚨 Alerta Regla de Oro: Momio {momio_nba} excede el límite -150.")
-                elif edge >= edge_min_nba:
+                elif edge >= edge_min_global:
                     st.success(f"✅ ¡Apuesta NBA Aprobada! Edge automático: `+{edge:.1f}%`")
                 else:
                     st.info(f"ℹ️ Sin valor suficiente. Edge: `+{edge:.1f}%`")
@@ -283,11 +276,8 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Hándicap / Spre
 # =========================================================
 elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
     st.title(f"🔥 **Auditor Pro de Props NBA [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona cualquier partido de la cartelera de NBA, ingresa el jugador y su momio: cálculo automático instantáneo.*")
-    
-    col_pn1, col_pn2 = st.columns(2)
-    with col_pn1: bankroll_props_nba = st.number_input("💵 Bankroll Props NBA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nba")
-    with col_pn2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba")
+    st.markdown("--- \n *Auditoría automática de props individuales en la NBA.*")
+    bankroll_props_nba = st.number_input("💵 Bankroll Props NBA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nba")
 
     cartelera_nba_hoy = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -313,10 +303,9 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
                     key=f"nba_merc_{idx}"
                 )
             with col_p2:
-                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115):", value="-115", key=f"nba_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino:", value="-115", key=f"nba_mom_{idx}")
                 momio_nba_real = convertir_momio_a_entero(momio_txt)
 
-            # CÁLKULO 100% AUTOMÁTICO
             prob_nba_pro = calcular_probabilidad_modelo_pro(momio_nba_real)
             prob_imp_nba = momio_a_probabilidad_implicita(momio_nba_real) * 100.0
             edge_nba = prob_nba_pro - prob_imp_nba
@@ -328,18 +317,18 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
             if momio_nba_real < -150:
                 st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_nba_real}` excede el límite de -150. Descartado.")
-            elif edge_nba >= edge_min_props_nba:
+            elif edge_nba >= edge_min_global:
                 st.success(f"✅ **PROP APROBADA CON VALOR (+EV):** Edge automático de `+{edge_nba:.1f}%` para `{jugador_nba}`.")
             else:
-                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_nba:.1f}%` (Mínimo: {edge_min_props_nba}%). No operar.")
+                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_nba:.1f}%` (Mínimo requerido: `+{edge_min_global}%`). No operar.")
 
 
 # =========================================================
-# 5. Fútbol / Soccer Multi-Mercado Pro (Con Motor Automático)
+# 5. Fútbol / Soccer Multi-Mercado Pro
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi-Mercado)":
     st.title(f"⚽ **Auditor Pro Multi-Mercado de Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona un partido real, elige el mercado libre y el modelo calculará automáticamente la probabilidad y el Edge sin intervención manual.*")
+    st.markdown("--- \n *Motor cuantitativo automático 100% libre para partidos de fútbol.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -354,10 +343,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
         ]
     )
     codigo_liga_api = liga_soccer.split("(")[-1].replace(")", "").strip()
-    
-    col_f1, col_f2 = st.columns(2)
-    with col_f1: bankroll_soccer = st.number_input("💵 Bankroll Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_soccer")
-    with col_f2: edge_min_soccer = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5, key="edge_soccer")
+    bankroll_soccer = st.number_input("💵 Bankroll Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_soccer")
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -419,11 +405,9 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
                         linea_t = st.text_input("Línea Tiros a Puerta (ej. 3.5, 4.5, 5.5):", value="4.5", key=f"t_linea_{idx}")
                     tipo_apuesta_str = f"Tiros a Puerta [{bando_t}] {tipo_ou_t} {linea_t}"
 
-                # ÚNICO CAMBIO REQUERIDO AQUÍ: INGRESO DE MOMIO
                 momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -110 o +130):", value="-110", key=f"f_momio_{idx}")
                 momio_casino_real = convertir_momio_a_entero(momio_txt)
 
-                # CÁLKULO 100% AUTOMÁTICO
                 prob_modelo_pro = calcular_probabilidad_modelo_pro(momio_casino_real)
                 prob_imp_real = momio_a_probabilidad_implicita(momio_casino_real) * 100.0
                 edge_real = prob_modelo_pro - prob_imp_real
@@ -434,11 +418,11 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
                         f"• Probabilidad Automática del Modelo Pro: **`{prob_modelo_pro:.1f}%`**")
 
                 if momio_casino_real < -150:
-                    st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_casino_real}` es una cuota demasiado pesada (excede -150). ¡Descarta esta apuesta de inmediato!")
-                elif edge_real >= edge_min_soccer:
+                    st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_casino_real}` excede el límite de -150. ¡Descarta esta apuesta de inmediato!")
+                elif edge_real >= edge_min_global:
                     st.success(f"✅ **APUESTA APROBADA CON VALOR AUTOMÁTICO (+EV):** Edge de `+{edge_real:.1f}%`. El modelo confirma rentabilidad frente a la cuota del casino.")
                 else:
-                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** El Edge actual es de `+{edge_real:.1f}%` (por debajo del mínimo requerido de `{edge_min_soccer}%`). No apostar.")
+                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** El Edge actual es de `+{edge_real:.1f}%` (por debajo del mínimo global de `+{edge_min_global}%`). No apostar.")
 
 
 # =========================================================
@@ -446,7 +430,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Soccer Auditor Multi
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
     st.title(f"🎯 **Auditor Pro de Props Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Selecciona la liga y el jugador: el motor calcula automáticamente la probabilidad matemática.*")
+    st.markdown("--- \n *Auditoría automática de props individuales de jugadores en fútbol.*")
     
     liga_props_fut = st.selectbox(
         "🌍 Selecciona la Liga para Props de Fútbol:",
@@ -459,10 +443,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
         key="select_liga_props_fut"
     )
     codigo_liga_props_api = liga_props_fut.split("(")[-1].replace(")", "").strip()
-
-    col_pf1, col_pf2 = st.columns(2)
-    with col_pf1: bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
-    with col_pf2: edge_min_props_fut = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_fut")
+    bankroll_props_fut = st.number_input("💵 Bankroll Props Fútbol (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_fut")
 
     cartelera_props_soccer = obtener_cartelera_pura("soccer", codigo_liga_props_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -488,10 +469,9 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
                     key=f"fut_merc_{idx}"
                 )
             with col_p2:
-                momio_txt = st.text_input("📈 Momio Americano Real del Casino (ej. -115 o +120):", value="-115", key=f"fut_mom_{idx}")
+                momio_txt = st.text_input("📈 Momio Americano Real del Casino:", value="-115", key=f"fut_mom_{idx}")
                 momio_fut_real = convertir_momio_a_entero(momio_txt)
 
-            # CÁLKULO 100% AUTOMÁTICO
             prob_fut_pro = calcular_probabilidad_modelo_pro(momio_fut_real)
             prob_imp_fut = momio_a_probabilidad_implicita(momio_fut_real) * 100.0
             edge_fut = prob_fut_pro - prob_imp_fut
@@ -503,10 +483,10 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
 
             if momio_fut_real < -150:
                 st.error(f"🚨 **REGLA DE ORO ACTIVADA:** El momio `{momio_fut_real}` excede el límite de -150. Descartado.")
-            elif edge_fut >= edge_min_props_fut:
+            elif edge_fut >= edge_min_global:
                 st.success(f"✅ **PROP APROBADA CON VALOR (+EV):** Edge automático de `+{edge_fut:.1f}%` para `{jugador_fut}`.")
             else:
-                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_fut:.1f}%` (Mínimo: {edge_min_props_fut}%). No operar.")
+                st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `+{edge_fut:.1f}%` (Mínimo requerido: `+{edge_min_global}%`). No operar.")
 
 
 # =========================================================
@@ -515,9 +495,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props Fútbol":
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
     st.markdown("--- \n *Auditoría automatizada de partidos universitarios.*")
-    col_nc1, col_nc2 = st.columns(2)
-    with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
-    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
+    bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
 
     cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -536,7 +514,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
                 edge = prob - prob_imp
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_ncaa: st.success(f"✅ Aprobado Automático. Edge: `+{edge:.1f}%`")
+                elif edge >= edge_min_global: st.success(f"✅ Aprobado Automático. Edge: `+{edge:.1f}%`")
                 else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge:.1f}%`).")
 
 
@@ -546,9 +524,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.title(f"🥊 **Sistema Cuantitativo Pro UFC ({fecha_formato_str})**")
     st.markdown("--- \n *Auditoría automatizada de combates oficiales de artes marciales mixtas.*")
-    col_ufc1, col_ufc2 = st.columns(2)
-    with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
+    bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -567,7 +543,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
                 edge = prob - prob_imp
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_ufc: st.success(f"✅ Aprobado Automático. Edge: `+{edge:.1f}%`")
+                elif edge >= edge_min_global: st.success(f"✅ Aprobado Automático. Edge: `+{edge:.1f}%`")
                 else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge:.1f}%`).")
 
 
@@ -578,10 +554,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Pro [{fecha_formato_str}]**")
     st.markdown("--- \n *Consola cuantitativa especializada con motor automático para la temporada invernal.*")
 
-    col_l1, col_l2 = st.columns(2)
-    with col_l1: bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
-    with col_l2: edge_min_lmp = st.slider("🎯 Edge Mínimo LMP (%):", 0.0, 15.0, 2.5, 0.5, key="edge_lmp")
-
+    bankroll_lmp = st.number_input("💵 Bankroll LMP (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_lmp")
     st.markdown("---")
     st.subheader("✍️ Ingreso Manual del Enfrentamiento")
     col_in1, col_in2 = st.columns(2)
@@ -591,7 +564,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     col_p1, col_p2 = st.columns(2)
     with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
     with col_p2:
-        momio_lmp_txt = st.text_input("📈 Momio Americano Oficial (ej. +130 o -110):", value="130", key="momio_lmp_txt")
+        momio_lmp_txt = st.text_input("📈 Momio Americano Oficial:", value="130", key="momio_lmp_txt")
         momio_lmp = convertir_momio_a_entero(momio_lmp_txt)
 
     prob_modelo_lmp = calcular_probabilidad_modelo_pro(momio_lmp)
@@ -601,7 +574,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.info(f"🤖 **Motor Automático LMP:** Implícita: `{prob_imp_lmp:.1f}%` | Proyectada: **`{prob_modelo_lmp:.1f}%`**")
 
     if momio_lmp < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
-    elif edge_lmp >= edge_min_lmp: st.success(f"✅ Aprobado LMP. Edge automático: `+{edge_lmp:.1f}%`")
+    elif edge_lmp >= edge_min_global: st.success(f"✅ Aprobado LMP. Edge automático: `+{edge_lmp:.1f}%`")
     else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge_lmp:.1f}%`).")
 
 
@@ -611,9 +584,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.title(f"⚾ **Serie Mundial & Béisbol Pro (MLB) [{fecha_formato_str}]**")
     st.markdown("--- \n *Consola cuantitativa especializada con motor automático para béisbol.*")
-    col_m1, col_m2 = st.columns(2)
-    with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+    bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
@@ -623,7 +594,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     with col_mm1: mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"])
     with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)")
     with col_mm3:
-        momio_mlb_txt = st.text_input("Momio Americano Oficial (ej. -120):", value="-120", key="momio_mlb_txt")
+        momio_mlb_txt = st.text_input("Momio Americano Oficial:", value="-120", key="momio_mlb_txt")
         momio_mlb = convertir_momio_a_entero(momio_mlb_txt)
         
     prob_modelo_mlb = calcular_probabilidad_modelo_pro(momio_mlb)
@@ -631,7 +602,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     edge_mlb = prob_modelo_mlb - prob_imp_mlb
 
     if momio_mlb < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
-    elif edge_mlb >= edge_min_mlb: st.success(f"✅ Aprobado MLB. Edge automático: `+{edge_mlb:.1f}%`")
+    elif edge_mlb >= edge_min_global: st.success(f"✅ Aprobado MLB. Edge automático: `+{edge_mlb:.1f}%`")
     else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge_mlb:.1f}%`).")
 
 
@@ -641,9 +612,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
     st.markdown("--- \n *Auditoría automatizada de partidos de la NHL.*")
-    col_nh1, col_nh2 = st.columns(2)
-    with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
-    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
+    bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
 
     cartelera_nhl = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -662,7 +631,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
                 edge = prob - prob_imp
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_nhl: st.success(f"✅ Aprobado NHL. Edge: `+{edge:.1f}%`")
+                elif edge >= edge_min_global: st.success(f"✅ Aprobado NHL. Edge: `+{edge:.1f}%`")
                 else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge:.1f}%`).")
 
 
@@ -672,9 +641,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.title(f"🏒 **Props Automáticos NHL ({fecha_formato_str})**")
     st.markdown("--- \n *Rendimiento individual de jugadores de hockey con cálculo automático.*")
-    col_pnh1, col_pnh2 = st.columns(2)
-    with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
-    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
+    bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
 
     cartelera_nhl_hoy = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -696,7 +663,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
                 edge = prob - prob_imp
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_props_nhl: st.success(f"✅ Aprobado Prop NHL. Edge: `+{edge:.1f}%`")
+                elif edge >= edge_min_global: st.success(f"✅ Aprobado Prop NHL. Edge: `+{edge:.1f}%`")
                 else: st.info(f"ℹ️ Sin Edge suficiente (`+{edge:.1f}%`).")
 
 
