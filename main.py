@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite 16 Módulos",
+    page_title="Central de Apuestas Pro - Master Suite 15 Módulos",
     page_icon="🛡️",
     layout="wide"
 )
@@ -38,7 +38,6 @@ modulo_seleccionado = st.sidebar.radio(
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
-        "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)",
         "⚾ Liga Mexicana del Pacífico (LMP Invernal)",
         "⚾ Béisbol Internacional (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
@@ -145,52 +144,6 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
     except:
         pass
     return combates_extraidos
-
-
-@st.cache_data(ttl=300)
-def obtener_eventos_tenis_pro(tour_api, fecha_str_api):
-    """Conector automático corregido para la API de Tenis de ESPN"""
-    url = f"https://site.api.espn.com/apis/site/v2/sports/tennis/{tour_api}/scoreboard?dates={fecha_str_api}"
-    partidos_tenis = []
-    try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            eventos = data.get("events", [])
-            for evento in eventos:
-                nombre_torneo = evento.get("name", "Torneo Tenis Pro")
-                competencia = evento.get("competitions", [{}])[0]
-                competidores = competencia.get("competitors", [])
-                
-                j1, j2 = "Jugador 1", "Jugador 2"
-                momio = -115
-                spread = -3.5
-
-                if len(competidores) >= 2:
-                    # Extracción directa del nodo atleta en la API de tenis
-                    atleta_1 = competidores[0].get("athlete", {})
-                    atleta_2 = competidores[1].get("athlete", {})
-                    j1 = atleta_1.get("displayName") or atleta_1.get("fullName") or competidores[0].get("team", {}).get("displayName", "Jugador 1")
-                    j2 = atleta_2.get("displayName") or atleta_2.get("fullName") or competidores[1].get("team", {}).get("displayName", "Jugador 2")
-
-                odds = competencia.get("odds", [])
-                if odds and isinstance(odds, list) and len(odds) > 0:
-                    try: spread = float(odds[0].get("details", "-3.5").split()[-1])
-                    except: pass
-                    try: momio = int(odds[0].get("spreadOdds", {}).get("price", -115))
-                    except: pass
-
-                partidos_tenis.append({
-                    "torneo": nombre_torneo,
-                    "partido": f"{j1} vs {j2}",
-                    "seleccion": f"{j1} ({spread:+.1f} juegos)",
-                    "momio": momio,
-                    "prob_modelo": 61.5,
-                    "analisis": f"Rendimiento al saque y efectividad en superficie para el torneo {nombre_torneo}."
-                })
-    except:
-        pass
-    return partidos_tenis
 
 
 @st.cache_data(ttl=300)
@@ -532,69 +485,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. Tenis Pro (ATP & WTA - 100% Automático vía API)
-# =========================================================
-elif modulo_seleccionado == "🎾 Sistema Cuantitativo Pro Tenis (ATP & WTA)":
-    st.title(f"🎾 **Sistema Cuantitativo Pro Tenis (ATP & WTA) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Escáner cuantitativo automatizado sincronizado directamente con la API oficial de tenis.*")
-
-    circuito_tenis = st.selectbox(
-        "🏆 Selecciona el Circuito Profesional:",
-        [
-            "ATP (Circuito Varonil)",
-            "WTA (Circuito Femenil)",
-            "Ambos Circuitos (ATP + WTA)"
-        ]
-    )
-
-    col_t1, col_t2 = st.columns(2)
-    with col_t1: bankroll_tenis = st.number_input("💵 Bankroll Tenis (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_tenis")
-    with col_t2: edge_min_tenis = st.slider("🎯 Edge Mínimo Tenis (%):", 0.0, 15.0, 3.0, 0.5, key="edge_tenis")
-
-    cartelera_tenis_total = []
-
-    if "ATP" in circuito_tenis:
-        eventos_atp = obtener_eventos_tenis_pro("atp", fecha_formato_api)
-        for ev in eventos_atp:
-            ev["circuito"] = "ATP"
-            cartelera_tenis_total.append(ev)
-
-    if "WTA" in circuito_tenis:
-        eventos_wta = obtener_eventos_tenis_pro("wta", fecha_formato_api)
-        for ev in eventos_wta:
-            ev["circuito"] = "WTA"
-            cartelera_tenis_total.append(ev)
-
-    st.markdown("---")
-    st.subheader(f"📊 Oportunidades Automáticas Detectadas en Tenis Pro ({circuito_tenis}) [EV+]")
-
-    if not cartelera_tenis_total:
-        st.info(f"ℹ️ No se detectaron partidos en la API oficial de tenis para la fecha `{fecha_formato_str}`. (Los torneos varían según el calendario de la gira).")
-    else:
-        contador_tenis = 0
-        for idx, op in enumerate(cartelera_tenis_total, 1):
-            prob_imp = momio_a_probabilidad_implicita(op["momio"]) * 100.0
-            edge = op["prob_modelo"] - prob_imp
-
-            if edge >= edge_min_tenis:
-                contador_tenis += 1
-                st.success(f"### 🎾 [{op['circuito']}] {op['torneo']} — Partido: `{op['partido']}`")
-                st.write(f"• **Selección Recomendada:** `{op['seleccion']}` — **Edge: `+{edge:.1f}%`**")
-                st.write(f"• **Momio Oficial:** `{op['momio']:+}` | Prob. Implícita: `{prob_imp:.1f}%` | Modelo: `{op['prob_modelo']}%`")
-                st.write(f"• **Análisis Táctico:** 🛡️ {op['analisis']}")
-                
-                if op['momio'] < -150:
-                    st.error("🚨 Infringe la Regla de Oro (-150). Cuota demasiado pesada.")
-                else:
-                    st.success("🎯 Regla de Oro Aprobada")
-                st.markdown("---")
-
-        if contador_tenis == 0:
-            st.info(f"ℹ️ Hay cartelera automática en la API, pero ningún partido supera el Edge mínimo seleccionado (`{edge_min_tenis}%`).")
-
-
-# =========================================================
-# 10. LMP (Liga Mexicana del Pacífico)
+# 9. LMP (Liga Mexicana del Pacífico)
 # =========================================================
 elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP Invernal)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
@@ -610,7 +501,7 @@ elif modulo_seleccionado == "Liga Mexicana del Pacífico (LMP Invernal)" or modu
 
 
 # =========================================================
-# 11. Béisbol Internacional (MLB)
+# 10. Béisbol Internacional (MLB)
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
     st.title(f"⚾ **Béisbol Internacional - MLB ({fecha_formato_str})**")
@@ -618,7 +509,7 @@ elif modulo_seleccionado == "⚾ Béisbol Internacional (MLB)":
 
 
 # =========================================================
-# 12. NHL (Hándicap / Puck Line)
+# 11. NHL (Hándicap / Puck Line)
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
@@ -640,7 +531,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
 
 
 # =========================================================
-# 13. Props NHL
+# 12. Props NHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.title(f"🏒 **Props Automáticos NHL ({fecha_formato_str})**")
@@ -671,7 +562,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 14. AHL
+# 13. AHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desarrollo)":
     st.title(f"🏒 **Sistema Cuantitativo Pro AHL (Hándicap) [{fecha_formato_str}]**")
@@ -680,7 +571,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro AHL (Hándicap / Desa
 
 
 # =========================================================
-# 15. Analítica & Bankroll
+# 14. Analítica & Bankroll
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
@@ -701,7 +592,7 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 
 
 # =========================================================
-# 16. Optimizador de Parlays
+# 15. Optimizador de Parlays
 # =========================================================
 else:
     st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
