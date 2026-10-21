@@ -95,7 +95,7 @@ def calcular_probabilidad_futbol_exacta(v_visita, e_visita, d_visita, v_local, e
 
 @st.cache_data(ttl=300)
 def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
-    url = f"https://site.api.espn.com/apis/site/v2/sports/{deporte}/{liga}/scoreboard?dates={fecha_str_api}"
+    url = f"https://site.api.espn.com/apis/site/v2/sports/{deporte}/{liga}/scoreboard?dates={fecha_str_api}&limit=20"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -125,7 +125,7 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
 
 @st.cache_data(ttl=300)
 def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
-    url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}"
+    url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}&limit=20"
     combates_extraidos = []
     try:
         response = requests.get(url, timeout=5)
@@ -502,7 +502,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.markdown("--- \n *Auditoría de partidos universitarios.*")
     col_nc1, col_nc2 = st.columns(2)
     with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
-    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ncaa")
+    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
 
     cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -538,7 +538,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.markdown("--- \n *Auditoría de combates de artes marciales mixtas.*")
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ufc")
+    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
