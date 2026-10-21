@@ -55,10 +55,6 @@ st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
 # MOTOR MATEMÁTICO UNIVERSAL & MODELO DE PROBABILIDAD FIJO
 # ---------------------------------------------------------
 def momio_a_probabilidad_implicita(momio):
-    """
-    Convierte cualquier momio americano (positivo o negativo) 
-    en su porcentaje exacto de probabilidad implícita del casino.
-    """
     if momio > 0:
         return 100.0 / (momio + 100.0)
     else:
@@ -66,23 +62,20 @@ def momio_a_probabilidad_implicita(momio):
 
 
 def calcular_edge_real(momio_casino, probabilidad_modelo):
-    """
-    Calcula el Edge con precisión científica de forma fija:
-    Edge (%) = Probabilidad del Modelo (%) - Probabilidad Implícita del Casino (%)
-    """
     prob_imp = momio_a_probabilidad_implicita(momio_casino) * 100.0
     edge = probabilidad_modelo - prob_imp
     return prob_imp, edge
 
 
-def calcular_probabilidad_modelo_inteligente(forma_equipo_a, forma_equipo_b, dias_descanso_a, dias_descanso_b, es_local_a=True):
+def calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, dias_descanso_a, dias_descanso_b, es_local_a=True):
+    # Basado en la diferencia real de victorias vs derrotas en los últimos 5 partidos
     base_prob = 53.0 if es_local_a else 47.0
-    diferencia_forma = (forma_equipo_a - forma_equipo_b) * 2.5
+    diferencia_forma = ((v_a - d_a) - (v_b - d_b)) * 3.0
     fatigue_a = -3.5 if dias_descanso_a == 0 else 0.0
     fatigue_b = -3.5 if dias_descanso_b == 0 else 0.0
     diferencia_fatigue = fatigue_a - fatigue_b
     probabilidad_sugerida = base_prob + diferencia_forma - diferencia_fatigue
-    return max(35.0, min(85.0, round(probabilidad_sugerida, 2)))
+    return max(30.0, min(85.0, round(probabilidad_sugerida, 2)))
 
 
 def calcular_probabilidad_futbol_exacta(v_visita, e_visita, d_visita, v_local, e_local, d_local):
@@ -152,7 +145,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (SISTEMA PRO: SPREAD & TOTALES O/U FIJOS)
+# 1. NFL (SISTEMA PRO: SPREAD & TOTALES O/U)
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Spread & Totales) [{fecha_formato_str}]**")
@@ -193,14 +186,22 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
                 with col_n3:
                     momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_{idx}")
 
-                st.markdown("### 🧬 Asistente de Factores Duros")
-                col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-                with col_f1: forma_a = st.slider(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nfl_fa_{idx}")
-                with col_f2: forma_b = st.slider(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nfl_fb_{idx}")
-                with col_f3: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 6, key=f"nfl_da_{idx}")
-                with col_f4: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 6, key=f"nfl_db_{idx}")
+                st.markdown("### 🧬 Asistente de Factores Duros (Récord L5: Victorias - Derrotas)")
+                st.markdown(f"**Visitante: `{op['visita']}`**")
+                col_fa1, col_fa2 = st.columns(2)
+                with col_fa1: v_a = st.number_input(f"Victorias L5:", 0, 5, 3, key=f"nfl_va_{idx}")
+                with col_fa2: d_a = st.number_input(f"Derrotas L5:", 0, 5, 2, key=f"nfl_da_L5_{idx}")
 
-                prob_mod = calcular_probabilidad_modelo_inteligente(forma_a, forma_b, descanso_a, descanso_b, es_local_a=False)
+                st.markdown(f"**Local: `{op['local']}`**")
+                col_fb1, col_fb2 = st.columns(2)
+                with col_fb1: v_b = st.number_input(f"Victorias L5:", 0, 5, 3, key=f"nfl_vb_{idx}")
+                with col_fb2: d_b = st.number_input(f"Derrotas L5:", 0, 5, 2, key=f"nfl_db_L5_{idx}")
+
+                col_fd1, col_fd2 = st.columns(2)
+                with col_fd1: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 6, key=f"nfl_da_{idx}")
+                with col_fd2: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 6, key=f"nfl_db_{idx}")
+
+                prob_mod = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob_mod:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
@@ -214,7 +215,7 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
 
 
 # =========================================================
-# 2. Props NFL (FIJOS)
+# 2. Props NFL
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
@@ -236,9 +237,11 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
                 mercado = st.text_input("Mercado:", value="Yardas de Pase Over 265.5", key=f"nfl_mer_{idx}")
                 momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nfl_mom_{idx}")
                 
-                forma_jugador = st.slider(f"Partidos Superando Línea (L5):", 0, 5, 3, key=f"nfl_fj_{idx}")
+                col_pj1, col_pj2 = st.columns(2)
+                with col_pj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_fj_c_{idx}")
+                with col_pj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nfl_fj_nc_{idx}")
                 
-                prob = max(40.0, min(80.0, 50.0 + (forma_jugador - 2.5) * 6.0))
+                prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
@@ -251,7 +254,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA (SISTEMA PRO: SPREAD & TOTALES O/U FIJOS)
+# 3. NBA (SISTEMA PRO: SPREAD & TOTALES O/U)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Spread & Totales) [{fecha_formato_str}]**")
@@ -292,14 +295,22 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
                 with col_n3:
                     momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_{idx}")
 
-                st.markdown("### 🧬 Asistente de Factores Duros")
-                col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-                with col_f1: forma_a = st.slider(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nba_fa_{idx}")
-                with col_f2: forma_b = st.slider(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nba_fb_{idx}")
-                with col_f3: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 1, key=f"nba_da_{idx}")
-                with col_f4: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 1, key=f"nba_db_{idx}")
+                st.markdown("### 🧬 Asistente de Factores Duros (Récord L5: Victorias - Derrotas)")
+                st.markdown(f"**Visitante: `{op['visita']}`**")
+                col_va1, col_va2 = st.columns(2)
+                with col_va1: v_a = st.number_input(f"Victorias L5:", 0, 5, 3, key=f"nba_va_{idx}")
+                with col_va2: d_a = st.number_input(f"Derrotas L5:", 0, 5, 2, key=f"nba_da_L5_{idx}")
 
-                prob_nba = calcular_probabilidad_modelo_inteligente(forma_a, forma_b, descanso_a, descanso_b, es_local_a=False)
+                st.markdown(f"**Local: `{op['local']}`**")
+                col_vb1, col_vb2 = st.columns(2)
+                with col_vb1: v_b = st.number_input(f"Victorias L5:", 0, 5, 3, key=f"nba_vb_{idx}")
+                with col_vb2: d_b = st.number_input(f"Derrotas L5:", 0, 5, 2, key=f"nba_db_L5_{idx}")
+
+                col_nd1, col_nd2 = st.columns(2)
+                with col_nd1: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 1, key=f"nba_da_{idx}")
+                with col_nd2: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 1, key=f"nba_db_{idx}")
+
+                prob_nba = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob_nba:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio_nba, prob_nba)
@@ -313,7 +324,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
 
 
 # =========================================================
-# 4. Props NBA (FIJOS)
+# 4. Props NBA
 # =========================================================
 elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
     st.title(f"🔥 **Props Automáticos NBA ({fecha_formato_str})**")
@@ -335,9 +346,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
                 mercado = st.text_input("Mercado:", value="Puntos Totales Over 24.5", key=f"nba_mer_{idx}")
                 momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nba_mom_{idx}")
                 
-                forma_j = st.slider(f"Partidos Superando Línea (L5):", 0, 5, 3, key=f"nba_fj_{idx}")
+                col_nj1, col_nj2 = st.columns(2)
+                with col_nj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nba_fj_c_{idx}")
+                with col_nj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nba_fj_nc_{idx}")
                 
-                prob = max(40.0, min(80.0, 50.0 + (forma_j - 2.5) * 6.0))
+                prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
@@ -350,17 +363,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRINCIPAL CON MODELO MATEMÁTICO 100% FIJO Y V-E-D)
+# 5. FÚTBOL
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & Minas de Oro)":
     st.title(f"⚽ **Cazador de Minas de Oro & Goles — Fútbol Pro [{fecha_formato_str}]**")
     st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia y el Asistente Exacto de Victorias, Empates y Derrotas (L5).*")
-    
-    with st.expander("💡 🧠 **Guía Estratégica: Cuándo cazar estas Minas de Oro (Prematch vs. Live)**", expanded=False):
-        st.markdown("""
-        • **📅 En la Previa (Prematch):** Úsalo antes del partido para auditar líneas asiáticas o totales con xG y estadísticas recientes.
-        • **⚡ En Vivo (Live):** ¡Ideal al minuto 65–70 para el **Under de Goles Tardíos (Min. 75+)** o líneas asiáticas en caliente!
-        """)
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -401,7 +408,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
                 col_g1, col_g2 = st.columns(2)
                 with col_g1:
                     if "Hándicap" in tipo_mercado_mina:
-                        linea_goles = st.text_input("Línea Asiática (ej. -0.5, +0.25):", value="-0.5", key=f"g_linea_asiatica_{idx}")
+                        linea_goles = st.text_input("Línea Asiática:", value="-0.5", key=f"g_linea_asiatica_{idx}")
                     elif "Clásico" in tipo_mercado_mina:
                         linea_goles = st.text_input("Línea de Goles:", value="2.5", key=f"g_linea_{idx}")
                     else:
@@ -415,13 +422,13 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
                     momio_casino_real = -110
 
                 st.markdown("### 🧬 Asistente de Factores Duros (Desglose Real L5: V - E - D)")
-                st.markdown(f"**Equipo Visitante: `{op['visita']}`**")
+                st.markdown(f"**Visitante: `{op['visita']}`**")
                 col_v1, col_v2, col_v3 = st.columns(3)
                 with col_v1: v_vis = st.number_input("Victorias L5:", 0, 5, 2, key=f"v_vis_{idx}")
                 with col_v2: e_vis = st.number_input("Empates L5:", 0, 5, 2, key=f"e_vis_{idx}")
                 with col_v3: d_vis = st.number_input("Derrotas L5:", 0, 5, 1, key=f"d_vis_{idx}")
 
-                st.markdown(f"**Equipo Local: `{op['local']}`**")
+                st.markdown(f"**Local: `{op['local']}`**")
                 col_l1_s, col_l2_s, col_l3_s = st.columns(3)
                 with col_l1_s: v_loc = st.number_input("Victorias L5:", 0, 5, 3, key=f"v_loc_{idx}")
                 with col_l2_s: e_loc = st.number_input("Empates L5:", 0, 5, 1, key=f"e_loc_{idx}")
@@ -452,7 +459,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
 
 
 # =========================================================
-# 6. MÓDULO DE PROPS FÚTBOL (AUDITOR MANUAL DE ALTA PRECISIÓN)
+# 6. Props Fútbol
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
     st.title(f"🎯 **Auditor de Props de Fútbol (Alta Precisión) [{fecha_formato_str}]**")
@@ -475,9 +482,12 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
                 mercado_input = st.text_input(f"Mercado / Línea #{i}:", value="Tiros a Puerta Over 1.5", key=f"prop_m_{i}")
             with col_pr2:
                 momio_prop = st.number_input(f"📈 Momio Casino (Americano) #{i}:", value=-115, step=5, key=f"prop_mom_{i}")
-                forma_jug_fut = st.slider(f"Partidos cumpliendo la línea (L5) #{i}:", 0, 5, 3, key=f"prop_f_{i}")
+                
+            col_pf1, col_pf2 = st.columns(2)
+            with col_pf1: cumple = st.number_input(f"Partidos cumpliendo línea (L5) #{i}:", 0, 5, 3, key=f"prop_c_{i}")
+            with col_pf2: no_cumple = st.number_input(f"Partidos sin cumplir línea (L5) #{i}:", 0, 5, 2, key=f"prop_nc_{i}")
 
-            prob_prop_modelo = max(40.0, min(85.0, 52.0 + (forma_jug_fut - 2.5) * 6.0))
+            prob_prop_modelo = max(40.0, min(85.0, 52.0 + (cumple - no_cumple) * 6.0))
             prob_imp_prop, edge_prop = calcular_edge_real(momio_prop, prob_prop_modelo)
 
             st.markdown("---")
@@ -495,7 +505,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAA (FIJO)
+# 7. NCAA
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
@@ -515,10 +525,15 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
             with st.expander(f"🎓 {op['partido_str']}"):
                 momio = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"ncaa_m_{idx}")
                 
-                f_a = st.slider(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_fa_{idx}")
-                f_b = st.slider(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"ncaa_fb_{idx}")
+                col_na1, col_na2 = st.columns(2)
+                with col_na1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_va_{idx}")
+                with col_na2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"ncaa_da_{idx}")
+
+                col_nb1, col_nb2 = st.columns(2)
+                with col_nb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"ncaa_vb_{idx}")
+                with col_nb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"ncaa_db_{idx}")
                 
-                prob = calcular_probabilidad_modelo_inteligente(f_a, f_b, 7, 7, es_local_a=False)
+                prob = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, 7, 7, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
@@ -531,7 +546,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC (FIJO)
+# 8. UFC
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.title(f"🥊 **Sistema Cuantitativo Pro UFC ({fecha_formato_str})**")
@@ -551,8 +566,9 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
             with st.expander(f"🥊 {op['evento_str']} — {op['combate_str']}"):
                 momio = st.number_input("📈 Momio Casino:", value=-120, step=5, key=f"ufc_m_{idx}")
                 
-                racha_p1 = st.slider(f"Racha de Victorias (Peleador 1):", 0, 5, 3, key=f"ufc_p1_{idx}")
-                racha_p2 = st.slider(f"Racha de Victorias (Peleador 2):", 0, 5, 2, key=f"ufc_p2_{idx}")
+                col_u1, col_u2 = st.columns(2)
+                with col_u1: racha_p1 = st.slider(f"Racha Victorias (Peleador 1):", 0, 5, 3, key=f"ufc_p1_{idx}")
+                with col_u2: racha_p2 = st.slider(f"Racha Victorias (Peleador 2):", 0, 5, 2, key=f"ufc_p2_{idx}")
                 
                 prob = max(35.0, min(80.0, 50.0 + (racha_p1 - racha_p2) * 5.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
@@ -567,7 +583,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LMP (Liga Mexicana del Pacífico - FIJO)
+# 9. LMP
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Pro [{fecha_formato_str}]**")
@@ -587,10 +603,15 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
     with col_p2: momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
 
-    fv_lmp = st.slider(f"Victorias L5 ({equipo_visita}):", 0, 5, 3, key="lmp_fv")
-    fl_lmp = st.slider(f"Victorias L5 ({equipo_local}):", 0, 5, 3, key="lmp_fl")
+    col_lm1, col_lm2 = st.columns(2)
+    with col_lm1: v_a = st.number_input(f"Victorias L5 ({equipo_visita}):", 0, 5, 3, key="lmp_va")
+    with col_lm2: d_a = st.number_input(f"Derrotas L5 ({equipo_visita}):", 0, 5, 2, key="lmp_da")
+
+    col_lm3, col_lm4 = st.columns(2)
+    with col_lm3: v_b = st.number_input(f"Victorias L5 ({equipo_local}):", 0, 5, 3, key="lmp_vb")
+    with col_lm4: d_b = st.number_input(f"Derrotas L5 ({equipo_local}):", 0, 5, 2, key="lmp_db")
     
-    prob_modelo_lmp = calcular_probabilidad_modelo_inteligente(fv_lmp, fl_lmp, 1, 1, es_local_a=False)
+    prob_modelo_lmp = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
     st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob_modelo_lmp:.2f}%`**")
 
     prob_imp_lmp, edge_lmp = calcular_edge_real(momio_lmp, prob_modelo_lmp)
@@ -604,7 +625,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
 
 # =========================================================
-# 10. Serie Mundial & Béisbol Pro (MLB - FIJO)
+# 10. MLB
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.title(f"⚾ **Serie Mundial & Béisbol Pro (MLB) [{fecha_formato_str}]**")
@@ -622,10 +643,15 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)")
     with col_mm3: momio_mlb = st.number_input("📈 Momio Americano Oficial:", value=-120, step=5, key="momio_mlb")
 
-    fv_mlb = st.slider(f"Victorias L5 ({equipo_mlb_visita}):", 0, 5, 3, key="mlb_fv")
-    fl_mlb = st.slider(f"Victorias L5 ({equipo_mlb_local}):", 0, 5, 3, key="mlb_fl")
+    col_mb1, col_mb2 = st.columns(2)
+    with col_mb1: v_a = st.number_input(f"Victorias L5 ({equipo_mlb_visita}):", 0, 5, 3, key="mlb_va")
+    with col_mb2: d_a = st.number_input(f"Derrotas L5 ({equipo_mlb_visita}):", 0, 5, 2, key="mlb_da")
+
+    col_mb3, col_mb4 = st.columns(2)
+    with col_mb3: v_b = st.number_input(f"Victorias L5 ({equipo_mlb_local}):", 0, 5, 3, key="mlb_vb")
+    with col_mb4: d_b = st.number_input(f"Derrotas L5 ({equipo_mlb_local}):", 0, 5, 2, key="mlb_db")
     
-    prob_modelo_mlb = calcular_probabilidad_modelo_inteligente(fv_mlb, fl_mlb, 1, 1, es_local_a=False)
+    prob_modelo_mlb = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
     st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob_modelo_mlb:.2f}%`**")
 
     prob_imp_mlb, edge_mlb = calcular_edge_real(momio_mlb, prob_modelo_mlb)
@@ -639,7 +665,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (Hándicap / Puck Line - FIJO)
+# 11. NHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
@@ -659,10 +685,15 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
             with st.expander(f"🏒 {op['partido_str']}"):
                 momio = st.number_input("📈 Momio Casino:", value=+120, step=5, key=f"nhl_m_{idx}")
                 
-                f_a = st.slider(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nhl_fa_{idx}")
-                f_b = st.slider(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nhl_fb_{idx}")
+                col_nh1_s, col_nh2_s = st.columns(2)
+                with col_nh1_s: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nhl_va_{idx}")
+                with col_nh2_s: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nhl_da_{idx}")
+
+                col_nh3_s, col_nh4_s = st.columns(2)
+                with col_nh3_s: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nhl_vb_{idx}")
+                with col_nh4_s: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nhl_db_{idx}")
                 
-                prob = calcular_probabilidad_modelo_inteligente(f_a, f_b, 1, 1, es_local_a=False)
+                prob = calcular_probabilidad_modelo_inteligente(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
@@ -675,7 +706,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
 
 
 # =========================================================
-# 12. Props NHL (FIJOS)
+# 12. Props NHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.title(f"🏒 **Props Automáticos NHL ({fecha_formato_str})**")
@@ -697,9 +728,11 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
                 mercado = st.text_input("Mercado:", value="Puntos Totales Over 1.5", key=f"nhl_mer_{idx}")
                 momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nhl_mom_{idx}")
                 
-                fj_nhl = st.slider(f"Partidos Con Puntos (L5):", 0, 5, 3, key=f"nhl_fj_{idx}")
+                col_njh1, col_njh2 = st.columns(2)
+                with col_njh1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nhl_c_{idx}")
+                with col_njh2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nhl_nc_{idx}")
                 
-                prob = max(40.0, min(80.0, 50.0 + (fj_nhl - 2.5) * 6.0))
+                prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro (Fija):** **`{prob:.2f}%`**")
 
                 prob_imp, edge = calcular_edge_real(momio, prob)
@@ -733,7 +766,7 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
 
 
 # =========================================================
-# 14. Optimizador Automático de Parlays (Dinámico Real)
+# 14. Optimizador Automático de Parlays
 # =========================================================
 else:
     st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
