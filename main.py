@@ -93,11 +93,9 @@ def calcular_probabilidad_futbol_exacta(v_visita, e_visita, d_visita, v_local, e
     Calcula la probabilidad exacta para Fútbol considerando Victorias (3 pts), 
     Empates (1 pt) y Derrotas (0 pts) en los últimos 5 partidos de cada equipo.
     """
-    # Puntaje ponderado sobre 15 puntos máximos posibles en L5
     puntos_visita = (v_visita * 3) + (e_visita * 1)
     puntos_local = (v_local * 3) + (e_local * 1)
     
-    # Diferencia de rendimiento normalizada a porcentaje (base localía 48% para el visitante)
     diferencia_puntos = (puntos_visita - puntos_local) * 1.8
     probabilidad_sugerida = 48.0 + diferencia_puntos
     
@@ -380,16 +378,16 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
                 st.info(f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_props_nba: st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
+                elif edge >= edge_min_props_nba: st.success(f"✅ Aprobado Prop (+EV). Edge: `{edge:+.2f}%`")
                 else: st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRINCIPAL CON DESGLOSE EXACTO V-E-D)
+# 5. FÚTBOL (MÓDULO PRINCIPAL CON SELECCIÓN EXPLÍCITA DE EQUIPO Y V-E-D)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & Minas de Oro)":
     st.title(f"⚽ **Cazador de Minas de Oro & Goles — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia y el nuevo Asistente Exacto de Victorias, Empates y Derrotas (L5).*")
+    st.markdown("--- \n *Analiza partidos con mercados de Alta Ineficiencia y el Asistente Exacto de Victorias, Empates y Derrotas (L5).*")
     
     with st.expander("💡 🧠 **Guía Estratégica: Cuándo cazar estas Minas de Oro (Prematch vs. Live)**", expanded=False):
         st.markdown("""
@@ -418,22 +416,32 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 tipo_mercado_mina = st.selectbox(
                     "💎 Selecciona el Tipo de Mercado a Auditar:",
-                    ["1️⃣ Goles Totales Clásico (Over / Under 2.5)", "2️⃣ 💎 Mina de Oro: Línea Asiática de Cuartos (Over / Under 2.25 o 2.75)", "3️⃣ 💎 Mina de Oro: Goles en Segunda Mitad / Tardíos (Min. 75+)"],
+                    ["1️⃣ Goles Totales Clásico (Over / Under 2.5)", "2️⃣ 💎 Mina de Oro: Hándicap Asiático por Equipos", "3️⃣ 💎 Mina de Oro: Goles en Segunda Mitad / Tardíos (Min. 75+)"],
                     key=f"mercado_mina_{idx}"
                 )
 
-                col_g1, col_g2, col_g3 = st.columns(3)
+                # Selector explícito del equipo para hándicap o selección general
+                if "Hándicap" in tipo_mercado_mina:
+                    equipo_seleccionado_apuesta = st.selectbox(
+                        "🎯 ¿A qué equipo vas a apostar?",
+                        [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
+                        key=f"eq_apuesta_{idx}"
+                    )
+                else:
+                    equipo_seleccionado_apuesta = st.selectbox(
+                        "Selección:", ["Over (Más de)", "Under (Menos de)"], key=f"g_ou_{idx}"
+                    )
+
+                col_g1, col_g2 = st.columns(2)
                 with col_g1:
-                    tipo_ou = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)"], key=f"g_ou_{idx}")
-                with col_g2:
-                    if "Clásico" in tipo_mercado_mina:
-                        linea_goles = st.text_input("Línea:", value="2.5", key=f"g_linea_{idx}")
-                    elif "Asiática" in tipo_mercado_mina:
-                        linea_goles = st.text_input("Línea Asiática:", value="2.25", key=f"g_linea_asiatica_{idx}")
+                    if "Hándicap" in tipo_mercado_mina:
+                        linea_goles = st.text_input("Línea Asiática (ej. -0.5, +0.25):", value="-0.5", key=f"g_linea_asiatica_{idx}")
+                    elif "Clásico" in tipo_mercado_mina:
+                        linea_goles = st.text_input("Línea de Goles:", value="2.5", key=f"g_linea_{idx}")
                     else:
                         linea_goles = st.text_input("Línea 2da Mitad:", value="0.5", key=f"g_linea_tardio_{idx}")
-                with col_g3:
-                    momio_txt = st.text_input("📈 Momio Americano:", value="+130" if "Mina" in tipo_mercado_mina else "-110", key=f"f_momio_{idx}")
+                with col_g2:
+                    momio_txt = st.text_input("📈 Momio Americano:", value="+116" if "Hándicap" in tipo_mercado_mina else "-110", key=f"f_momio_{idx}")
 
                 try:
                     momio_casino_real = int(momio_txt.strip())
@@ -454,14 +462,15 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Goles, Asiáticos & 
                 with col_l3_s: d_loc = st.number_input("Derrotas L5:", 0, 5, 1, key=f"d_loc_{idx}")
 
                 prob_sugerida_inicial = calcular_probabilidad_futbol_exacta(v_vis, e_vis, d_vis, v_loc, e_loc, d_loc)
-                if "Mina" in tipo_mercado_mina:
+                
+                if "Local" in equipo_seleccionado_apuesta and "Hándicap" in tipo_mercado_mina:
                     prob_sugerida_inicial = max(40.0, prob_sugerida_inicial + 3.0)
 
                 st.info(f"💡 **Probabilidad Sugerida por Desglose L5 (V-E-D):** **`{prob_sugerida_inicial}%`**")
 
                 prob_modelo_pro = st.slider("🤖 Probabilidad Real Calculada por el Modelo Pro (%):", 30.0, 85.0, prob_sugerida_inicial, 0.5, key=f"f_prob_{idx}")
 
-                tipo_apuesta_str = f"{tipo_mercado_mina.split(' ')[-1]} [{tipo_ou} {linea_goles}]"
+                tipo_apuesta_str = f"{equipo_seleccionado_apuesta} [{linea_goles}]"
                 prob_imp_real, edge_real = calcular_edge_real(momio_casino_real, prob_modelo_pro)
 
                 st.markdown("---")
@@ -633,7 +642,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Consola cuantitativa especializada para béisbol.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
@@ -704,7 +713,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.markdown("--- \n *Rendimiento individual de jugadores de hockey.*")
     col_pnh1, col_pnh2 = st.columns(2)
     with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
-    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
+    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_props_nhl")
 
     cartelera_nhl_hoy = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
