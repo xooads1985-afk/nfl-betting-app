@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (NBA Pro & Minas de Oro)",
+    page_title="Central de Apuestas Pro - Master Suite (NFL Pro & Mercados Flexibles)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -30,7 +30,7 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo de análisis:",
     [
-        "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)",
+        "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)",
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)",
         "🔥 Auditor Interactivo de Props NBA",
@@ -156,42 +156,74 @@ def obtener_plantel_dinamico_ucl(fecha_str_api):
 
 
 # =========================================================
-# 1. NFL (Hándicap / Spread)
+# 1. NFL (SISTEMA PRO: SPREAD & TOTALES O/U FLEXIBLES)
 # =========================================================
-if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Hándicap / Spread)":
-    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Hándicap Estricto) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Auditoría de partidos y cálculo exacto de Edge para la NFL.*")
+if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)":
+    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Spread & Totales) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Auditoría de partidos de la NFL con selección flexible de mercados (Spread, Total de Puntos O/U y Primera Mitad 1H).*")
     
     col1, col2 = st.columns(2)
     with col1: bankroll = st.number_input("💵 Bankroll NFL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nfl")
-    with col2: edge_min = st.slider("🎯 Edge Mínimo Spread (%):", 0.0, 15.0, 4.0, 0.5, key="edge_nfl")
+    with col2: edge_min = st.slider("🎯 Edge Mínimo Requerido NFL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nfl")
 
     cartelera = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📊 Sugerencias & Auditoría de Partidos en Cartelera NFL")
+    st.subheader("📊 Partidos en Cartelera NFL & Auditoría de Mercados")
 
     if not cartelera:
         st.info(f"ℹ️ No hay partidos de la NFL programados en la fecha `{fecha_formato_str}`.")
     else:
         for idx, op in enumerate(cartelera, 1):
             with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
-                momio_real = st.number_input(f"📈 Momio Americano:", value=-110, step=5, key=f"nfl_m_{idx}")
-                prob_mod = st.slider(f"🤖 Probabilidad Real del Modelo Pro (%):", 40.0, 80.0, 58.0, 0.5, key=f"nfl_p_{idx}")
                 
-                prob_imp, edge = calcular_edge_real(momio_real, prob_mod)
+                # Selector flexible de mercados para la NFL
+                mercado_nfl_eleccion = st.selectbox(
+                    "🎯 Selecciona el Mercado NFL a Auditar:",
+                    [
+                        "1️⃣ Hándicap / Spread de Puntos",
+                        "2️⃣ Total de Puntos del Partido (Over / Under O/U)",
+                        "3️⃣ Total de Puntos Primera Mitad (1H Over / Under)"
+                    ],
+                    key=f"mercado_nfl_{idx}"
+                )
+
+                col_n1, col_n2, col_n3 = st.columns(3)
+                with col_n1:
+                    if "Spread" in mercado_nfl_eleccion:
+                        tipo_sel_nfl = st.selectbox("Selección Spread:", [f"Equipo Visitante ({op['visita']})", f"Equipo Local ({op['local']})"], key=f"nfl_sel_{idx}")
+                    else:
+                        tipo_sel_nfl = st.selectbox("Selección Total:", ["Over (Más de)", "Under (Menos de)"], key=f"nfl_sel_ou_{idx}")
+                with col_n2:
+                    if "Spread" in mercado_nfl_eleccion:
+                        linea_nfl = st.text_input("Línea Spread (ej. -3.5 o +7.5):", value="-3.5", key=f"nfl_linea_{idx}")
+                    elif "Partido" in mercado_nfl_eleccion:
+                        linea_nfl = st.text_input("Línea Total Partido (ej. 45.5):", value="45.5", key=f"nfl_linea_ou_{idx}")
+                    else:
+                        linea_nfl = st.text_input("Línea 1ra Mitad (ej. 22.5):", value="22.5", key=f"nfl_linea_1h_{idx}")
+                with col_n3:
+                    momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_{idx}")
+
+                prob_mod = st.slider(
+                    "🤖 Probabilidad Real del Modelo Pro (%):", 
+                    30.0, 85.0, 58.0, 0.5, 
+                    key=f"nfl_p_{idx}",
+                    help="Ajusta la probabilidad con base en eficiencia ofensiva, defensiva y factores climatológicos."
+                )
+                
+                prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
 
                 st.markdown("---")
-                st.info(f"📊 **Desglose Matemático de Edge:**\n"
-                        f"• Probabilidad Implícita del Casino (Cuota `{momio_real:+}`): `{prob_imp:.2f}%`\n"
+                st.info(f"📊 **Desglose Matemático de Edge para NFL:**\n"
+                        f"• Probabilidad Implícita del Casino (Cuota `{momio_nfl:+}`): `{prob_imp:.2f}%`\n"
                         f"• Probabilidad del Modelo Pro: **`{prob_mod:.2f}%`**\n"
                         f"• 🎯 **Edge Neto Calculado:** **`{edge:+.2f}%`**")
 
-                if momio_real < -150:
-                    st.error(f"🚨 **DESCARTADO (Regla de Oro):** Momio `{momio_real}` demasiado pesado (excede -150).")
+                if momio_nfl < -150:
+                    st.error(f"🚨 **DESCARTADO (Regla de Oro):** Momio `{momio_nfl}` demasiado pesado (excede -150).")
                 elif edge >= edge_min:
-                    st.success(f"✅ **¡APUESTA APROBADA (+EV)!** Edge real de `{edge:+.2f}%`.")
+                    st.success(f"✅ **¡APUESTA NFL APROBADA (+EV)!** Edge real de `{edge:+.2f}%` (Supera tu mínimo de `{edge_min}%`). Operación recomendada.")
                 else:
-                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `{edge:+.2f}%`.")
+                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `{edge:+.2f}%`. Omitir.")
 
 
 # =========================================================
@@ -248,7 +280,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
         for idx, op in enumerate(cartelera_nba, 1):
             with st.expander(f"🏀 Encuentro #{idx}: {op['partido_str']}"):
                 
-                # Selector flexible de mercados para la NBA
                 mercado_nba_eleccion = st.selectbox(
                     "🎯 Selecciona el Mercado NBA a Auditar:",
                     [
@@ -294,11 +325,11 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
                         f"• 🎯 **Edge Neto Calculado:** **`{edge:+.2f}%`**")
 
                 if momio_nba < -150:
-                    st.error(f"🚨 **DESCARTADO (Regla de Oro):** Momio `{momio_nba}` excede el límite -150 (demasiado pesado).")
+                    st.error(f"🚨 **DESCARTADO (Regla de Oro):** Momio `{momio_nba}` excede el límite -150.")
                 elif edge >= edge_min_nba:
-                    st.success(f"✅ **¡APUESTA NBA APROBADA (+EV)!** Edge real de `{edge:+.2f}%` (Supera tu mínimo de `{edge_min_nba}%`). Operación recomendada.")
+                    st.success(f"✅ **¡APUESTA NBA APROBADA (+EV)!** Edge real de `{edge:+.2f}%` (Supera tu mínimo de `{edge_min_nba}%`).")
                 else:
-                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `{edge:+.2f}%`. Omitir.")
+                    st.warning(f"⚠️ **SIN VALOR SUFICIENTE (-EV):** Edge actual de `{edge:+.2f}%`.")
 
 
 # =========================================================
@@ -309,7 +340,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
     st.markdown("--- \n *Rendimiento individual de jugadores en la NBA con cálculo exacto de Edge.*")
     col_pn1, col_pn2 = st.columns(2)
     with col_pn1: bankroll_props_nba = st.number_input("💵 Bankroll Props NBA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nba")
-    with col_pn2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba")
+    with col_pn2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_props_nba")
 
     cartelera_nba_hoy = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -557,7 +588,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.markdown("---")
     st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_lmp:+}`): `{prob_imp_lmp:.2f}%` | Modelo: `{prob_modelo_lmp:.2f}%` | Edge Neto: **`{edge_lmp:+.2f}%`**")
 
-    if momio_lmp < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+    if momio_lmp < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_lmp >= edge_min_lmp: st.success(f"✅ Aprobado LMP (+EV). Edge: `{edge_lmp:+.2f}%`")
     else: st.warning(f"⚠️ Sin Edge suficiente (`{edge_lmp:+.2f}%`).")
 
@@ -587,7 +618,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("---")
     st.info(f"📊 **Edge Calculado:** Implícita (Cuota `{momio_mlb:+}`): `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge Neto: **`{edge_mlb:+.2f}%`**")
 
-    if momio_mlb < -150: st.error("🚨 Infringe la Regla de Oro (-150).")
+    if momio_mlb < -150: st.error("🚨 Infringe Regla de Oro (-150).")
     elif edge_mlb >= edge_min_mlb: st.success(f"✅ Aprobado MLB (+EV). Edge: `{edge_mlb:+.2f}%`")
     else: st.warning(f"⚠️ Sin Edge suficiente (`{edge_mlb:+.2f}%`).")
 
@@ -600,7 +631,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     st.markdown("--- \n *Auditoría de partidos de la NHL con cálculo universal de Edge.*")
     col_nh1, col_nh2 = st.columns(2)
     with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
-    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_nhl")
+    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
 
     cartelera_nhl = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
