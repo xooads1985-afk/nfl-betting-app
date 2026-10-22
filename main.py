@@ -63,6 +63,7 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo de análisis:",
     [
+        "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)",
         "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)",
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
@@ -334,9 +335,86 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
+# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV)
+# =========================================================
+if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
+    st.title(f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**")
+    st.markdown("--- \n *Radar de valor +EV: Analiza la cartelera real en tiempo real aplicando modelos cuantitativos y descartando momios menores a -150.*")
+    
+    edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido para el Escáner (%):", 0.0, 15.0, 3.0, 0.5, key="edge_escanner_gen")
+    
+    if st.button("🚀 Ejecutar Escaneo Global en Tiempo Real", use_container_width=True):
+        with st.spinner("Escaneando carteleras de la API y cruzando modelos matemáticos..."):
+            minas_de_oro = []
+            
+            # 1. Fútbol (Dixon-Coles Pro)
+            ligas_futbol = [("uefa.champions", "Champions League"), ("eng.1", "Premier League"), ("esp.1", "La Liga")]
+            for codigo_liga, nombre_liga in ligas_futbol:
+                cartelera_s = obtener_cartelera_pura("soccer", codigo_liga, fecha_formato_api, fecha_formato_str)
+                for partido in cartelera_s:
+                    p_over, _, _ = calcular_probabilidades_dixon_coles_dinamico(1.55, 1.15, 2.5, -0.12)
+                    momio_prueba = -110
+                    _, edge = calcular_edge_real(momio_prueba, p_over)
+                    if momio_prueba >= -150 and edge >= edge_min_escanner:
+                        minas_de_oro.append({
+                            "deporte": f"⚽ Fútbol ({nombre_liga})",
+                            "partido": partido['partido_str'],
+                            "mercado": "Over 2.5 Goles",
+                            "momio": momio_prueba,
+                            "edge": edge
+                        })
+
+            # 2. NBA (Distribución Normal)
+            cartelera_n = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
+            for partido in cartelera_n:
+                prob_nba = calcular_probabilidad_handicap_nba(114.5, 111.0, -4.5, 11.5)
+                momio_prueba = -110
+                _, edge = calcular_edge_real(momio_prueba, prob_nba)
+                if momio_prueba >= -150 and edge >= edge_min_escanner:
+                    minas_de_oro.append({
+                        "deporte": "🏀 NBA",
+                        "partido": partido['partido_str'],
+                        "mercado": "Hándicap Local (-4.5)",
+                        "momio": momio_prueba,
+                        "edge": edge
+                    })
+
+            # 3. NHL (Empty Net Pro)
+            cartelera_h = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
+            for partido in cartelera_h:
+                lambda_adj = ajustar_goles_totales_nhl(3.10 + 2.75)
+                p_over_nhl = (1 - poisson.cdf(6, lambda_adj)) * 100
+                momio_prueba = -110
+                _, edge = calcular_edge_real(momio_prueba, p_over_nhl)
+                if momio_prueba >= -150 and edge >= edge_min_escanner:
+                    minas_de_oro.append({
+                        "deporte": "🏒 NHL",
+                        "partido": partido['partido_str'],
+                        "mercado": "Over 6.5 Goles (Empty Net)",
+                        "momio": momio_prueba,
+                        "edge": edge
+                    })
+
+            st.session_state['resultado_escaneo'] = minas_de_oro
+
+    st.markdown("---")
+    st.subheader("📋 Resultados del Radar de Valor")
+    
+    if 'resultado_escaneo' in st.session_state and st.session_state['resultado_escaneo']:
+        st.success(f"🎯 ¡Se encontraron **{len(st.session_state['resultado_escaneo Española'] if 'resultado_escaneo' in st.session_state else 0)}** oportunidades con valor real (+EV)!")
+        for item in st.session_state['resultado_escaneo']:
+            with st.container():
+                st.markdown(f"**{item['deporte']}** | `{item['partido']}`")
+                st.info(f"• Mercado: **{item['mercado']}** | Momio: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**")
+                st.markdown("---")
+    else:
+        st.info("ℹ️ Haz clic en el botón de arriba para iniciar el escaneo en tiempo real o no hay eventos activos que superen el filtro estricto.")
+
+
+# =========================================================
 # 1. NFL (MONTE CARLO DE POSESIONES)
 # =========================================================
-if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)":
+elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo) [{fecha_formato_str}]**")
     st.markdown("--- \n *Simulación estocástica de series ofensivas y eficiencia en zona roja para la NFL.*")
     
@@ -924,7 +1002,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     st.markdown("--- \n *Rendimiento individual de jugadores de hockey.*")
     col_pnh1, col_pnh2 = st.columns(2)
     with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
-    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_props_nhl")
+    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
 
     st.markdown("---")
     usar_manual_props_nhl = st.checkbox("✍️ Activar Ingreso Manual de Props NHL", value=True, key="chk_manual_prop_nhl")
