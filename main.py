@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Multi-Modelo Pro)",
+    page_title="Central de Apuestas Pro - Master Suite (Poisson Dinámico)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -34,7 +34,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)",
         "🔥 Auditor Interactivo de Props NBA",
-        "⚽ Módulo Global de Fútbol (Poisson & Minas de Oro)",
+        "⚽ Módulo Global de Fútbol (Poisson Dinámico & Minas de Oro)",
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
@@ -67,7 +67,7 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
     return prob_imp, edge
 
 
-# Modelo Gaussiano / Ponderado para deportes de alta anotación (NBA, NFL, NCAA, MLB, NHL)
+# Modelo Gaussiano / Ponderado para deportes de alta anotación
 def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False):
     base_prob = 53.0 if not es_local_a else 47.0
     diferencia_forma = ((v_a - d_a) - (v_b - d_b)) * 3.5
@@ -78,28 +78,31 @@ def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, desca
     return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# Modelo de Poisson para Fútbol (Goles)
+# Modelo de Poisson Dinámico para Fútbol (Goles con línea personalizable)
 def poisson_prob(lmbda, k):
     if lmbda <= 0:
         return 1.0 if k == 0 else 0.0
     return (math.exp(-lmbda) * (lmbda ** k)) / math.factorial(k)
 
 
-def calcular_probabilidades_poisson(lambda_local, lambda_visita, max_goles=6):
-    prob_over_25 = 0.0
-    prob_under_25 = 0.0
+def calcular_probabilidades_poisson_dinamico(lambda_local, lambda_visita, linea_objetivo=2.5, max_goles=7):
+    prob_over = 0.0
+    prob_under = 0.0
     prob_btts = 0.0
     for g_loc in range(max_goles + 1):
         for g_vis in range(max_goles + 1):
             p = poisson_prob(lambda_local, g_loc) * poisson_prob(lambda_visita, g_vis)
             total_goles = g_loc + g_vis
-            if total_goles > 2.5:
-                prob_over_25 += p
+            
+            if total_goles > linea_objetivo:
+                prob_over += p
             else:
-                prob_under_25 += p
+                prob_under += p
+                
             if g_loc > 0 and g_vis > 0:
                 prob_btts += p
-    return round(prob_over_25 * 100, 2), round(prob_under_25 * 100, 2), round(prob_btts * 100, 2)
+
+    return round(prob_over * 100, 2), round(prob_under * 100, 2), round(prob_btts * 100, 2)
 
 
 @st.cache_data(ttl=300)
@@ -159,7 +162,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (Modelo Gaussiano de Posesión y Fatiga)
+# 1. NFL
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Spread & Totales) [{fecha_formato_str}]**")
@@ -186,16 +189,12 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
 
                 col_n1, col_n2, col_n3 = st.columns(3)
                 with col_n1:
-                    if "Spread" in mercado_nfl_eleccion:
-                        tipo_sel_nfl = st.selectbox("Selección Spread:", [f"Equipo Visitante ({op['visita']})", f"Equipo Local ({op['local']})"], key=f"nfl_sel_{idx}")
-                    else:
-                        tipo_sel_nfl = st.selectbox("Selección Total:", ["Over (Más de)", "Under (Menos de)"], key=f"nfl_sel_ou_{idx}")
+                    tipo_sel_nfl = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nfl_sel_{idx}")
                 with col_n2:
                     linea_nfl = st.text_input("Línea Casino:", value="-3.5" if "Spread" in mercado_nfl_eleccion else "45.5", key=f"nfl_linea_{idx}")
                 with col_n3:
                     momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_{idx}")
 
-                st.markdown("### 🧬 Asistente de Factores Duros (Récord L5: Victorias - Derrotas)")
                 col_fa1, col_fa2 = st.columns(2)
                 with col_fa1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nfl_va_{idx}")
                 with col_fa2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nfl_da_{idx}")
@@ -210,7 +209,6 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
 
                 prob_mod = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_mod:.2f}%`**")
-
                 prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
                 st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nfl:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_mod:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
@@ -257,11 +255,11 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA (Modelo Gaussiano de Posesión y Fatiga de Back-to-Back)
+# 3. NBA
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Spread & Totales) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo Gaussiano con factor de fatiga de calendario (Back-to-Back) para la NBA.*")
+    st.markdown("--- \n *Modelo Gaussiano con factor de fatiga de calendario para la NBA.*")
     
     col1, col2 = st.columns(2)
     with col1: bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
@@ -290,7 +288,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
                 with col_n3:
                     momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_{idx}")
 
-                st.markdown("### 🧬 Asistente de Factores Duros (Récord L5 y Fatiga)")
                 col_va1, col_va2 = st.columns(2)
                 with col_va1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nba_va_{idx}")
                 with col_va2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nba_da_{idx}")
@@ -305,7 +302,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
 
                 prob_nba = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_nba:.2f}%`**")
-
                 prob_imp, edge = calcular_edge_real(momio_nba, prob_nba)
                 st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nba:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
@@ -352,11 +348,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (Modelo de Poisson)
+# 5. FÚTBOL (Modelo de Poisson Dinámico con Selector de Línea)
 # =========================================================
-elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson & Minas de Oro)":
-    st.title(f"⚽ **Cazador de Minas de Oro & Goles (Modelo Poisson) — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Calcula probabilidades exactas de goles, Over/Under y BTTS mediante la distribución estadística de Poisson.*")
+elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico & Minas de Oro)":
+    st.title(f"⚽ **Cazador de Goles & Minas de Oro (Poisson Dinámico) — Fútbol Pro [{fecha_formato_str}]**")
+    st.markdown("--- \n *Calcula probabilidades exactas para cualquier línea de goles (1.5, 2.5, 3.5, etc.) y BTTS con Poisson.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -370,7 +366,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson & Minas de O
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Cartelera Real & Simulación de Poisson")
+    st.subheader("📋 Cartelera Real & Simulación de Poisson Dinámico")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -384,20 +380,37 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson & Minas de O
                 with col_poi2:
                     lam_visita = st.number_input(f"Goles Esperados ({op['visita']} - Visita $\\mu$):", 0.1, 5.0, 1.15, 0.05, key=f"lam_vis_{idx}")
 
-                p_over25, p_under25, p_btts = calcular_probabilidades_poisson(lam_local, lam_visita)
-
-                st.info(f"📊 **Resultados del Modelo de Poisson:**\n"
-                        f"• Probabilidad **Over 2.5 Goles**: `{p_over25}%`\n"
-                        f"• Probabilidad **Under 2.5 Goles**: `{p_under25}%`\n"
-                        f"• Probabilidad **Ambos Anotan (BTTS)**: `{p_btts}%`")
-
                 st.markdown("---")
-                mercado_poisson = st.selectbox("Selecciona el mercado a auditar con Poisson:", ["Over 2.5 Goles", "Under 2.5 Goles", "Ambos Equipos Anotan (Sí / BTTS)"], key=f"mercado_pois_{idx}")
+                st.markdown("### 🎯 Configuración de la Línea del Casino a Auditar")
+                col_lsel1, col_lsel2 = st.columns(2)
+                with col_lsel1:
+                    mercado_poisson = st.selectbox(
+                        "Selecciona el Mercado:",
+                        ["Total de Goles (Over / Under)", "Ambos Equipos Anotan (Sí / BTTS)"],
+                        key=f"mercado_pois_{idx}"
+                    )
+                with col_lsel2:
+                    if "Total de Goles" in mercado_poisson:
+                        linea_elegida = st.selectbox("Línea de Goles (Over/Under):", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"linea_eleg_{idx}")
+                    else:
+                        linea_elegida = 0.5 # Dummy para BTTS
+
                 momio_poisson = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"momio_pois_{idx}")
 
-                if "Over 2.5" in mercado_poisson: prob_modelo_final = p_over25
-                elif "Under 2.5" in mercado_poisson: prob_modelo_final = p_under25
-                else: prob_modelo_final = p_btts
+                # Calcular probabilidades con Poisson Dinámico
+                p_over, p_under, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida if "Total de Goles" in mercado_poisson else 0.5)
+
+                if "Total de Goles" in mercado_poisson:
+                    tipo_apuesta_final = st.selectbox("¿Apuestas al Over o al Under?", ["Over (Más de)", "Under (Menos de)"], key=f"ou_sel_{idx}")
+                    prob_modelo_final = p_over if "Over" in tipo_apuesta_final else p_under
+                    nombre_mercado_str = f"Over/Under {linea_elegida} ({tipo_apuesta_final})"
+                else:
+                    prob_modelo_final = p_btts
+                    nombre_mercado_str = "Ambos Equipos Anotan (BTTS Sí)"
+
+                st.info(f"📊 **Resultados del Modelo de Poisson Dinámico:**\n"
+                        f"• Probabilidad Calculada para `{nombre_mercado_str}`: **`{prob_modelo_final}%`**\n"
+                        f"• Referencia BTTS: `{p_btts}%` | Over 2.5: `{calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 2.5)[0]}%`")
 
                 prob_imp_pois, edge_pois = calcular_edge_real(momio_poisson, prob_modelo_final)
                 st.info(f"📊 **Edge Calculado:** Implícita (`{momio_poisson:+}`): `{prob_imp_pois:.2f}%` | Modelo: `{prob_modelo_final:.2f}%` | Edge Neto: **`{edge_pois:+.2f}%`**")
@@ -445,7 +458,7 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAA (Modelo Gaussiano)
+# 7. NCAA
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
@@ -491,7 +504,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.markdown("--- \n *Auditoría de combates de artes marciales mixtas.*")
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
+    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -519,7 +532,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LMP (Modelo Gaussiano)
+# 9. LMP
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) — Análisis Pro [{fecha_formato_str}]**")
@@ -558,14 +571,14 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
 
 # =========================================================
-# 10. MLB (Modelo Gaussiano)
+# 10. MLB
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.title(f"⚾ **Serie Mundial & Béisbol Pro (MLB) [{fecha_formato_str}]**")
     st.markdown("--- \n *Modelo Gaussiano especializado para béisbol de Grandes Ligas.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
@@ -595,7 +608,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (Modelo Gaussiano con Fatiga)
+# 11. NHL
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
@@ -684,8 +697,8 @@ elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
     st.markdown("---")
     st.subheader("📋 Historial de Rendimiento por Deporte")
     datos_rendimiento = [
-        {"Deporte": "Fútbol (Soccer - Poisson)", "Apuestas": 15, "Ganadas": 10, "Perdidas": 5, "ROI": "+14.2%"},
-        {"Deporte": "NFL / NBA (Gaussiano)", "Apuestas": 11, "Ganadas": 6, "Perdidas": 5, "ROI": "+9.1%"},
+        {"Deporte": "Fútbol (Soccer - Poisson Dinámico)", "Apuestas": 15, "Ganadas": 10, "Perdidas": 5, "ROI": "+14.2%"},
+        {"Deporte": "NFL / NBA (Gaussiano Pro)", "Apuestas": 11, "Ganadas": 6, "Perdidas": 5, "ROI": "+9.1%"},
         {"Deporte": "Béisbol & NHL", "Apuestas": 4, "Ganadas": 3, "Perdidas": 1, "ROI": "+9.8%"}
     ]
     st.table(datos_rendimiento)
