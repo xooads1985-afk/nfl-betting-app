@@ -3,13 +3,57 @@ import math
 import os
 import requests
 import streamlit as st
+import threading
+import time
+from datetime import timedelta
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Pro Risk & CLV)",
+    page_title="Central de Apuestas Pro - Master Suite (Pro Risk, CLV & Automations)",
     page_icon="🛡️",
     layout="wide"
 )
+
+# ---------------------------------------------------------
+# HILO EN SEGUNDO PLANO PARA CAPTURA AUTOMÁTICA DE CLV
+# ---------------------------------------------------------
+def hilo_captura_clv(base_datos, api_deportiva):
+    """
+    Este bucle corre eternamente en segundo plano sin detener tu software principal.
+    """
+    print("[INFO] Hilo secundario de monitoreo CLV iniciado.")
+    
+    while True:
+        try:
+            ahora = datetime.now()
+            margen_tiempo = ahora + timedelta(minutes=2)
+            
+            # Nota: Aquí se conectará a tus métodos reales de base de datos y API
+            apuestas_proximas = base_datos.obtener_apuestas_sin_clv(desde=ahora, hasta=margen_tiempo)
+            
+            for apuesta in apuestas_proximas:
+                cuota_cierre_real = api_deportiva.obtener_cuota_actual(apuesta['id_partido'])
+                
+                if cuota_cierre_real:
+                    clv_positivo = apuesta['cuota_comprada'] > cuota_cierre_real
+                    base_datos.actualizar_clv_apuesta(
+                        id_partido=apuesta['id_partido'],
+                        cuota_cierre=cuota_cierre_real,
+                        clv_positivo=clv_positivo
+                    )
+                    print(f"[CLV CONTROL] Partido {apuesta['id_partido']} cerrado. ¿Éxito CLV?: {clv_positivo}")
+                    
+        except Exception as e:
+            print(f"[ERROR HILO CLV] Fallo en la captura: {e}")
+            
+        time.sleep(60)
+
+# Inicialización segura del hilo de fondo para que corra una sola vez
+if 'hilo_clv_iniciado' not in st.session_state:
+    # t = threading.Thread(target=hilo_captura_clv, args=(mi_bd, mi_api), daemon=True)
+    # t.start()
+    st.session_state['hilo_clv_iniciado'] = True
+
 
 # ---------------------------------------------------------
 # SELECTOR GLOBAL DE FECHA Y MENÚ (Barra Lateral)
@@ -781,7 +825,6 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 
         submitted = st.form_submit_button("💾 Registrar y Validar CLV de la Apuesta")
         if submitted:
-            # Lógica automática de CLV basada en tu estructura
             clv_exito = cuota_comp > cuota_cier
             nueva_apuesta = {
                 "id_partido": id_partid,
