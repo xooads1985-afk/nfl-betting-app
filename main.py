@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Poisson Dinámico)",
+    page_title="Central de Apuestas Pro - Master Suite (Multi-Modelo Pro)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -67,7 +67,6 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
     return prob_imp, edge
 
 
-# Modelo Gaussiano / Ponderado para deportes de alta anotación
 def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False):
     base_prob = 53.0 if not es_local_a else 47.0
     diferencia_forma = ((v_a - d_a) - (v_b - d_b)) * 3.5
@@ -78,7 +77,6 @@ def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, desca
     return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# Modelo de Poisson Dinámico para Fútbol (Goles con línea personalizable)
 def poisson_prob(lmbda, k):
     if lmbda <= 0:
         return 1.0 if k == 0 else 0.0
@@ -184,28 +182,28 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
                 mercado_nfl_eleccion = st.selectbox(
                     "🎯 Selecciona el Mercado NFL a Auditar:",
                     ["1️⃣ Hándicap / Spread de Puntos", "2️⃣ Total de Puntos del Partido (Over / Under O/U)", "3️⃣ Total de Puntos Primera Mitad (1H Over / Under)"],
-                    key=f"mercado_nfl_{idx}"
+                    key=f"mercado_nfl_sel_{idx}"
                 )
 
                 col_n1, col_n2, col_n3 = st.columns(3)
                 with col_n1:
-                    tipo_sel_nfl = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nfl_sel_{idx}")
+                    tipo_sel_nfl = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nfl_sel_eq_{idx}")
                 with col_n2:
-                    linea_nfl = st.text_input("Línea Casino:", value="-3.5" if "Spread" in mercado_nfl_eleccion else "45.5", key=f"nfl_linea_{idx}")
+                    linea_nfl = st.text_input("Línea Casino:", value="-3.5" if "Spread" in mercado_nfl_eleccion else "45.5", key=f"nfl_linea_val_{idx}")
                 with col_n3:
-                    momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_{idx}")
+                    momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_val_{idx}")
 
                 col_fa1, col_fa2 = st.columns(2)
-                with col_fa1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nfl_va_{idx}")
-                with col_fa2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nfl_da_{idx}")
+                with col_fa1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nfl_va_v_{idx}")
+                with col_fa2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nfl_da_d_{idx}")
 
                 col_fb1, col_fb2 = st.columns(2)
-                with col_fb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nfl_vb_{idx}")
-                with col_fb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nfl_db_{idx}")
+                with col_fb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nfl_vb_v_{idx}")
+                with col_fb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nfl_db_d_{idx}")
 
                 col_fd1, col_fd2 = st.columns(2)
-                with col_fd1: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 6, key=f"nfl_da_{idx}")
-                with col_fd2: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 6, key=f"nfl_db_{idx}")
+                with col_fd1: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 6, key=f"nfl_desc_vis_{idx}")
+                with col_fd2: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 6, key=f"nfl_desc_loc_{idx}")
 
                 prob_mod = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_mod:.2f}%`**")
@@ -236,13 +234,13 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     else:
         for idx, op in enumerate(cartelera_nfl_hoy, 1):
             with st.expander(f"🎯 Prop NFL: {op['partido_str']}"):
-                jugador = st.text_input("Jugador:", value="Patrick Mahomes", key=f"nfl_j_{idx}")
-                mercado = st.text_input("Mercado:", value="Yardas de Pase Over 265.5", key=f"nfl_mer_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nfl_mom_{idx}")
+                jugador = st.text_input("Jugador:", value="Patrick Mahomes", key=f"nfl_prop_j_{idx}")
+                mercado = st.text_input("Mercado:", value="Yardas de Pase Over 265.5", key=f"nfl_prop_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nfl_prop_mom_{idx}")
                 
                 col_pj1, col_pj2 = st.columns(2)
-                with col_pj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_fj_c_{idx}")
-                with col_pj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nfl_fj_nc_{idx}")
+                with col_pj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_prop_c_{idx}")
+                with col_pj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nfl_prop_nc_{idx}")
                 
                 prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
@@ -277,28 +275,28 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
                 mercado_nba_eleccion = st.selectbox(
                     "🎯 Selecciona el Mercado NBA a Auditar:",
                     ["1️⃣ Hándicap / Spread de Puntos", "2️⃣ Total de Puntos del Partido (Over / Under O/U)", "3️⃣ Total de Puntos por Mitad / Cuarto", "4️⃣ Total de Puntos Individual por Equipo"],
-                    key=f"mercado_nba_{idx}"
+                    key=f"mercado_nba_sel_{idx}"
                 )
 
                 col_n1, col_n2, col_n3 = st.columns(3)
                 with col_n1:
-                    tipo_sel_nba = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nba_sel_{idx}")
+                    tipo_sel_nba = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nba_sel_eq_{idx}")
                 with col_n2:
-                    linea_nba = st.text_input("Línea Casino:", value="-4.5" if "Spread" in mercado_nba_eleccion else "224.5", key=f"nba_linea_{idx}")
+                    linea_nba = st.text_input("Línea Casino:", value="-4.5" if "Spread" in mercado_nba_eleccion else "224.5", key=f"nba_linea_val_{idx}")
                 with col_n3:
-                    momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_{idx}")
+                    momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_val_{idx}")
 
                 col_va1, col_va2 = st.columns(2)
-                with col_va1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nba_va_{idx}")
-                with col_va2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nba_da_{idx}")
+                with col_va1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nba_va_v_{idx}")
+                with col_va2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nba_da_d_{idx}")
 
                 col_vb1, col_vb2 = st.columns(2)
-                with col_vb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nba_vb_{idx}")
-                with col_vb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nba_db_{idx}")
+                with col_vb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nba_vb_v_{idx}")
+                with col_vb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nba_db_d_{idx}")
 
                 col_nd1, col_nd2 = st.columns(2)
-                with col_nd1: descanso_a = st.number_input(f"Días Descanso Visita (0 = B2B):", 0, 10, 0, key=f"nba_da_{idx}")
-                with col_nd2: descanso_b = st.number_input(f"Días Descanso Local (0 = B2B):", 0, 10, 2, key=f"nba_db_{idx}")
+                with col_nd1: descanso_a = st.number_input(f"Días Descanso Visita (0 = B2B):", 0, 10, 0, key=f"nba_desc_vis_{idx}")
+                with col_nd2: descanso_b = st.number_input(f"Días Descanso Local (0 = B2B):", 0, 10, 2, key=f"nba_desc_loc_{idx}")
 
                 prob_nba = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_nba:.2f}%`**")
@@ -329,13 +327,13 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
     else:
         for idx, op in enumerate(cartelera_nba_hoy, 1):
             with st.expander(f"🔥 Prop NBA: {op['partido_str']}"):
-                jugador = st.text_input("Jugador:", value="LeBron James", key=f"nba_j_{idx}")
-                mercado = st.text_input("Mercado:", value="Puntos Totales Over 24.5", key=f"nba_mer_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nba_mom_{idx}")
+                jugador = st.text_input("Jugador:", value="LeBron James", key=f"nba_prop_j_{idx}")
+                mercado = st.text_input("Mercado:", value="Puntos Totales Over 24.5", key=f"nba_prop_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nba_prop_mom_{idx}")
                 
                 col_nj1, col_nj2 = st.columns(2)
-                with col_nj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nba_fj_c_{idx}")
-                with col_nj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nba_fj_nc_{idx}")
+                with col_nj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nba_prop_c_{idx}")
+                with col_nj2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nba_prop_nc_{idx}")
                 
                 prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
@@ -348,11 +346,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (Modelo de Poisson Dinámico con Selector de Línea)
+# 5. FÚTBOL
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico & Minas de Oro)":
     st.title(f"⚽ **Cazador de Goles & Minas de Oro (Poisson Dinámico) — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Calcula probabilidades exactas para cualquier línea de goles (1.5, 2.5, 3.5, etc.) y BTTS con Poisson.*")
+    st.markdown("--- \n *Calcula probabilidades exactas para cualquier línea de goles y BTTS con Poisson.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -376,9 +374,9 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico & 
                 st.markdown("### 🧪 Parámetros de Goles Esperados (Poisson $\\lambda$ y $\\mu$)")
                 col_poi1, col_poi2 = st.columns(2)
                 with col_poi1:
-                    lam_local = st.number_input(f"Goles Esperados ({op['local']} - Local $\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"lam_loc_{idx}")
+                    lam_local = st.number_input(f"Goles Esperados ({op['local']} - Local $\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
                 with col_poi2:
-                    lam_visita = st.number_input(f"Goles Esperados ({op['visita']} - Visita $\\mu$):", 0.1, 5.0, 1.15, 0.05, key=f"lam_vis_{idx}")
+                    lam_visita = st.number_input(f"Goles Esperados ({op['visita']} - Visita $\\mu$):", 0.1, 5.0, 1.15, 0.05, key=f"soccer_lam_vis_{idx}")
 
                 st.markdown("---")
                 st.markdown("### 🎯 Configuración de la Línea del Casino a Auditar")
@@ -387,21 +385,20 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico & 
                     mercado_poisson = st.selectbox(
                         "Selecciona el Mercado:",
                         ["Total de Goles (Over / Under)", "Ambos Equipos Anotan (Sí / BTTS)"],
-                        key=f"mercado_pois_{idx}"
+                        key=f"soccer_mercado_pois_{idx}"
                     )
                 with col_lsel2:
                     if "Total de Goles" in mercado_poisson:
-                        linea_elegida = st.selectbox("Línea de Goles (Over/Under):", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"linea_eleg_{idx}")
+                        linea_elegida = st.selectbox("Línea de Goles (Over/Under):", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"soccer_linea_eleg_{idx}")
                     else:
-                        linea_elegida = 0.5 # Dummy para BTTS
+                        linea_elegida = 0.5
 
-                momio_poisson = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"momio_pois_{idx}")
+                momio_poisson = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"soccer_momio_pois_{idx}")
 
-                # Calcular probabilidades con Poisson Dinámico
                 p_over, p_under, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida if "Total de Goles" in mercado_poisson else 0.5)
 
                 if "Total de Goles" in mercado_poisson:
-                    tipo_apuesta_final = st.selectbox("¿Apuestas al Over o al Under?", ["Over (Más de)", "Under (Menos de)"], key=f"ou_sel_{idx}")
+                    tipo_apuesta_final = st.selectbox("¿Apuestas al Over o al Under?", ["Over (Más de)", "Under (Menos de)"], key=f"soccer_ou_sel_{idx}")
                     prob_modelo_final = p_over if "Over" in tipo_apuesta_final else p_under
                     nombre_mercado_str = f"Over/Under {linea_elegida} ({tipo_apuesta_final})"
                 else:
@@ -439,14 +436,14 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
         with st.expander(f"🎯 Prop Individual #{i}", expanded=True):
             col_pr1, col_pr2 = st.columns(2)
             with col_pr1:
-                jugador_input = st.text_input(f"Nombre del Jugador #{i}:", value="Kylian Mbappé" if i==1 else "Erling Haaland", key=f"prop_j_{i}")
-                mercado_input = st.text_input(f"Mercado / Línea #{i}:", value="Tiros a Puerta Over 1.5", key=f"prop_m_{i}")
+                jugador_input = st.text_input(f"Nombre del Jugador #{i}:", value="Kylian Mbappé" if i==1 else "Erling Haaland", key=f"soccer_prop_j_{i}")
+                mercado_input = st.text_input(f"Mercado / Línea #{i}:", value="Tiros a Puerta Over 1.5", key=f"soccer_prop_m_{i}")
             with col_pr2:
-                momio_prop = st.number_input(f"📈 Momio Casino (Americano) #{i}:", value=-115, step=5, key=f"prop_mom_{i}")
+                momio_prop = st.number_input(f"📈 Momio Casino (Americano) #{i}:", value=-115, step=5, key=f"soccer_prop_mom_{i}")
                 
             col_pf1, col_pf2 = st.columns(2)
-            with col_pf1: cumple = st.number_input(f"Partidos cumpliendo línea (L5) #{i}:", 0, 5, 3, key=f"prop_c_{i}")
-            with col_pf2: no_cumple = st.number_input(f"Partidos sin cumplir línea (L5) #{i}:", 0, 5, 2, key=f"prop_nc_{i}")
+            with col_pf1: cumple = st.number_input(f"Partidos cumpliendo línea (L5) #{i}:", 0, 5, 3, key=f"soccer_prop_c_{i}")
+            with col_pf2: no_cumple = st.number_input(f"Partidos sin cumplir línea (L5) #{i}:", 0, 5, 2, key=f"soccer_prop_nc_{i}")
 
             prob_prop_modelo = max(40.0, min(85.0, 52.0 + (cumple - no_cumple) * 6.0))
             prob_imp_prop, edge_prop = calcular_edge_real(momio_prop, prob_prop_modelo)
@@ -476,15 +473,15 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     else:
         for idx, op in enumerate(cartelera_ncaa, 1):
             with st.expander(f"🎓 {op['partido_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"ncaa_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"ncaa_m_val_{idx}")
                 
                 col_na1, col_na2 = st.columns(2)
-                with col_na1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_va_{idx}")
-                with col_na2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"ncaa_da_{idx}")
+                with col_na1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_va_v_{idx}")
+                with col_na2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"ncaa_da_d_{idx}")
 
                 col_nb1, col_nb2 = st.columns(2)
-                with col_nb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"ncaa_vb_{idx}")
-                with col_nb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"ncaa_db_{idx}")
+                with col_nb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"ncaa_vb_v_{idx}")
+                with col_nb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"ncaa_db_d_{idx}")
                 
                 prob = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 7, 7, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob:.2f}%`**")
@@ -504,7 +501,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     st.markdown("--- \n *Auditoría de combates de artes marciales mixtas.*")
     col_ufc1, col_ufc2 = st.columns(2)
     with col_ufc1: bankroll_ufc = st.number_input("💵 Bankroll UFC (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ufc")
-    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ufc")
+    with col_ufc2: edge_min_ufc = st.slider("🎯 Edge Mínimo UFC (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ufc")
 
     cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -515,7 +512,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     else:
         for idx, op in enumerate(cartelera_ufc, 1):
             with st.expander(f"🥊 {op['evento_str']} — {op['combate_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=-120, step=5, key=f"ufc_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=-120, step=5, key=f"ufc_m_val_{idx}")
                 
                 col_u1, col_u2 = st.columns(2)
                 with col_u1: racha_p1 = st.slider(f"Racha Victorias (Peleador 1):", 0, 5, 3, key=f"ufc_p1_{idx}")
@@ -545,20 +542,20 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
     st.markdown("---")
     st.subheader("✍️ Ingreso Manual del Enfrentamiento")
     col_in1, col_in2 = st.columns(2)
-    with col_in1: equipo_visita = st.text_input("Equipo Visitante:", value="Naranjeros de Hermosillo")
-    with col_in2: equipo_local = st.text_input("Equipo Local:", value="Cañeros de Los Mochis")
+    with col_in1: equipo_visita = st.text_input("Equipo Visitante:", value="Naranjeros de Hermosillo", key="lmp_eq_vis")
+    with col_in2: equipo_local = st.text_input("Equipo Local:", value="Cañeros de Los Mochis", key="lmp_eq_loc")
 
     col_p1, col_p2 = st.columns(2)
-    with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"])
-    with col_p2: momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp")
+    with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"], key="lmp_sel_ap")
+    with col_p2: momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp_val")
 
     col_lm1, col_lm2 = st.columns(2)
-    with col_lm1: v_a = st.number_input(f"Victorias L5 ({equipo_visita}):", 0, 5, 3, key="lmp_va")
-    with col_lm2: d_a = st.number_input(f"Derrotas L5 ({equipo_visita}):", 0, 5, 2, key="lmp_da")
+    with col_lm1: v_a = st.number_input(f"Victorias L5 ({equipo_visita}):", 0, 5, 3, key="lmp_va_v")
+    with col_lm2: d_a = st.number_input(f"Derrotas L5 ({equipo_visita}):", 0, 5, 2, key="lmp_da_d")
 
     col_lm3, col_lm4 = st.columns(2)
-    with col_lm3: v_b = st.number_input(f"Victorias L5 ({equipo_local}):", 0, 5, 3, key="lmp_vb")
-    with col_lm4: d_b = st.number_input(f"Derrotas L5 ({equipo_local}):", 0, 5, 2, key="lmp_db")
+    with col_lm3: v_b = st.number_input(f"Victorias L5 ({equipo_local}):", 0, 5, 3, key="lmp_vb_v")
+    with col_lm4: d_b = st.number_input(f"Derrotas L5 ({equipo_local}):", 0, 5, 2, key="lmp_db_d")
     
     prob_modelo_lmp = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
     st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_modelo_lmp:.2f}%`**")
@@ -578,24 +575,24 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Modelo Gaussiano especializado para béisbol de Grandes Ligas.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
-    with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers")
-    with col_inmlb2: equipo_mlb_local = st.text_input("Equipo Local (MLB):", value="New York Yankees")
+    with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers", key="mlb_eq_vis")
+    with col_inmlb2: equipo_mlb_local = st.text_input("Equipo Local (MLB):", value="New York Yankees", key="mlb_eq_loc")
 
     col_mm1, col_mm2, col_mm3 = st.columns(3)
-    with col_mm1: mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"])
-    with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)")
-    with col_mm3: momio_mlb = st.number_input("📈 Momio Americano Oficial:", value=-120, step=5, key="momio_mlb")
+    with col_mm1: mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"], key="mlb_merc_sel")
+    with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)", key="mlb_sel_esp")
+    with col_mm3: momio_mlb = st.number_input("📈 Momio Americano Oficial:", value=-120, step=5, key="momio_mlb_val")
 
     col_mb1, col_mb2 = st.columns(2)
-    with col_mb1: v_a = st.number_input(f"Victorias L5 ({equipo_mlb_visita}):", 0, 5, 3, key="mlb_va")
-    with col_mb2: d_a = st.number_input(f"Derrotas L5 ({equipo_mlb_visita}):", 0, 5, 2, key="mlb_da")
+    with col_mb1: v_a = st.number_input(f"Victorias L5 ({equipo_mlb_visita}):", 0, 5, 3, key="mlb_va_v")
+    with col_mb2: d_a = st.number_input(f"Derrotas L5 ({equipo_mlb_visita}):", 0, 5, 2, key="mlb_da_d")
 
     col_mb3, col_mb4 = st.columns(2)
-    with col_mb3: v_b = st.number_input(f"Victorias L5 ({equipo_mlb_local}):", 0, 5, 3, key="mlb_vb")
-    with col_mb4: d_b = st.number_input(f"Derrotas L5 ({equipo_mlb_local}):", 0, 5, 2, key="mlb_db")
+    with col_mb3: v_b = st.number_input(f"Victorias L5 ({equipo_mlb_local}):", 0, 5, 3, key="mlb_vb_v")
+    with col_mb4: d_b = st.number_input(f"Derrotas L5 ({equipo_mlb_local}):", 0, 5, 2, key="mlb_db_d")
     
     prob_modelo_mlb = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
     st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_modelo_mlb:.2f}%`**")
@@ -626,15 +623,15 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     else:
         for idx, op in enumerate(cartelera_nhl, 1):
             with st.expander(f"🏒 {op['partido_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=+120, step=5, key=f"nhl_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=+120, step=5, key=f"nhl_m_val_{idx}")
                 
                 col_nh1_s, col_nh2_s = st.columns(2)
-                with col_nh1_s: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nhl_va_{idx}")
-                with col_nh2_s: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nhl_da_{idx}")
+                with col_nh1_s: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nhl_va_v_{idx}")
+                with col_nh2_s: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nhl_da_d_{idx}")
 
                 col_nh3_s, col_nh4_s = st.columns(2)
-                with col_nh3_s: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nhl_vb_{idx}")
-                with col_nh4_s: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nhl_db_{idx}")
+                with col_nh3_s: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nhl_vb_v_{idx}")
+                with col_nh4_s: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nhl_db_d_{idx}")
                 
                 prob = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
                 st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob:.2f}%`**")
@@ -665,13 +662,13 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
     else:
         for idx, op in enumerate(cartelera_nhl_hoy, 1):
             with st.expander(f"🏒 Prop NHL: {op['partido_str']}"):
-                jugador = st.text_input("Jugador:", value="Connor McDavid", key=f"nhl_j_{idx}")
-                mercado = st.text_input("Mercado:", value="Puntos Totales Over 1.5", key=f"nhl_mer_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nhl_mom_{idx}")
+                jugador = st.text_input("Jugador:", value="Connor McDavid", key=f"nhl_prop_j_{idx}")
+                mercado = st.text_input("Mercado:", value="Puntos Totales Over 1.5", key=f"nhl_prop_m_{idx}")
+                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nhl_prop_mom_{idx}")
                 
                 col_njh1, col_njh2 = st.columns(2)
-                with col_njh1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nhl_c_{idx}")
-                with col_njh2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nhl_nc_{idx}")
+                with col_njh1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nhl_prop_c_{idx}")
+                with col_njh2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nhl_prop_nc_{idx}")
                 
                 prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
                 st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
