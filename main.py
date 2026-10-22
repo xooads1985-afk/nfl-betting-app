@@ -12,8 +12,8 @@ import scipy.stats as stats
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (NFL Monte Carlo & Full Stack)",
-    page_icon="🏈",
+    page_title="Central de Apuestas Pro - Master Suite (Full Stack Corregido)",
+    page_icon="⚽",
     layout="wide"
 )
 
@@ -293,7 +293,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL (ACTUALIZADO CON MONTE CARLO DE POSESIONES)
+# 1. NFL (MONTE CARLO DE POSESIONES)
 # =========================================================
 if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)":
     st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo) [{fecha_formato_str}]**")
@@ -322,7 +322,6 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de 
                 tipo_sel_nfl = st.selectbox("Selección:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"nfl_sel_eq_{idx}")
                 momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_val_{idx}")
 
-                # Ejecutando simulación Monte Carlo de 10,000 iteraciones
                 prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo(lam_pos_local, lam_pos_visita)
                 
                 if "Local" in tipo_sel_nfl:
@@ -624,7 +623,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.markdown("--- \n *Modelo Gaussiano aplicado al fútbol americano universitario.*")
     col_nc1, col_nc2 = st.columns(2)
     with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
-    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
+    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ncaa")
 
     cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -945,7 +944,7 @@ else:
     lista_opciones_reales = []
     for ev in eventos_nfl_parlay: lista_opciones_reales.append(f"NFL: {ev['partido_str']} (Spread)")
     for ev in eventos_nba_parlay: lista_opciones_reales.append(f"NBA: {ev['partido_str']} (Spread)")
-    for ev in eventos_nhl_parlay: lista_opctions_reales.append(f"NHL: {ev['partido_str']}") if 'ev' in locals() else None
+    for ev in eventos_nhl_parlay: lista_opciones_reales.append(f"NHL: {ev['partido_str']}")
 
     if not lista_opciones_reales:
         lista_opciones_reales = [
