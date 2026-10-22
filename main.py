@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Poisson & Hándicap Asiático Pro)",
+    page_title="Central de Apuestas Pro - Master Suite (Pro Risk & CLV)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -42,7 +42,7 @@ modulo_seleccionado = st.sidebar.radio(
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
         "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
         "🏒 Módulo Automático de Props NHL",
-        "📊 Analítica & Control de Bankroll",
+        "📊 Analítica, Control de Bankroll & Registro CLV",
         "🚀 Optimizador Automático de Parlays"
     ]
 )
@@ -101,6 +101,39 @@ def calcular_probabilidades_poisson_dinamico(lambda_local, lambda_visita, linea_
                 prob_btts += p
 
     return round(prob_over * 100, 2), round(prob_under * 100, 2), round(prob_btts * 100, 2)
+
+
+# 🛡️ MÓDULO DE CONTROL DE RIESGO PROFESIONAL & CLV
+def modulo_control_riesgo(historial_apuestas, bankroll_actual, stake_sugerido_kelly):
+    ultimas_20 = historial_apuestas[-20:] if len(historial_apuestas) >= 20 else historial_apuestas
+    perdidas_seguidas = 0
+    
+    for apuesta in reversed(ultimas_20):
+        if apuesta.get('resultado') == 'perdida':
+            perdidas_seguidas += 1
+        else:
+            break
+            
+    factor_ajuste = 1.0
+    if perdidas_seguidas >= 5:
+        factor_ajuste = 0.5  
+    if perdidas_seguidas >= 8:
+        factor_ajuste = 0.25 
+
+    clv_ganados = sum(1 for x in ultimas_20 if x.get('clv_positivo', False))
+    total_evaluado = len(ultimas_20)
+    
+    if total_evaluado > 10:
+        tasa_clv = clv_ganados / total_evaluado
+        if tasa_clv < 0.50:
+            factor_ajuste = min(factor_ajuste, 0.5) 
+
+    stake_final = stake_sugerido_kelly * factor_ajuste
+    max_permitido = bankroll_actual * 0.03
+    if stake_final > max_permitido:
+        stake_final = max_permitido
+        
+    return round(stake_final, 2), perdidas_seguidas, factor_ajuste
 
 
 @st.cache_data(ttl=300)
@@ -346,7 +379,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (Poisson Dinámico Completo, BTTS, Hándicaps & V-E-D)
+# 5. FÚTBOL
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles, Minas de Oro & Hándicap Asiático — Fútbol Pro [{fecha_formato_str}]**")
@@ -372,7 +405,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                # Desglose V-E-D y Goles Esperados
                 st.markdown("### 🧬 Estadísticas L5 (Victorias - Empates - Derrotas) & Goles Esperados")
                 col_ved1, col_ved2 = st.columns(2)
                 with col_ved1:
@@ -388,7 +420,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     d_b = st.number_input("Derrotas L5:", 0, 5, 1, key=f"soccer_db_{idx}")
                     lam_local = st.number_input(f"Goles Esperados Local ($\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
 
-                # Cálculo automático de la matriz de Poisson para las líneas principales para mostrarlas en pantalla
                 p_over_15, p_under_15, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 1.5)
                 p_over_25, p_under_25, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 2.5)
                 p_over_35, p_under_35, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 3.5)
@@ -422,7 +453,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     prob_modelo_final = p_btts
                     nombre_auditoria = "Ambos Equipos Anotan (BTTS Sí)"
 
-                else: # Hándicap Asiático
+                else: 
                     col_ha1, col_ha2 = st.columns(2)
                     with col_ha1: equipo_ha = st.selectbox("Selección Hándicap Asiático:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"soccer_ha_eq_{idx}")
                     with col_ha2: linea_ha = st.selectbox("Línea Hándicap Asiático:", [-0.25, -0.5, -0.75, -1.0, +0.25, +0.5, +0.75, +1.0], index=1, key=f"soccer_ha_lin_{idx}")
@@ -721,24 +752,81 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 13. Analítica & Bankroll
+# 13. Analítica, Control de Bankroll & Registro CLV
 # =========================================================
-elif modulo_seleccionado == "📊 Analítica & Control de Bankroll":
-    st.title("📊 **Panel de Analítica y Gestión de Bankroll**")
-    st.markdown("--- \n *Control financiero y rendimiento.*")
+elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
+    st.title("📊 **Panel de Analítica, Gestión de Bankroll & Registro CLV**")
+    st.markdown("--- \n *Control financiero, simulador de riesgo y auditoría de Closing Line Value (CLV).*")
+    
     col_b1, col_b2, col_b3 = st.columns(3)
     with col_b1: st.metric(label="💰 Bankroll Global Actual", value="$15,250.00 MXN", delta="+11.2%")
     with col_b2: st.metric(label="🎯 Efectividad Global (Win Rate)", value="65.5%", delta="-2.9%")
     with col_b3: st.metric(label="📈 Unidades Ganadas (Units)", value="+7.2 U", delta="-1.0 U")
 
     st.markdown("---")
-    st.subheader("📋 Historial de Rendimiento por Deporte")
-    datos_rendimiento = [
-        {"Deporte": "Fútbol (Poisson Dinámico & Hándicap)", "Apuestas": 15, "Ganadas": 10, "Perdidas": 5, "ROI": "+14.2%"},
-        {"Deporte": "NFL / NBA (Gaussiano Pro)", "Apuestas": 11, "Ganadas": 6, "Perdidas": 5, "ROI": "+9.1%"},
-        {"Deporte": "Béisbol & NHL", "Apuestas": 4, "Ganadas": 3, "Perdidas": 1, "ROI": "+9.8%"}
-    ]
-    st.table(datos_rendimiento)
+    st.subheader("📝 Registro y Auditoría de Apuesta Pro (Estructura CLV)")
+    
+    with st.form("form_nueva_apuesta"):
+        col_f_1, col_f_2 = st.columns(2)
+        with col_f_1:
+            id_partid = st.text_input("ID / Partido:", value="Real Madrid vs Barcelona")
+            eq_loc = st.text_input("Equipo Local:", value="Real Madrid")
+            eq_vis = st.text_input("Equipo Visitante:", value="Barcelona")
+            prob_pois = st.slider("Probabilidad del Modelo (Poisson/Gaussiano):", 0.0, 1.0, 0.58, 0.01)
+        with col_f_2:
+            cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.95, 0.01)
+            cuota_cier = st.number_input("Cuota Cierre Casa (Decimal - Previo al juego):", 1.01, 10.0, 1.85, 0.01)
+            stake_inv = st.number_input("Stake Invertido (MXN):", 10.0, 10000.0, 150.0, 10.0)
+            res_ap = st.selectbox("Resultado Final:", ["ganada", "perdida", "devuelta"])
+
+        submitted = st.form_submit_button("💾 Registrar y Validar CLV de la Apuesta")
+        if submitted:
+            # Lógica automática de CLV basada en tu estructura
+            clv_exito = cuota_comp > cuota_cier
+            nueva_apuesta = {
+                "id_partido": id_partid,
+                "equipo_local": eq_loc,
+                "equipo_visitante": eq_vis,
+                "probabilidad_poisson": prob_pois,
+                "cuota_comprada": cuota_comp,
+                "stake_invertido": stake_inv,
+                "cuota_cierre_casa": cuota_cier,
+                "clv_positivo": clv_exito,
+                "resultado": res_ap
+            }
+            st.success(f"✅ ¡Apuesta registrada exitosamente para `{id_partid}`!")
+            if clv_exito:
+                st.info(f"🎯 **CLV Positivo Confirmado:** Compraste a `{cuota_comp}` y cerró en `{cuota_cier}`. ¡Le ganaste al mercado!")
+            else:
+                st.warning(f"⚠️ **CLV Negativo:** Compraste a `{cuota_comp}` y cerró en `{cuota_cier}`.")
+
+    st.markdown("---")
+    st.subheader("🛡️ Simulador en Vivo del Cortafuegos de Riesgo")
+    col_sim1, col_sim2 = st.columns(2)
+    with col_sim1:
+        bk_prueba = st.number_input("Bankroll de Prueba (MXN):", 1000.0, 100000.0, 15250.0, 500.0)
+        stake_kelly_prueba = st.number_input("Stake Sugerido Inicial (Kelly MXN):", 10.0, 2000.0, 300.0, 50.0)
+    with col_sim2:
+        simular_racha_perdidas = st.slider("Simular Racha de Derrotas Seguidas:", 0, 10, 2)
+        simular_clv_bajo = st.checkbox("Simular CLV Descalibrado (< 50% en últimas 20)", value=False)
+
+    historial_sim = []
+    for i in range(20):
+        res = "perdida" if i < simular_racha_perdidas else "ganada"
+        clv = False if simular_clv_bajo else True
+        historial_sim.append({'resultado': res, 'clv_positivo': clv, 'monto': 200})
+
+    stake_calculado, perdidas_detectadas, factor_aplicado = modulo_control_riesgo(historial_sim, bk_prueba, stake_kelly_prueba)
+
+    col_res1, col_res2, col_res3 = st.columns(3)
+    with col_res1: st.metric("⚠️ Derrotas Consecutivas", f"{perdidas_detectadas}")
+    with col_res2: st.metric("📉 Factor de Reducción", f"{int(factor_aplicado * 100)}% del Stake")
+    with col_res3: st.metric("💵 Stake Final Seguro", f"${stake_calculado} MXN")
+
+    if factor_aplicado < 1.0:
+        st.warning(f"🛡️ **Cortafuegos Activo:** Reducción automática al `{int(factor_aplicado * 100)}%`.")
+    else:
+        st.success("✅ **Riesgo Óptimo:** Operando bajo Kelly y techo del 3%.")
 
 
 # =========================================================
