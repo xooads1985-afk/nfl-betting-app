@@ -467,7 +467,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (DIXON-COLES PRO - RHO FIJO -0.12)
+# 5. FÚTBOL (DIXON-COLES PRO - RHO FIJO -0.12 CON MOMIO DE TEXTO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles & Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
@@ -560,7 +560,12 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
                     
                     nombre_auditoria = f"Hándicap Asiático `{equipo_ha}` (`{linea_ha:+}`)"
 
-                momio_soccer = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"soccer_momio_{idx}")
+                # Campo de texto libre para aceptar signos '+' o '-'
+                momio_soccer_str = st.text_input("📈 Momio Casino (Americano):", value="-110", key=f"soccer_momio_txt_{idx}")
+                try:
+                    momio_soccer = int(momio_soccer_str)
+                except ValueError:
+                    momio_soccer = -110
 
                 prob_imp_soc, edge_soc = calcular_edge_real(momio_soccer, prob_modelo_final)
 
@@ -623,7 +628,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.markdown("--- \n *Modelo Gaussiano aplicado al fútbol americano universitario.*")
     col_nc1, col_nc2 = st.columns(2)
     with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
-    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ncaa")
+    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
 
     cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
