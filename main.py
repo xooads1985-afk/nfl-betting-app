@@ -146,7 +146,7 @@ def calcular_probabilidad_handicap_nba(media_puntos_local, media_puntos_visitant
     return round(prob_local_cubre * 100, 2)
 
 
-# ⚽ MATRIZ DIXON-COLES PRO
+# ⚽ MATRIZ DIXON-COLES PRO (CON RHO FIJO -0.12)
 def calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho=-0.12):
     prob_matriz = {}
     for x in range(6):  
@@ -467,11 +467,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (DIXON-COLES PRO)
+# 5. FÚTBOL (DIXON-COLES PRO - RHO FIJO -0.12)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles & Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo avanzado de Dixon-Coles con corrección de empates bajos, BTTS y Hándicaps Asiáticos.*")
+    st.markdown("--- \n *Modelo avanzado de Dixon-Coles con corrección de empates bajos (ρ = -0.12), BTTS y Hándicaps Asiáticos.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -485,7 +485,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Cartelera Real & Simulación Dixon-Coles")
+    st.subheader("📋 Cartelera Real & Simulación Dixon-Coles (Parámetro Fijo)")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -493,7 +493,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                st.markdown("### 🧬 Estadísticas L5 (V-E-D) & Goles Esperados ($\lambda, \mu$) & Rho ($\rho$) Dixon-Coles")
+                st.markdown("### 🧬 Estadísticas L5 (V-E-D) & Goles Esperados ($\lambda, \mu$) [Rho Fijo: -0.12]")
                 col_ved1, col_ved2 = st.columns(2)
                 with col_ved1:
                     st.markdown(f"**Visitante: `{op['visita']}`**")
@@ -508,14 +508,14 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
                     d_b = st.number_input("Derrotas L5:", 0, 5, 1, key=f"soccer_db_{idx}")
                     lam_local = st.number_input(f"Goles Esperados Local ($\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
 
-                rho_val = st.slider("Parámetro de Correlación Dixon-Coles ($\\rho$):", -0.30, 0.0, -0.12, 0.01, key=f"rho_val_{idx}")
+                RHO_FIJO = -0.12
 
-                p_over_15, p_under_15, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 1.5, rho_val)
-                p_over_25, p_under_25, p_btts = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 2.5, rho_val)
-                p_over_35, p_under_35, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 3.5, rho_val)
+                p_over_15, p_under_15, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 1.5, RHO_FIJO)
+                p_over_25, p_under_25, p_btts = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 2.5, RHO_FIJO)
+                p_over_35, p_under_35, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 3.5, RHO_FIJO)
 
                 st.markdown("---")
-                st.info(f"📊 **Matriz Automática del Modelo Dixon-Coles Pro:**\n"
+                st.info(f"📊 **Matriz Automática del Modelo Dixon-Coles Pro ($\\rho = -0.12$):**\n"
                         f"• **Over / Under 1.5 Goles**: Over `{p_over_15}%` | Under `{p_under_15}%`\n"
                         f"• **Over / Under 2.5 Goles**: Over `{p_over_25}%` | Under `{p_under_25}%`\n"
                         f"• **Over / Under 3.5 Goles**: Over `{p_over_35}%` | Under `{p_under_35}%`\n"
@@ -535,7 +535,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
                     with col_tg1: linea_elegida = st.selectbox("Línea de Goles O/U:", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"soccer_linea_{idx}")
                     with col_tg2: tipo_ou = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)"], key=f"soccer_ou_sel_{idx}")
                     
-                    p_over_din, p_under_din, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida, rho=rho_val)
+                    p_over_din, p_under_din, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida, rho=RHO_FIJO)
                     prob_modelo_final = p_over_din if "Over" in tipo_ou else p_under_din
                     nombre_auditoria = f"Over/Under {linea_elegida} ({tipo_ou})"
 
@@ -736,7 +736,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Modelo Gaussiano especializado para béisbol de Grandes Ligas.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers", key="mlb_eq_vis")
