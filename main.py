@@ -1,6 +1,7 @@
 from datetime import datetime, date
 import math
 import os
+import random
 import requests
 import streamlit as st
 import threading
@@ -11,8 +12,8 @@ import scipy.stats as stats
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles, NBA Normal & NHL Empty Net)",
-    page_icon="🏒",
+    page_title="Central de Apuestas Pro - Master Suite (NFL Monte Carlo & Full Stack)",
+    page_icon="🏈",
     layout="wide"
 )
 
@@ -63,7 +64,7 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo de análisis:",
     [
-        "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)",
+        "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)",
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
         "🔥 Auditor Interactivo de Props NBA",
@@ -108,6 +109,33 @@ def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, desca
     diferencia_fatigue = fatigue_a - fatigue_b
     probabilidad_sugerida = base_prob + diferencia_forma - diferencia_fatigue
     return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
+
+
+# 🏈 SIMULADOR MONTE CARLO DE POSESIONES NFL
+def simular_partido_nfl_monte_carlo(lambda_pos_local, lambda_pos_visitante, simulaciones=10000):
+    victorias_local = 0
+    total_puntos_acumulados = 0
+    
+    for _ in range(simulaciones):
+        anotaciones_local = poisson.rvs(lambda_pos_local)
+        anotaciones_vis = poisson.rvs(lambda_pos_visitante)
+        
+        puntos_local = 0
+        puntos_vis = 0
+        
+        for _ in range(anotaciones_local):
+            puntos_local += 7 if random.random() < 0.75 else 3
+        for _ in range(anotaciones_vis):
+            puntos_vis += 7 if random.random() < 0.75 else 3
+            
+        total_puntos_acumulados += (puntos_local + puntos_vis)
+        
+        if puntos_local > puntos_vis:
+            victorias_local += 1
+            
+    prob_local = (victorias_local / simulaciones) * 100.0
+    promedio_goles_partido = total_puntos_acumulados / simulaciones
+    return round(prob_local, 2), round(promedio_goles_partido, 1)
 
 
 # 🏀 MODELO DE DISTRIBUCIÓN NORMAL PARA HÁNDICAP NBA
@@ -265,11 +293,11 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 1. NFL
+# 1. NFL (ACTUALIZADO CON MONTE CARLO DE POSESIONES)
 # =========================================================
-if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)":
-    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Spread & Totales) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo Gaussiano de eficiencia y descanso aplicado a la NFL.*")
+if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)":
+    st.title(f"🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Simulación estocástica de series ofensivas y eficiencia en zona roja para la NFL.*")
     
     col1, col2 = st.columns(2)
     with col1: bankroll = st.number_input("💵 Bankroll NFL (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nfl")
@@ -284,34 +312,26 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totale
     else:
         for idx, op in enumerate(cartelera, 1):
             with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
-                mercado_nfl_eleccion = st.selectbox(
-                    "🎯 Selecciona el Mercado NFL a Auditar:",
-                    ["1️⃣ Hándicap / Spread de Puntos", "2️⃣ Total de Puntos del Partido (Over / Under O/U)", "3️⃣ Total de Puntos Primera Mitad (1H Over / Under)"],
-                    key=f"mercado_nfl_sel_{idx}"
-                )
+                
+                col_mc1, col_mc2 = st.columns(2)
+                with col_mc1:
+                    lam_pos_visita = st.number_input(f"Series Anotadoras Esperadas Visita ({op['visita']}):", 1.0, 8.0, 3.5, 0.1, key=f"nfl_lv_{idx}")
+                with col_mc2:
+                    lam_pos_local = st.number_input(f"Series Anotadoras Esperadas Local ({op['local']}):", 1.0, 8.0, 3.8, 0.1, key=f"nfl_ll_{idx}")
 
-                col_n1, col_n2, col_n3 = st.columns(3)
-                with col_n1:
-                    tipo_sel_nfl = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nfl_sel_eq_{idx}")
-                with col_n2:
-                    linea_nfl = st.text_input("Línea Casino:", value="-3.5" if "Spread" in mercado_nfl_eleccion else "45.5", key=f"nfl_linea_val_{idx}")
-                with col_n3:
-                    momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_val_{idx}")
+                tipo_sel_nfl = st.selectbox("Selección:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"nfl_sel_eq_{idx}")
+                momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_val_{idx}")
 
-                col_fa1, col_fa2 = st.columns(2)
-                with col_fa1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nfl_va_v_{idx}")
-                with col_fa2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nfl_da_d_{idx}")
+                # Ejecutando simulación Monte Carlo de 10,000 iteraciones
+                prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo(lam_pos_local, lam_pos_visita)
+                
+                if "Local" in tipo_sel_nfl:
+                    prob_mod = prob_local_mc
+                else:
+                    prob_mod = round(100.0 - prob_local_mc, 2)
 
-                col_fb1, col_fb2 = st.columns(2)
-                with col_fb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nfl_vb_v_{idx}")
-                with col_fb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nfl_db_d_{idx}")
-
-                col_fd1, col_fd2 = st.columns(2)
-                with col_fd1: descanso_a = st.number_input(f"Días Descanso Visita:", 0, 10, 6, key=f"nfl_desc_vis_{idx}")
-                with col_fd2: descanso_b = st.number_input(f"Días Descanso Local:", 0, 10, 6, key=f"nfl_desc_loc_{idx}")
-
-                prob_mod = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
-                st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_mod:.2f}%`**")
+                st.success(f"🤖 **Simulación Monte Carlo (10,000 iteraciones):** Probabilidad Local: `{prob_local_mc}%` | **Puntos Totales Esperados**: **`{puntos_esperados_mc}`**")
+                
                 prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
                 st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nfl:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_mod:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
@@ -717,7 +737,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Modelo Gaussiano especializado para béisbol de Grandes Ligas.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers", key="mlb_eq_vis")
@@ -747,7 +767,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (ACTUALIZADO CON EL AJUSTE DE PORTERO AUSENTE)
+# 11. NHL (EMPTY NET PRO)
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
     st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Empty Net Pro) [{fecha_formato_str}]**")
@@ -773,7 +793,6 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
                 with col_nh_l2:
                     lam_local_nhl = st.number_input(f"Goles Esperados Local ({op['local']}):", 0.5, 5.0, 3.10, 0.05, key=f"nhl_ll_{idx}")
 
-                # Aplicando el ajuste de Empty Net
                 lambda_total_base = lam_local_nhl + lam_visita_nhl
                 lambda_total_ajustado = ajustar_goles_totales_nhl(lambda_total_base)
 
@@ -783,7 +802,6 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
                 tipo_ou_nhl = st.selectbox("Selección Totales:", ["Over (Más de)", "Under (Menos de)"], key=f"nhl_tipo_ou_{idx}")
                 momio_nhl = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"nhl_m_val_{idx}")
 
-                # Probabilidad con Poisson usando el lambda ajustado
                 p_over_nhl = 1 - poisson.cdf(int(linea_ou_nhl), lambda_total_ajustado)
                 p_under_nhl = 1.0 - p_over_nhl
                 
@@ -927,7 +945,7 @@ else:
     lista_opciones_reales = []
     for ev in eventos_nfl_parlay: lista_opciones_reales.append(f"NFL: {ev['partido_str']} (Spread)")
     for ev in eventos_nba_parlay: lista_opciones_reales.append(f"NBA: {ev['partido_str']} (Spread)")
-    for ev in eventos_nhl_parlay: lista_opciones_reales.append(f"NHL: {ev['partido_str']}")
+    for ev in eventos_nhl_parlay: lista_opctions_reales.append(f"NHL: {ev['partido_str']}") if 'ev' in locals() else None
 
     if not lista_opciones_reales:
         lista_opciones_reales = [
