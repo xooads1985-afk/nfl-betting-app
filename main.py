@@ -7,11 +7,12 @@ import threading
 import time
 from datetime import timedelta
 from scipy.stats import poisson
+import scipy.stats as stats
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles Pro)",
-    page_icon="⚽",
+    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles & NBA Normal CDF)",
+    page_icon="🏀",
     layout="wide"
 )
 
@@ -64,7 +65,7 @@ modulo_seleccionado = st.sidebar.radio(
     [
         "🛡️ Sistema Cuantitativo Pro NFL (Spread & Totales O/U)",
         "🎯 Auditor Interactivo de Props NFL",
-        "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)",
+        "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
         "🔥 Auditor Interactivo de Props NBA",
         "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)",
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
@@ -109,11 +110,19 @@ def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, desca
     return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# ⚽ MATRIZ DIXON-COLES (Sustituye al Poisson clásico con corrección de empates bajos)
+# 🏀 MODELO DE DISTRIBUCIÓN NORMAL PARA HÁNDICAP NBA
+def calcular_probabilidad_handicap_nba(media_puntos_local, media_puntos_visitante, handicap_local, desviacion_estandar=11.5):
+    margen_esperado = media_puntos_local - media_puntos_visitante
+    punto_corte = -handicap_local
+    prob_local_cubre = 1 - stats.norm.cdf(punto_corte, loc=margen_esperado, scale=desviacion_estandar)
+    return round(prob_local_cubre * 100, 2)
+
+
+# ⚽ MATRIZ DIXON-COLES PRO
 def calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho=-0.12):
     prob_matriz = {}
-    for x in range(6):  # Goles local
-        for y in range(6):  # Goles visitante
+    for x in range(6):  
+        for y in range(6):  
             p_x = poisson.pmf(x, lambda_local)
             p_y = poisson.pmf(y, lambda_visitante)
             prob_base = p_x * p_y
@@ -140,7 +149,6 @@ def calcular_probabilidades_dixon_coles_dinamico(lambda_local, lambda_visitante,
     prob_under = 0.0
     prob_btts = 0.0
     
-    # Normalización de la matriz truncada 6x6
     suma_total = sum(matriz.values())
     if suma_total <= 0:
         suma_total = 1.0
@@ -343,11 +351,11 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA
+# 3. NBA (ACTUALIZADO CON DISTRIBUCIÓN NORMAL CDF)
 # =========================================================
-elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)":
-    st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Spread & Totales) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo Gaussiano con factor de fatiga de calendario para la NBA.*")
+elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
+    st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Distribución Normal) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Modelo de Distribución Normal (CDF) para calcular si los equipos cubren el Hándicap.*")
     
     col1, col2 = st.columns(2)
     with col1: bankroll_nba = st.number_input("💵 Bankroll NBA (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_nba")
@@ -362,36 +370,34 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales
     else:
         for idx, op in enumerate(cartelera_nba, 1):
             with st.expander(f"🏀 Encuentro #{idx}: {op['partido_str']}"):
-                mercado_nba_eleccion = st.selectbox(
-                    "🎯 Selecciona el Mercado NBA a Auditar:",
-                    ["1️⃣ Hándicap / Spread de Puntos", "2️⃣ Total de Puntos del Partido (Over / Under O/U)", "3️⃣ Total de Puntos por Mitad / Cuarto", "4️⃣ Total de Puntos Individual por Equipo"],
-                    key=f"mercado_nba_sel_{idx}"
-                )
-
+                
                 col_n1, col_n2, col_n3 = st.columns(3)
                 with col_n1:
-                    tipo_sel_nba = st.selectbox("Selección:", [f"Visitante ({op['visita']})", f"Local ({op['local']})"], key=f"nba_sel_eq_{idx}")
+                    media_local = st.number_input(f"Media Puntos Local ({op['local']}):", 80.0, 140.0, 114.5, 0.5, key=f"nba_ml_{idx}")
                 with col_n2:
-                    linea_nba = st.text_input("Línea Casino:", value="-4.5" if "Spread" in mercado_nba_eleccion else "224.5", key=f"nba_linea_val_{idx}")
+                    media_visita = st.number_input(f"Media Puntos Visita ({op['visita']}):", 80.0, 140.0, 111.0, 0.5, key=f"nba_mv_{idx}")
                 with col_n3:
+                    desv_est = st.number_input("Desviación Estándar (NBA):", 5.0, 20.0, 11.5, 0.5, key=f"nba_desv_{idx}")
+
+                col_h1, col_h2, col_h3 = st.columns(3)
+                with col_h1:
+                    tipo_apuesta_nba = st.selectbox("Selección Hándicap:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"nba_ap_{idx}")
+                with col_h2:
+                    handicap_val = st.number_input("Línea Hándicap Local (Ej. -4.5 o +4.5):", -25.0, 25.0, -4.5, 0.5, key=f"nba_han_{idx}")
+                with col_h3:
                     momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_val_{idx}")
 
-                col_va1, col_va2 = st.columns(2)
-                with col_va1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nba_va_v_{idx}")
-                with col_va2: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nba_da_d_{idx}")
+                # Cálculo usando la función de Distribución Normal exacta
+                prob_local_cubre = calcular_probabilidad_handicap_nba(media_local, media_visita, handicap_val, desv_est)
+                
+                if "Local" in tipo_apuesta_nba:
+                    prob_modelo_nba = prob_local_cubre
+                else:
+                    prob_modelo_nba = round(100.0 - prob_local_cubre, 2)
 
-                col_vb1, col_vb2 = st.columns(2)
-                with col_vb1: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nba_vb_v_{idx}")
-                with col_vb2: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nba_db_d_{idx}")
-
-                col_nd1, col_nd2 = st.columns(2)
-                with col_nd1: descanso_a = st.number_input(f"Días Descanso Visita (0 = B2B):", 0, 10, 0, key=f"nba_desc_vis_{idx}")
-                with col_nd2: descanso_b = st.number_input(f"Días Descanso Local (0 = B2B):", 0, 10, 2, key=f"nba_desc_loc_{idx}")
-
-                prob_nba = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False)
-                st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_nba:.2f}%`**")
-                prob_imp, edge = calcular_edge_real(momio_nba, prob_nba)
-                st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nba:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                st.success(f"🤖 **Probabilidad Real (Modelo Normal CDF):** **`{prob_modelo_nba:.2f}%`**")
+                prob_imp, edge = calcular_edge_real(momio_nba, prob_modelo_nba)
+                st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nba:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_modelo_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
 
                 if momio_nba < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_nba: st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
@@ -436,7 +442,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (DIXON-COLES INTEGRADO)
+# 5. FÚTBOL (DIXON-COLES PRO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles & Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
@@ -462,7 +468,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                st.markdown("### 🧬 Estadísticas L5 (Victorias - Empates - Derrotas) & Goles Esperados ($\lambda, \mu$) & Rho ($\rho$) Dixon-Coles")
+                st.markdown("### 🧬 Estadísticas L5 (V-E-D) & Goles Esperados ($\lambda, \mu$) & Rho ($\rho$) Dixon-Coles")
                 col_ved1, col_ved2 = st.columns(2)
                 with col_ved1:
                     st.markdown(f"**Visitante: `{op['visita']}`**")
@@ -831,7 +837,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
             id_partid = st.text_input("ID / Partido:", value="Real Madrid vs Barcelona")
             eq_loc = st.text_input("Equipo Local:", value="Real Madrid")
             eq_vis = st.text_input("Equipo Visitante:", value="Barcelona")
-            prob_pois = st.slider("Probabilidad del Modelo (Dixon-Coles/Gaussiano):", 0.0, 1.0, 0.58, 0.01)
+            prob_pois = st.slider("Probabilidad del Modelo:", 0.0, 1.0, 0.58, 0.01)
         with col_f_2:
             cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.95, 0.01)
             cuota_cier = st.number_input("Cuota Cierre Casa (Decimal - Previo al juego):", 1.01, 10.0, 1.85, 0.01)
