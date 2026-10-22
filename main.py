@@ -6,11 +6,12 @@ import streamlit as st
 import threading
 import time
 from datetime import timedelta
+from scipy.stats import poisson
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Pro Risk, CLV & Automations)",
-    page_icon="🛡️",
+    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles Pro)",
+    page_icon="⚽",
     layout="wide"
 )
 
@@ -18,22 +19,14 @@ st.set_page_config(
 # HILO EN SEGUNDO PLANO PARA CAPTURA AUTOMÁTICA DE CLV
 # ---------------------------------------------------------
 def hilo_captura_clv(base_datos, api_deportiva):
-    """
-    Este bucle corre eternamente en segundo plano sin detener tu software principal.
-    """
     print("[INFO] Hilo secundario de monitoreo CLV iniciado.")
-    
     while True:
         try:
             ahora = datetime.now()
             margen_tiempo = ahora + timedelta(minutes=2)
-            
-            # Nota: Aquí se conectará a tus métodos reales de base de datos y API
             apuestas_proximas = base_datos.obtener_apuestas_sin_clv(desde=ahora, hasta=margen_tiempo)
-            
             for apuesta in apuestas_proximas:
                 cuota_cierre_real = api_deportiva.obtener_cuota_actual(apuesta['id_partido'])
-                
                 if cuota_cierre_real:
                     clv_positivo = apuesta['cuota_comprada'] > cuota_cierre_real
                     base_datos.actualizar_clv_apuesta(
@@ -42,16 +35,11 @@ def hilo_captura_clv(base_datos, api_deportiva):
                         clv_positivo=clv_positivo
                     )
                     print(f"[CLV CONTROL] Partido {apuesta['id_partido']} cerrado. ¿Éxito CLV?: {clv_positivo}")
-                    
         except Exception as e:
             print(f"[ERROR HILO CLV] Fallo en la captura: {e}")
-            
         time.sleep(60)
 
-# Inicialización segura del hilo de fondo para que corra una sola vez
 if 'hilo_clv_iniciado' not in st.session_state:
-    # t = threading.Thread(target=hilo_captura_clv, args=(mi_bd, mi_api), daemon=True)
-    # t.start()
     st.session_state['hilo_clv_iniciado'] = True
 
 
@@ -78,7 +66,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Spread & Totales O/U)",
         "🔥 Auditor Interactivo de Props NBA",
-        "⚽ Módulo Global de Fútbol (Poisson Dinámico, BTTS & Hándicap Asiático)",
+        "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)",
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 NCAA (Robot Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
@@ -121,28 +109,53 @@ def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, desca
     return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-def poisson_prob(lmbda, k):
-    if lmbda <= 0:
-        return 1.0 if k == 0 else 0.0
-    return (math.exp(-lmbda) * (lmbda ** k)) / math.factorial(k)
+# ⚽ MATRIZ DIXON-COLES (Sustituye al Poisson clásico con corrección de empates bajos)
+def calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho=-0.12):
+    prob_matriz = {}
+    for x in range(6):  # Goles local
+        for y in range(6):  # Goles visitante
+            p_x = poisson.pmf(x, lambda_local)
+            p_y = poisson.pmf(y, lambda_visitante)
+            prob_base = p_x * p_y
+            
+            if x == 0 and y == 0:
+                tau = 1 - (lambda_local * lambda_visitante * rho)
+            elif x == 1 and y == 0:
+                tau = 1 + (lambda_visitante * rho)
+            elif x == 0 and y == 1:
+                tau = 1 + (lambda_local * rho)
+            elif x == 1 and y == 1:
+                tau = 1 - rho
+            else:
+                tau = 1.0
+                
+            prob_matriz[(x, y)] = max(0.0, prob_base * tau)
+            
+    return prob_matriz
 
 
-def calcular_probabilidades_poisson_dinamico(lambda_local, lambda_visita, linea_objetivo=2.5, max_goles=7):
+def calcular_probabilidades_dixon_coles_dinamico(lambda_local, lambda_visitante, linea_objetivo=2.5, rho=-0.12):
+    matriz = calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho)
     prob_over = 0.0
     prob_under = 0.0
     prob_btts = 0.0
-    for g_loc in range(max_goles + 1):
-        for g_vis in range(max_goles + 1):
-            p = poisson_prob(lambda_local, g_loc) * poisson_prob(lambda_visita, g_vis)
-            total_goles = g_loc + g_vis
+    
+    # Normalización de la matriz truncada 6x6
+    suma_total = sum(matriz.values())
+    if suma_total <= 0:
+        suma_total = 1.0
+
+    for (g_loc, g_vis), p in matriz.items():
+        p_norm = p / suma_total
+        total_goles = g_loc + g_vis
+        
+        if total_goles > linea_objetivo:
+            prob_over += p_norm
+        else:
+            prob_under += p_norm
             
-            if total_goles > linea_objetivo:
-                prob_over += p
-            else:
-                prob_under += p
-                
-            if g_loc > 0 and g_vis > 0:
-                prob_btts += p
+        if g_loc > 0 and g_vis > 0:
+            prob_btts += p_norm
 
     return round(prob_over * 100, 2), round(prob_under * 100, 2), round(prob_btts * 100, 2)
 
@@ -423,11 +436,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL
+# 5. FÚTBOL (DIXON-COLES INTEGRADO)
 # =========================================================
-elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, BTTS & Hándicap Asiático)":
-    st.title(f"⚽ **Cazador de Goles, Minas de Oro & Hándicap Asiático — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Poisson Dinámico completo integrado con desgloses V-E-D y Hándicaps Asiáticos por equipo.*")
+elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
+    st.title(f"⚽ **Cazador de Goles & Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
+    st.markdown("--- \n *Modelo avanzado de Dixon-Coles con corrección de empates bajos, BTTS y Hándicaps Asiáticos.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -441,7 +454,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
 
     cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
     st.markdown("---")
-    st.subheader("📋 Cartelera Real & Simulación de Poisson con Hándicap")
+    st.subheader("📋 Cartelera Real & Simulación Dixon-Coles")
 
     if not cartelera_soccer:
         st.info(f"ℹ️ No se encontraron partidos programados en la API para esta liga en la fecha `{fecha_formato_str}`.")
@@ -449,7 +462,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
         for idx, op in enumerate(cartelera_soccer, 1):
             with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
                 
-                st.markdown("### 🧬 Estadísticas L5 (Victorias - Empates - Derrotas) & Goles Esperados")
+                st.markdown("### 🧬 Estadísticas L5 (Victorias - Empates - Derrotas) & Goles Esperados ($\lambda, \mu$) & Rho ($\rho$) Dixon-Coles")
                 col_ved1, col_ved2 = st.columns(2)
                 with col_ved1:
                     st.markdown(f"**Visitante: `{op['visita']}`**")
@@ -464,12 +477,14 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     d_b = st.number_input("Derrotas L5:", 0, 5, 1, key=f"soccer_db_{idx}")
                     lam_local = st.number_input(f"Goles Esperados Local ($\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
 
-                p_over_15, p_under_15, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 1.5)
-                p_over_25, p_under_25, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 2.5)
-                p_over_35, p_under_35, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 3.5)
+                rho_val = st.slider("Parámetro de Correlación Dixon-Coles ($\\rho$):", -0.30, 0.0, -0.12, 0.01, key=f"rho_val_{idx}")
+
+                p_over_15, p_under_15, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 1.5, rho_val)
+                p_over_25, p_under_25, p_btts = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 2.5, rho_val)
+                p_over_35, p_under_35, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 3.5, rho_val)
 
                 st.markdown("---")
-                st.info(f"📊 **Matriz Automática del Modelo de Poisson Dinámico:**\n"
+                st.info(f"📊 **Matriz Automática del Modelo Dixon-Coles Pro:**\n"
                         f"• **Over / Under 1.5 Goles**: Over `{p_over_15}%` | Under `{p_under_15}%`\n"
                         f"• **Over / Under 2.5 Goles**: Over `{p_over_25}%` | Under `{p_under_25}%`\n"
                         f"• **Over / Under 3.5 Goles**: Over `{p_over_35}%` | Under `{p_under_35}%`\n"
@@ -480,7 +495,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                 
                 mercado_soccer_tipo = st.selectbox(
                     "Selecciona el Mercado de Fútbol a Auditar:",
-                    ["Total de Goles (Over / Under Dinámico)", "Ambos Equipos Anotan (BTTS)", "Hándicap Asiático / Spread por Equipo"],
+                    ["Total de Goles (Over / Under Dixon-Coles)", "Ambos Equipos Anotan (BTTS)", "Hándicap Asiático / Spread por Equipo"],
                     key=f"soccer_mercado_tipo_{idx}"
                 )
 
@@ -489,7 +504,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     with col_tg1: linea_elegida = st.selectbox("Línea de Goles O/U:", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"soccer_linea_{idx}")
                     with col_tg2: tipo_ou = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)"], key=f"soccer_ou_sel_{idx}")
                     
-                    p_over_din, p_under_din, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida)
+                    p_over_din, p_under_din, _ = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida, rho=rho_val)
                     prob_modelo_final = p_over_din if "Over" in tipo_ou else p_under_din
                     nombre_auditoria = f"Over/Under {linea_elegida} ({tipo_ou})"
 
@@ -816,7 +831,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
             id_partid = st.text_input("ID / Partido:", value="Real Madrid vs Barcelona")
             eq_loc = st.text_input("Equipo Local:", value="Real Madrid")
             eq_vis = st.text_input("Equipo Visitante:", value="Barcelona")
-            prob_pois = st.slider("Probabilidad del Modelo (Poisson/Gaussiano):", 0.0, 1.0, 0.58, 0.01)
+            prob_pois = st.slider("Probabilidad del Modelo (Dixon-Coles/Gaussiano):", 0.0, 1.0, 0.58, 0.01)
         with col_f_2:
             cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.95, 0.01)
             cuota_cier = st.number_input("Cuota Cierre Casa (Decimal - Previo al juego):", 1.01, 10.0, 1.85, 0.01)
