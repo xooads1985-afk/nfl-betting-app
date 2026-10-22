@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Poisson & Hándicap Asiático)",
+    page_title="Central de Apuestas Pro - Master Suite (Poisson & Hándicap Asiático Pro)",
     page_icon="🛡️",
     layout="wide"
 )
@@ -346,11 +346,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (Poisson Dinámico, BTTS, Hándicaps Asiáticos & V-E-D)
+# 5. FÚTBOL (Poisson Dinámico Completo, BTTS, Hándicaps & V-E-D)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles, Minas de Oro & Hándicap Asiático — Fútbol Pro [{fecha_formato_str}]**")
-    st.markdown("--- \n *Poisson Dinámico integrado con desgloses V-E-D y Hándicaps Asiáticos por equipo.*")
+    st.markdown("--- \n *Poisson Dinámico completo integrado con desgloses V-E-D y Hándicaps Asiáticos por equipo.*")
     
     liga_soccer = st.selectbox(
         "🌍 Selecciona la Liga o Torneo de Fútbol:",
@@ -388,8 +388,20 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     d_b = st.number_input("Derrotas L5:", 0, 5, 1, key=f"soccer_db_{idx}")
                     lam_local = st.number_input(f"Goles Esperados Local ($\\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
 
+                # Cálculo automático de la matriz de Poisson para las líneas principales para mostrarlas en pantalla
+                p_over_15, p_under_15, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 1.5)
+                p_over_25, p_under_25, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 2.5)
+                p_over_35, p_under_35, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, 3.5)
+
                 st.markdown("---")
-                st.markdown("### 🎯 Configuración del Mercado de Apuesta (Poisson & Hándicap Asiático)")
+                st.info(f"📊 **Matriz Automática del Modelo de Poisson Dinámico:**\n"
+                        f"• **Over / Under 1.5 Goles**: Over `{p_over_15}%` | Under `{p_under_15}%`\n"
+                        f"• **Over / Under 2.5 Goles**: Over `{p_over_25}%` | Under `{p_under_25}%`\n"
+                        f"• **Over / Under 3.5 Goles**: Over `{p_over_35}%` | Under `{p_under_35}%`\n"
+                        f"• **Ambos Equipos Anotan (BTTS)**: Sí `{p_btts}%`")
+
+                st.markdown("---")
+                st.markdown("### 🎯 Configuración del Mercado de Apuesta Específico")
                 
                 mercado_soccer_tipo = st.selectbox(
                     "Selecciona el Mercado de Fútbol a Auditar:",
@@ -402,12 +414,11 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     with col_tg1: linea_elegida = st.selectbox("Línea de Goles O/U:", [1.5, 2.5, 3.5, 0.5, 4.5], index=1, key=f"soccer_linea_{idx}")
                     with col_tg2: tipo_ou = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)"], key=f"soccer_ou_sel_{idx}")
                     
-                    p_over, p_under, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida)
-                    prob_modelo_final = p_over if "Over" in tipo_ou else p_under
+                    p_over_din, p_under_din, _ = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=linea_elegida)
+                    prob_modelo_final = p_over_din if "Over" in tipo_ou else p_under_din
                     nombre_auditoria = f"Over/Under {linea_elegida} ({tipo_ou})"
 
                 elif "Ambos Equipos Anotan" in mercado_soccer_tipo:
-                    p_over, p_under, p_btts = calcular_probabilidades_poisson_dinamico(lam_local, lam_visita, linea_objetivo=2.5)
                     prob_modelo_final = p_btts
                     nombre_auditoria = "Ambos Equipos Anotan (BTTS Sí)"
 
@@ -416,7 +427,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Poisson Dinámico, B
                     with col_ha1: equipo_ha = st.selectbox("Selección Hándicap Asiático:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"soccer_ha_eq_{idx}")
                     with col_ha2: linea_ha = st.selectbox("Línea Hándicap Asiático:", [-0.25, -0.5, -0.75, -1.0, +0.25, +0.5, +0.75, +1.0], index=1, key=f"soccer_ha_lin_{idx}")
                     
-                    # Ponderación cuantitativa basada en la diferencia de forma V-E-D ponderada por puntos y goles esperados
                     puntos_forma_a = (v_a * 3) + e_a
                     puntos_forma_b = (v_b * 3) + e_b
                     dif_goles_esp = (lam_local - lam_visita) * 12.0
