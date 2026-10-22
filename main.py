@@ -282,7 +282,7 @@ def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
 def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
     url = f"https://site.api.espn.com/apis/site/v2/sports/{deporte}/{liga}/scoreboard?dates={fecha_str_api}&limit=20"
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=2) # <--- Timeout blindado a 2 segundos
         if response.status_code == 200:
             data = response.json()
             eventos = data.get("events", [])
@@ -312,7 +312,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
     url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}&limit=20"
     combates_extraidos = []
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=2) # <--- Timeout blindado a 2 segundos
         if response.status_code == 200:
             data = response.json()
             eventos = data.get("events", [])
@@ -401,7 +401,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
     st.subheader("📋 Resultados del Radar de Valor")
     
     if 'resultado_escaneo' in st.session_state and st.session_state['resultado_escaneo']:
-        st.success(f"🎯 ¡Se encontraron **{len(st.session_state['resultado_escaneo Española'] if 'resultado_escaneo' in st.session_state else 0)}** oportunidades con valor real (+EV)!")
+        st.success(f"🎯 ¡Se encontraron **{len(st.session_state['resultado_escaneo'])}** oportunidades con valor real (+EV)!")
         for item in st.session_state['resultado_escaneo']:
             with st.container():
                 st.markdown(f"**{item['deporte']}** | `{item['partido']}`")
