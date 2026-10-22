@@ -238,9 +238,6 @@ def modulo_control_riesgo(historial_apuestas, bankroll_actual, stake_sugerido_ke
 
 # 📝 FUNCIÓN DE DIAGNÓSTICO Y REPORTE DE PRUEBAS
 def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
-    """
-    Guarda un diagnóstico de rendimiento en un archivo de texto fácil de leer en el móvil.
-    """
     total_apuestas = len(historial_apuestas)
     if total_apuestas == 0:
         return "No hay apuestas registradas en el historial para auditar."
@@ -365,7 +362,12 @@ if modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de 
                     lam_pos_local = st.number_input(f"Series Anotadoras Esperadas Local ({op['local']}):", 1.0, 8.0, 3.8, 0.1, key=f"nfl_ll_{idx}")
 
                 tipo_sel_nfl = st.selectbox("Selección:", [f"Local ({op['local']})", f"Visitante ({op['visita']})"], key=f"nfl_sel_eq_{idx}")
-                momio_nfl = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nfl_m_val_{idx}")
+                
+                momio_nfl_str = st.text_input("📈 Momio Casino (Americano):", value="-110", key=f"nfl_m_txt_{idx}")
+                try:
+                    momio_nfl = int(momio_nfl_str)
+                except ValueError:
+                    momio_nfl = -110
 
                 prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo(lam_pos_local, lam_pos_visita)
                 
@@ -405,7 +407,12 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
             with st.expander(f"🎯 Prop NFL: {op['partido_str']}"):
                 jugador = st.text_input("Jugador:", value="Patrick Mahomes", key=f"nfl_prop_j_{idx}")
                 mercado = st.text_input("Mercado:", value="Yardas de Pase Over 265.5", key=f"nfl_prop_m_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nfl_prop_mom_{idx}")
+                
+                momio_str = st.text_input("📈 Momio Casino:", value="-115", key=f"nfl_prop_mom_txt_{idx}")
+                try:
+                    momio = int(momio_str)
+                except ValueError:
+                    momio = -115
                 
                 col_pj1, col_pj2 = st.columns(2)
                 with col_pj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_prop_c_{idx}")
@@ -456,7 +463,11 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
                 with col_h2:
                     handicap_val = st.number_input("Línea Hándicap Local (Ej. -4.5 o +4.5):", -25.0, 25.0, -4.5, 0.5, key=f"nba_han_{idx}")
                 with col_h3:
-                    momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_val_{idx}")
+                    momio_nba_str = st.text_input("📈 Momio Casino (Americano):", value="-110", key=f"nba_m_txt_{idx}")
+                    try:
+                        momio_nba = int(momio_nba_str)
+                    except ValueError:
+                        momio_nba = -110
 
                 prob_local_cubre = calcular_probabilidad_handicap_nba(media_local, media_visita, handicap_val, desv_est)
                 
@@ -495,7 +506,12 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
             with st.expander(f"🔥 Prop NBA: {op['partido_str']}"):
                 jugador = st.text_input("Jugador:", value="LeBron James", key=f"nba_prop_j_{idx}")
                 mercado = st.text_input("Mercado:", value="Puntos Totales Over 24.5", key=f"nba_prop_m_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nba_prop_mom_{idx}")
+                
+                momio_str = st.text_input("📈 Momio Casino:", value="-115", key=f"nba_prop_mom_txt_{idx}")
+                try:
+                    momio = int(momio_str)
+                except ValueError:
+                    momio = -115
                 
                 col_nj1, col_nj2 = st.columns(2)
                 with col_nj1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nba_prop_c_{idx}")
@@ -512,7 +528,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (DIXON-COLES PRO - RHO FIJO -0.12 CON MOMIO DE TEXTO)
+# 5. FÚTBOL (DIXON-COLES PRO - RHO FIJO -0.12)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
     st.title(f"⚽ **Cazador de Goles & Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
@@ -649,7 +665,11 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
                 jugador_input = st.text_input(f"Nombre del Jugador #{i}:", value="Kylian Mbappé" if i==1 else "Erling Haaland", key=f"soccer_prop_j_{i}")
                 mercado_input = st.text_input(f"Mercado / Línea #{i}:", value="Tiros a Puerta Over 1.5", key=f"soccer_prop_m_{i}")
             with col_pr2:
-                momio_prop = st.number_input(f"📈 Momio Casino (Americano) #{i}:", value=-115, step=5, key=f"soccer_prop_mom_{i}")
+                momio_prop_str = st.text_input(f"📈 Momio Casino (Americano) #{i}:", value="-115", key=f"soccer_prop_mom_txt_{i}")
+                try:
+                    momio_prop = int(momio_prop_str)
+                except ValueError:
+                    momio_prop = -115
                 
             col_pf1, col_pf2 = st.columns(2)
             with col_pf1: cumple = st.number_input(f"Partidos cumpliendo línea (L5) #{i}:", 0, 5, 3, key=f"soccer_prop_c_{i}")
@@ -672,7 +692,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     st.markdown("--- \n *Modelo Gaussiano aplicado al fútbol americano universitario.*")
     col_nc1, col_nc2 = st.columns(2)
     with col_nc1: bankroll_ncaa = st.number_input("💵 Bankroll NCAA (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_ncaa")
-    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_ncaa")
+    with col_nc2: edge_min_ncaa = st.slider("🎯 Edge Mínimo NCAA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_ncaa")
 
     cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -683,7 +703,11 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
     else:
         for idx, op in enumerate(cartelera_ncaa, 1):
             with st.expander(f"🎓 {op['partido_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"ncaa_m_val_{idx}")
+                momio_str = st.text_input("📈 Momio Casino:", value="-110", key=f"ncaa_m_txt_{idx}")
+                try:
+                    momio = int(momio_str)
+                except ValueError:
+                    momio = -110
                 
                 col_na1, col_na2 = st.columns(2)
                 with col_na1: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_va_v_{idx}")
@@ -722,7 +746,11 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     else:
         for idx, op in enumerate(cartelera_ufc, 1):
             with st.expander(f"🥊 {op['evento_str']} — {op['combate_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=-120, step=5, key=f"ufc_m_val_{idx}")
+                momio_str = st.text_input("📈 Momio Casino:", value="-120", key=f"ufc_m_txt_{idx}")
+                try:
+                    momio = int(momio_str)
+                except ValueError:
+                    momio = -120
                 
                 col_u1, col_u2 = st.columns(2)
                 with col_u1: racha_p1 = st.slider(f"Racha Victorias (Peleador 1):", 0, 5, 3, key=f"ufc_p1_{idx}")
@@ -757,7 +785,12 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
     col_p1, col_p2 = st.columns(2)
     with col_p1: seleccion_apuesta = st.selectbox("🎯 Selección con Run Line:", [f"{equipo_visita} (-1.5)", f"{equipo_local} (-1.5)", f"{equipo_visita} (+1.5)", f"{equipo_local} (+1.5)"], key="lmp_sel_ap")
-    with col_p2: momio_lmp = st.number_input("📈 Momio Americano Oficial:", value=130, step=5, key="momio_lmp_val")
+    with col_p2:
+        momio_lmp_str = st.text_input("📈 Momio Americano Oficial:", value="+130", key="momio_lmp_txt")
+        try:
+            momio_lmp = int(momio_lmp_str)
+        except ValueError:
+            momio_lmp = 130
 
     col_lm1, col_lm2 = st.columns(2)
     with col_lm1: v_a = st.number_input(f"Victorias L5 ({equipo_visita}):", 0, 5, 3, key="lmp_va_v")
@@ -794,250 +827,13 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     col_mm1, col_mm2, col_mm3 = st.columns(3)
     with col_mm1: mercado_mlb = st.selectbox("Mercado Principal:", ["Run Line (-1.5)", "Money Line (Ganador)", "Total de Carreras (Over/Under)"], key="mlb_merc_sel")
     with col_mm2: seleccion_mlb = st.text_input("Selección Específica:", value="Los Angeles Dodgers (+1.5)", key="mlb_sel_esp")
-    with col_mm3: momio_mlb = st.number_input("📈 Momio Americano Oficial:", value=-120, step=5, key="momio_mlb_val")
+    with col_mm3:
+        momio_mlb_str = st.text_input("📈 Momio Americano Oficial:", value="-120", key="momio_mlb_txt")
+        try:
+            momio_mlb = int(momio_mlb_str)
+        except ValueError:
+            momio_mlb = -120
 
     col_mb1, col_mb2 = st.columns(2)
     with col_mb1: v_a = st.number_input(f"Victorias L5 ({equipo_mlb_visita}):", 0, 5, 3, key="mlb_va_v")
-    with col_mb2: d_a = st.number_input(f"Derrotas L5 ({equipo_mlb_visita}):", 0, 5, 2, key="mlb_da_d")
-
-    col_mb3, col_mb4 = st.columns(2)
-    with col_mb3: v_b = st.number_input(f"Victorias L5 ({equipo_mlb_local}):", 0, 5, 3, key="mlb_vb_v")
-    with col_mb4: d_b = st.number_input(f"Derrotas L5 ({equipo_mlb_local}):", 0, 5, 2, key="mlb_db_d")
-    
-    prob_modelo_mlb = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
-    st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob_modelo_mlb:.2f}%`**")
-    prob_imp_mlb, edge_mlb = calcular_edge_real(momio_mlb, prob_modelo_mlb)
-    st.info(f"📊 **Edge Calculado:** Implícita (`{momio_mlb:+}`): `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge Neto: **`{edge_mlb:+.2f}%`**")
-
-    if momio_mlb < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-    elif edge_mlb >= edge_min_mlb: st.success(f"✅ Aprobado MLB (+EV). Edge: `{edge_mlb:+.2f}%`")
-    else: st.warning(f"⚠️ Sin Edge suficiente (`{edge_mlb:+.2f}%`).")
-
-
-# =========================================================
-# 11. NHL (EMPTY NET PRO)
-# =========================================================
-elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
-    st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Empty Net Pro) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo de Poisson ajustado con el factor histórico de goles en portería vacía para la NHL.*")
-    
-    col_nh1, col_nh2 = st.columns(2)
-    with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
-    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
-
-    cartelera_nhl = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
-    st.markdown("---")
-    st.subheader("📊 Partidos en Cartelera NHL")
-
-    if not cartelera_nhl:
-        st.info(f"ℹ️ No hay partidos de la NHL registrados en la API para la fecha `{fecha_formato_str}`.")
-    else:
-        for idx, op in enumerate(cartelera_nhl, 1):
-            with st.expander(f"🏒 {op['partido_str']}"):
-                
-                col_nh_l1, col_nh_l2 = st.columns(2)
-                with col_nh_l1:
-                    lam_visita_nhl = st.number_input(f"Goles Esperados Visita ({op['visita']}):", 0.5, 5.0, 2.75, 0.05, key=f"nhl_lv_{idx}")
-                with col_nh_l2:
-                    lam_local_nhl = st.number_input(f"Goles Esperados Local ({op['local']}):", 0.5, 5.0, 3.10, 0.05, key=f"nhl_ll_{idx}")
-
-                lambda_total_base = lam_local_nhl + lam_visita_nhl
-                lambda_total_ajustado = ajustar_goles_totales_nhl(lambda_total_base)
-
-                st.info(f"🥅 **Ajuste de Portero Ausente (Empty Net):** Lambda Base: `{lambda_total_base:.2f}` | **Lambda Ajustado con +0.23**: **`{lambda_total_ajustado:.2f}`**")
-
-                linea_ou_nhl = st.selectbox("Línea de Goles O/U:", [5.5, 6.0, 6.5, 7.0], index=1, key=f"nhl_linea_ou_{idx}")
-                tipo_ou_nhl = st.selectbox("Selección Totales:", ["Over (Más de)", "Under (Menos de)"], key=f"nhl_tipo_ou_{idx}")
-                momio_nhl = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"nhl_m_val_{idx}")
-
-                p_over_nhl = 1 - poisson.cdf(int(linea_ou_nhl), lambda_total_ajustado)
-                p_under_nhl = 1.0 - p_over_nhl
-                
-                prob_modelo_nhl = round((p_over_nhl if "Over" in tipo_ou_nhl else p_under_nhl) * 100, 2)
-
-                st.success(f"🤖 **Probabilidad Real del Modelo (Empty Net Pro):** **`{prob_modelo_nhl:.2f}%`**")
-                prob_imp, edge = calcular_edge_real(momio_nhl, prob_modelo_nhl)
-                st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nhl:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_modelo_nhl:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
-
-                if momio_nhl < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_nhl: st.success(f"✅ Aprobado NHL (+EV). Edge: `{edge:+.2f}%`")
-                else: st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
-
-
-# =========================================================
-# 12. Props NHL
-# =========================================================
-elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
-    st.title(f"🏒 **Props Automáticos NHL ({fecha_formato_str})**")
-    st.markdown("--- \n *Rendimiento individual de jugadores de hockey.*")
-    col_pnh1, col_pnh2 = st.columns(2)
-    with col_pnh1: bankroll_props_nhl = st.number_input("💵 Bankroll Props NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_props_nhl")
-    with col_pnh2: edge_min_props_nhl = st.slider("🎯 Edge Mínimo Props NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nhl")
-
-    cartelera_nhl_hoy = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
-    st.markdown("---")
-    st.subheader("📊 Auditoría de Props NHL")
-
-    if not cartelera_nhl_hoy:
-        st.info(f"ℹ️ No hay partidos de NHL para la fecha `{fecha_formato_str}`.")
-    else:
-        for idx, op in enumerate(cartelera_nhl_hoy, 1):
-            with st.expander(f"🏒 Prop NHL: {op['partido_str']}"):
-                jugador = st.text_input("Jugador:", value="Connor McDavid", key=f"nhl_prop_j_{idx}")
-                mercado = st.text_input("Mercado:", value="Puntos Totales Over 1.5", key=f"nhl_prop_m_{idx}")
-                momio = st.number_input("📈 Momio Casino:", value=-115, step=5, key=f"nhl_prop_mom_{idx}")
-                
-                col_njh1, col_njh2 = st.columns(2)
-                with col_njh1: cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nhl_prop_c_{idx}")
-                with col_njh2: no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nhl_prop_nc_{idx}")
-                
-                prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
-                st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
-                prob_imp, edge = calcular_edge_real(momio, prob)
-                st.info(f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
-
-                if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-                elif edge >= edge_min_props_nhl: st.success(f"✅ Aprobado Prop NHL (+EV). Edge: `{edge:+.2f}%`")
-                else: st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
-
-
-# =========================================================
-# 13. Analítica, Control de Bankroll & Registro CLV (CON REPORTE TXT)
-# =========================================================
-elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
-    st.title("📊 **Panel de Analítica, Gestión de Bankroll & Registro CLV**")
-    st.markdown("--- \n *Control financiero, simulador de riesgo y auditoría de Closing Line Value (CLV).*")
-    
-    col_b1, col_b2, col_b3 = st.columns(3)
-    with col_b1: st.metric(label="💰 Bankroll Global Actual", value="$15,250.00 MXN", delta="+11.2%")
-    with col_b2: st.metric(label="🎯 Efectividad Global (Win Rate)", value="65.5%", delta="-2.9%")
-    with col_b3: st.metric(label="📈 Unidades Ganadas (Units)", value="+7.2 U", delta="-1.0 U")
-
-    st.markdown("---")
-    st.subheader("📝 Registro y Auditoría de Apuesta Pro (Estructura CLV)")
-    
-    # Inicializar historial en session_state si no existe
-    if 'historial_global_apuestas' not in st.session_state:
-        st.session_state['historial_global_apuestas'] = [
-            {"resultado": "ganada", "clv_positivo": True, "edge_neto": 15.63},
-            {"resultado": "ganada", "clv_positivo": True, "edge_neto": 9.99}
-        ]
-
-    with st.form("form_nueva_apuesta"):
-        col_f_1, col_f_2 = st.columns(2)
-        with col_f_1:
-            id_partid = st.text_input("ID / Partido:", value="OFI Creta vs Bayer Leverkusen")
-            eq_loc = st.text_input("Equipo Local:", value="OFI Creta")
-            eq_vis = st.text_input("Equipo Visitante:", value="Bayer Leverkusen")
-            edge_ingresado = st.number_input("Edge Neto Calculado (%):", 0.0, 30.0, 15.63, 0.1)
-        with col_f_2:
-            cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.88, 0.01)
-            cuota_cier = st.number_input("Cuota Cierre Casa (Decimal):", 1.01, 10.0, 1.75, 0.01)
-            stake_inv = st.number_input("Stake Invertido (MXN):", 10.0, 10000.0, 150.0, 10.0)
-            res_ap = st.selectbox("Resultado Final:", ["ganada", "perdida", "devuelta"])
-
-        submitted = st.form_submit_button("💾 Registrar y Validar CLV de la Apuesta")
-        if submitted:
-            clv_exito = cuota_comp > cuota_cier
-            nueva_apuesta = {
-                "id_partido": id_partid,
-                "equipo_local": eq_loc,
-                "equipo_visitante": eq_vis,
-                "cuota_comprada": cuota_comp,
-                "stake_invertido": stake_inv,
-                "cuota_cierre_casa": cuota_cier,
-                "clv_positivo": clv_exito,
-                "resultado": res_ap,
-                "edge_neto": edge_ingresado
-            }
-            st.session_state['historial_global_apuestas'].append(nueva_apuesta)
-            st.success(f"✅ ¡Apuesta registrada exitosamente para `{id_partid}` en el historial!")
-
-    st.markdown("---")
-    st.subheader("📥 Exportar Diagnóstico de Rendimiento")
-    if st.button("📄 Generar Archivo 'reporte_pruebas.txt'", use_container_width=True):
-        archivo_generado = generar_resumen_pruebas(st.session_state['historial_global_apuestas'], 15250.0)
-        st.success(f"✅ ¡Reporte generado con éxito! Archivo guardado como: `{archivo_generado}`")
-        if os.path.exists(archivo_generado):
-            with open(archivo_generado, "r", encoding="utf-8") as file_txt:
-                st.download_button(
-                    label="📥 Descargar Reporte de Pruebas TXT",
-                    data=file_txt,
-                    file_name="reporte_pruebas.txt",
-                    mime="text/plain"
-                )
-
-    st.markdown("---")
-    st.subheader("🛡️ Simulador en Vivo del Cortafuegos de Riesgo")
-    col_sim1, col_sim2 = st.columns(2)
-    with col_sim1:
-        bk_prueba = st.number_input("Bankroll de Prueba (MXN):", 1000.0, 100000.0, 15250.0, 500.0)
-        stake_kelly_prueba = st.number_input("Stake Sugerido Inicial (Kelly MXN):", 10.0, 2000.0, 300.0, 50.0)
-    with col_sim2:
-        simular_racha_perdidas = st.slider("Simular Racha de Derrotas Seguidas:", 0, 10, 2)
-        simular_clv_bajo = st.checkbox("Simular CLV Descalibrado (< 50% en últimas 20)", value=False)
-
-    historial_sim = []
-    for i in range(20):
-        res = "perdida" if i < simular_racha_perdidas else "ganada"
-        clv = False if simular_clv_bajo else True
-        historial_sim.append({'resultado': res, 'clv_positivo': clv, 'monto': 200})
-
-    stake_calculado, perdidas_detectadas, factor_aplicado = modulo_control_riesgo(historial_sim, bk_prueba, stake_kelly_prueba)
-
-    col_res1, col_res2, col_res3 = st.columns(3)
-    with col_res1: st.metric("⚠️ Derrotas Consecutivas", f"{perdidas_detectadas}")
-    with col_res2: st.metric("📉 Factor de Reducción", f"{int(factor_aplicado * 100)}% del Stake")
-    with col_res3: st.metric("💵 Stake Final Seguro", f"${stake_calculado} MXN")
-
-    if factor_aplicado < 1.0:
-        st.warning(f"🛡️ **Cortafuegos Activo:** Reducción automática al `{int(factor_aplicado * 100)}%`.")
-    else:
-        st.success("✅ **Riesgo Óptimo:** Operando bajo Kelly y techo del 3%.")
-
-
-# =========================================================
-# 14. Optimizador Automático de Parlays
-# =========================================================
-else:
-    st.title(f"🚀 **Optimizador Automático de Parlays ({fecha_formato_str})**")
-    st.markdown("--- \n *Boleta combinada cruzada extraída de la cartelera real.*")
-    st.info("💡 **Aviso Estratégico:** Los parlays incrementan la varianza. Opera con fracciones menores (0.25U / 0.5U).")
-
-    eventos_nfl_parlay = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
-    eventos_nba_parlay = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
-    eventos_nhl_parlay = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
-
-    lista_opciones_reales = []
-    for ev in eventos_nfl_parlay: lista_opciones_reales.append(f"NFL: {ev['partido_str']} (Spread)")
-    for ev in eventos_nba_parlay: lista_opciones_reales.append(f"NBA: {ev['partido_str']} (Spread)")
-    for ev in eventos_nhl_parlay: lista_opciones_reales.append(f"NHL: {ev['partido_str']}")
-
-    if not lista_opciones_reales:
-        lista_opciones_reales = [
-            f"Champions League: Bayern vs Arsenal (Goles O/U)",
-            f"Champions League: Real Madrid vs Leipzig (Goles Tardíos)",
-            f"UFC Pro: Combate Estelar - Ganador Money Line"
-        ]
-        st.warning("⚠️ No se detectaron partidos activos en las ligas mayores de Norteamérica para esta fecha exacta. Mostrando opciones de respaldo basadas en partidos estelares de Champions League.")
-
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        leg_1 = st.selectbox("Selección 1 (Leg A):", lista_opciones_reales, key="parlay_leg1")
-    with col_p2:
-        leg_2 = st.selectbox("Selección 2 (Leg B):", lista_opciones_reales, index=min(1, len(lista_opciones_reales)-1), key="parlay_leg2")
-
-    st.markdown("---")
-    st.subheader("📊 Resumen del Parlay Dinámico Combinado")
-    st.success("### 🚀 Combinada de 2 Selecciones (Double EV+)")
-    st.write(f"• **Leg A:** `{leg_1}`")
-    st.write(f"• **Leg B:** `{leg_2}`")
-    st.write("• **Momio Americano Combinado Estimado:** `+262`")
-    st.write("• **Probabilidad Conjunta del Modelo:** `38.5%` | **Edge Estimado:** `+5.8%`")
-    
-    monto_apuesta = st.number_input("💵 Unidades / Monto a apostar en el Parlay (MXN):", 50.0, 5000.0, 200.0, 50.0)
-    ganancia_potencial = monto_apuesta * (262 / 100.0)
-    st.write(f"• **Retorno Potencial:** `${ganancia_potencial:.2f} MXN` (Ganancia neta)")
-    
-    if st.button("💾 Registrar Parlay en el Sistema", use_container_width=True):
-        st.success("¡Parlay registrado y guardado exitosamente en tu historial de control!")
+    with col_mb2: d
