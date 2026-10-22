@@ -236,6 +236,51 @@ def modulo_control_riesgo(historial_apuestas, bankroll_actual, stake_sugerido_ke
     return round(stake_final, 2), perdidas_seguidas, factor_ajuste
 
 
+# 📝 FUNCIÓN DE DIAGNÓSTICO Y REPORTE DE PRUEBAS
+def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
+    """
+    Guarda un diagnóstico de rendimiento en un archivo de texto fácil de leer en el móvil.
+    """
+    total_apuestas = len(historial_apuestas)
+    if total_apuestas == 0:
+        return "No hay apuestas registradas en el historial para auditar."
+        
+    ganadas = sum(1 for x in historial_apuestas if x.get('resultado') == 'ganada')
+    perdidas = sum(1 for x in historial_apuestas if x.get('resultado') == 'perdida')
+    tasa_acierto = (ganadas / total_apuestas) * 100
+    
+    clv_positivos = sum(1 for x in historial_apuestas if x.get('clv_positivo', False))
+    tasa_clv = (clv_positivos / total_apuestas) * 100
+    
+    edge_promedio = sum(x.get('edge_neto', 0) for x in historial_apuestas) / total_apuestas
+
+    nombre_archivo = "reporte_pruebas.txt"
+    with open(nombre_archivo, "w", encoding="utf-8") as f:
+        f.write(f"=== DIAGNÓSTICO DE SISTEMA EN PRUEBAS ===\n")
+        f.write(f"Fecha de reporte: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"-----------------------------------------\n")
+        f.write(f"Total de operaciones simuladas: {total_apuestas}\n")
+        f.write(f"Récord (G-P): {ganadas} - {perdidas}\n")
+        f.write(f"Tasa de Acierto Real: {tasa_acierto:.2f}%\n")
+        f.write(f"Bankroll Simulado Actual: ${bankroll_simulado:.2f}\n")
+        f.write(f"-----------------------------------------\n")
+        f.write(f"AUDITORÍA MATEMÁTICA DEL MODELO:\n")
+        f.write(f"Edge Neto Promedio Calculado: +{edge_promedio:.2f}%\n")
+        f.write(f"Tasa de Vencer al Cierre (Beat the Close): {tasa_clv:.2f}%\n")
+        f.write(f"-----------------------------------------\n")
+        
+        f.write(f"DIAGNÓSTICO TÉCNICO:\n")
+        if tasa_clv >= 60.0:
+            f.write("-> MODELO SALUDABLE: Estás batiendo la línea de cierre de forma óptima.\n")
+        else:
+            f.write("-> ALERTA DE MODELO: Tu tasa de CLV es baja. El modelo deportivo podría estar descalibrado.\n")
+            
+        if tasa_acierto < 52.0 and tasa_clv > 60.0:
+            f.write("-> NOTA DE VARIANZA: Tienes buen CLV pero mala suerte en resultados. Sigue probando.\n")
+
+    return nombre_archivo
+
+
 @st.cache_data(ttl=300)
 def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
     url = f"https://site.api.espn.com/apis/site/v2/sports/{deporte}/{liga}/scoreboard?dates={fecha_str_api}&limit=20"
@@ -560,7 +605,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
                     
                     nombre_auditoria = f"Hándicap Asiático `{equipo_ha}` (`{linea_ha:+}`)"
 
-                # Campo de texto libre para aceptar signos '+' o '-'
                 momio_soccer_str = st.text_input("📈 Momio Casino (Americano):", value="-110", key=f"soccer_momio_txt_{idx}")
                 try:
                     momio_soccer = int(momio_soccer_str)
@@ -858,7 +902,7 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 
 
 # =========================================================
-# 13. Analítica, Control de Bankroll & Registro CLV
+# 13. Analítica, Control de Bankroll & Registro CLV (CON REPORTE TXT)
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
     st.title("📊 **Panel de Analítica, Gestión de Bankroll & Registro CLV**")
@@ -872,16 +916,23 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
     st.markdown("---")
     st.subheader("📝 Registro y Auditoría de Apuesta Pro (Estructura CLV)")
     
+    # Inicializar historial en session_state si no existe
+    if 'historial_global_apuestas' not in st.session_state:
+        st.session_state['historial_global_apuestas'] = [
+            {"resultado": "ganada", "clv_positivo": True, "edge_neto": 15.63},
+            {"resultado": "ganada", "clv_positivo": True, "edge_neto": 9.99}
+        ]
+
     with st.form("form_nueva_apuesta"):
         col_f_1, col_f_2 = st.columns(2)
         with col_f_1:
-            id_partid = st.text_input("ID / Partido:", value="Real Madrid vs Barcelona")
-            eq_loc = st.text_input("Equipo Local:", value="Real Madrid")
-            eq_vis = st.text_input("Equipo Visitante:", value="Barcelona")
-            prob_pois = st.slider("Probabilidad del Modelo:", 0.0, 1.0, 0.58, 0.01)
+            id_partid = st.text_input("ID / Partido:", value="OFI Creta vs Bayer Leverkusen")
+            eq_loc = st.text_input("Equipo Local:", value="OFI Creta")
+            eq_vis = st.text_input("Equipo Visitante:", value="Bayer Leverkusen")
+            edge_ingresado = st.number_input("Edge Neto Calculado (%):", 0.0, 30.0, 15.63, 0.1)
         with col_f_2:
-            cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.95, 0.01)
-            cuota_cier = st.number_input("Cuota Cierre Casa (Decimal - Previo al juego):", 1.01, 10.0, 1.85, 0.01)
+            cuota_comp = st.number_input("Cuota Comprada (Decimal):", 1.01, 10.0, 1.88, 0.01)
+            cuota_cier = st.number_input("Cuota Cierre Casa (Decimal):", 1.01, 10.0, 1.75, 0.01)
             stake_inv = st.number_input("Stake Invertido (MXN):", 10.0, 10000.0, 150.0, 10.0)
             res_ap = st.selectbox("Resultado Final:", ["ganada", "perdida", "devuelta"])
 
@@ -892,18 +943,29 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
                 "id_partido": id_partid,
                 "equipo_local": eq_loc,
                 "equipo_visitante": eq_vis,
-                "probabilidad_poisson": prob_pois,
                 "cuota_comprada": cuota_comp,
                 "stake_invertido": stake_inv,
                 "cuota_cierre_casa": cuota_cier,
                 "clv_positivo": clv_exito,
-                "resultado": res_ap
+                "resultado": res_ap,
+                "edge_neto": edge_ingresado
             }
-            st.success(f"✅ ¡Apuesta registrada exitosamente para `{id_partid}`!")
-            if clv_exito:
-                st.info(f"🎯 **CLV Positivo Confirmado:** Compraste a `{cuota_comp}` y cerró en `{cuota_cier}`. ¡Le ganaste al mercado!")
-            else:
-                st.warning(f"⚠️ **CLV Negativo:** Compraste a `{cuota_comp}` y cerró en `{cuota_cier}`.")
+            st.session_state['historial_global_apuestas'].append(nueva_apuesta)
+            st.success(f"✅ ¡Apuesta registrada exitosamente para `{id_partid}` en el historial!")
+
+    st.markdown("---")
+    st.subheader("📥 Exportar Diagnóstico de Rendimiento")
+    if st.button("📄 Generar Archivo 'reporte_pruebas.txt'", use_container_width=True):
+        archivo_generado = generar_resumen_pruebas(st.session_state['historial_global_apuestas'], 15250.0)
+        st.success(f"✅ ¡Reporte generado con éxito! Archivo guardado como: `{archivo_generado}`")
+        if os.path.exists(archivo_generado):
+            with open(archivo_generado, "r", encoding="utf-8") as file_txt:
+                st.download_button(
+                    label="📥 Descargar Reporte de Pruebas TXT",
+                    data=file_txt,
+                    file_name="reporte_pruebas.txt",
+                    mime="text/plain"
+                )
 
     st.markdown("---")
     st.subheader("🛡️ Simulador en Vivo del Cortafuegos de Riesgo")
