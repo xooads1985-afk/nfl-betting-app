@@ -11,8 +11,8 @@ import scipy.stats as stats
 
 # Configuración global de la página
 st.set_page_config(
-    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles & NBA Normal CDF)",
-    page_icon="🏀",
+    page_title="Central de Apuestas Pro - Master Suite (Dixon-Coles, NBA Normal & NHL Empty Net)",
+    page_icon="🏒",
     layout="wide"
 )
 
@@ -73,7 +73,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
         "⚾ Liga Mexicana del Pacífico (LMP)",
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
-        "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)",
+        "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)",
         "🏒 Módulo Automático de Props NHL",
         "📊 Analítica, Control de Bankroll & Registro CLV",
         "🚀 Optimizador Automático de Parlays"
@@ -166,6 +166,13 @@ def calcular_probabilidades_dixon_coles_dinamico(lambda_local, lambda_visitante,
             prob_btts += p_norm
 
     return round(prob_over * 100, 2), round(prob_under * 100, 2), round(prob_btts * 100, 2)
+
+
+# 🏒 AJUSTE DE PORTERO AUSENTE (EMPTY NET) PARA NHL
+def ajustar_goles_totales_nhl(lambda_totales_poisson):
+    FACTOR_EMPTY_NET = 0.23
+    lambda_ajustado = lambda_totales_poisson + FACTOR_EMPTY_NET
+    return lambda_ajustado
 
 
 # 🛡️ MÓDULO DE CONTROL DE RIESGO PROFESIONAL & CLV
@@ -351,7 +358,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA (ACTUALIZADO CON DISTRIBUCIÓN NORMAL CDF)
+# 3. NBA (DISTRIBUCIÓN NORMAL CDF)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
     st.title(f"🏀 **Sistema Cuantitativo Pro NBA (Distribución Normal) [{fecha_formato_str}]**")
@@ -387,7 +394,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
                 with col_h3:
                     momio_nba = st.number_input("📈 Momio Casino (Americano):", value=-110, step=5, key=f"nba_m_val_{idx}")
 
-                # Cálculo usando la función de Distribución Normal exacta
                 prob_local_cubre = calcular_probabilidad_handicap_nba(media_local, media_visita, handicap_val, desv_est)
                 
                 if "Local" in tipo_apuesta_nba:
@@ -711,7 +717,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     st.markdown("--- \n *Modelo Gaussiano especializado para béisbol de Grandes Ligas.*")
     col_m1, col_m2 = st.columns(2)
     with col_m1: bankroll_mlb = st.number_input("💵 Bankroll MLB (MXN):", 100.0, 50000.0, 5000.0, 500.0, key="bk_mlb")
-    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_min_mlb")
+    with col_m2: edge_min_mlb = st.slider("🎯 Edge Mínimo MLB (%):", 0.0, 15.0, 3.0, 0.5, key="edge_mlb")
 
     col_inmlb1, col_inmlb2 = st.columns(2)
     with col_inmlb1: equipo_mlb_visita = st.text_input("Equipo Visitante (MLB):", value="Los Angeles Dodgers", key="mlb_eq_vis")
@@ -741,14 +747,15 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL
+# 11. NHL (ACTUALIZADO CON EL AJUSTE DE PORTERO AUSENTE)
 # =========================================================
-elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck Line)":
-    st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Puck Line) [{fecha_formato_str}]**")
-    st.markdown("--- \n *Modelo Gaussiano con factor de fatiga de hielo para la NHL.*")
+elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
+    st.title(f"🏒 **Sistema Cuantitativo Pro NHL (Empty Net Pro) [{fecha_formato_str}]**")
+    st.markdown("--- \n *Modelo de Poisson ajustado con el factor histórico de goles en portería vacía para la NHL.*")
+    
     col_nh1, col_nh2 = st.columns(2)
     with col_nh1: bankroll_nhl = st.number_input("💵 Bankroll NHL (MXN):", 100.0, 50000.0, 3000.0, 500.0, key="bk_nhl")
-    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo Puck Line (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
+    with col_nh2: edge_min_nhl = st.slider("🎯 Edge Mínimo NHL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nhl")
 
     cartelera_nhl = obtener_cartelera_pura("hockey", "nhl", fecha_formato_api, fecha_formato_str)
     st.markdown("---")
@@ -759,22 +766,34 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Hándicap / Puck
     else:
         for idx, op in enumerate(cartelera_nhl, 1):
             with st.expander(f"🏒 {op['partido_str']}"):
-                momio = st.number_input("📈 Momio Casino:", value=+120, step=5, key=f"nhl_m_val_{idx}")
                 
-                col_nh1_s, col_nh2_s = st.columns(2)
-                with col_nh1_s: v_a = st.number_input(f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"nhl_va_v_{idx}")
-                with col_nh2_s: d_a = st.number_input(f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"nhl_da_d_{idx}")
+                col_nh_l1, col_nh_l2 = st.columns(2)
+                with col_nh_l1:
+                    lam_visita_nhl = st.number_input(f"Goles Esperados Visita ({op['visita']}):", 0.5, 5.0, 2.75, 0.05, key=f"nhl_lv_{idx}")
+                with col_nh_l2:
+                    lam_local_nhl = st.number_input(f"Goles Esperados Local ({op['local']}):", 0.5, 5.0, 3.10, 0.05, key=f"nhl_ll_{idx}")
 
-                col_nh3_s, col_nh4_s = st.columns(2)
-                with col_nh3_s: v_b = st.number_input(f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"nhl_vb_v_{idx}")
-                with col_nh4_s: d_b = st.number_input(f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"nhl_db_d_{idx}")
+                # Aplicando el ajuste de Empty Net
+                lambda_total_base = lam_local_nhl + lam_visita_nhl
+                lambda_total_ajustado = ajustar_goles_totales_nhl(lambda_total_base)
+
+                st.info(f"🥅 **Ajuste de Portero Ausente (Empty Net):** Lambda Base: `{lambda_total_base:.2f}` | **Lambda Ajustado con +0.23**: **`{lambda_total_ajustado:.2f}`**")
+
+                linea_ou_nhl = st.selectbox("Línea de Goles O/U:", [5.5, 6.0, 6.5, 7.0], index=1, key=f"nhl_linea_ou_{idx}")
+                tipo_ou_nhl = st.selectbox("Selección Totales:", ["Over (Más de)", "Under (Menos de)"], key=f"nhl_tipo_ou_{idx}")
+                momio_nhl = st.number_input("📈 Momio Casino:", value=-110, step=5, key=f"nhl_m_val_{idx}")
+
+                # Probabilidad con Poisson usando el lambda ajustado
+                p_over_nhl = 1 - poisson.cdf(int(linea_ou_nhl), lambda_total_ajustado)
+                p_under_nhl = 1.0 - p_over_nhl
                 
-                prob = calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, 1, 1, es_local_a=False)
-                st.success(f"🤖 **Probabilidad Real del Modelo Gaussiano Pro:** **`{prob:.2f}%`**")
-                prob_imp, edge = calcular_edge_real(momio, prob)
-                st.info(f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` | Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+                prob_modelo_nhl = round((p_over_nhl if "Over" in tipo_ou_nhl else p_under_nhl) * 100, 2)
 
-                if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
+                st.success(f"🤖 **Probabilidad Real del Modelo (Empty Net Pro):** **`{prob_modelo_nhl:.2f}%`**")
+                prob_imp, edge = calcular_edge_real(momio_nhl, prob_modelo_nhl)
+                st.info(f"📊 **Edge Calculado:** Implícita (`{momio_nhl:+}`): `{prob_imp:.2f}%` | Modelo: `{prob_modelo_nhl:.2f}%` | Edge Neto: **`{edge:+.2f}%`**")
+
+                if momio_nhl < -150: st.error("🚨 Infringe Regla de Oro (-150).")
                 elif edge >= edge_min_nhl: st.success(f"✅ Aprobado NHL (+EV). Edge: `{edge:+.2f}%`")
                 else: st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
 
