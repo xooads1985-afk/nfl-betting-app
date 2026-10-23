@@ -480,11 +480,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO LIMPIO, DIRECTO Y CON ENTRADA LIBRE DE SIGNOS)
+# 5. FÚTBOL (MÓDULO PRO ÉLITE: 4 PIEZAS NUEVAS + BASE TÉCNICA)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Selección de ligas mundiales, estadísticas L5 y Sello del Modelo para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Integración de Ligas, Local/Visitante L5, Fatiga, xGOT (Tiros al arco) y Auditoría CLV para la fecha: **{fecha_formato_str}**.*")
   
   ligas_dict = {
       "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
@@ -517,30 +517,51 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     
     col_v_card, col_l_card = st.columns(2)
     with col_v_card:
-      st.markdown(f"**✈️ Visitante: {visita_f}**")
-      v5_v = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
-      e5_v = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
-      d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
-      gf_v = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.4, 0.1, key=f"gf_v_{idx}")
-      gc_v = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 1.1, 0.1, key=f"gc_v_{idx}")
+      st.markdown(f"**✈️ Visitante: {visita_f} (Aislamiento Fuera de Casa L5)**")
+      v5_v = st.number_input("Victorias Visitante L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
+      e5_v = st.number_input("Empates Visitante L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
+      d5_v = st.number_input("Derrotas Visitante L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
+      gf_v = st.number_input("Goles Prom. Anotados (Visitante L5):", 0.0, 5.0, 1.3, 0.1, key=f"gf_v_{idx}")
+      gc_v = st.number_input("Goles Prom. Recibidos (Visitante L5):", 0.0, 5.0, 1.2, 0.1, key=f"gc_v_{idx}")
+      xgot_v = st.number_input("Tiros a Puerta Prom. (xGOT Visitante L5):", 0.0, 12.0, 4.2, 0.1, key=f"xgot_v_{idx}")
+      descanso_v = st.selectbox("Días de Descanso (Visitante):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_v_{idx}")
 
     with col_l_card:
-      st.markdown(f"**🏠 Local: {local_f}**")
-      v5_l = st.number_input("Victorias L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
-      e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
-      d5_l = st.number_input("Derrotas L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
-      gf_l = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
-      gc_l = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 0.9, 0.1, key=f"gc_l_{idx}")
+      st.markdown(f"**🏠 Local: {local_f} (Aislamiento En Casa L5)**")
+      v5_l = st.number_input("Victorias Local L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
+      e5_l = st.number_input("Empates Local L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
+      d5_l = st.number_input("Derrotas Local L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
+      gf_l = st.number_input("Goles Prom. Anotados (Local L5):", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
+      gc_l = st.number_input("Goles Prom. Recibidos (Local L5):", 0.0, 5.0, 0.8, 0.1, key=f"gc_l_{idx}")
+      xgot_l = st.number_input("Tiros a Puerta Prom. (xGOT Local L5):", 0.0, 12.0, 5.5, 0.1, key=f"xgot_l_{idx}")
+      descanso_l = st.selectbox("Días de Descanso (Local):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_l_{idx}")
 
-    # Cálculos automáticos de xG y Dixon-Coles
-    xgl_calc = round(max(0.5, (gf_l + gc_v) / 2.0), 2)
-    xgv_calc = round(max(0.5, (gf_v + gc_l) / 2.0), 2)
+    # Factores multiplicativos de fatiga por días de descanso
+    factor_fatiga = {
+        "3 días o menos (Fatiga)": 0.90,
+        "4 a 5 días (Normal)": 1.0,
+        "6+ días (Descansado)": 1.05
+    }
+    f_l = factor_fatiga[descanso_l]
+    f_v = factor_fatiga[descanso_v]
+
+    # Cálculo avanzado integrando Goles Aislados (Local/Visita), Fatiga y Calidad de Tiros a Puerta (xGOT)
+    peso_goles = 0.70
+    peso_tiros = 0.30
+    calidad_tiros_l = xgot_l / 5.0
+    calidad_tiros_v = xgot_v / 5.0
+
+    base_xgl = ((gf_l + gc_v) / 2.0)
+    base_xgv = ((gf_v + gc_l) / 2.0)
+
+    xgl_calc = round(max(0.5, ((base_xgl * peso_goles) + (calidad_tiros_l * peso_tiros)) * f_l), 2)
+    xgv_calc = round(max(0.5, ((base_xgv * peso_goles) + (calidad_tiros_v * peso_tiros)) * f_v), 2)
     
     p_loc_f, p_vis_f, p_emp_f, btts_prob, ou_dict = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
     btts_no_prob = round(100.0 - btts_prob, 2)
     
     st.markdown("---")
-    st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}`):**")
+    st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}` con aislamiento Local/Visita, Fatiga y xGOT):**")
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
     col_m2.metric(label="Empate", value=f"{p_emp_f}%")
@@ -548,15 +569,14 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     
     st.info(f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5: `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí: `{btts_prob}%`")
     
-    st.markdown("💰 **Auditoría de Momios del Casino (Mercados Directos):**")
-    tab_ah_l, tab_ah_v, tab_ou, tab_btts = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under (Múltiples Líneas)", "🤝 Ambos Anotan (BTTS)"])
+    st.markdown("💰 **Auditoría de Momios y Seguimiento Histórico CLV:**")
+    tab_ah_l, tab_ah_v, tab_ou, tab_btts, tab_clv = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under (Múltiples Líneas)", "🤝 Ambos Anotan (BTTS)", "📊 Auditoría CLV"])
     
     edges_partido = []
 
     with tab_ah_l:
       col_hl1, col_hl2 = st.columns(2)
       with col_hl1:
-        # Se usa text_input para ingresar libremente el hándicap con su signo (-0.5, +0.25, etc.)
         h_l_str = st.text_input(f"Hándicap {local_f} (Ej. -0.5, +0.25):", value="-0.5", key=f"hl_val_{idx}")
         try: h_l_val = float(h_l_str)
         except ValueError: h_l_val = -0.5
@@ -607,7 +627,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         
       prob_over_sel = ou_dict[linea_ou_sel]
       prob_ou_model = prob_over_sel if "Over" in sel_tipo_ou else round(100.0 - prob_over_sel, 2)
-      pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
+      pi_ou, edge_ou = calcular_edge_real(momio_ou_int, prob_ou_model)
       nombre_mercado_ou = f"{sel_tipo_ou} {linea_ou_sel}"
       edges_partido.append((nombre_mercado_ou, edge_ou, mom_ou_int))
       st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
@@ -633,6 +653,19 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_btts}.")
       else:
         st.warning("⚠️ Sin margen suficiente en BTTS.")
+
+    with tab_clv:
+      st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value):**")
+      c_clv1, c_clv2 = st.columns(2)
+      with c_clv1:
+        momio_tomado = st.number_input("Momio al Tomar la Apuesta (Americano):", value=-110, key=f"m_tomado_{idx}")
+      with c_clv2:
+        momio_cierre = st.number_input("Momio de Cierre del Mercado (CLV):", value=-125, key=f"m_cierre_{idx}")
+      
+      if momio_tomado > momio_cierre:
+        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO!** Le ganaste al mercado cerrando con mejor precio que la línea final de las casas de apuestas.")
+      else:
+        st.warning("⚠️ El mercado cerró con mejor cuota; revisar el timing de entrada para futuras operaciones.")
 
     # Sello del Modelo (Mejor Pick del Partido)
     mejor_mercado, mejor_edge, mejor_momio = max(edges_partido, key=lambda x: x[1])
