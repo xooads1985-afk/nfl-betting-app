@@ -621,7 +621,7 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # =========================================================
-# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV)
+# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV) (OPTIMIZADO)
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(
@@ -630,7 +630,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
   )
   st.markdown(
       "--- \n *Radar de valor +EV: Analiza la cartelera real en tiempo real"
-      " aplicando modelos cuantitativos y descartando momios menores a -150.*"
+      " aplicando los motores cuantitativos de la suite (Fútbol, NBA, NHL) y descartando momios menores a -150.*"
   )
 
   edge_min_escanner = st.slider(
@@ -646,7 +646,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       "🚀 Ejecutar Escaneo Global en Tiempo Real", use_container_width=True
   ):
     with st.spinner(
-        "Escaneando carteleras de la API y cruzando modelos matemáticos..."
+        "Escaneando carteleras de la API y cruzando modelos matemáticos avanzados..."
     ):
       minas_de_oro = []
 
@@ -670,12 +670,12 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
             minas_de_oro.append({
                 "deporte": f"⚽ Fútbol ({nombre_liga})",
                 "partido": partido["partido_str"],
-                "mercado": "Over 2.5 Goles",
+                "mercado": "Over 2.5 Goles (Dixon-Coles)",
                 "momio": momio_prueba,
                 "edge": edge,
             })
 
-      # 2. NBA (Distribución Normal)
+      # 2. NBA (Distribución Normal CDF)
       cartelera_n = obtener_cartelera_pura(
           "basketball", "nba", fecha_formato_api, fecha_formato_str
       )
@@ -689,7 +689,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           minas_de_oro.append({
               "deporte": "🏀 NBA",
               "partido": partido["partido_str"],
-              "mercado": "Hándicap Local (-4.5)",
+              "mercado": "Hándicap Spread Local (-4.5)",
               "momio": momio_prueba,
               "edge": edge,
           })
@@ -1404,7 +1404,6 @@ elif (
         except ValueError:
           momio_nba = -110
 
-      # Capa adicional opcional: cansancio B2B
       b2b_nba_loc = st.checkbox(f"🏠 {op['local']} en Back-to-Back (Descanso menor a 24 hrs)", value=False, key=f"nba_b2b_l_{idx}")
       b2b_nba_vis = st.checkbox(f"✈️ {op['visita']} en Back-to-Back (Descanso menor a 24 hrs)", value=False, key=f"nba_b2b_v_{idx}")
 
@@ -1439,13 +1438,14 @@ elif (
 
 
 # =========================================================
-# 4. Props NBA
+# 4. PROPS NBA (HIPERVITAMINADO CON DESVIACIÓN ESTÁNDAR Y PERSISTENCIA)
 # =========================================================
 elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
-  st.title(f"🔥 **Props Automáticos NBA ({fecha_formato_str})**")
-  st.markdown("--- \n *Rendimiento individual de jugadores en la NBA.*")
-  col_pn1, col_pn2 = st.columns(2)
-  with col_pn1:
+  st.title(f"🔥 **Auditor Pro de Props NBA (Desviación Estándar & Memoria) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis individual de jugadores en la NBA evaluando distribución normal real (L5), Matchup Defensivo y Rol con persistencia en sesión.*")
+  
+  col_pnba1, col_pnba2 = st.columns(2)
+  with col_pnba1:
     bankroll_props_nba = st.number_input(
         "💵 Bankroll Props NBA (MXN):",
         100.0,
@@ -1454,7 +1454,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
         500.0,
         key="bk_props_nba",
     )
-  with col_pn2:
+  with col_pnba2:
     edge_min_props_nba = st.slider(
         "🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba"
     )
@@ -1463,61 +1463,166 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
       "basketball", "nba", fecha_formato_api, fecha_formato_str
   )
   st.markdown("---")
-  st.subheader("📊 Auditoría de Props NBA")
+  st.subheader("📊 Auditoría Dinámica de Props Individuales NBA")
 
   if not cartelera_nba_hoy:
     st.info(
-        "ℹ️ No hay partidos de la NBA en la API para la fecha"
-        f" `{fecha_formato_str}`."
+        "ℹ️ No hay partidos oficiales de la NBA en cartelera para la fecha"
+        f" `{fecha_formato_str}`. Usando modo de simulación interactiva."
     )
-  else:
-    for idx, op in enumerate(cartelera_nba_hoy, 1):
-      with st.expander(f"🔥 Prop NBA: {op['partido_str']}"):
-        jugador = st.text_input(
-            "Jugador:", value="LeBron James", key=f"nba_prop_j_{idx}"
-        )
-        mercado = st.text_input(
-            "Mercado:",
-            value="Puntos Totales Over 24.5",
-            key=f"nba_prop_m_{idx}",
-        )
+    cartelera_nba_hoy = [{
+        "partido_str": "📅 [Simulación Manual] Boston Celtics vs Los Angeles Lakers",
+        "local": "Los Angeles Lakers",
+        "visita": "Boston Celtics"
+    }]
 
-        momio_str = st.text_input(
-            "📈 Momio Casino:", value="-115", key=f"nba_prop_mom_txt_{idx}"
+  for idx, op in enumerate(cartelera_nba_hoy, 1):
+    key_l5_nba = f"nba_l5_vals_{idx}"
+    key_jugador_nba = f"nba_prop_j_{idx}"
+    key_linea_nba = f"nba_linea_casino_{idx}"
+    key_momio_nba = f"nba_prop_mom_txt_{idx}"
+
+    if key_l5_nba not in st.session_state:
+      st.session_state[key_l5_nba] = "26.5, 22.0, 31.0, 25.5, 28.0"
+    if key_jugador_nba not in st.session_state:
+      st.session_state[key_jugador_nba] = "LeBron James"
+    if key_linea_nba not in st.session_state:
+      st.session_state[key_linea_nba] = 24.5
+    if key_momio_nba not in st.session_state:
+      st.session_state[key_momio_nba] = "-115"
+
+    with st.expander(f"🔥 Prop NBA #{idx}: {op['partido_str']}"):
+      col_prn1, col_prn2 = st.columns(2)
+      with col_prn1:
+        jugador_nba = st.text_input(
+            "Nombre del Jugador:", value=st.session_state[key_jugador_nba], key=f"txt_jnba_{idx}"
         )
+        st.session_state[key_jugador_nba] = jugador_nba
+
+        mercado_nba = st.selectbox(
+            "Tipo de Prop:",
+            ["Puntos Totales", "Rebotes Totales", "Asistencias Totales", "Triples Anotados", "Puntos + Rebotes + Asistencias (PRA)"],
+            key=f"nba_prop_m_tipo_{idx}"
+        )
+      with col_prn2:
+        linea_casino_prop_nba = st.number_input(
+            "Línea Establecida por el Casino (O/U):",
+            0.5,
+            80.0,
+            value=float(st.session_state[key_linea_nba]),
+            step=0.5,
+            key=f"num_linea_nba_{idx}"
+        )
+        st.session_state[key_linea_nba] = linea_casino_prop_nba
+
+        momio_str_nba_prop = st.text_input(
+            "📈 Momio Casino (Americano):", value=str(st.session_state[key_momio_nba]), key=f"txt_momio_nba_{idx}"
+        )
+        st.session_state[key_momio_nba] = momio_str_nba_prop
         try:
-          momio = int(momio_str)
+          momio_nba_prop = int(momio_str_nba_prop)
         except ValueError:
-          momio = -115
+          momio_nba_prop = -115
 
-        col_nj1, col_nj2 = st.columns(2)
-        with col_nj1:
-          cumple = st.number_input(
-              "Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nba_prop_c_{idx}"
-          )
-        with col_nj2:
-          no_cumple = st.number_input(
-              "Partidos sin cumplir línea (L5):",
-              0,
-              5,
-              2,
-              key=f"nba_prop_nc_{idx}",
-          )
+      st.markdown("---")
+      st.markdown("### 🧬 RENDIMIENTO L5 & CAPAS DE CONTEXTO NBA (Con Desviación Estándar)")
+      
+      col_cpn1, col_cpn2, col_cpn3 = st.columns(3)
+      with col_cpn1:
+        st.markdown("**1. Historial L5 (Últimos 5 Partidos)**")
+        l5_nba_str_input = st.text_input(
+            "Ej: 26.5, 22.0, 31.0, 25.5, 28.0",
+            value=str(st.session_state[key_l5_nba]),
+            key=f"txt_l5_nba_{idx}"
+        )
+        st.session_state[key_l5_nba] = l5_nba_str_input
 
-        prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
-        st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
-        prob_imp, edge = calcular_edge_real(momio, prob)
-        st.info(
-            f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` |"
-            f" Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
+      with col_cpn2:
+        st.markdown("**2. Calidad Defensiva del Rival**")
+        def_rival_nba = st.select_slider(
+            "Nivel Defensivo del Rival en la posición:",
+            options=["Muy Débil (Favorable)", "Débil", "Promedio", "Fuerte", "Elite (Hostil)"],
+            value="Promedio",
+            key=f"nba_def_rival_{idx}"
+        )
+      with col_cpn3:
+        st.markdown("**3. Minutos y Carga de Uso (Usage Rate)**")
+        rol_nba = st.select_slider(
+            "Rol / Minutos esperados en cancha:",
+            options=["Rotación / Banquillo", "Titular Estándar", "Estrella Líder (Alta Carga)"],
+            value="Estrella Líder (Alta Carga)",
+            key=f"nba_rol_{idx}"
         )
 
-        if momio < -150:
-          st.error("🚨 Infringe Regla de Oro (-150).")
-        elif edge >= edge_min_props_nba:
-          st.success(f"✅ Aprobado Prop (+EV). Edge: `{edge:+.2f}%`")
-        else:
-          st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
+      try:
+        lista_l5_nba = [float(x.strip()) for x in l5_nba_str_input.split(",") if x.strip()]
+        if len(lista_l5_nba) == 0:
+          lista_l5_nba = [0.0]
+      except Exception:
+        lista_l5_nba = [20.0]
+
+      media_l5_nba = sum(lista_l5_nba) / len(lista_l5_nba)
+      
+      if len(lista_l5_nba) > 1:
+        varianza_nba = sum((x - media_l5_nba) ** 2 for x in lista_l5_nba) / (len(lista_l5_nba) - 1)
+        desv_est_l5_nba = math.sqrt(varianza_nba)
+      else:
+        desv_est_l5_nba = 5.0
+
+      if desv_est_l5_nba < 0.5:
+        desv_est_l5_nba = 2.0
+
+      partidos_encima_nba = sum(1 for val in lista_l5_nba if val > linea_casino_prop_nba)
+
+      tipo_apuesta_prop_nba = st.radio(
+          "Selección Lógica Sugerida por Modelo:",
+          ["Over (Más de la línea)", "Under (Menos de la línea)"],
+          index=0,
+          horizontal=True,
+          key=f"nba_tipo_ap_prop_{idx}"
+      )
+
+      prob_cdf_over_nba = (1.0 - stats.norm.cdf(linea_casino_prop_nba, loc=media_l5_nba, scale=desv_est_l5_nba)) * 100.0
+      
+      ajuste_contexto_nba = 0.0
+      if def_rival_nba == "Muy Débil (Favorable)":
+        ajuste_contexto_nba += 5.5
+      elif def_rival_nba == "Débil":
+        ajuste_contexto_nba += 2.5
+      elif def_rival_nba == "Fuerte":
+        ajuste_contexto_nba -= 3.0
+      elif def_rival_nba == "Elite (Hostil)":
+        ajuste_contexto_nba -= 6.5
+
+      if rol_nba == "Estrella Líder (Alta Carga)":
+        ajuste_contexto_nba += 4.0
+      elif rol_nba == "Titular Estándar":
+        ajuste_contexto_nba += 1.0
+      elif rol_nba == "Rotación / Banquillo":
+        ajuste_contexto_nba -= 5.0
+
+      prob_base_prop_nba = prob_cdf_over_nba + ajuste_contexto_nba
+
+      if "Under" in tipo_apuesta_prop_nba:
+        prob_base_prop_nba = 100.0 - prob_base_prop_nba
+
+      prob_modelo_prop_nba = max(30.0, min(88.0, round(prob_base_prop_nba, 2)))
+
+      st.info(f"📈 **Análisis Estadístico L5:** Media: **`{media_l5_nba:.1f}`** | Desv. Estándar ($\sigma$): **`{desv_est_l5_nba:.1f}`** | Cumple Línea en L5: `{partidos_encima_nba}/5 partidos`")
+      st.success(f"🤖 **Probabilidad Real del Modelo Pro (Distribución Normal + Capas):** **`{prob_modelo_prop_nba:.2f}%`**")
+      
+      prob_imp_nba_p, edge_nba_p = calcular_edge_real(momio_nba_prop, prob_modelo_prop_nba)
+      st.info(
+          f"📊 **Edge Calculado:** Implícita (`{momio_nba_prop:+}`): `{prob_imp_nba_p:.2f}%` |"
+          f" Modelo: `{prob_modelo_prop_nba:.2f}%` | Edge Neto: **`{edge_nba_p:+.2f}%`**"
+      )
+
+      if momio_nba_prop < -150:
+        st.error("🚨 Infringe Regla de Oro (-150). Cuota demasiado pesada.")
+      elif edge_nba_p >= edge_min_props_nba:
+        st.success(f"✅ **¡PROP NBA APROBADO (+EV)!** Edge favorable de `{edge_nba_p:+.2f}%`.")
+      else:
+        st.warning(f"⚠️ Sin Edge suficiente (`{edge_nba_p:+.2f}%`). Se recomienda omitir.")
 
 
 # =========================================================
