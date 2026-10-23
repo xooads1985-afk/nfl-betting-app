@@ -1852,13 +1852,12 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAA
+# 7. NCAA (ROBOT UNIVERSITARIO HIPERVITAMINADO CON CDF Y MEMORIA)
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
-  st.title(f"🎓 **Robot Universitario NCAA ({fecha_formato_str})**")
-  st.markdown(
-      "--- \n *Modelo Gaussiano aplicado al fútbol americano universitario.*"
-  )
+  st.title(f"🎓 **Robot Universitario NCAA (Distribución Normal & Persistencia) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo Gaussiano avanzado aplicado al fútbol americano universitario (NCAA) con memoria de sesión.*")
+  
   col_nc1, col_nc2 = st.columns(2)
   with col_nc1:
     bankroll_ncaa = st.number_input(
@@ -1878,58 +1877,140 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
   if not cartelera_ncaa:
     st.info(
         "ℹ️ No hay partidos oficiales de la NCAA programados en la fecha"
-        f" `{fecha_formato_str}`."
+        f" `{fecha_formato_str}`. Usando modo de simulación interactiva."
     )
-  else:
-    for idx, op in enumerate(cartelera_ncaa, 1):
-      with st.expander(f"🎓 {op['partido_str']}"):
-        momio_str = st.text_input(
-            "📈 Momio Casino:", value="-110", key=f"ncaa_m_txt_{idx}"
+    cartelera_ncaa = [{
+        "partido_str": "📅 [Simulación Manual] Alabama Crimson Tide vs Georgia Bulldogs",
+        "local": "Georgia Bulldogs",
+        "visita": "Alabama Crimson Tide"
+    }]
+
+  for idx, op in enumerate(cartelera_ncaa, 1):
+    key_v_l5 = f"ncaa_v_l5_{idx}"
+    key_l_l5 = f"ncaa_l_l5_{idx}"
+    key_linea_ncaa = f"ncaa_linea_{idx}"
+    key_momio_ncaa = f"ncaa_momio_{idx}"
+
+    if key_v_l5 not in st.session_state:
+      st.session_state[key_v_l5] = "31, 28, 35, 42, 24"
+    if key_l_l5 not in st.session_state:
+      st.session_state[key_l_l5] = "38, 27, 34, 40, 30"
+    if key_linea_ncaa not in st.session_state:
+      st.session_state[key_linea_ncaa] = -3.5
+    if key_momio_ncaa not in st.session_state:
+      st.session_state[key_momio_ncaa] = "-110"
+
+    with st.expander(f"🎓 Encuentro NCAA #{idx}: {op['partido_str']}"):
+      col_nc_inf1, col_nc_inf2 = st.columns(2)
+      with col_nc_inf1:
+        eq_visita = st.text_input("Equipo Visitante:", value=op["visita"], key=f"ncaa_vis_{idx}")
+      with col_nc_inf2:
+        eq_local = st.text_input("Equipo Local:", value=op["local"], key=f"ncaa_loc_{idx}")
+
+      st.markdown("---")
+      st.markdown("### 🧬 RENDIMIENTO L5 & LÍNEA DEL CASINO")
+      
+      col_nreg1, col_nreg2 = st.columns(2)
+      with col_nreg1:
+        st.markdown(f"**{eq_visita} (Visita)**")
+        l5_vis_input = st.text_input(
+            "Puntos anotados L5 (separados por coma):",
+            value=str(st.session_state[key_v_l5]),
+            key=f"ncaa_l5_v_pts_{idx}"
         )
+        st.session_state[key_v_l5] = l5_vis_input
+      with col_nreg2:
+        st.markdown(f"**{eq_local} (Local)**")
+        l5_loc_input = st.text_input(
+            "Puntos anotados L5 (separados por coma):",
+            value=str(st.session_state[key_l_l5]),
+            key=f"ncaa_l5_l_pts_{idx}"
+        )
+        st.session_state[key_l_l5] = l5_loc_input
+
+      col_nap1, col_nap2, col_nap3 = st.columns(3)
+      with col_nap1:
+        tipo_apuesta_ncaa = st.selectbox(
+            "Selección de Apuesta:",
+            [f"Local ({eq_local}) Spread", f"Visitante ({eq_visita}) Spread", "Money Line (Ganador Directo)"],
+            key=f"ncaa_tipo_ap_{idx}"
+        )
+      with col_nap2:
+        linea_spread_ncaa = st.number_input(
+            "Línea de Hándicap (Spread Local):",
+            -28.5,
+            28.5,
+            value=float(st.session_state[key_linea_ncaa]),
+            step=0.5,
+            key=f"ncaa_spr_{idx}"
+        )
+        st.session_state[key_linea_ncaa] = linea_spread_ncaa
+      with col_nap3:
+        momio_str_ncaa = st.text_input(
+            "📈 Momio Casino (Americano):",
+            value=str(st.session_state[key_momio_ncaa]),
+            key=f"ncaa_mom_txt_{idx}"
+        )
+        st.session_state[key_momio_ncaa] = momio_str_ncaa
         try:
-          momio = int(momio_str)
+          momio_ncaa = int(momio_str_ncaa)
         except ValueError:
-          momio = -110
+          momio_ncaa = -110
 
-        col_na1, col_na2 = st.columns(2)
-        with col_na1:
-          v_a = st.number_input(
-              f"Victorias L5 ({op['visita']}):", 0, 5, 3, key=f"ncaa_va_v_{idx}"
-          )
-        with col_na2:
-          d_a = st.number_input(
-              f"Derrotas L5 ({op['visita']}):", 0, 5, 2, key=f"ncaa_da_d_{idx}"
-          )
+      try:
+        lista_vis = [float(x.strip()) for x in l5_vis_input.split(",") if x.strip()]
+        lista_loc = [float(x.strip()) for x in l5_loc_input.split(",") if x.strip()]
+        if not lista_vis: lista_vis = [28.0]
+        if not lista_loc: lista_loc = [30.0]
+      except Exception:
+        lista_vis = [28.0]
+        lista_loc = [30.0]
 
-        col_nb1, col_nb2 = st.columns(2)
-        with col_nb1:
-          v_b = st.number_input(
-              f"Victorias L5 ({op['local']}):", 0, 5, 3, key=f"ncaa_vb_v_{idx}"
-          )
-        with col_nb2:
-          d_b = st.number_input(
-              f"Derrotas L5 ({op['local']}):", 0, 5, 2, key=f"ncaa_db_d_{idx}"
-          )
+      media_vis = sum(lista_vis) / len(lista_vis)
+      media_loc = sum(lista_loc) / len(lista_loc)
 
-        prob = calcular_probabilidad_modelo_gaussiano(
-            v_a, d_a, v_b, d_b, 7, 7, es_local_a=False
-        )
-        st.success(
-            "🤖 **Probabilidad Real del Modelo Gaussiano Pro:**"
-            f" **`{prob:.2f}%`**"
-        )
-        prob_imp, edge = calcular_edge_real(momio, prob)
-        st.info(
-            f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` |"
-            f" Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
-        )
+      todas_puntuaciones = lista_vis + lista_loc
+      media_global = sum(todas_puntuaciones) / len(todas_puntuaciones)
+      
+      if len(todas_puntuaciones) > 1:
+        var_ncaa = sum((x - media_global) ** 2 for x in todas_puntuaciones) / (len(todas_puntuaciones) - 1)
+        desv_ncaa = math.sqrt(var_ncaa)
+      else:
+        desv_ncaa = 10.5
 
-        if momio < -150:
-          st.error("🚨 Infringe Regla de Oro (-150).")
-        elif edge >= edge_min_ncaa:
-          st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
-        else:
-          st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
+      if desv_ncaa < 2.0:
+        desv_ncaa = 8.0
+
+      FACTOR_LOCALIA_NCAA = 3.2
+      margen_esperado_local = (media_loc + FACTOR_LOCALIA_NCAA) - media_vis
+
+      punto_corte = -linea_spread_ncaa
+      prob_local_cubre = (1.0 - stats.norm.cdf(punto_corte, loc=margen_esperado_local, scale=desv_ncaa)) * 100.0
+
+      if "Local" in tipo_apuesta_ncaa:
+        prob_modelo_ncaa = prob_local_cubre
+      elif "Visitante" in tipo_apuesta_ncaa:
+        prob_modelo_ncaa = 100.0 - prob_local_cubre
+      else:
+        prob_modelo_ncaa = prob_local_cubre if margen_esperado_local > 0 else (100.0 - prob_local_cubre)
+
+      prob_modelo_ncaa = max(25.0, min(88.0, round(prob_modelo_ncaa, 2)))
+
+      st.info(f"📊 **Análisis Estadístico NCAA:** Media Local: **`{media_loc:.1f}`** | Media Visita: **`{media_vis:.1f}`** | Desv. Estándar ($\sigma$): **`{desv_ncaa:.1f}`**")
+      st.success(f"🤖 **Probabilidad Real del Robot Universitario (CDF Normal + Localía):** **`{prob_modelo_ncaa:.2f}%`**")
+      
+      prob_imp_ncaa, edge_ncaa = calcular_edge_real(momio_ncaa, prob_modelo_ncaa)
+      st.info(
+          f"📊 **Edge Calculado:** Implícita (`{momio_ncaa:+}`): `{prob_imp_ncaa:.2f}%` |"
+          f" Modelo: `{prob_modelo_ncaa:.2f}%` | Edge Neto: **`{edge_ncaa:+.2f}%`**"
+      )
+
+      if momio_ncaa < -150:
+        st.error("🚨 Infringe Regla de Oro (-150). Cuota demasiado pesada.")
+      elif edge_ncaa >= edge_min_ncaa:
+        st.success(f"✅ **¡APUESTA NCAA APROBADA (+EV)!** Edge favorable de `{edge_ncaa:+.2f}%`.")
+      else:
+        st.warning(f"⚠️ Sin Edge suficiente (`{edge_ncaa:+.2f}%`). Se recomienda omitir.")
 
 
 # =========================================================
