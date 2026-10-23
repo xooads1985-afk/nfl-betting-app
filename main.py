@@ -553,9 +553,9 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       else:
         st.warning("⚠️ El mercado cerró con mejor cuota; ajustar el timing de entrada.")
 
-    # Sello del Modelo NBA
+    # Sello del Modelo NBA (Corregido a 'mejor_edge_nba')
     mejor_mercado_nba, mejor_edge_nba, mejor_momio_nba = max(edges_nba_partido, key=lambda x: x[1])
-    if melhor_edge_nba >= 3.0:
+    if mejor_edge_nba >= 3.0:
       st.success(f"🔥 **SELLO DEL MODELO NBA (MEJOR PICK): ¡{mejor_mercado_nba}!** (Edge: `+{mejor_edge_nba:.2f}%` | Cuota: `{mejor_momio_nba}`)")
     else:
       st.info(f"⚖️ **Sello del Modelo NBA:** Mejor proyección en **{mejor_mercado_nba}** (`+{mejor_edge_nba:.2f}%`).")
