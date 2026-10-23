@@ -18,6 +18,37 @@ st.set_page_config(
 
 
 # ---------------------------------------------------------
+# CONEXIÓN CON THE ODDS API (MOMIOS EN VIVO)
+# ---------------------------------------------------------
+@st.cache_data(ttl=300)
+def obtener_momios_odds_api(deporte_key, api_key):
+  if not api_key:
+    return {}
+  url = f"https://api.the-odds-api.v4/sports/{deporte_key}/odds/?apiKey={api_key}&regions=us&markets=h2h&oddsFormat=american"
+  try:
+    response = requests.get(url, timeout=3)
+    if response.status_code == 200:
+      data = response.json()
+      diccionario_momios = {}
+      for evento in data:
+        home_team = evento.get("home_team")
+        bookmakers = evento.get("bookmakers", [])
+        if bookmakers:
+          # Tomamos la primera casa disponible (ej. Pinnacle o DraftKings)
+          markets = bookmakers[0].get("markets", [])
+          for market in markets:
+            if market.get("key") == "h2h":
+              outcomes = market.get("outcomes", [])
+              for out in outcomes:
+                if out.get("name") == home_team:
+                  diccionario_momios[home_team] = out.get("price")
+      return diccionario_momios
+  except Exception:
+    pass
+  return {}
+
+
+# ---------------------------------------------------------
 # HILO EN SEGUNDO PLANO PARA CAPTURA AUTOMÁTICA DE CLV
 # ---------------------------------------------------------
 def hilo_captura_clv(base_datos, api_deportiva):
@@ -60,11 +91,11 @@ fecha_seleccionada = st.sidebar.date_input(
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
-# Integración Opcional de Odds API
+# Integración Real de Odds API
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
 odds_api_key = st.sidebar.text_input(
-    "API Key (The Odds API - Opcional):",
+    "API Key (The Odds API):",
     type="password",
     help="Ingresa tu clave para jalar momios en vivo automáticamente.",
 )
@@ -732,6 +763,8 @@ elif (
   cartelera = obtener_cartelera_pura(
       "football", "nfl", fecha_formato_api, fecha_formato_str
   )
+  momios_api_nfl = obtener_momios_odds_api("americanfootball_nfl", odds_api_key)
+
   st.markdown("---")
   st.subheader("📊 Partidos en Cartelera NFL")
 
@@ -807,8 +840,11 @@ elif (
             key=f"nfl_sel_eq_{idx}",
         )
 
+        momio_sugerido_api = momios_api_nfl.get(op["local"], -110)
         momio_nfl_str = st.text_input(
-            "📈 Momio Casino (Americano):", value="-110", key=f"nfl_m_txt_{idx}"
+            "📈 Momio Casino (Americano):",
+            value=str(momio_sugerido_api),
+            key=f"nfl_m_txt_{idx}",
         )
         try:
           momio_nfl = int(momio_nfl_str)
@@ -955,6 +991,8 @@ elif (
   cartelera_nba = obtener_cartelera_pura(
       "basketball", "nba", fecha_formato_api, fecha_formato_str
   )
+  momios_api_nba = obtener_momios_odds_api("basketball_nba", odds_api_key)
+
   st.markdown("---")
   st.subheader("📊 Partidos en Cartelera NBA")
 
@@ -1012,9 +1050,10 @@ elif (
               key=f"nba_han_{idx}",
           )
         with col_h3:
+          momio_sugerido_nba = momios_api_nba.get(op["local"], -110)
           momio_nba_str = st.text_input(
               "📈 Momio Casino (Americano):",
-              value="-110",
+              value=str(momio_sugerido_nba),
               key=f"nba_m_txt_{idx}",
           )
           try:
@@ -1858,6 +1897,7 @@ elif (
     )
 
   cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_str)
+  momios_api_nhl = obtener_momios_odds_api("icehockey_nhl", odds_api_key)
 
   st.markdown("---")
   usar_manual_nhl = st.checkbox(
@@ -2086,6 +2126,8 @@ elif (
             key=f"nhl_merc_tipo_{idx}",
         )
 
+        momio_sugerido_nhl = momios_api_nhl.get(op["local"], -110)
+
         if "Total de Goles" in tipo_mercado_nhl:
           col_ou1, col_ou2 = st.columns(2)
           with col_ou1:
@@ -2103,7 +2145,9 @@ elif (
             )
 
           momio_nhl_str = st.text_input(
-              "📈 Momio Casino:", value="-110", key=f"nhl_m_txt_{idx}"
+              "📈 Momio Casino:",
+              value=str(momio_sugerido_nhl),
+              key=f"nhl_m_txt_{idx}",
           )
           try:
             momio_nhl = int(momio_nhl_str)
