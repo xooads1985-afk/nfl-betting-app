@@ -124,21 +124,23 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
 
 
 @st.cache_data(ttl=300)
-def obtener_cartelera_oficial_nhl(fecha_str_api, fecha_str_humana):
-  url = f"https://api-web.nhle.com/v1/schedule/{fecha_str_api}"
+def obtener_cartelera_oficial_nhl(fecha_str_api_nhl, fecha_str_humana):
+  url = f"https://api-web.nhle.com/v1/schedule/{fecha_str_api_nhl}"
   partidos_nhl = []
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
       data = response.json()
       for day in data.get("gameWeek", []):
-        for game in day.get("games", []):
-          partidos_nhl.append({
-              "game_id": game.get("id"),
-              "local": game.get("homeTeam", {}).get("abbrev", "HOME"),
-              "visita": game.get("awayTeam", {}).get("abbrev", "AWAY"),
-              "partido_str": f"🏒 [{fecha_str_humana}] {game.get('awayTeam', {}).get('abbrev')} @ {game.get('homeTeam', {}).get('abbrev')}",
-          })
+        # Filtramos estrictamente para que solo traiga los juegos de la fecha exacta
+        if day.get("date") == fecha_str_api_nhl:
+          for game in day.get("games", []):
+            partidos_nhl.append({
+                "game_id": game.get("id"),
+                "local": game.get("homeTeam", {}).get("abbrev", "HOME"),
+                "visita": game.get("awayTeam", {}).get("abbrev", "AWAY"),
+                "partido_str": f"🏒 [{fecha_str_humana}] {game.get('awayTeam', {}).get('abbrev')} @ {game.get('homeTeam', {}).get('abbrev')}",
+            })
       if partidos_nhl:
         return partidos_nhl
   except Exception:
@@ -153,7 +155,7 @@ st.sidebar.title("🎯 Menú del Sistema Pro")
 
 fecha_seleccionada = st.sidebar.date_input("📅 Selecciona la Fecha a Analizar:", value=date.today())
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
-fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d") # Formato correcto YYYY-MM-DD para la API de NHL
+fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 if "api_key_guardada" not in st.session_state:
