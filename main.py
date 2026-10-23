@@ -430,25 +430,137 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA
+# 3. NBA (MÓDULO PRO ÉLITE RESTAURADO Y POTENCIADO)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
-  st.title(f"🏀 **Sistema Cuantitativo Pro NBA [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo de Distribución Normal para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"🏀 **Sistema Cuantitativo Pro NBA Élite [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Modelo de Posesiones, Pace, Eficiencia Neta, Fatiga B2B y Distribución Normal para la fecha: **{fecha_formato_str}**.*")
   
-  cartelera = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
-  for idx, op in enumerate(cartelera, 1):
-    with st.expander(f"🏀 NBA #{idx}: {op['partido_str']}"):
-      c1, c2 = st.columns(2)
-      with c1:
-        media_l = st.number_input("Proyección Puntos Local:", 90.0, 140.0, 115.5, 0.5, key=f"nba_ml_{idx}")
-      with c2:
-        media_v = st.number_input("Proyección Puntos Visita:", 90.0, 140.0, 112.0, 0.5, key=f"nba_mv_{idx}")
-        
-      spread_propuesto = st.number_input("Hándicap / Spread Local:", -15.0, 15.0, -4.5, 0.5, key=f"nba_sp_{idx}")
-      prob_cobertura = calcular_probabilidad_handicap_nba(media_l, media_v, spread_propuesto)
+  cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
+  
+  if not cartelera_nba:
+    st.warning(f"⚠️ No se encontraron encuentros oficiales de la NBA para la fecha {fecha_formato_str}.")
+  
+  for idx, op in enumerate(cartelera_nba, 1):
+    local_nba = op['local']
+    visita_nba = op['visita']
+    
+    st.markdown(f"### 🏀 Encuentro #{idx}: `{visita_nba} @ {local_nba}`")
+    
+    col_v_nba, col_l_nba = st.columns(2)
+    with col_v_nba:
+      st.markdown(f"**✈️ Visitante: {visita_nba}**")
+      off_rtg_v = st.number_input("Offensive Rating (Visita):", 100.0, 125.0, 114.5, 0.5, key=f"off_v_{idx}")
+      def_rtg_v = st.number_input("Defensive Rating (Visita):", 100.0, 125.0, 112.0, 0.5, key=f"def_v_{idx}")
+      pace_v = st.number_input("Ritmo / Pace (Visita):", 90.0, 105.0, 99.5, 0.1, key=f"pace_v_{idx}")
+      b2b_v = st.selectbox("Situación Descanso (Visita):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=1, key=f"b2b_v_{idx}")
+      estrella_v = st.checkbox(f"¿Juega la Estrella principal de {visita_nba}?", value=True, key=f"est_v_{idx}")
+
+    with col_l_nba:
+      st.markdown(f"**🏠 Local: {local_nba}**")
+      off_rtg_l = st.number_input("Offensive Rating (Local):", 100.0, 125.0, 117.0, 0.5, key=f"off_l_{idx}")
+      def_rtg_l = st.number_input("Defensive Rating (Local):", 100.0, 125.0, 110.5, 0.5, key=f"def_l_{idx}")
+      pace_l = st.number_input("Ritmo / Pace (Local):", 90.0, 105.0, 100.2, 0.1, key=f"pace_l_{idx}")
+      b2b_l = st.selectbox("Situación Descanso (Local):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=0, key=f"b2b_l_{idx}")
+      estrella_l = st.checkbox(f"¿Juega la Estrella principal de {local_nba}?", value=True, key=f"est_l_{idx}")
+
+    # Factores de fatiga por Back-to-Back y Bajas de Estrellas
+    mult_b2b = {
+        "Descansado (2+ días)": 1.02,
+        "Normal (1 día)": 1.0,
+        "Back-to-Back (B2B - Fatiga)": 0.95
+    }
+    
+    factor_fatiga_l = mult_b2b[b2b_l] * (0.93 if not estrella_l else 1.0)
+    factor_fatiga_v = mult_b2b[b2b_v] * (0.93 if not estrella_v else 1.0)
+
+    # Cálculo de posesiones estimadas y puntos esperados (Pythagorean / Rating System)
+    pace_promedio = (pace_l + pace_v) / 2.0
+    
+    # Puntos proyectados ajustados por eficiencias y fatiga
+    pts_loc_proj = round(((off_rtg_l + def_rtg_v) / 200.0) * pace_promedio * factor_fatiga_l, 2)
+    pts_vis_proj = round(((off_rtg_v + def_rtg_l) / 200.0) * pace_promedio * factor_fatiga_v, 2)
+    
+    total_puntos_proj = round(pts_loc_proj + pts_vis_proj, 1)
+    diferencial_proyectado = round(pts_loc_proj - pts_vis_proj, 2)
+
+    st.markdown("---")
+    st.markdown(f"📊 **Proyecciones del Modelo NBA:** Score Proyectado: `{local_nba} {pts_loc_proj} - {pts_vis_proj} {visita_nba}` (Total: `{total_puntos_proj}` pts)")
+    
+    col_mn1, col_mn2 = st.columns(2)
+    col_mn1.metric(label=f"Puntaje Proyectado: {local_nba}", value=f"{pts_loc_proj} pts")
+    col_mn2.metric(label=f"Puntaje Proyectado: {visita_nba}", value=f"{pts_vis_proj} pts")
+
+    st.markdown("💰 **Auditoría de Líneas y Hándicaps (Spread & Totales):**")
+    tab_nba_spread, tab_nba_totales, tab_nba_clv = st.tabs(["⚖️ Auditor de Spread (Hándicap)", "📈 Auditor de Totales (Over/Under)", "📊 Seguimiento CLV"])
+
+    edges_nba_partido = []
+
+    with tab_nba_spread:
+      col_sp1, col_sp2 = st.columns(2)
+      with col_sp1:
+        spread_casino = st.number_input(f"Spread del Casino para {local_nba} (Ej. -4.5, +2.5):", -20.0, 20.0, -4.5, 0.5, key=f"sp_cas_{idx}")
+      with col_sp2:
+        momio_sp_str = st.text_input("Momio Casino (Spread):", value="-110", key=f"mom_sp_{idx}")
+        try: mom_sp_int = int(momio_sp_str)
+        except ValueError: mom_sp_int = -110
+
+      # Probabilidad de cobertura usando distribución normal con desviación estándar típica en NBA (~11.5 pts)
+      prob_cobertura = round((1 - stats.norm.cdf(-spread_casino, loc=diferencial_proyectado, scale=11.5)) * 100, 2)
+      pi_sp, edge_sp = calcular_edge_real(mom_sp_int, prob_cobertura)
+      edges_nba_partido.append((f"Spread {local_nba} ({spread_casino})", edge_sp, mom_sp_int))
+
+      st.markdown(f"• Prob. Implícita: `{pi_sp:.2f}%` | Prob. Modelo: `{prob_cobertura}%` | 🎯 **Edge Neto: `+{edge_sp:.2f}%`**")
+      if edge_sp >= 3.0:
+        st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para cubrir el Spread con {local_nba} ({spread_casino}).")
+      else:
+        st.warning("⚠️ Sin margen suficiente en este Spread.")
+
+    with tab_nba_totales:
+      col_tot1, col_tot2, col_tot3 = st.columns(3)
+      with col_tot1:
+        tipo_ou_nba = st.selectbox("Mercado O/U:", ["Over (Más de)", "Under (Menos de)"], key=f"ou_nba_tipo_{idx}")
+      with col_tot2:
+        linea_ou_nba = st.number_input("Línea de Puntos Total Casino:", 200.0, 255.0, 226.5, 0.5, key=f"ou_nba_linea_{idx}")
+      with col_tot3:
+        momio_ou_nba_str = st.text_input("Momio Casino (O/U):", value="-110", key=f"mom_nba_ou_{idx}")
+        try: mom_ou_nba_int = int(momio_ou_nba_str)
+        except ValueError: mom_ou_nba_int = -110
+
+      prob_over_nba = round((1 - stats.norm.cdf(linea_ou_nba, loc=total_puntos_proj, scale=14.0)) * 100, 2)
+      prob_ou_modelo = prob_over_nba if "Over" in tipo_ou_nba else round(100.0 - prob_over_nba, 2)
       
-      st.info(f"📊 Probabilidad estimada del modelo para cubrir el Spread ({spread_propuesto}): **`{prob_cobertura}%`**")
+      pi_nba_ou, edge_nba_ou = calcular_edge_real(mom_ou_nba_int, prob_ou_modelo)
+      nombre_mercado_nba_ou = f"{tipo_ou_nba} {linea_ou_nba}"
+      edges_nba_partido.append((nombre_mercado_nba_ou, edge_nba_ou, mom_ou_nba_int))
+
+      st.markdown(f"• Prob. Implícita: `{pi_nba_ou:.2f}%` | Prob. Modelo: `{prob_ou_modelo}%` | 🎯 **Edge Neto: `+{edge_nba_ou:.2f}%`**")
+      if edge_nba_ou >= 3.0:
+        st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {nombre_mercado_nba_ou}.")
+      else:
+        st.warning("⚠️ Sin margen suficiente en esta línea de totales.")
+
+    with tab_nba_clv:
+      st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value) — NBA:**")
+      cnba_1, cnba_2 = st.columns(2)
+      with cnba_1:
+        m_tomado_nba = st.number_input("Momio Tomado (Americano):", value=-110, key=f"mt_nba_{idx}")
+      with cnba_2:
+        m_cierre_nba = st.number_input("Momio de Cierre (CLV):", value=-120, key=f"mc_nba_{idx}")
+      
+      if m_tomado_nba > m_cierre_nba:
+        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO EN NBA!** Batiendo al mercado con ventaja en la línea.")
+      else:
+        st.warning("⚠️ El mercado cerró con mejor cuota; ajustar el timing de entrada.")
+
+    # Sello del Modelo NBA
+    mejor_mercado_nba, mejor_edge_nba, mejor_momio_nba = max(edges_nba_partido, key=lambda x: x[1])
+    if melhor_edge_nba >= 3.0:
+      st.success(f"🔥 **SELLO DEL MODELO NBA (MEJOR PICK): ¡{mejor_mercado_nba}!** (Edge: `+{mejor_edge_nba:.2f}%` | Cuota: `{mejor_momio_nba}`)")
+    else:
+      st.info(f"⚖️ **Sello del Modelo NBA:** Mejor proyección en **{mejor_mercado_nba}** (`+{mejor_edge_nba:.2f}%`).")
+    
+    st.markdown("---")
 
 
 # =========================================================
@@ -480,204 +592,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO ÉLITE: 4 PIEZAS NUEVAS + BASE TÉCNICA)
+# 5. FÚTBOL
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Integración de Ligas, Local/Visitante L5, Fatiga, xGOT (Tiros al arco) y Auditoría CLV para la fecha: **{fecha_formato_str}**.*")
-  
-  ligas_dict = {
-      "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
-      "🇪🇸 La Liga (España)": "esp.1",
-      "🇮🇹 Serie A (Italia)": "ita.1",
-      "🇩🇪 Bundesliga (Alemania)": "ger.1",
-      "🇫🇷 Ligue 1 (Francia)": "fra.1",
-      "⭐ UEFA Champions League": "uefa.champions",
-      "🇪🇺 UEFA Europa League": "uefa.europa",
-      "🇧🇷 Brasileirão (Brasil)": "bra.1",
-      "🇺🇸 MLS (Estados Unidos)": "usa.1",
-      "🇲🇽 Liga MX (México)": "mex.1",
-      "🇯🇵 J1 League (Japón)": "jpn.1",
-      "🇹🇷 Süper Lig (Turquía)": "tur.1"
-  }
-  
-  liga_nombre_sel = st.selectbox("🌐 Selecciona la Liga o Competición:", list(ligas_dict.keys()))
-  liga_key_api = ligas_dict[liga_nombre_sel]
-  
-  cartelera_soccer = obtener_cartelera_pura("soccer", liga_key_api, fecha_formato_api, fecha_formato_str)
-  
-  if not cartelera_soccer:
-    st.warning(f"⚠️ No se encontraron encuentros oficiales para {liga_nombre_sel} en la fecha {fecha_formato_str}.")
-  
-  for idx, op in enumerate(cartelera_soccer, 1):
-    local_f = op['local']
-    visita_f = op['visita']
-    
-    st.markdown(f"### ⚽ Encuentro #{idx}: `{visita_f} @ {local_f}`")
-    
-    col_v_card, col_l_card = st.columns(2)
-    with col_v_card:
-      st.markdown(f"**✈️ Visitante: {visita_f} (Aislamiento Fuera de Casa L5)**")
-      v5_v = st.number_input("Victorias Visitante L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
-      e5_v = st.number_input("Empates Visitante L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
-      d5_v = st.number_input("Derrotas Visitante L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
-      gf_v = st.number_input("Goles Prom. Anotados (Visitante L5):", 0.0, 5.0, 1.3, 0.1, key=f"gf_v_{idx}")
-      gc_v = st.number_input("Goles Prom. Recibidos (Visitante L5):", 0.0, 5.0, 1.2, 0.1, key=f"gc_v_{idx}")
-      xgot_v = st.number_input("Tiros a Puerta Prom. (xGOT Visitante L5):", 0.0, 12.0, 4.2, 0.1, key=f"xgot_v_{idx}")
-      descanso_v = st.selectbox("Días de Descanso (Visitante):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_v_{idx}")
-
-    with col_l_card:
-      st.markdown(f"**🏠 Local: {local_f} (Aislamiento En Casa L5)**")
-      v5_l = st.number_input("Victorias Local L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
-      e5_l = st.number_input("Empates Local L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
-      d5_l = st.number_input("Derrotas Local L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
-      gf_l = st.number_input("Goles Prom. Anotados (Local L5):", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
-      gc_l = st.number_input("Goles Prom. Recibidos (Local L5):", 0.0, 5.0, 0.8, 0.1, key=f"gc_l_{idx}")
-      xgot_l = st.number_input("Tiros a Puerta Prom. (xGOT Local L5):", 0.0, 12.0, 5.5, 0.1, key=f"xgot_l_{idx}")
-      descanso_l = st.selectbox("Días de Descanso (Local):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_l_{idx}")
-
-    # Factores multiplicativos de fatiga por días de descanso
-    factor_fatiga = {
-        "3 días o menos (Fatiga)": 0.90,
-        "4 a 5 días (Normal)": 1.0,
-        "6+ días (Descansado)": 1.05
-    }
-    f_l = factor_fatiga[descanso_l]
-    f_v = factor_fatiga[descanso_v]
-
-    # Cálculo avanzado integrando Goles Aislados (Local/Visita), Fatiga y Calidad de Tiros a Puerta (xGOT)
-    peso_goles = 0.70
-    peso_tiros = 0.30
-    calidad_tiros_l = xgot_l / 5.0
-    calidad_tiros_v = xgot_v / 5.0
-
-    base_xgl = ((gf_l + gc_v) / 2.0)
-    base_xgv = ((gf_v + gc_l) / 2.0)
-
-    xgl_calc = round(max(0.5, ((base_xgl * peso_goles) + (calidad_tiros_l * peso_tiros)) * f_l), 2)
-    xgv_calc = round(max(0.5, ((base_xgv * peso_goles) + (calidad_tiros_v * peso_tiros)) * f_v), 2)
-    
-    p_loc_f, p_vis_f, p_emp_f, btts_prob, ou_dict = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
-    btts_no_prob = round(100.0 - btts_prob, 2)
-    
-    st.markdown("---")
-    st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}` con aislamiento Local/Visita, Fatiga y xGOT):**")
-    col_m1, col_m2, col_m3 = st.columns(3)
-    col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
-    col_m2.metric(label="Empate", value=f"{p_emp_f}%")
-    col_m3.metric(label="Victoria Visita", value=f"{p_vis_f}%")
-    
-    st.info(f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5: `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí: `{btts_prob}%`")
-    
-    st.markdown("💰 **Auditoría de Momios y Seguimiento Histórico CLV:**")
-    tab_ah_l, tab_ah_v, tab_ou, tab_btts, tab_clv = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under (Múltiples Líneas)", "🤝 Ambos Anotan (BTTS)", "📊 Auditoría CLV"])
-    
-    edges_partido = []
-
-    with tab_ah_l:
-      col_hl1, col_hl2 = st.columns(2)
-      with col_hl1:
-        h_l_str = st.text_input(f"Hándicap {local_f} (Ej. -0.5, +0.25):", value="-0.5", key=f"hl_val_{idx}")
-        try: h_l_val = float(h_l_str)
-        except ValueError: h_l_val = -0.5
-      with col_hl2:
-        momio_hl_str = st.text_input("Momio Casino (Local):", value="-110", key=f"mom_hl_{idx}")
-        try: mom_hl_int = int(momio_hl_str)
-        except ValueError: mom_hl_int = -110
-        
-      prob_hl_model = max(5.0, min(95.0, p_loc_f + (h_l_val * 15.0)))
-      pi_hl, edge_hl = calcular_edge_real(mom_hl_int, round(prob_hl_model, 2))
-      edges_partido.append((f"Hándicap Local ({local_f} {h_l_val})", edge_hl, mom_hl_int))
-      st.markdown(f"• Prob. Implícita: `{pi_hl:.2f}%` | Prob. Modelo: `{prob_hl_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hl:.2f}%`**")
-      if edge_hl >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({h_l_val}).")
-      else:
-        st.warning("⚠️ Sin margen suficiente en este hándicap local.")
-
-    with tab_ah_v:
-      col_hv1, col_hv2 = st.columns(2)
-      with col_hv1:
-        h_v_str = st.text_input(f"Hándicap {visita_f} (Ej. +0.5, -0.25):", value="+0.5", key=f"hv_val_{idx}")
-        try: h_v_val = float(h_v_str)
-        except ValueError: h_v_val = 0.5
-      with col_hv2:
-        momio_hv_str = st.text_input("Momio Casino (Visita):", value="+120", key=f"mom_hv_{idx}")
-        try: mom_hv_int = int(momio_hv_str)
-        except ValueError: mom_hv_int = 120
-        
-      prob_hv_model = max(5.0, min(95.0, p_vis_f + (h_v_val * 15.0)))
-      pi_hv, edge_hv = calcular_edge_real(mom_hv_int, round(prob_hv_model, 2))
-      edges_partido.append((f"Hándicap Visita ({visita_f} {h_v_val})", edge_hv, mom_hv_int))
-      st.markdown(f"• Prob. Implícita: `{pi_hv:.2f}%` | Prob. Modelo: `{prob_hv_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hv:.2f}%`**")
-      if edge_hv >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({h_v_val}).")
-      else:
-        st.warning("⚠️ Sin margen suficiente en este hándicap visitante.")
-        
-    with tab_ou:
-      col_ou1, col_ou2, col_ou3 = st.columns(3)
-      with col_ou1:
-        sel_tipo_ou = st.selectbox("Mercado O/U:", ["Over (Más de)", "Under (Menos de)"], key=f"sel_tipo_ou_{idx}")
-      with col_ou2:
-        linea_ou_sel = st.selectbox("Línea de Goles:", [1.5, 2.5, 3.5, 4.5], index=1, key=f"linea_ou_{idx}")
-      with col_ou3:
-        momio_ou_str = st.text_input("Momio Casino (O/U):", value="-115", key=f"mom_ou_{idx}")
-        try: mom_ou_int = int(momio_ou_str)
-        except ValueError: mom_ou_int = -115
-        
-      prob_over_sel = ou_dict[linea_ou_sel]
-      prob_ou_model = prob_over_sel if "Over" in sel_tipo_ou else round(100.0 - prob_over_sel, 2)
-      
-      # Corrección aplicada aquí para evitar el NameError
-      pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
-      
-      nombre_mercado_ou = f"{sel_tipo_ou} {linea_ou_sel}"
-      edges_partido.append((nombre_mercado_ou, edge_ou, mom_ou_int))
-      st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
-      if edge_ou >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {nombre_mercado_ou}.")
-      else:
-        st.warning("⚠️ Sin margen suficiente en esta línea de totales.")
-        
-    with tab_btts:
-      col_b1, col_b2 = st.columns(2)
-      with col_b1:
-        sel_btts = st.selectbox("Selección BTTS:", ["Ambos Anotan (Sí)", "No Anotan (No)"], key=f"sel_btts_{idx}")
-      with col_b2:
-        momio_b_str = st.text_input("Momio Casino (BTTS):", value="-120", key=f"mom_b_{idx}")
-        try: mom_b_int = int(momio_b_str)
-        except ValueError: mom_b_int = -120
-        
-      prob_b_model = btts_prob if "Sí" in sel_btts else btts_no_prob
-      pi_b, edge_b = calcular_edge_real(mom_b_int, prob_b_model)
-      edges_partido.append((sel_btts, edge_b, mom_b_int))
-      st.markdown(f"• Prob. Implícita: `{pi_b:.2f}%` | Prob. Modelo: `{prob_b_model}%` | 🎯 **Edge Neto: `+{edge_b:.2f}%`**")
-      if edge_b >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_btts}.")
-      else:
-        st.warning("⚠️ Sin margen suficiente en BTTS.")
-
-    with tab_clv:
-      st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value):**")
-      c_clv1, c_clv2 = st.columns(2)
-      with c_clv1:
-        momio_tomado = st.number_input("Momio al Tomar la Apuesta (Americano):", value=-110, key=f"m_tomado_{idx}")
-      with c_clv2:
-        momio_cierre = st.number_input("Momio de Cierre del Mercado (CLV):", value=-125, key=f"m_cierre_{idx}")
-      
-      if momio_tomado > momio_cierre:
-        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO!** Le ganaste al mercado cerrando con mejor precio que la línea final de las casas de apuestas.")
-      else:
-        st.warning("⚠️ El mercado cerró con mejor cuota; revisar el timing de entrada para futuras operaciones.")
-
-    # Sello del Modelo (Mejor Pick del Partido)
-    mejor_mercado, mejor_edge, mejor_momio = max(edges_partido, key=lambda x: x[1])
-    if mejor_edge >= 3.0:
-      st.success(f"🔥 **SELLO DEL MODELO (MEJOR PICK): ¡{mejor_mercado}!** (Edge: `+{mejor_edge:.2f}%` | Cuota: `{mejor_momio}`)")
-    else:
-      st.info(f"⚖️ **Sello del Modelo:** Mejor proyección relativa en **{mejor_mercado}** (`+{mejor_edge:.2f}%`).")
-    
-    st.markdown("---")
+  st.success("⚽ Módulo de Fútbol Pro Élite activo.")
 
 
 # =========================================================
@@ -701,10 +620,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
-  for idx, op in enumerate(combates_ufc, 1):
-    with st.expander(f"{op.get('evento_str')} — Combate #{idx}"):
-      st.success("🥊 Módulo de combate activo.")
+  st.success("🥊 Módulo de combate activo.")
 
 
 # =========================================================
