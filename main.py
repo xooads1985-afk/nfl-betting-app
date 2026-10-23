@@ -112,7 +112,7 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
   except Exception:
     pass
   
-  # Respaldo automático garantizado para que nunca devuelva vacío
+  # Respaldo automático garantizado
   if liga.lower() == "nba":
     return [{"partido_str": f"📅 [{fecha_str_humana}] Boston Celtics @ Los Angeles Lakers", "local": "Los Angeles Lakers", "visita": "Boston Celtics"}]
   elif "soccer" in deporte.lower():
@@ -153,6 +153,7 @@ st.sidebar.title("🎯 Menú del Sistema Pro")
 
 fecha_seleccionada = st.sidebar.date_input("📅 Selecciona la Fecha a Analizar:", value=date.today())
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
+fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d") # Formato correcto YYYY-MM-DD para la API de NHL
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 if "api_key_guardada" not in st.session_state:
@@ -210,10 +211,10 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
     with st.spinner("Procesando carteleras y modelos..."):
       minas_de_oro = []
 
-      # Cargar carteleras asegurando datos reales o respaldos limpios
+      # Cargar carteleras asegurando datos reales o respaldos limpios sincronizados
       cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
       cartelera_soccer = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
-      cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_api, fecha_formato_str)
+      cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
 
       for p in cartelera_nba:
         prob = calcular_probabilidad_handicap_nba(115.5, 112.0, -4.5)
@@ -285,7 +286,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
   st.title(f"🏒 **Sistema Pro NHL [{fecha_formato_str}]**")
-  cartelera = obtener_cartelera_oficial_nhl(fecha_formato_api, fecha_formato_str)
+  cartelera = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
     with st.expander(f"🏒 {op['partido_str']}"):
       st.success("🤖 Simulación Poisson NHL activa.")
