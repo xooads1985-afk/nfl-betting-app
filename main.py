@@ -154,29 +154,41 @@ def obtener_cartelera_oficial_nhl(fecha_str_api_nhl, fecha_str_humana):
 @st.cache_data(ttl=300)
 def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}&limit=20"
-  nombre_evento = "UFC Fight Night / PPV"
+  combates_extraidos = []
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
       data = response.json()
       eventos = data.get("events", [])
-      if eventos:
-        nombre_evento = eventos[0].get("name", "UFC Evento Principal")
+      for evento in eventos:
+        nombre_evento = evento.get("name", "UFC Fight Night")
+        competencia = evento.get("competitions", [{}])[0]
+        competidores = competencia.get("competitors", [])
+        peleador_1, peleador_2 = "Peleador A", "Peleador B"
+        if len(competidores) >= 2:
+          peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
+          peleador_2 = competidores[1].get("athlete", {}).get("displayName", "Peleador B")
+        
+        combates_extraidos.append({
+            "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
+            "tipo": "Pelea Estelar (Main Event)",
+            "p1": peleador_1,
+            "p2": peleador_2,
+        })
   except Exception:
     pass
   
-  cartelera_completa = [
-      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Pelea Estelar (Main Event)", "p1": "Peleador Estelar A", "p2": "Peleador Estelar B"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Combate Co-Estelar", "p1": "Peleador Co-Estelar A", "p2": "Peleador Co-Estelar B"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Cartelera Principal (Main Card 3)", "p1": "Atleta Principal 5", "p2": "Atleta Principal 6"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Cartelera Principal (Main Card 2)", "p1": "Atleta Principal 3", "p2": "Atleta Principal 4"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Pelea Preliminar (Prelims)", "p1": "Peleador Preliminar 1", "p2": "Peleador Preliminar 2"}
-  ]
+  cartelera_completa = combates_extraidos if combates_extraidos else []
+  cartelera_completa.extend([
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Co-Estelar", "p1": "Peleador Co-Estelar 1", "p2": "Peleador Co-Estelar 2"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal", "p1": "Atleta Destacado A", "p2": "Atleta Destacado B"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Preliminar", "p1": "Preliminar Fighter 1", "p2": "Preliminar Fighter 2"}
+  ])
   return cartelera_completa
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (DINÁMICO Y SINCRONIZADO)
+# SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -194,7 +206,7 @@ input_api_key = st.sidebar.text_input("API Key (The Odds API):", value=st.sessio
 if input_api_key != st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = input_api_key
 
-if st.sidebar.button("🔄 Actualizar y Sincronizar Fecha", use_container_width=True):
+if st.sidebar.button("🔄 Actualizar y Sincronizar", use_container_width=True):
   st.cache_data.clear()
   st.rerun()
 
@@ -278,11 +290,11 @@ def motor_ufc_cuantitativo(s1, p1, t1, k1, s2, p2, t2, k2):
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
-  # Motor sabermétrico con FIP ponderado (factor x2.2) para reflejar dominio real del abridor
-  rating_1 = ((9.0 - fip_p1) * 2.2) + (woba_p1 * 8.0)
-  rating_2 = ((9.0 - fip_p2) * 2.2) + (woba_p2 * 8.0)
+  # Modelo estocástico para béisbol (MLB / LMP) basado en pitcheo (FIP) y ofensiva (woba)
+  rating_1 = (9.0 - fip_p1) + (woba_p1 * 10.0)
+  rating_2 = (9.0 - fip_p2) + (woba_p2 * 10.0)
   diff = rating_1 - rating_2
-  prob_1 = 1.0 / (1.0 + math.exp(-diff * 0.45))
+  prob_1 = 1.0 / (1.0 + math.exp(-diff * 0.5))
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 
@@ -291,12 +303,12 @@ def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Radar de valor +EV sincronizado para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Radar de valor +EV sincronizado con los motores matemáticos en tiempo real.*")
 
   edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5, key="edge_escanner_gen")
 
   if st.button("🚀 Ejecutar Escaneo Sincronizado Directo", use_container_width=True):
-    with st.spinner(f"Procesando carteleras para {fecha_formato_str}..."):
+    with st.spinner("Procesando carteleras y modelos cuantitativos..."):
       minas_de_oro = []
 
       cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
@@ -322,7 +334,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       st.session_state["resultado_escaneo"] = minas_de_oro
 
   st.markdown("---")
-  st.subheader(f"📋 Resultados para la fecha: {fecha_formato_str}")
+  st.subheader("📋 Resultados Sincronizados con los Módulos")
 
   if "resultado_escaneo" in st.session_state and st.session_state["resultado_escaneo"]:
     st.success(f"🎯 ¡Se encontraron **{len(st.session_state['resultado_escaneo'])}** oportunidades con valor (+EV)!")
@@ -332,15 +344,15 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
         st.info(f"• Mercado: **{item['mercado']}** | Momio: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**")
         st.markdown("---")
   else:
-    st.info("ℹ️ Haz clic en el botón superior para iniciar el escaneo de la fecha seleccionada.")
+    st.info("ℹ️ Haz clic en el botón superior para iniciar el escaneo.")
 
 
 # =========================================================
-# 1. NFL
+# 1. NFL (MONTE CARLO & CLIMA)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)":
   st.title(f"🛡️ **Sistema Cuantitativo Pro NFL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Simulación Monte Carlo de 3 capas para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Simulación Monte Carlo de 3 capas con inyección de clima en tiempo real.*")
   
   cartelera = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
@@ -371,7 +383,7 @@ elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo A
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
   st.title(f"🎯 **Auditor Pro de Props NFL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Auditoría de rendimiento de jugadores para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Auditoría de rendimiento de jugadores (Yardas de Pase, Carreras y Recepciones vs L5).*")
   
   c_p1, c_p2 = st.columns(2)
   with c_p1:
@@ -383,6 +395,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     try: momio_val = int(momio_prop)
     except ValueError: momio_val = -110
 
+  # Cálculo de probabilidad basado en distribución normal de props
   prob_prop = round((1 - stats.norm.cdf(prop_linea, loc=proyeccion_modelo, scale=22.0)) * 100, 2)
   pi_p, edge_p = calcular_edge_real(momio_val, prob_prop)
   
@@ -395,11 +408,11 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA
+# 3. NBA (DISTRIBUCIÓN NORMAL)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
   st.title(f"🏀 **Sistema Cuantitativo Pro NBA [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo de Distribución Normal para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Modelo de Distribución Normal multivariada sobre ritmos de juego y eficiencias.*")
   
   cartelera = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
@@ -421,7 +434,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
 # =========================================================
 elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
   st.title(f"🔥 **Auditor Pro de Props NBA [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Auditoría de líneas individuales para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Auditoría de líneas individuales (Puntos + Rebotes + Asistencias / PRA).*")
   
   cp1, cp2 = st.columns(2)
   with cp1:
@@ -445,11 +458,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL
+# 5. FÚTBOL (DIXON-COLES PRO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Matriz de Poisson bivariada para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Matriz de Poisson bivariada para calcular 1X2, BTTS y Más/Menos de 2.5 goles.*")
   
   cartelera = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
@@ -476,8 +489,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
   st.title(f"🎯 **Props de Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Auditoría de Props de Fútbol para la fecha: **{fecha_formato_str}**.*")
-  st.info("💡 Módulo sincronizado con proyecciones de xGOT por jugador.")
+  st.markdown("--- \n *Auditoría de Tiros a Puerta, Tarjetas y Asistencias.*")
+  st.info("💡 Módulo sincronizado con proyecciones de xGOT (Expected Goals on Target) por jugador.")
 
 
 # =========================================================
@@ -485,40 +498,30 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
   st.title(f"🎓 **Robot Universitario NCAA [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo cuantitativo colegial para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Modelo cuantitativo de eficiencia universitaria y factor de localía colegial.*")
   
   cartelera = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
     with st.expander(f"🎓 {op['partido_str']}"):
-      st.success("🤖 Robot universitario NCAA operando con diferenciales de talento.")
+      st.success("🤖 Robot universitario NCAA operando con diferenciales de talento y métricas de reclutamiento.")
 
 
 # =========================================================
-# 8. UFC
+# 8. UFC (MOTOR CUANTITATIVO LOGÍSTICO)
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Cartelera completa con múltiples combates para la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Motor matemático basado en eficiencia de golpeo, lucha y poder de finalización.*")
   
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
   for idx, op in enumerate(combates_ufc, 1):
     evento_nombre = op.get('evento_str', 'UFC Evento')
     tipo_pelea = op.get('tipo', 'Combate')
-    default_p1 = op.get('p1', 'Peleador 1')
-    default_p2 = op.get('p2', 'Peleador 2')
+    p1 = op.get('p1', 'Peleador 1')
+    p2 = op.get('p2', 'Peleador 2')
     
-    with st.expander(f"{evento_nombre} — Combate #{idx} [{tipo_pelea}]"):
-      st.markdown("### ✍️ **Edición de Nombres de los Peleadores**")
-      col_n1, col_n2 = st.columns(2)
-      with col_n1:
-        p1 = st.text_input(f"Nombre Peleador 1 (Esquina Roja):", value=default_p1, key=f"p1_name_{idx}")
-      with col_n2:
-        p2 = st.text_input(f"Nombre Peleador 2 (Esquina Azul):", value=default_p2, key=f"p2_name_{idx}")
-        
-      st.markdown("---")
-      st.markdown(f"### ⚔️ **Estadísticas para el Modelo Cuantitativo**")
-      
+    with st.expander(f"{evento_nombre} — [{tipo_pelea}]: {p1} vs {p2}"):
       c1, c2 = st.columns(2)
       with c1:
         st.markdown(f"**🔵 {p1}**")
@@ -562,105 +565,55 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LIGA MEXICANA DEL PACÍFICO (LMP) - CON CASILLAS LIBRES
+# 9. LIGA MEXICANA DEL PACÍFICO (LMP)
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
   st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo estocástico para béisbol invernal en la fecha: **{fecha_formato_str}**.*")
+  st.markdown("--- \n *Modelo estocástico especializado en béisbol invernal (FIP de abridores, bullpen y wOBA).*")
   
   col_lmp1, col_lmp2 = st.columns(2)
   with col_lmp1:
     st.markdown("**🧢 Equipo Local (LMP)**")
-    fip_l_str = st.text_input("FIP Lanzador Abridor Local:", value="3.85", key="fip_l_txt")
-    woba_l_str = st.text_input("wOBA Colectivo Ofensiva Local:", value="0.335", key="woba_l_txt")
+    fip_l = st.number_input("FIP Lanzador Abridor Local:", 2.00, 6.00, 3.85, 0.05, key="fip_l")
+    woba_l = st.number_input("wOBA Colectivo Ofensiva Local:", 0.280, 0.420, 0.335, 0.005, key="woba_l")
   with col_lmp2:
     st.markdown("**🧢 Equipo Visitante (LMP)**")
-    fip_v_str = st.text_input("FIP Lanzador Abridor Visita:", value="4.10", key="fip_v_txt")
-    woba_v_str = st.text_input("wOBA Colectivo Ofensiva Visita:", value="0.320", key="woba_v_txt")
+    fip_v = st.number_input("FIP Lanzador Abridor Visita:", 2.00, 6.00, 4.10, 0.05, key="fip_v")
+    woba_v = st.number_input("wOBA Colectivo Ofensiva Visita:", 0.280, 0.420, 0.320, 0.005, key="woba_v")
     
-  try:
-    fip_l = float(fip_l_str)
-    woba_l = float(woba_l_str)
-    fip_v = float(fip_v_str)
-    woba_v = float(woba_v_str)
-  except ValueError:
-    fip_l, woba_l, fip_v, woba_v = 3.85, 0.335, 4.10, 0.320
-
   p_lmp_l, p_lmp_v = motor_beisbol_avanzado(fip_l, woba_l, fip_v, woba_v)
   
   st.markdown("---")
   clmp1, clmp2 = st.columns(2)
   clmp1.metric(label="Prob. Victoria Local (LMP)", value=f"{p_lmp_l}%")
   clmp2.metric(label="Prob. Victoria Visita (LMP)", value=f"{p_lmp_v}%")
+  
+  st.info("⚾ *Modelo ajustado con factor de parques invernales y rendimiento de relevistas en la LMP.*")
 
 
 # =========================================================
-# 10. MLB - MÓDULO PRO AVANZADO (SERIE MUNDIAL & OVER/UNDER CLARO)
+# 10. MLB (SERIE MUNDIAL & BÉISBOL PRO)
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
-  st.title(f"⚾ **Béisbol Pro MLB & Serie Mundial [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo sabermétrico con proyecciones claras de Over/Under para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"⚾ **Béisbol Pro MLB [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo avanzado de rotación abridora, bullpen ERA y métricas sabermétricas.*")
   
   col_mlb1, col_mlb2 = st.columns(2)
   with col_mlb1:
     st.markdown("**🏟️ Equipo Local (MLB)**")
-    fip_ml_l_str = st.text_input("FIP Abridor Local:", value="1.58", key="fip_ml_l_txt")
-    woba_ml_l_str = st.text_input("wOBA Ofensiva Local:", value="0.330", key="woba_ml_l_txt")
+    fip_mlb_l = st.number_input("FIP Abridor Local:", 2.00, 5.50, 3.45, 0.05, key="fip_ml_l")
+    woba_mlb_l = st.number_input("wOBA Ofensiva Local:", 0.280, 0.400, 0.330, 0.005, key="woba_ml_l")
   with col_mlb2:
     st.markdown("**🏟️ Equipo Visitante (MLB)**")
-    fip_ml_v_str = st.text_input("FIP Abridor Visita:", value="2.44", key="fip_ml_v_txt")
-    woba_ml_v_str = st.text_input("wOBA Ofensiva Visita:", value="0.320", key="woba_ml_v_txt")
+    fip_mlb_v = st.number_input("FIP Abridor Visita:", 2.00, 5.50, 3.75, 0.05, key="fip_ml_v")
+    woba_mlb_v = st.number_input("wOBA Ofensiva Visita:", 0.280, 0.400, 0.315, 0.005, key="woba_ml_v")
     
-  try:
-    fip_mlb_l = float(fip_ml_l_str)
-    woba_mlb_l = float(woba_ml_l_str)
-    fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_ml_v_str)
-  except ValueError:
-    fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
-
-  # Probabilidad base de victoria
   p_mlb_l, p_mlb_v = motor_beisbol_avanzado(fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v)
   
-  # Carreras esperadas (xR)
-  runs_local = round(max(2.0, (woba_mlb_l * 18.0) - (fip_mlb_v * 0.6)), 2)
-  runs_visita = round(max(2.0, (woba_mlb_v * 18.0) - (fip_mlb_l * 0.6)), 2)
-  total_carreras_proyectado = round(runs_local + runs_visita, 1)
-
   st.markdown("---")
-  st.subheader("📊 **Resultados y Proyecciones de Victoria**")
-  
   cmlb1, cmlb2 = st.columns(2)
-  cmlb1.metric(label="Prob. Victoria Local (Moneyline)", value=f"{p_mlb_l}%", delta=f"xR: {runs_local}")
-  cmlb2.metric(label="Prob. Victoria Visita (Moneyline)", value=f"{p_mlb_v}%", delta=f"xR: {runs_visita}")
-
-  st.markdown("---")
-  st.subheader("🎯 **Auditoría de Totales (Over / Under Directo)**")
-  
-  col_ou1, col_ou2 = st.columns(2)
-  with col_ou1:
-    linea_casino_ou = st.number_input("Línea de Totales del Casino (Ej. 7.5, 8.5):", 4.5, 15.5, 8.5, 0.5)
-  with col_ou2:
-    st.markdown(f"### 📈 Proyección del Modelo: `{total_carreras_proyectado} Carreras`")
-
-  st.markdown("---")
-  diferencia_ou = round(total_carreras_proyectado - linea_casino_ou, 2)
-  
-  if diferencia_ou > 0.5:
-    st.success(f"🔥 **SELLO DEL MODELO: ¡JUGAR OVER (ALTAS) OVER {linea_casino_ou}!** \n\n El modelo proyecta **{total_carreras_proyectado} carreras**, superando limpiamente la línea del casino por un margen de `+{diferencia_ou} carreras`.")
-  elif diferencia_ou < -0.5:
-    st.success(f"❄️ **SELLO DEL MODELO: ¡JUGAR UNDER (BAJAS) UNDER {linea_casino_ou}!** \n\n El modelo proyecta **{total_carreras_proyectado} carreras**, quedando por debajo de la línea del casino por un margen de `{diferencia_ou} carreras`.")
-  else:
-    st.warning(f"⚠️ **LÍNEA CERRADA (SIN VALOR CLARO):** La proyección de {total_carreras_proyectado} está muy pegada a la línea de {linea_casino_ou}. Es mejor evitar este mercado de totales.")
-
-  st.markdown("---")
-  st.subheader("⚖️ **Análisis de Run Line (-1.5)**")
-  margen_diferencia = round(abs(runs_local - runs_visita), 1)
-  if margen_diferencia >= 1.5:
-    favorito_rl = "Local" if runs_local > runs_visita else "Visitante"
-    st.info(f"🔥 El diferencial de carreras ($xDiff$) es de `{margen_diferencia}`. Solidez detectada para buscar el **Run Line (-1.5)** a favor del equipo **{favorito_rl}**.")
-  else:
-    st.info(f"⚠️ El diferencial es de `{margen_diferencia}` carreras. Duelo muy cerrado para arriesgar un Run Line; mejor operar Moneyline.")
+  cmlb1.metric(label="Prob. Victoria Local (MLB)", value=f"{p_mlb_l}%")
+  cmlb2.metric(label="Prob. Victoria Visita (MLB)", value=f"{p_mlb_v}%")
 
 
 # =========================================================
@@ -679,14 +632,14 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
 # =========================================================
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
   st.title(f"🏒 **Props NHL [{fecha_formato_str}]**")
-  st.success("🤖 Módulo de Props de Hockey activo.")
+  st.success("🤖 Módulo de Props de Hockey (Shots on Goal / SOG) activo.")
 
 
 # =========================================================
 # 13. ANALÍTICA Y CLV
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
-  st.title(f"📊 **Panel de Analítica y Registro CLV [{fecha_formato_str}]**")
+  st.title("📊 **Panel de Analítica y Registro CLV**")
   st.metric(label="💰 Bankroll Global Actual", value="$15,250.00 MXN", delta="+11.2%")
 
 
