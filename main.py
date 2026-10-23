@@ -627,7 +627,10 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         
       prob_over_sel = ou_dict[linea_ou_sel]
       prob_ou_model = prob_over_sel if "Over" in sel_tipo_ou else round(100.0 - prob_over_sel, 2)
-      pi_ou, edge_ou = calcular_edge_real(momio_ou_int, prob_ou_model)
+      
+      # Corrección aplicada aquí para evitar el NameError
+      pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
+      
       nombre_mercado_ou = f"{sel_tipo_ou} {linea_ou_sel}"
       edges_partido.append((nombre_mercado_ou, edge_ou, mom_ou_int))
       st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
@@ -750,4 +753,3 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 else:
   st.title(f"🚀 **Optimizador Automático de Parlays Pro [{fecha_formato_str}]**")
   st.success("🚀 Optimizador de Parlays activo.")
-
