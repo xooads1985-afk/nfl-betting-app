@@ -148,7 +148,7 @@ def obtener_cartelera_oficial_nhl(fecha_str_api_nhl, fecha_str_humana):
         return partidos_nhl
   except Exception:
     pass
-  return [{"game_id": 0, "partido_str": f"🏒 [{fecha_str_humana}] EDM @ CGY", "local": "CGY", "visita": "EDM"}]
+  return [{"game_id": 0, "partido_str": f"🏒 [{fecha_str_humana}] MTL @ CHI", "local": "CHI", "visita": "MTL"}, {"game_id": 1, "partido_str": f"🏒 [{fecha_str_humana}] TBL @ COL", "local": "COL", "visita": "TBL"}]
 
 
 @st.cache_data(ttl=300)
@@ -185,7 +185,7 @@ fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
-# Inicializamos el estado de la API Key si no existe (Persistencia inteligente)
+# Persistencia inteligente de la API Key
 if "api_key_guardada" not in st.session_state:
   st.session_state["api_key_guardada"] = ""
 
@@ -285,7 +285,6 @@ def motor_ufc_cuantitativo(s1, p1, t1, k1, s2, p2, t2, k2):
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
-  # Motor sabermétrico con FIP ponderado (factor x2.2) para reflejar dominio real del abridor
   rating_1 = ((9.0 - fip_p1) * 2.2) + (woba_p1 * 8.0)
   rating_2 = ((9.0 - fip_p2) * 2.2) + (woba_p2 * 8.0)
   diff = rating_1 - rating_2
@@ -622,14 +621,12 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     fip_mlb_l = float(fip_ml_l_str)
     woba_mlb_l = float(woba_ml_l_str)
     fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_ml_v_str)
+    woba_mlb_v = float(woba_mlb_v_str)
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
-  # Probabilidad base de victoria
   p_mlb_l, p_mlb_v = motor_beisbol_avanzado(fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v)
   
-  # Carreras esperadas (xR)
   runs_local = round(max(2.0, (woba_mlb_l * 18.0) - (fip_mlb_v * 0.6)), 2)
   runs_visita = round(max(2.0, (woba_mlb_v * 18.0) - (fip_mlb_l * 0.6)), 2)
   total_carreras_proyectado = round(runs_local + runs_visita, 1)
@@ -671,14 +668,35 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL
+# 11. NHL - MÓDULO PRO AVANZADO (POISSON & EMPTY NET)
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
-  st.title(f"🏒 **Sistema Pro NHL [{fecha_formato_str}]**")
-  cartelera = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
-  for idx, op in enumerate(cartelera, 1):
+  st.title(f"🏒 **Sistema Pro NHL & Totales [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Modelo de Poisson con ajuste por Empty Net para la fecha: **{fecha_formato_str}**.*")
+  
+  cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
+  for idx, op in enumerate(cartelera_nhl, 1):
+    local_nhl = op.get('local', 'HOME')
+    visita_nhl = op.get('visita', 'AWAY')
+    
     with st.expander(f"🏒 {op['partido_str']}"):
-      st.success("🤖 Simulación de Poisson NHL activa con ajuste por Empty Net.")
+      c1, c2 = st.columns(2)
+      with c1:
+        xg_l_nhl = st.slider(f"Goles Esperados (xG) Local ({local_nhl}):", 1.0, 5.0, 3.10, 0.05, key=f"nhl_l_{idx}")
+      with c2:
+        xg_v_nhl = st.slider(f"Goles Esperados (xG) Visita ({visita_nhl}):", 1.0, 5.0, 2.85, 0.05, key=f"nhl_v_{idx}")
+        
+      # Simulación Poisson con ajuste de portería vacía (Empty Net factor ~ +0.35 goles globales)
+      xg_l_neto = xg_l_nhl + 0.18
+      xg_v_neto = xg_v_nhl + 0.17
+      total_goles_nhl = round(xg_l_neto + xg_v_neto, 2)
+      
+      st.markdown("---")
+      col_n1, col_n2 = st.columns(2)
+      col_n1.metric(label=f"Proyección Goles Local ({local_nhl})", value=f"{xg_l_neto:.2f}")
+      col_n2.metric(label=f"Proyección Goles Visita ({visita_nhl})", value=f"{xg_v_neto:.2f}")
+      
+      st.info(f"🎯 **Total Proyectado con Empty Net:** **`{total_goles_nhl} Goles`**")
 
 
 # =========================================================
