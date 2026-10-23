@@ -1,5 +1,3 @@
-¡Claro que sí, Javier! Aquí tienes el código completo y definitivo de tu Master Suite Analítica Élite, con la persistencia en la memoria (st.session_state) integrada en la casilla de la API Key para que no se borre al recargar o cambiar de módulo, además de las casillas libres de texto, el motor sabermétrico avanzado de béisbol con Over/Under claro, y la cartelera UFC completa y editable.
-Copia todo este código, reemplaza por completo el contenido de tu archivo en Replit y ejecútalo con total confianza:
 from datetime import date, datetime, timedelta
 import math
 import os
@@ -705,4 +703,3 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 else:
   st.title(f"🚀 **Optimizador Automático de Parlays Pro [{fecha_formato_str}]**")
   st.success("🚀 Optimizador de Parlays listo para estructurar apuestas combinadas.")
-
