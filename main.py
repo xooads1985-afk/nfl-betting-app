@@ -185,12 +185,19 @@ fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
+# Inicializamos el estado de la API Key si no existe (Persistencia inteligente)
 if "api_key_guardada" not in st.session_state:
   st.session_state["api_key_guardada"] = ""
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
-input_api_key = st.sidebar.text_input("API Key (The Odds API):", value=st.session_state["api_key_guardada"], type="password")
+input_api_key = st.sidebar.text_input(
+    "API Key (The Odds API):", 
+    value=st.session_state["api_key_guardada"], 
+    type="password", 
+    key="input_api_key_widget"
+)
+
 if input_api_key != st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = input_api_key
 
