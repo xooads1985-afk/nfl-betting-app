@@ -76,21 +76,38 @@ def registrar_apuesta_db(
 
 
 # ---------------------------------------------------------
-# MOTOR DE ALERTAS PARA TELEGRAM
+# MOTOR DE ALERTAS PARA TELEGRAM (CON CONTROL DE TAMAÑO)
 # ---------------------------------------------------------
 def enviar_alerta_telegram(token, chat_id, mensaje):
   if not token or not chat_id:
     return False, "Faltan el Token o el Chat ID de Telegram."
+  
   url = f"https://api.telegram.org/bot{token}/sendMessage"
-  payload = {"chat_id": chat_id, "text": mensaje, "parse_mode": "Markdown"}
-  try:
-    response = requests.post(url, json=payload, timeout=5)
-    if response.status_code == 200:
-      return True, "¡Alerta enviada con éxito a Telegram!"
-    else:
-      return False, f"Error de Telegram: {response.text}"
-  except Exception as e:
-    return False, f"Excepción de red: {str(e)}"
+  
+  # Si el mensaje excede los 4000 caracteres, lo partimos en fragmentos seguros
+  if len(mensaje) > 4000:
+    fragmentos = [mensaje[i:i+4000] for i in range(0, len(mensaje), 4000)]
+  else:
+    fragmentos = [mensaje]
+
+  exito = True
+  ultimo_error = ""
+
+  for frag in fragmentos:
+    payload = {"chat_id": chat_id, "text": frag, "parse_mode": "Markdown"}
+    try:
+      response = requests.post(url, json=payload, timeout=5)
+      if response.status_code != 200:
+        exito = False
+        ultimo_error = f"Error de Telegram: {response.text}"
+    except Exception as e:
+      exito = False
+      ultimo_error = f"Excepción de red: {str(e)}"
+
+  if exito:
+    return True, "¡Alerta(s) enviada(s) con éxito a Telegram!"
+  else:
+    return False, ultimo_error
 
 
 # ---------------------------------------------------------
@@ -231,18 +248,19 @@ def tarea_en_segundo_plano():
           for nombre_dep, sport_key in deportes_a_escanear.items():
             partidos = obtener_partidos_y_momios_api(sport_key, api_key)
             for p in partidos:
-              # Simulación de modelo evaluando cuota estándar -110 (52.38% implícita vs 57% modelo = ~4.6% Edge)
               _, edge = calcular_edge_real(-110, 57.0)
-              if edge >= 3.0:  # FILTRO ESTRICTO DE VALOR +EV
+              if edge >= 3.0:
                 minas_encontradas.append(
                     f"• *{nombre_dep}*: `{p['partido_str']}` — Edge: `+{edge:.2f}%`"
                 )
 
           if minas_encontradas:
+            # Limitamos a los primeros 15 picks para evitar mensajes gigantescos
+            picks_recorte = minas_encontradas[:15]
             mensaje = (
                 "🎯 *MASTER SUITE ÉLITE — MINAS DE ORO (+EV)* 🚀\nEl sistema"
-                " filtró los siguientes picks con valor superior al 3%:\n\n"
-                + "\n".join(minas_encontradas)
+                " filtró las siguientes oportunidades con valor:\n\n"
+                + "\n".join(picks_recorte)
             )
             enviar_alerta_telegram(token, chat_id, mensaje)
 
@@ -354,7 +372,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           partidos = obtener_partidos_y_momios_api(skey, api_key)
           for p in partidos:
             _, edge = calcular_edge_real(-110, 57.0)
-            if edge >= edge_min_escanner:  # APLICA EL FILTRO ESTRICTO
+            if edge >= edge_min_escanner:
               minas_de_oro.append({
                   "deporte": nombre_dep,
                   "partido": p["partido_str"],
@@ -392,10 +410,12 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
             )
 
       if minas_manual:
+        # Limitamos los picks manuales a 15 para prevenir desbordamientos
+        picks_envio = minas_manual[:15]
         msg = (
             "🎯 *MASTER SUITE ÉLITE — MINAS DE ORO FILTRADAS* 🚀\nOportunidades"
             " con Edge superior al "
-            f"{edge_min_escanner}%:\n\n" + "\n".join(minas_manual)
+            f"{edge_min_escanner}%:\n\n" + "\n".join(picks_envio)
         )
         ok, res = enviar_alerta_telegram(token, chat_id, msg)
         if ok:
