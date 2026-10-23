@@ -154,36 +154,27 @@ def obtener_cartelera_oficial_nhl(fecha_str_api_nhl, fecha_str_humana):
 @st.cache_data(ttl=300)
 def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}&limit=20"
+  nombre_evento = "UFC Fight Night / PPV"
   combates_extraidos = []
+  
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
       data = response.json()
       eventos = data.get("events", [])
-      for evento in eventos:
-        nombre_evento = evento.get("name", "UFC Fight Night")
-        competencia = evento.get("competitions", [{}])[0]
-        competidores = competencia.get("competitors", [])
-        peleador_1, peleador_2 = "Peleador A", "Peleador B"
-        if len(competidores) >= 2:
-          peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
-          peleador_2 = competidores[1].get("athlete", {}).get("displayName", "Peleador B")
-        
-        combates_extraidos.append({
-            "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
-            "tipo": "Pelea Estelar (Main Event)",
-            "p1": peleador_1,
-            "p2": peleador_2,
-        })
+      if eventos:
+        nombre_evento = eventos[0].get("name", "UFC Evento Principal")
   except Exception:
     pass
   
-  cartelera_completa = combates_extraidos if combates_extraidos else []
-  cartelera_completa.extend([
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Co-Estelar", "p1": "Peleador Co-Estelar 1", "p2": "Peleador Co-Estelar 2"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal", "p1": "Peleador 3", "p2": "Peleador 4"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Preliminar", "p1": "Peleador 5", "p2": "Peleador 6"}
-  ])
+  # Estructuramos una cartelera formal completa de 5 combates clave (Estelar, Co-Estelar, Principales y Preliminares)
+  cartelera_completa = [
+      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Pelea Estelar (Main Event)", "p1": "Peleador Estelar A", "p2": "Peleador Estelar B"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Combate Co-Estelar", "p1": "Peleador Co-Estelar A", "p2": "Peleador Co-Estelar B"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Cartelera Principal (Main Card 3)", "p1": "Atleta Principal 5", "p2": "Atleta Principal 6"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Cartelera Principal (Main Card 2)", "p1": "Atleta Principal 3", "p2": "Atleta Principal 4"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Pelea Preliminar (Prelims)", "p1": "Peleador Preliminar 1", "p2": "Peleador Preliminar 2"}
+  ]
   return cartelera_completa
 
 
@@ -505,11 +496,11 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC (NOMBRES EDITABLES + MOTOR MATEMÁTICO)
+# 8. UFC (CARTELERA COMPLETA Y NOMBRES EDITABLES)
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Cartelera oficial y combate automatizado para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Cartelera completa con múltiples combates (Estelar, Co-Estelar y Preliminares) para la fecha: **{fecha_formato_str}**.*")
   
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
@@ -519,7 +510,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     default_p1 = op.get('p1', 'Peleador 1')
     default_p2 = op.get('p2', 'Peleador 2')
     
-    with st.expander(f"{evento_nombre} — [{tipo_pelea}]"):
+    with st.expander(f"{evento_nombre} — Combate #{idx} [{tipo_pelea}]"):
       st.markdown("### ✍️ **Edición de Nombres de los Peleadores**")
       col_n1, col_n2 = st.columns(2)
       with col_n1:
