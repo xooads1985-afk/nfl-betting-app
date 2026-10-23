@@ -430,11 +430,11 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA (MÓDULO PRO ÉLITE RESTAURADO Y POTENCIADO)
+# 3. NBA (MÓDULO PRO ÉLITE: POSESSIONES, REBOTES, ASISTENCIAS Y 1H)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
   st.title(f"🏀 **Sistema Cuantitativo Pro NBA Élite [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo de Posesiones, Pace, Eficiencia Neta, Fatiga B2B y Distribución Normal para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Modelo de Posesiones, Pace, Eficiencia, Rebotes/Asistencias Colectivas, Primeras Mitades (1H) y Fatiga B2B para la fecha: **{fecha_formato_str}**.*")
   
   cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
   
@@ -453,6 +453,8 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       off_rtg_v = st.number_input("Offensive Rating (Visita):", 100.0, 125.0, 114.5, 0.5, key=f"off_v_{idx}")
       def_rtg_v = st.number_input("Defensive Rating (Visita):", 100.0, 125.0, 112.0, 0.5, key=f"def_v_{idx}")
       pace_v = st.number_input("Ritmo / Pace (Visita):", 90.0, 105.0, 99.5, 0.1, key=f"pace_v_{idx}")
+      reb_rate_v = st.number_input("Tasa Rebotes Prom. (Visita):", 35.0, 55.0, 43.5, 0.1, key=f"reb_v_{idx}")
+      ast_rate_v = st.number_input("Asistencias Prom. (Visita):", 20.0, 32.0, 26.0, 0.1, key=f"ast_v_{idx}")
       b2b_v = st.selectbox("Situación Descanso (Visita):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=1, key=f"b2b_v_{idx}")
       estrella_v = st.checkbox(f"¿Juega la Estrella principal de {visita_nba}?", value=True, key=f"est_v_{idx}")
 
@@ -461,10 +463,12 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       off_rtg_l = st.number_input("Offensive Rating (Local):", 100.0, 125.0, 117.0, 0.5, key=f"off_l_{idx}")
       def_rtg_l = st.number_input("Defensive Rating (Local):", 100.0, 125.0, 110.5, 0.5, key=f"def_l_{idx}")
       pace_l = st.number_input("Ritmo / Pace (Local):", 90.0, 105.0, 100.2, 0.1, key=f"pace_l_{idx}")
+      reb_rate_l = st.number_input("Tasa Rebotes Prom. (Local):", 35.0, 55.0, 44.2, 0.1, key=f"reb_l_{idx}")
+      ast_rate_l = st.number_input("Asistencias Prom. (Local):", 20.0, 32.0, 27.5, 0.1, key=f"ast_l_{idx}")
       b2b_l = st.selectbox("Situación Descanso (Local):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=0, key=f"b2b_l_{idx}")
       estrella_l = st.checkbox(f"¿Juega la Estrella principal de {local_nba}?", value=True, key=f"est_l_{idx}")
 
-    # Factores de fatiga por Back-to-Back y Bajas de Estrellas
+    # Factores de fatiga y ausencias
     mult_b2b = {
         "Descansado (2+ días)": 1.02,
         "Normal (1 día)": 1.0,
@@ -474,25 +478,38 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
     factor_fatiga_l = mult_b2b[b2b_l] * (0.93 if not estrella_l else 1.0)
     factor_fatiga_v = mult_b2b[b2b_v] * (0.93 if not estrella_v else 1.0)
 
-    # Cálculo de posesiones estimadas y puntos esperados (Pythagorean / Rating System)
+    # Cálculo central de posesiones y puntajes
     pace_promedio = (pace_l + pace_v) / 2.0
     
-    # Puntos proyectados ajustados por eficiencias y fatiga
     pts_loc_proj = round(((off_rtg_l + def_rtg_v) / 200.0) * pace_promedio * factor_fatiga_l, 2)
     pts_vis_proj = round(((off_rtg_v + def_rtg_l) / 200.0) * pace_promedio * factor_fatiga_v, 2)
     
     total_puntos_proj = round(pts_loc_proj + pts_vis_proj, 1)
     diferencial_proyectado = round(pts_loc_proj - pts_vis_proj, 2)
 
-    st.markdown("---")
-    st.markdown(f"📊 **Proyecciones del Modelo NBA:** Score Proyectado: `{local_nba} {pts_loc_proj} - {pts_vis_proj} {visita_nba}` (Total: `{total_puntos_proj}` pts)")
+    # Proyecciones avanzadas integradas (Rebotes, Asistencias y 1H)
+    rebotes_proj_total = round((pace_promedio * 0.42) + ((reb_rate_l + reb_rate_v) / 2.0 * 0.5), 1)
+    asistencias_proj_total = round((pace_promedio * 0.24) + ((ast_rate_l + ast_rate_v) / 2.0 * 0.4), 1)
     
-    col_mn1, col_mn2 = st.columns(2)
-    col_mn1.metric(label=f"Puntaje Proyectado: {local_nba}", value=f"{pts_loc_proj} pts")
-    col_mn2.metric(label=f"Puntaje Proyectado: {visita_nba}", value=f"{pts_vis_proj} pts")
+    # Proyección de la Primera Mitad (1H representa ~51% de los puntos totales en NBA)
+    pts_1h_loc = round(pts_loc_proj * 0.51, 2)
+    pts_1h_vis = round(pts_vis_proj * 0.51, 2)
+    total_1h_proj = round(pts_1h_loc + pts_1h_vis, 1)
+    dif_1h_proj = round(pts_1h_loc - pts_1h_vis, 2)
 
-    st.markdown("💰 **Auditoría de Líneas y Hándicaps (Spread & Totales):**")
-    tab_nba_spread, tab_nba_totales, tab_nba_clv = st.tabs(["⚖️ Auditor de Spread (Hándicap)", "📈 Auditor de Totales (Over/Under)", "📊 Seguimiento CLV"])
+    st.markdown("---")
+    st.markdown(f"📊 **Proyecciones del Modelo NBA Élite:**")
+    
+    col_mn1, col_mn2, col_mn3, col_mn4 = st.columns(4)
+    col_mn1.metric(label="Score Final Proyectado", value=f"{pts_loc_proj} - {pts_vis_proj}")
+    col_mn2.metric(label="Total Puntos (Full Game)", value=f"{total_puntos_proj} pts")
+    col_mn3.metric(label="Rebotes Proyectados", value=f"{reb_otes_proj_total if 'reb_otes_proj_total' in locals() else rebotes_proj_total}")
+    col_mn4.metric(label="Asistencias Proyectadas", value=f"{asistencias_proj_total}")
+
+    st.info(f"⏱️ **Proyección Primeras Mitades (1H):** Puntos 1H: `{total_1h_proj}` pts | Diferencial 1H ({local_nba}): `+{dif_1h_proj}` pts")
+
+    st.markdown("💰 **Auditoría de Líneas, Hándicaps y Primeras Mitades:**")
+    tab_nba_spread, tab_nba_totales, tab_nba_1h, tab_nba_clv = st.tabs(["⚖️ Spread (Full Game)", "📈 Totales (Full Game)", "⏱️ Primeras Mitades (1H)", "📊 Seguimiento CLV"])
 
     edges_nba_partido = []
 
@@ -505,7 +522,6 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
         try: mom_sp_int = int(momio_sp_str)
         except ValueError: mom_sp_int = -110
 
-      # Probabilidad de cobertura usando distribución normal con desviación estándar típica en NBA (~11.5 pts)
       prob_cobertura = round((1 - stats.norm.cdf(-spread_casino, loc=diferencial_proyectado, scale=11.5)) * 100, 2)
       pi_sp, edge_sp = calcular_edge_real(mom_sp_int, prob_cobertura)
       edges_nba_partido.append((f"Spread {local_nba} ({spread_casino})", edge_sp, mom_sp_int))
@@ -540,6 +556,25 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       else:
         st.warning("⚠️ Sin margen suficiente en esta línea de totales.")
 
+    with tab_nba_1h:
+      st.markdown("⏱️ **Auditoría de Primeras Mitades (1H Over/Under & Spread):**")
+      col_1h_1, col_1h_2 = st.columns(2)
+      with col_1h_1:
+        linea_1h_casino = st.number_input("Línea 1H Totales del Casino:", 100.0, 130.0, 114.5, 0.5, key=f"l_1h_{idx}")
+      with col_1h_2:
+        momio_1h_str = st.text_input("Momio Casino (1H Over):", value="-110", key=f"m_1h_{idx}")
+        try: mom_1h_int = int(momio_1h_str)
+        except ValueError: mom_1h_int = -110
+
+      prob_1h_model = round((1 - stats.norm.cdf(linea_1h_casino, loc=total_1h_proj, scale=8.0)) * 100, 2)
+      pi_1h, edge_1h = calcular_edge_real(mom_1h_int, prob_1h_model)
+      
+      st.markdown(f"• Proyección 1H del Modelo: `{total_1h_proj} pts` | Prob. Implícita: `{pi_1h:.2f}%` | 🎯 **Edge 1H: `+{edge_1h:.2f}%`**")
+      if edge_1h >= 3.0:
+        st.success(f"🔥 **¡VALOR EN PRIMERA MITAD (1H)!** Excelente oportunidad detectada para el Over 1H.")
+      else:
+        st.warning("⚠️ Sin margen suficiente en la línea de 1H.")
+
     with tab_nba_clv:
       st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value) — NBA:**")
       cnba_1, cnba_2 = st.columns(2)
@@ -553,7 +588,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       else:
         st.warning("⚠️ El mercado cerró con mejor cuota; ajustar el timing de entrada.")
 
-    # Sello del Modelo NBA (Corregido a 'mejor_edge_nba')
+    # Sello del Modelo NBA
     mejor_mercado_nba, mejor_edge_nba, mejor_momio_nba = max(edges_nba_partido, key=lambda x: x[1])
     if mejor_edge_nba >= 3.0:
       st.success(f"🔥 **SELLO DEL MODELO NBA (MEJOR PICK): ¡{mejor_mercado_nba}!** (Edge: `+{mejor_edge_nba:.2f}%` | Cuota: `{mejor_momio_nba}`)")
