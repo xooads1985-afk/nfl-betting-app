@@ -908,7 +908,7 @@ elif (
                 (
                     (base_xgv * 0.50)
                     + ((xgot_v / 5.0) * 0.20)
-                    + (set_piece_l * 0.15)
+                    + (set_piece_v * 0.15)
                     + (pen_conv_v * 0.15)
                 )
                 * factor_clima
@@ -1045,7 +1045,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
     for reg in registros:
       st.info(
           f"🆔 ID: {reg[0]} | 📅 {reg[1]} | Deporte: **{reg[2]}** | Partido: `{reg[3]}` \n•"
-          f" Mercado: **{reg[4]}** | Momio: `{reg[5]}`} | Edge: `+{reg[6]:.2f}%`"
+          f" Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%`"
           f" | Stake: `${reg[7]} MXN` | Estado: `{reg[8]}`"
       )
   else:
