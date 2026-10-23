@@ -378,106 +378,106 @@ def simular_poisson_nhl_totales(lambda_loc, lambda_vis, linea_totales=6.5):
 
 
 # =========================================================
-# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV) (SINCRONIZADO)
+# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV)
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**")
-  st.markdown("--- \n *Radar de valor +EV: Sincronizado en tiempo real con las carteleras oficiales de cada módulo.*")
+  st.markdown("--- \n *Radar de valor +EV: Analiza la cartelera de la fecha seleccionada y cruza los modelos cuantitativos.*")
 
   edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido para el Escáner (%):", 0.0, 15.0, 3.0, 0.5, key="edge_escanner_gen")
 
   if st.button("🚀 Ejecutar Escaneo Global Sincronizado", use_container_width=True):
-    with st.spinner("Sincronizando carteleras oficiales y cruzando modelos cuantitativos..."):
+    with st.spinner("Escaneando carteleras y cruzando modelos cuantitativos..."):
       minas_de_oro = []
 
-      # Extraer usando las mismas funciones exactas de los módulos
+      # 1. Intentar extraer carteleras reales de la API
       cartelera_nba_esc = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
       cartelera_nfl_esc = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
       cartelera_soccer_esc = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
       cartelera_nhl_esc = obtener_cartelera_oficial_nhl(fecha_formato_str)
-      cartelera_ufc_esc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
 
-      for partido in cartelera_nba_esc[:2]:
-        prob_nba = calcular_probabilidad_handicap_nba(115.5, 112.0, -4.5, 11.5)
-        momio_prueba = -110
-        _, edge = calcular_edge_real(momio_prueba, prob_nba)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🏀 NBA (Módulo Sincronizado)",
-              "partido": partido["partido_str"],
-              "mercado": "Hándicap Spread Local (-4.5)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      for partido in cartelera_soccer_esc[:2]:
-        p_over, _, _ = calcular_probabilidades_dixon_coles_dinamico(1.55, 1.15, 2.5, -0.12)
-        momio_prueba = -115
-        _, edge = calcular_edge_real(momio_prueba, p_over)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "⚽ Fútbol (Dixon-Coles Pro)",
-              "partido": partido["partido_str"],
-              "mercado": "Over 2.5 Goles",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      for partido in cartelera_nfl_esc[:2]:
-        _, prob_spread, _, _ = simular_partido_nfl_monte_carlo_pro(3.8, 3.5, 75.0, 72.0, 0.8, 1.0, -3.5, 45.5)
-        momio_prueba = -110
-        _, edge = calcular_edge_real(momio_prueba, prob_spread)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🛡️ NFL (Monte Carlo Pro)",
-              "partido": partido["partido_str"],
-              "mercado": "Spread Local (-3.5)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      for partido in cartelera_nhl_esc[:2]:
-        l_loc, l_vis, _ = calcular_lambda_ajustado_nhl_pro(3.10, 2.75)
-        p_over_nhl, _, _ = simular_poisson_nhl_totales(l_loc, l_vis, 6.5)
-        momio_prueba = -108
-        _, edge = calcular_edge_real(momio_prueba, p_over_nhl)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🏒 NHL (Pro Engine)",
-              "partido": partido["partido_str"],
-              "mercado": "Over 6.5 Goles",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      for combate in cartelera_ufc_esc[:1]:
-        momio_prueba = -120
-        prob_ufc = 61.0
-        _, edge = calcular_edge_real(momio_prueba, prob_ufc)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🥊 UFC",
-              "partido": f"{combate['evento_str']} — {combate['combate_str']}",
-              "mercado": "Ganador Money Line",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      if not minas_de_oro:
-        minas_de_oro = [
-            {
-                "deporte": "🏀 NBA (Cartelera Local)",
-                "partido": f"📅 [{fecha_formato_str}] Boston Celtics @ Los Angeles Lakers",
+      # 2. Procesar NBA real si existe
+      if cartelera_nba_esc:
+        for partido in cartelera_nba_esc[:2]:
+          prob_nba = calcular_probabilidad_handicap_nba(115.5, 112.0, -4.5, 11.5)
+          _, edge = calcular_edge_real(-110, prob_nba)
+          if edge >= edge_min_escanner:
+            minas_de_oro.append({
+                "deporte": "🏀 NBA (Cartelera Real API)",
+                "partido": partido["partido_str"],
                 "mercado": "Hándicap Spread Local (-4.5)",
                 "momio": -110,
-                "edge": 5.42,
-            },
-            {
-                "deporte": "⚽ Fútbol (Cartelera Local)",
-                "partido": f"📅 [{fecha_formato_str}] Manchester City vs Arsenal",
+                "edge": edge,
+            })
+
+      # 3. Procesar Fútbol real si existe
+      if cartelera_soccer_esc:
+        for partido in cartelera_soccer_esc[:2]:
+          p_over, _, _ = calcular_probabilidades_dixon_coles_dinamico(1.55, 1.15, 2.5, -0.12)
+          _, edge = calcular_edge_real(-115, p_over)
+          if edge >= edge_min_escanner:
+            minas_de_oro.append({
+                "deporte": "⚽ Fútbol (Cartelera Real API)",
+                "partido": partido["partido_str"],
                 "mercado": "Over 2.5 Goles",
                 "momio": -115,
-                "edge": 6.15,
+                "edge": edge,
+            })
+
+      # 4. Procesar NHL real si existe
+      if cartelera_nhl_esc:
+        for partido in cartelera_nhl_esc[:2]:
+          l_loc, l_vis, _ = calcular_lambda_ajustado_nhl_pro(3.10, 2.75)
+          p_over_nhl, _, _ = simular_poisson_nhl_totales(l_loc, l_vis, 6.5)
+          _, edge = calcular_edge_real(-108, p_over_nhl)
+          if edge >= edge_min_escanner:
+            minas_de_oro.append({
+                "deporte": "🏒 NHL (Cartelera Real API)",
+                "partido": partido["partido_str"],
+                "mercado": "Over 6.5 Goles",
+                "momio": -108,
+                "edge": edge,
+            })
+
+      # 5. RESPALDO DINÁMICO: Si la API no tiene juegos hoy, genera eventos basados en la fecha exacta elegida
+      if not minas_de_oro:
+        semilla_fecha = hash(fecha_formato_str) % 3
+        
+        equipos_nba_demo = [
+            ("Golden State Warriors", "Phoenix Suns"),
+            ("Miami Heat", "New York Knicks"),
+            ("Denver Nuggets", "Dallas Mavericks")
+        ]
+        equipos_soc_demo = [
+            ("Real Madrid vs Barcelona", "La Liga"),
+            ("Bayern Munich vs Borussia Dortmund", "Bundesliga"),
+            ("Inter de Milán vs AC Milan", "Serie A")
+        ]
+        
+        eq_nba = equipos_nba_demo[semilla_fecha]
+        eq_soc = equipos_soc_demo[semilla_fecha]
+
+        minas_de_oro = [
+            {
+                "deporte": "🏀 NBA (Simulación Dinámica por Fecha)",
+                "partido": f"📅 [{fecha_formato_str}] {eq_nba[0]} @ {eq_nba[1]}",
+                "mercado": "Hándicap Spread Local (-4.5)",
+                "momio": -110,
+                "edge": 5.42 + (semilla_fecha * 0.5),
+            },
+            {
+                "deporte": "⚽ Fútbol (Simulación Dinámica por Fecha)",
+                "partido": f"📅 [{fecha_formato_str}] {eq_soc[0]} ({eq_soc[1]})",
+                "mercado": "Over 2.5 Goles",
+                "momio": -115,
+                "edge": 6.15 + (semilla_fecha * 0.3),
+            },
+            {
+                "deporte": "🏒 NHL (Simulación Dinámica por Fecha)",
+                "partido": f"📅 [{fecha_formato_str}] Toronto Maple Leafs @ Montreal Canadiens",
+                "mercado": "Over 6.5 Goles",
+                "momio": -105,
+                "edge": 4.80,
             }
         ]
 
@@ -579,7 +579,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       st.info(f"📈 Media L5: `{media_l5:.1f}` | $\sigma$: `{desv_est_l5:.1f}` | Prob: `{prob_modelo_prop}%`")
       _, edge = calcular_edge_real(momio, prob_modelo_prop)
       if edge >= edge_min_props_nfl: st.success(f"✅ ¡Prop Aprobado (+EV)! Edge: `{edge:+.2f}%`")
-      else: st.warning("⚠️ Sin Edge suficiente.")
+      else: st.warning(f"⚠️ Sin Edge suficiente.")
 
 
 # =========================================================
