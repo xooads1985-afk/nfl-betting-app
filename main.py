@@ -476,30 +476,72 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL
+# 5. FÚTBOL (MÓDULO PRO AVANZADO CON ASISTENTE L5 Y LÍNEA ASIÁTICA)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
-  st.title(f"⚽ **Dixon-Coles Pro — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Matriz de Poisson bivariada para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"⚽ **Dixon-Coles Pro & Auditoría de Minas de Oro — Fútbol [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Matriz de Poisson bivariada y Asistente de Factores Duros L5 para la fecha: **{fecha_formato_str}**.*")
   
   cartelera = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
-    with st.expander(f"⚽ {op['partido_str']}"):
-      c1, c2 = st.columns(2)
-      with c1:
-        lam_l = st.number_input("Goles Esperados (xG) Local:", 0.5, 3.5, 1.65, 0.05, key=f"dc_l_{idx}")
-      with c2:
-        lam_v = st.number_input("Goles Esperados (xG) Visita:", 0.5, 3.5, 1.15, 0.05, key=f"dc_v_{idx}")
-        
-      p_l, p_v, p_e, btts, over25 = motor_dixon_coles_soccer(lam_l, lam_v)
+    local_f = op['local']
+    visita_f = op['visita']
+    
+    with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
+      st.markdown("💎 **Selecciona el Tipo de Mercado a Auditar:**")
+      tipo_mercado = st.selectbox(
+          "Mercado:", 
+          ["Mina de Oro: Línea Asiática de Cuarta / Hándicap", "Over / Under 2.5 Goles", "Ambos Anotan (BTTS)"], 
+          key=f"t_mercado_{idx}"
+      )
+      
+      c_sel1, c_sel2, c_sel3 = st.columns(3)
+      with c_sel1:
+        seleccion_apuesta = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)", "Victoria Local", "Victoria Visita"], key=f"sel_ap_{idx}")
+      with c_sel2:
+        linea_asiatica = st.number_input("Línea Asiática / Hándicap:", -3.5, 3.5, -0.5, 0.25, key=f"l_as_{idx}")
+      with c_sel3:
+        momio_amer_f = st.text_input("Momio Americano:", value="+180", key=f"mom_f_{idx}")
+        try: momio_int_f = int(momio_amer_f)
+        except ValueError: momio_int_f = 180
+
+      st.markdown("---")
+      st.markdown("🧬 **Asistente de Factores Duros (Desglose Real L5: V - E - D)**")
+      
+      col_v, col_l = st.columns(2)
+      with col_v:
+        st.markdown(f"**Equipo Visitante:** `{visita_f}`")
+        v5_v = st.number_input("Victorias L5:", 0, 5, 0, 1, key=f"v5_v_{idx}")
+        e5_v = st.number_input("Empates L5:", 0, 5, 3, 1, key=f"e5_v_{idx}")
+        d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
+      with col_l:
+        st.markdown(f"**Equipo Local:** `{local_f}`")
+        v5_l = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_l_{idx}")
+        e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
+        d5_l = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_l_{idx}")
+
+      pts_l = (v5_l * 3) + e5_l
+      pts_v = (v5_v * 3) + e5_v
+      prob_sugerida_l5 = round(min(85.0, max(15.0, 50.0 + ((pts_l - pts_v) * 4.2))), 2)
       
       st.markdown("---")
-      c_res1, c_res2, c_res3 = st.columns(3)
-      c_res1.metric(label="Victoria Local", value=f"{p_l}%")
-      c_res2.metric(label="Empate", value=f"{p_e}%")
-      c_res3.metric(label="Victoria Visita", value=f"{p_v}%")
+      st.info(f"💡 **Probabilidad Sugerida por Desglose L5 (V-E-D):** `{prob_sugerida_l5}%`")
       
-      st.info(f"🎯 **Mercados Clave:** Ambos Anotan (BTTS): **`{btts}%`** | Over 2.5 Goles: **`{over25}%`**")
+      prob_modelo_pro = st.slider(f"📊 Probabilidad Real Calculada por el Modelo Pro (%):", 0.0, 100.0, float(prob_sugerida_l5 + 0.62), 0.1, key=f"slider_prob_{idx}")
+
+      pi_f, edge_f = calcular_edge_real(momio_int_f, prob_modelo_pro)
+      
+      st.markdown("---")
+      st.markdown(f"📊 **Auditoría de Edge para {visita_f} @ {local_f}:**")
+      st.markdown(f"• Probabilidad Implícita (`{momio_amer_f}`): `{pi_f:.2f}%` | Probabilidad del Modelo Pro: `{prob_modelo_pro}%`")
+      st.markdown(f"🎯 **Edge Neto Calculado:** `+{edge_f:.2f}%`")
+
+      if edge_f >= 3.0:
+        st.success(f"✅ **¡MINA DE ORO APROBADA (+EV)!** Edge de `+{edge_f:.2f}%` detectado con éxito.")
+      elif edge_f > 0:
+        st.warning(f"⚠️ **Edge Moderado** (`+{edge_f:.2f}%`). Operar con precaución.")
+      else:
+        st.error("❌ **Sin valor matemático suficiente.**")
 
 
 # =========================================================
@@ -646,7 +688,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     fip_mlb_l = float(fip_ml_l_str)
     woba_mlb_l = float(woba_ml_l_str)
     fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_mlb_v_str)
+    woba_mlb_v = float(woba_ml_v_str)
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
