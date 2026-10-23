@@ -85,7 +85,7 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
   elif "college" in liga.lower():
     url = f"https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates={fecha_str_api}&limit=20"
   elif deporte.lower() == "soccer":
-    url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{liga}/scoreboard?dates={fecha_str_api}&limit=20"
+    url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{liga}/scoreboard?dates={fecha_str_api}&limit=30"
   else:
     url = f"https://site.api.espn.com/apis/site/v2/sports/{deporte}/{liga}/scoreboard?dates={fecha_str_api}&limit=20"
 
@@ -118,7 +118,7 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
   if liga.lower() == "nba":
     return [{"partido_str": f"📅 [{fecha_str_humana}] Boston Celtics @ Los Angeles Lakers", "local": "Los Angeles Lakers", "visita": "Boston Celtics"}]
   elif "soccer" in deporte.lower():
-    return [{"partido_str": f"📅 [{fecha_str_humana}] Nottingham Forest @ Ipswich Town", "local": "Ipswich Town", "visita": "Nottingham Forest"}]
+    return [{"partido_str": f"📅 [{fecha_str_humana}] Equipo Visitante @ Equipo Local (Partido de Exhibición)", "local": "Equipo Local", "visita": "Equipo Visitante"}]
   elif liga.lower() == "nfl":
     return [{"partido_str": f"📅 [{fecha_str_humana}] Kansas City Chiefs @ Baltimore Ravens", "local": "Baltimore Ravens", "visita": "Kansas City Chiefs"}]
   elif "college" in liga.lower():
@@ -476,67 +476,111 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO AVANZADO CON CÁLCULO AUTOMÁTICO Y MOMIOS DE CASINO)
+# 5. FÚTBOL (MÓDULO PRO AVANZADO CON SELECTOR DE LIGAS Y ASISTENTE L5)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
-  st.title(f"⚽ **Dixon-Coles Pro & Auditoría de Mercados — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo de Poisson bivariado con cálculo automático de goles y auditoría de momios para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Selección de ligas mundiales, matriz Poisson y Asistente L5 para la fecha: **{fecha_formato_str}**.*")
   
-  cartelera = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
-  for idx, op in enumerate(cartelera, 1):
+  # Selector de Ligas de Fútbol
+  ligas_dict = {
+      "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
+      "🇪🇸 La Liga (España)": "esp.1",
+      "🇮🇹 Serie A (Italia)": "ita.1",
+      "🇩🇪 Bundesliga (Alemania)": "ger.1",
+      "🇫🇷 Ligue 1 (Francia)": "fra.1",
+      "⭐ UEFA Champions League": "uefa.champions",
+      "🇪🇺 UEFA Europa League": "uefa.europa",
+      "🇧🇷 Brasileirão (Brasil)": "bra.1",
+      "🇺🇸 MLS (Estados Unidos)": "usa.1",
+      "🇲🇽 Liga MX (México)": "mex.1",
+      "🇯🇵 J1 League (Japón)": "jpn.1",
+      "🇹🇷 Süper Lig (Turquía)": "tur.1"
+  }
+  
+  liga_nombre_sel = st.selectbox("🌐 Selecciona la Liga o Competición:", list(ligas_dict.keys()))
+  liga_key_api = ligas_dict[liga_nombre_sel]
+  
+  cartelera_soccer = obtener_cartelera_pura("soccer", liga_key_api, fecha_formato_api, fecha_formato_str)
+  
+  if not cartelera_soccer:
+    st.warning(f"⚠️ No se encontraron encuentros oficiales para {liga_nombre_sel} en la fecha {fecha_formato_str}.")
+  
+  for idx, op in enumerate(cartelera_soccer, 1):
     local_f = op['local']
     visita_f = op['visita']
     
-    with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
-      st.markdown("⚙️ **Goles Esperados (xG) Calculados por el Modelo:**")
-      col_xg1, col_xg2 = st.columns(2)
-      with col_xg1:
-        xgl_calc = st.number_input(f"xG Local ({local_f}):", 0.5, 4.0, 1.65, 0.05, key=f"xgl_{idx}")
-      with col_xg2:
-        xgv_calc = st.number_input(f"xG Visita ({visita_f}):", 0.5, 4.0, 1.15, 0.05, key=f"xgv_{idx}")
-        
+    with st.expander(f"⚽ Encuentro #{idx}: {visita_f} @ {local_f}"):
+      st.markdown("🧬 **Asistente de Factores Duros (Desglose Real L5: V - E - D)**")
+      col_v, col_l = st.columns(2)
+      with col_v:
+        st.markdown(f"**✈️ Visitante:** `{visita_f}`")
+        v5_v = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
+        e5_v = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
+        d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
+      with col_l:
+        st.markdown(f"**🏠 Local:** `{local_f}`")
+        v5_l = st.number_input("Victorias L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
+        e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
+        d5_l = st.number_input("Derrotas L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
+
+      # Conversión de L5 a Goles Esperados (xG) para Dixon-Coles
+      pts_l = (v5_l * 3) + e5_l
+      pts_v = (v5_v * 3) + e5_v
+      xgl_calc = round(max(0.8, 1.25 + (pts_l * 0.08)), 2)
+      xgv_calc = round(max(0.7, 1.00 + (pts_v * 0.07)), 2)
+      
       p_loc_f, p_vis_f, p_emp_f, btts_prob, over25_prob = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
       under25_prob = round(100.0 - over25_prob, 2)
       btts_no_prob = round(100.0 - btts_prob, 2)
       
       st.markdown("---")
-      st.markdown("📊 **Proyecciones Estadísticas del Modelo:**")
+      st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}`):**")
       col_m1, col_m2, col_m3 = st.columns(3)
       col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
       col_m2.metric(label="Empate", value=f"{p_emp_f}%")
       col_m3.metric(label="Victoria Visita", value=f"{p_vis_f}%")
       
-      st.info(f"🎯 **Totales y BTTS Automáticos:** Over 2.5: `{over25_prob}%` | Under 2.5: `{under25_prob}%` | BTTS Sí: `{btts_prob}%` | BTTS No: `{btts_no_prob}%`")
+      st.info(f"🎯 **Mercados Automáticos:** Over 2.5: `{over25_prob}%` | Under 2.5: `{under25_prob}%` | BTTS Sí: `{btts_prob}%` | BTTS No: `{btts_no_prob}%`")
       
       st.markdown("---")
       st.markdown("💰 **Auditoría de Momios del Casino (Ingresa la cuota ofrecida):**")
       
-      tab_ah, tab_ou, tab_btts = st.tabs(["⚖️ Líneas Asiáticas / Hándicaps", "📈 Over / Under 2.5", "🤝 Ambos Anotan (BTTS)"])
+      tab_ah_l, tab_ah_v, tab_ou, tab_btts = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under 2.5", "🤝 Ambos Anotan (BTTS)"])
       
-      with tab_ah:
-        col_ah1, col_ah2, col_ah3 = st.columns(3)
-        with col_ah1:
-          eq_ah = st.selectbox("Equipo:", [local_f, visita_f], key=f"eq_ah_{idx}")
-        with col_ah2:
-          h_val = st.number_input("Hándicap (Ej. -0.5, +1.0):", -2.5, 2.5, -0.5, 0.25, key=f"h_val_{idx}")
-        with col_ah3:
-          momio_ah_str = st.text_input("Momio Casino (AH):", value="-110", key=f"mom_ah_{idx}")
-          try: mom_ah_int = int(momio_ah_str)
-          except ValueError: mom_ah_int = -110
+      with tab_ah_l:
+        col_hl1, col_hl2 = st.columns(2)
+        with col_hl1:
+          h_l_val = st.number_input(f"Hándicap para {local_f} (Ej. -0.5, +1.0):", -2.5, 2.5, -0.5, 0.25, key=f"hl_val_{idx}")
+        with col_hl2:
+          momio_hl_str = st.text_input("Momio Casino (Local):", value="-110", key=f"mom_hl_{idx}")
+          try: mom_hl_int = int(momio_hl_str)
+          except ValueError: mom_hl_int = -110
           
-        # Estimación de probabilidad para hándicap basada en Dixon-Coles
-        prob_ah_model = p_loc_f if eq_ah == local_f else p_vis_f
-        if h_val < 0:
-          prob_ah_model = max(5.0, prob_ah_model + (h_val * 12.0))
+        prob_hl_model = max(5.0, min(95.0, p_loc_f + (h_l_val * -15.0)))
+        pi_hl, edge_hl = calcular_edge_real(mom_hl_int, round(prob_hl_model, 2))
+        st.markdown(f"• Prob. Implícita: `{pi_hl:.2f}%` | Prob. Modelo: `{prob_hl_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hl:.2f}%`**")
+        if edge_hl >= 3.0:
+          st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({h_l_val}).")
         else:
-          prob_ah_model = min(95.0, prob_ah_model + (abs(h_val) * 15.0))
+          st.warning("⚠️ Sin margen suficiente en este hándicap local.")
+
+      with tab_ah_v:
+        col_hv1, col_hv2 = st.columns(2)
+        with col_hv1:
+          h_v_val = st.number_input(f"Hándicap para {visita_f} (Ej. +0.5, -1.0):", -2.5, 2.5, +0.5, 0.25, key=f"hv_val_{idx}")
+        with col_hv2:
+          momio_hv_str = st.text_input("Momio Casino (Visita):", value="+120", key=f"mom_hv_{idx}")
+          try: mom_hv_int = int(momio_hv_str)
+          except ValueError: mom_hv_int = 120
           
-        pi_ah, edge_ah = calcular_edge_real(mom_ah_int, round(prob_ah_model, 2))
-        st.markdown(f"• Prob. Implícita: `{pi_ah:.2f}%` | Prob. Modelo: `{prob_ah_model:.2f}%` | 🎯 **Edge Neto: `+{edge_ah:.2f}%`**")
-        if edge_ah >= 3.0:
-          st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {eq_ah} ({h_val}).")
+        prob_hv_model = max(5.0, min(95.0, p_vis_f + (h_v_val * -15.0)))
+        pi_hv, edge_hv = calcular_edge_real(mom_hv_int, round(prob_hv_model, 2))
+        st.markdown(f"• Prob. Implícita: `{pi_hv:.2f}%` | Prob. Modelo: `{prob_hv_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hv:.2f}%`**")
+        if edge_hv >= 3.0:
+          st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({h_v_val}).")
         else:
-          st.warning("⚠️ Sin margen suficiente en este hándicap.")
+          st.warning("⚠️ Sin margen suficiente en este hándicap visitante.")
           
       with tab_ou:
         col_ou1, col_ou2 = st.columns(2)
@@ -717,7 +761,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     fip_mlb_l = float(fip_ml_l_str)
     woba_mlb_l = float(woba_ml_l_str)
     fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_mlb_v_str)
+    woba_mlb_v = float(woba_ml_v_str)
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
