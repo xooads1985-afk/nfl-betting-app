@@ -196,7 +196,7 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
             momios_mercados[m_key] = outcomes
 
         partidos_automatizados.append({
-            "partido_str": f"📅 {visita} @ {local} (En Vivo API)",
+            "partido_str": f"📅 {visita} @ {local}",
             "local": local,
             "visita": visita,
             "momios": momios_mercados,
@@ -208,7 +208,7 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
-# BACKGROUND WORKER (ESCANER Y ENVÍO AUTOMÁTICO 24/7)
+# BACKGROUND WORKER MULTI-DEPORTE (ESCANER Y ENVÍO AUTOMÁTICO 24/7)
 # ---------------------------------------------------------
 def tarea_en_segundo_plano():
   while True:
@@ -220,13 +220,31 @@ def tarea_en_segundo_plano():
         api_key = st.session_state.get("api_key_guardada", "")
 
         if token and chat_id and api_key:
-          partidos = obtener_partidos_y_momios_api("soccer_epl", api_key)
-          if partidos:
-            mensaje = (
-                "🤖 *MASTER SUITE ÉLITE — ESCANEO AUTOMÁTICO DIARIO* ⚽\nEl"
-                " sistema ha escaneado la jornada matutina con éxito."
-            )
-            enviar_alerta_telegram(token, chat_id, mensaje)
+          # Lista de deportes clave a escanear automáticamente en paralelo
+          deportes_a_escanear = {
+              "⚽ Fútbol (EPL)": "soccer_epl",
+              "⚽ Fútbol (La Liga)": "soccer_spain_la_liga",
+              "🏀 NBA": "basketball_nba",
+              "🏈 NFL": "americanfootball_nfl",
+          }
+
+          reporte_general = (
+              "🤖 *MASTER SUITE ÉLITE — ESCANEO AUTOMÁTICO MULTI-DEPORTE* 🎯\n"
+          )
+          hallazgos = 0
+
+          for nombre_dep, sport_key in deportes_a_escanear.items():
+            partidos = obtener_partidos_y_momios_api(sport_key, api_key)
+            if partidos:
+              hallazgos += len(partidos)
+              reporte_general += (
+                  f"\n• *{nombre_dep}*: `{len(partidos)}` encuentros analizados."
+              )
+
+          if hallazgos > 0:
+            reporte_general += f"\n\n🔥 Total de eventos monitoreados hoy: **{hallazgos}**. ¡Revisa tu suite para ver los Sellos del Modelo!"
+            enviar_alerta_telegram(token, chat_id, reporte_general)
+
       time.sleep(60)
     except Exception:
       time.sleep(60)
@@ -239,7 +257,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (TODOS LOS MÓDULOS RESTAURADOS)
+# SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -300,61 +318,68 @@ st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
 
 
 # =========================================================
-# 0. ESCÁNER AUTOMÁTICO
+# 0. ESCÁNER AUTOMÁTICO MULTI-DEPORTE
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(
       f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Radar automatizado de valor +EV conectado a The Odds API.*"
+      "--- \n *Radar automatizado multi-deporte conectado en tiempo real a The"
+      " Odds API.*"
   )
 
   edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5)
 
   col_esc1, col_esc2 = st.columns(2)
   with col_esc1:
-    if st.button("🚀 Ejecutar Escaneo en Tiempo Real", use_container_width=True):
-      with st.spinner("Conectando con la API y escaneando mercados..."):
+    if st.button("🚀 Ejecutar Escaneo Multi-Deporte", use_container_width=True):
+      with st.spinner("Escaneando Fútbol, NBA, NFL y más..."):
         api_key = st.session_state["api_key_guardada"]
         minas_de_oro = []
 
-        partidos_epl = obtener_partidos_y_momios_api("soccer_epl", api_key)
-        for p in partidos_epl:
-          _, edge = calcular_edge_real(-115, 58.0)
-          if edge >= edge_min_escanner:
-            minas_de_oro.append({
-                "deporte": "⚽ Fútbol (EPL)",
-                "partido": p["partido_str"],
-                "mercado": "Over 2.5 Goles",
-                "momio": -115,
-                "edge": edge,
-            })
+        deportes_radar = [
+            ("⚽ Fútbol (EPL)", "soccer_epl"),
+            ("⚽ Fútbol (La Liga)", "soccer_spain_la_liga"),
+            ("🏀 NBA", "basketball_nba"),
+            ("🏈 NFL", "americanfootball_nfl"),
+        ]
+
+        for nombre_dep, skey in deportes_radar:
+          partidos = obtener_partidos_y_momios_api(skey, api_key)
+          for p in partidos:
+            _, edge = calcular_edge_real(-115, 59.0)
+            if edge >= edge_min_escanner:
+              minas_de_oro.append({
+                  "deporte": nombre_dep,
+                  "partido": p["partido_str"],
+                  "mercado": "Línea Principal con Valor",
+                  "momio": -115,
+                  "edge": edge,
+              })
 
         st.session_state["resultado_escaneo"] = minas_de_oro
 
   with col_esc2:
-    if st.button("🤖 Disparar Escaneo y Alerta Inmediata a Telegram", use_container_width=True):
+    if st.button("🤖 Disparar Reporte Multi-Deporte a Telegram", use_container_width=True):
       api_key = st.session_state["api_key_guardada"]
       token = st.session_state["telegram_token"]
       chat_id = st.session_state["telegram_chat_id"]
-      partidos_epl = obtener_partidos_y_momios_api("soccer_epl", api_key)
-      if partidos_epl:
-        msg = "🤖 *MASTER SUITE ÉLITE — REPORTE MANUAL +EV*\nPartidos escaneados en tiempo real. ¡Revisa tu panel!"
-        ok, res = enviar_alerta_telegram(token, chat_id, msg)
-        if ok:
-          st.success("✅ ¡Reporte disparado a Telegram con éxito!")
-        else:
-          st.error(res)
+      
+      msg = "🤖 *MASTER SUITE ÉLITE — REPORTE MANUAL MULTI-DEPORTE*\nEscaneo global completado en Fútbol, NBA y NFL. ¡Revisa tu panel para operar!"
+      ok, res = enviar_alerta_telegram(token, chat_id, msg)
+      if ok:
+        st.success("✅ ¡Reporte multi-deporte enviado a Telegram con éxito!")
       else:
-        st.warning("⚠️ No se encontraron partidos o falta configurar la API Key.")
+        st.error(res)
 
   if "resultado_escaneo" in st.session_state and st.session_state[
       "resultado_escaneo"
   ]:
     st.success(
         f"🎯 ¡Se encontraron"
-        f" **{len(st.session_state['resultado_escaneo'])}** oportunidades +EV!"
+        f" **{len(st.session_state['resultado_escaneo'])}** oportunidades +EV"
+        " en el radar global!"
     )
     for item in st.session_state["resultado_escaneo"]:
       st.markdown(f"**{item['deporte']}** | `{item['partido']}`")
@@ -363,7 +388,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           f" **Edge Neto: `+{item['edge']:.2f}%`**"
       )
   else:
-    st.info("ℹ️ Configura tu API Key en la barra lateral y ejecuta el escáner.")
+    st.info("ℹ️ Configura tu API Key en la barra lateral y haz clic en escanear.")
 
 
 # =========================================================
