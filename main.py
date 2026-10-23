@@ -1086,11 +1086,11 @@ elif (
 
 
 # =========================================================
-# 2. PROPS NFL (HIPERVITAMINADO CON MEDIAS MÓVILES L5)
+# 2. PROPS NFL (HIPERVITAMINADO CON DESVIACIÓN ESTÁNDAR Y PERSISTENCIA)
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
-  st.title(f"🎯 **Auditor Pro de Props NFL (Medias Móviles & 3 Capas) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis individual de jugadores evaluando rendimiento L5 real, Matchup Defensivo y Carga de Trabajo.*")
+  st.title(f"🎯 **Auditor Pro de Props NFL (Desviación Estándar & Memoria) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis individual de jugadores evaluando distribución normal real (L5), Matchup Defensivo y Carga de Trabajo con persistencia en sesión.*")
   
   col_pnfl1, col_pnfl2 = st.columns(2)
   with col_pnfl1:
@@ -1125,12 +1125,28 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     }]
 
   for idx, op in enumerate(cartelera_nfl_hoy, 1):
+    key_l5 = f"nfl_l5_vals_{idx}"
+    key_jugador = f"nfl_prop_j_{idx}"
+    key_linea = f"nfl_linea_casino_{idx}"
+    key_momio = f"nfl_prop_mom_txt_{idx}"
+
+    if key_l5 not in st.session_state:
+      st.session_state[key_l5] = "280, 210, 295, 240, 275"
+    if key_jugador not in st.session_state:
+      st.session_state[key_jugador] = ""
+    if key_linea not in st.session_state:
+      st.session_state[key_linea] = 265.5
+    if key_momio not in st.session_state:
+      st.session_state[key_momio] = "-115"
+
     with st.expander(f"🎯 Prop NFL #{idx}: {op['partido_str']}"):
       col_pr1, col_pr2 = st.columns(2)
       with col_pr1:
         jugador = st.text_input(
-            "Nombre del Jugador:", value="", placeholder="Ej. Patrick Mahomes / Travis Kelce", key=f"nfl_prop_j_{idx}"
+            "Nombre del Jugador:", value=st.session_state[key_jugador], placeholder="Ej. Patrick Mahomes / Travis Kelce", key=f"txt_j_{idx}"
         )
+        st.session_state[key_jugador] = jugador
+
         posicion_jugador = st.selectbox(
             "Posición:", ["QB (Mariscal)", "RB (Corredor)", "WR / TE (Receptor)"], key=f"nfl_prop_pos_{idx}"
         )
@@ -1144,30 +1160,35 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
             "Línea Establecida por el Casino (O/U):",
             0.5,
             400.0,
-            265.5,
-            0.5,
-            key=f"nfl_linea_casino_{idx}"
+            value=float(st.session_state[key_linea]),
+            step=0.5,
+            key=f"num_linea_{idx}"
         )
+        st.session_state[key_linea] = linea_casino_prop
+
         momio_str = st.text_input(
-            "📈 Momio Casino (Americano):", value="-115", key=f"nfl_prop_mom_txt_{idx}"
+            "📈 Momio Casino (Americano):", value=str(st.session_state[key_momio]), key=f"txt_momio_{idx}"
         )
+        st.session_state[key_momio] = momio_str
         try:
           momio = int(momio_str)
         except ValueError:
           momio = -115
 
       st.markdown("---")
-      st.markdown("### 🧬 CAPAS PRO DE EVALUACIÓN & RENDIMIENTO L5")
+      st.markdown("### 🧬 CAPAS PRO DE EVALUACIÓN & RENDIMIENTO L5 (Con Desviación Estándar)")
       
       col_cp1, col_cp2, col_cp3 = st.columns(3)
       with col_cp1:
         st.markdown("**1. Historial L5 (Últimos 5 Partidos)**")
-        st.caption("Ingresa las estadísticas de los últimos 5 partidos separados por coma:")
+        st.caption("Valores guardados en sesión automáticamente:")
         l5_str_input = st.text_input(
             "Ej: 280, 310, 245, 290, 260",
-            value="280, 210, 295, 240, 275",
-            key=f"nfl_l5_vals_{idx}"
+            value=str(st.session_state[key_l5]),
+            key=f"txt_l5_{idx}"
         )
+        st.session_state[key_l5] = l5_str_input
+
       with col_cp2:
         st.markdown("**2. Matchup Defensivo Rival**")
         calidad_defensa_rival = st.select_slider(
@@ -1193,6 +1214,16 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
         lista_l5 = [250.0]
 
       media_l5 = sum(lista_l5) / len(lista_l5)
+      
+      if len(lista_l5) > 1:
+        varianza = sum((x - media_l5) ** 2 for x in lista_l5) / (len(lista_l5) - 1)
+        desv_est_l5 = math.sqrt(varianza)
+      else:
+        desv_est_l5 = 15.0
+
+      if desv_est_l5 < 1.0:
+        desv_est_l5 = 5.0
+
       partidos_encima = sum(1 for val in lista_l5 if val > linea_casino_prop)
       partidos_debajo = len(lista_l5) - partidos_encima
 
@@ -1204,33 +1235,34 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
           key=f"nfl_tipo_ap_prop_{idx}"
       )
 
-      prob_base_prop = 50.0 + ((partidos_encima - partidos_debajo) * 6.0)
-      diferencia_media_linea = media_l5 - linea_casino_prop
-      prob_base_prop += (diferencia_media_linea * 0.15)
-
+      prob_cdf_over = (1.0 - stats.norm.cdf(linea_casino_prop, loc=media_l5, scale=desv_est_l5)) * 100.0
+      
+      ajuste_tct = 0.0
       if calidad_defensa_rival == "Muy Débil (Favorable)":
-        prob_base_prop += 6.5
+        ajuste_tct += 6.5
       elif calidad_defensa_rival == "Débil":
-        prob_base_prop += 3.0
+        ajuste_tct += 3.0
       elif calidad_defensa_rival == "Fuerte":
-        prob_base_prop -= 3.5
+        ajuste_tct -= 3.5
       elif calidad_defensa_rival == "Elite (Hostil)":
-        prob_base_prop -= 7.5
+        ajuste_tct -= 7.5
 
       if participacion_jugador == "Arma Principal (Core)":
-        prob_base_prop += 5.0
+        ajuste_tct += 5.0
       elif participacion_jugador == "Titular Estándar":
-        prob_base_prop += 2.0
+        ajuste_tct += 2.0
       elif participacion_jugador == "Rotación / Suplente":
-        prob_base_prop -= 6.0
+        ajuste_tct -= 6.0
+
+      prob_base_prop = prob_cdf_over + ajuste_tct
 
       if "Under" in tipo_apuesta_prop:
         prob_base_prop = 100.0 - prob_base_prop
 
       prob_modelo_prop = max(30.0, min(88.0, round(prob_base_prop, 2)))
 
-      st.info(f"📈 **Análisis L5:** Media Móvil Calculada: **`{media_l5:.1f}`** | Cumple Línea en L5: `{partidos_encima}/5 partidos`")
-      st.success(f"🤖 **Probabilidad Real del Modelo Pro (Props):** **`{prob_modelo_prop:.2f}%`**")
+      st.info(f"📈 **Análisis Estadístico L5:** Media: **`{media_l5:.1f}`** | Desv. Estándar ($\sigma$): **`{desv_est_l5:.1f}`** | Cumple Línea en L5: `{partidos_encima}/5 partidos`")
+      st.success(f"🤖 **Probabilidad Real del Modelo Pro (Distribución Normal + Capas):** **`{prob_modelo_prop:.2f}%`**")
       
       prob_imp, edge = calcular_edge_real(momio, prob_modelo_prop)
       st.info(
