@@ -137,24 +137,36 @@ def calcular_probabilidad_modelo_gaussiano(
   return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# 🏈 SIMULADOR MONTE CARLO DE POSESIONES NFL
-def simular_partido_nfl_monte_carlo(
-    lambda_pos_local, lambda_pos_visitante, simulaciones=10000
+# 🏈 SIMULADOR MONTE CARLO PRO NFL (ZONA ROJA & TURNOVERS)
+def simular_partido_nfl_monte_carlo_pro(
+    lambda_pos_local,
+    lambda_pos_visitante,
+    eficiencia_rz_loc=75.0,
+    eficiencia_rz_vis=75.0,
+    turnovers_loc=1.0,
+    turnovers_vis=1.0,
+    simulaciones=10000,
 ):
   victorias_local = 0
   total_puntos_acumulados = 0
 
+  lam_efectiva_loc = max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15))
+  lam_efectiva_vis = max(1.0, lambda_pos_local - (turnovers_vis * 0.15))
+
+  prob_td_loc = max(0.50, min(0.88, eficiencia_rz_loc / 100.0))
+  prob_td_vis = max(0.50, min(0.88, eficiencia_rz_vis / 100.0))
+
   for _ in range(simulaciones):
-    anotaciones_local = poisson.rvs(lambda_pos_local)
-    anotaciones_vis = poisson.rvs(lambda_pos_visitante)
+    anotaciones_local = poisson.rvs(lam_efectiva_loc)
+    anotaciones_vis = poisson.rvs(lam_efectiva_vis)
 
     puntos_local = 0
     puntos_vis = 0
 
     for _ in range(anotaciones_local):
-      puntos_local += 7 if random.random() < 0.75 else 3
+      puntos_local += 7 if random.random() < prob_td_loc else 3
     for _ in range(anotaciones_vis):
-      puntos_vis += 7 if random.random() < 0.75 else 3
+      puntos_vis += 7 if random.random() < prob_td_vis else 3
 
     total_puntos_acumulados += puntos_local + puntos_vis
 
@@ -237,7 +249,7 @@ def calcular_probabilidades_dixon_coles_dinamico(
   )
 
 
-# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTOR PRO BLINDADO (5v5, PP/PK, L5 con Caps, B2B y Empty Net)
+# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTOR PRO BLINDADO
 @st.cache_data(ttl=300)
 def obtener_cartelera_oficial_nhl(fecha_str_api):
   url = f"https://api-web.nhle.com/v1/schedule/{fecha_str_api}"
@@ -310,21 +322,14 @@ def calcular_lambda_ajustado_nhl_pro(
     b2b_away=False,
     starters_status=None,
 ):
-  """Calcula xG unificando Métricas 5v5, Equipos Especiales, Inercia L5
-
-  con Caps de Seguridad, Cansancio B2B, Porteros Backup y Empty Net.
-  """
   FACTOR_EMPTY_NET = 0.23
 
-  # 1. Ponderación por Métricas Avanzadas 5v5 (xGF%)
   adj_5v5_loc = (xgf_loc_5v5 - 50.0) * 0.015
   adj_5v5_vis = (xgf_vis_5v5 - 50.0) * 0.015
 
-  # 2. Impacto de Equipos Especiales (Power Play vs Penalty Kill)
   diff_special_loc = ((pp_loc - (100.0 - pk_vis)) / 100.0) * 0.40
   diff_special_vis = ((pp_vis - (100.0 - pk_loc)) / 100.0) * 0.40
 
-  # 3. Factor de Inercia L5 con Topes de Seguridad (Caps: -0.4 a +0.4)
   prom_gf_loc = goles_favor_l5_loc / 5.0
   prom_ga_loc = goles_contra_l5_loc / 5.0
   prom_gf_vis = goles_favor_l5_vis / 5.0
@@ -336,11 +341,9 @@ def calcular_lambda_ajustado_nhl_pro(
   inercia_ofensiva_vis = max(-0.4, min(0.4, (prom_gf_vis - 3.0) * 0.20))
   inercia_defensiva_vis = max(-0.4, min(0.4, (prom_ga_vis - 3.0) * 0.15))
 
-  # 4. Factor de Cansancio / Back-to-Back (B2B)
   penalty_b2b_home = -0.18 if b2b_home else 0.0
   penalty_b2b_vis = -0.18 if b2b_away else 0.0
 
-  # 5. Penalización por Porteros Backup o No Confirmados
   penalizacion_home = 0.0
   penalizacion_away = 0.0
   if starters_status:
@@ -701,19 +704,19 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 
 
 # =========================================================
-# 1. NFL (MONTE CARLO DE POSESIONES)
+# 1. NFL (MONTE CARLO PRO - ZONA ROJA & TURNOVERS)
 # =========================================================
 elif (
     modulo_seleccionado
     == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)"
 ):
   st.title(
-      "🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo)"
+      "🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo Pro)"
       f" [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Simulación estocástica de series ofensivas y eficiencia en"
-      " zona roja para la NFL.*"
+      "--- \n *Simulación estocástica avanzada: Integrando eficiencia en"
+      " Zona Roja y diferencial de entregas de balón (Turnovers).*"
   )
 
   col1, col2 = st.columns(2)
@@ -740,24 +743,62 @@ elif (
   else:
     for idx, op in enumerate(cartelera, 1):
       with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
+        st.markdown(
+            "### 🧬 Parámetros Avanzados: Posesiones, Zona Roja & Turnovers"
+        )
         col_mc1, col_mc2 = st.columns(2)
         with col_mc1:
+          st.markdown(f"**Visitante: `{op['visita']}`**")
           lam_pos_visita = st.number_input(
-              f"Series Anotadoras Esperadas Visita ({op['visita']}):",
+              "Series Anotadoras Esperadas:",
               1.0,
               8.0,
               3.5,
               0.1,
               key=f"nfl_lv_{idx}",
           )
+          rz_vis = st.number_input(
+              "Eficiencia Zona Roja (TD%):",
+              40.0,
+              95.0,
+              72.0,
+              1.0,
+              key=f"nfl_rz_v_{idx}",
+          )
+          to_vis = st.number_input(
+              "Turnovers Promedio / Partido:",
+              0.0,
+              3.0,
+              1.0,
+              0.1,
+              key=f"nfl_to_v_{idx}",
+          )
+
         with col_mc2:
+          st.markdown(f"**Local: `{op['local']}`**")
           lam_pos_local = st.number_input(
-              f"Series Anotadoras Esperadas Local ({op['local']}):",
+              "Series Anotadoras Esperadas:",
               1.0,
               8.0,
               3.8,
               0.1,
               key=f"nfl_ll_{idx}",
+          )
+          rz_loc = st.number_input(
+              "Eficiencia Zona Roja (TD%):",
+              40.0,
+              95.0,
+              75.0,
+              1.0,
+              key=f"nfl_rz_l_{idx}",
+          )
+          to_loc = st.number_input(
+              "Turnovers Promedio / Partido:",
+              0.0,
+              3.0,
+              0.8,
+              0.1,
+              key=f"nfl_to_l_{idx}",
           )
 
         tipo_sel_nfl = st.selectbox(
@@ -774,8 +815,8 @@ elif (
         except ValueError:
           momio_nfl = -110
 
-        prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo(
-            lam_pos_local, lam_pos_visita
+        prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo_pro(
+            lam_pos_local, lam_pos_visita, rz_loc, rz_vis, to_loc, to_vis
         )
 
         if "Local" in tipo_sel_nfl:
@@ -784,7 +825,7 @@ elif (
           prob_mod = round(100.0 - prob_local_mc, 2)
 
         st.success(
-            "🤖 **Simulación Monte Carlo (10,000 iteraciones):** Probabilidad"
+            "🤖 **Simulación Monte Carlo Pro (10,000 iteraciones):** Probabilidad"
             f" Local: `{prob_local_mc}%` | **Puntos Totales Esperados**:"
             f" **`{puntos_esperados_mc}`**"
         )
