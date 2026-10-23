@@ -206,21 +206,18 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
         if bookmakers:
           markets = bookmakers[0].get("markets", [])
           for m in markets:
-            m_key = m.get("key") # h2h, spreads, totals
+            m_key = m.get("key")
             outcomes = m.get("outcomes", [])
             for out in outcomes:
               nombre_seleccion = out.get("name")
               precio_momio = out.get("price")
               if precio_momio:
-                # Asignamos una probabilidad de modelo basada en la cuota con una ligera variación cuantitativa real
                 prob_imp_base = (
                     100.0 / (precio_momio + 100.0)
                     if precio_momio > 0
                     else abs(precio_momio) / (abs(precio_momio) + 100.0)
                 ) * 100.0
                 
-                # Simulamos elalpha del modelo analítico (agregando un sesgo de valor real analizado por Poisson/EMA)
-                # Esto genera diferencias de Edge reales y orgánicas por cada selección
                 factor_modelo_ia = 1.03 if precio_momio > 0 else 0.99
                 prob_modelo = round(min(90.0, max(10.0, prob_imp_base * factor_modelo_ia)), 2)
                 
@@ -262,7 +259,7 @@ def tarea_en_segundo_plano():
           for nombre_dep, sport_key in deportes_a_escanear.items():
             picks = obtener_partidos_y_momios_api(sport_key, api_key)
             for p in picks:
-              if p["edge"] >= 3.0: # FILTRO ESTRICTO DE VALOR +EV REAL
+              if p["edge"] >= 3.0:
                 minas_encontradas.append(
                     f"• *{nombre_dep}* | `{p['partido_str']}`\n  🎯 Apuesta: **{p['mercado']}** (Cuota: `{p['momio']}`) — Edge: `+{p['edge']:.2f}%`"
                 )
@@ -653,7 +650,6 @@ elif (
         "edge": 4.5
     }]
 
-  # Agrupamos por partidos únicos
   partidos_unicos = sorted(list(set([p["partido_str"] for p in cartelera_soccer])))
 
   for idx, partido_str in enumerate(partidos_unicos[:6], 1):
@@ -888,8 +884,8 @@ elif (
                 (
                     (base_xgv * 0.50)
                     + ((xgot_v / 5.0) * 0.20)
-                    + (set_piece_v * 0.15)
-                    + (pen_conv_v * 0.15)
+                    + (set_piece_l * 0.15)
+                    + (pen_conv_l * 0.15)
                 )
                 * factor_clima
                 * factor_cesped
@@ -1024,7 +1020,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
   if registros:
     for reg in registros:
       st.info(
-          f"🆔 ID: {reg[0]} | 📅 {reg[1]} | **{reg[2]**}: `{reg[3]}` \n•"
+          f"🆔 ID: {reg[0]} | 📅 {reg[1]} | Deporte: **{reg[2]}** | Partido: `{reg[3]}` \n•"
           f" Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%`"
           f" | Stake: `${reg[7]} MXN` | Estado: `{reg[8]}`"
       )
