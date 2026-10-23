@@ -118,7 +118,7 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
   if liga.lower() == "nba":
     return [{"partido_str": f"📅 [{fecha_str_humana}] Boston Celtics @ Los Angeles Lakers", "local": "Los Angeles Lakers", "visita": "Boston Celtics"}]
   elif "soccer" in deporte.lower():
-    return [{"partido_str": f"📅 [{fecha_str_humana}] Manchester City vs Arsenal", "local": "Arsenal", "visita": "Manchester City"}]
+    return [{"partido_str": f"📅 [{fecha_str_humana}] Nottingham Forest @ Ipswich Town", "local": "Ipswich Town", "visita": "Nottingham Forest"}]
   elif liga.lower() == "nfl":
     return [{"partido_str": f"📅 [{fecha_str_humana}] Kansas City Chiefs @ Baltimore Ravens", "local": "Baltimore Ravens", "visita": "Kansas City Chiefs"}]
   elif "college" in liga.lower():
@@ -292,7 +292,6 @@ def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 def motor_nhl_avanzado(xg_l, xg_v, gsax_l, gsax_v):
-  # Motor de Poisson bivariado para hockey con ajuste de GSAx (Goals Saved Above Expected) y Empty Net
   lambda_l = max(1.0, xg_l - (gsax_l * 0.15) + 0.22)
   lambda_v = max(1.0, xg_v - (gsax_v * 0.15) + 0.20)
   
@@ -311,7 +310,6 @@ def motor_nhl_avanzado(xg_l, xg_v, gsax_l, gsax_v):
       else:
         p_empate_reg += prob
         
-  # Asignación de prórroga / shootout (50% probabilidad en empate reglamentario)
   p_win_l = (p_l + (p_empate_reg * 0.52)) * 100.0
   p_win_v = (p_v + (p_empate_reg * 0.48)) * 100.0
   total_goles_proj = round(lambda_l + lambda_v, 2)
@@ -718,7 +716,6 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
         xg_v_nhl = st.number_input(f"xG Esperados Visita:", 1.0, 5.0, 2.85, 0.05, key=f"nhl_v_{idx}")
         gsax_v = st.number_input(f"Portero GSAx Visita (Salvadas vs Esperadas):", -2.0, 2.0, -0.10, 0.05, key=f"nhl_gsax_v_{idx}")
         
-      # Ejecución del motor avanzado de NHL
       p_win_l, p_win_v, total_goles_proj, lam_l_neta, lam_v_neta = motor_nhl_avanzado(xg_l_nhl, xg_v_nhl, gsax_l, gsax_v)
       
       st.markdown("---")
@@ -745,7 +742,6 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
       else:
         st.warning(f"⚠️ **Línea ajustada / sin valor claro** (Proyección: {total_goles_proj} vs Línea: {linea_nhl_casino}).")
 
-      # Auditoría de Puck Line (-1.5)
       diff_goles_match = round(abs(lam_l_neta - lam_v_neta), 2)
       if diff_goles_match >= 1.4:
         favorito_pl = local_nhl if lam_l_neta > lam_v_neta else visita_nhl
