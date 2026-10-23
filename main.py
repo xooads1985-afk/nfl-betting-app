@@ -168,36 +168,19 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
           peleador_1 = competidores[0].get("athlete", {}).get("displayName", "Peleador A")
           peleador_2 = competidores[1].get("athlete", {}).get("displayName", "Peleador B")
         
-        # Estelar
         combates_extraidos.append({
             "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
-            "combate_str": f"{peleador_1} vs {peleador_2} (Pelea Estelar)",
-            "seleccion": peleador_1,
-        })
-        # Co-Estelar y Preliminares estructuradas para eventos completos
-        combates_extraidos.append({
-            "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
-            "combate_str": "Peleador Co-Estelar A vs Peleador Co-Estelar B (Co-Estelar)",
-            "seleccion": "Peleador Co-Estelar A",
-        })
-        combates_extraidos.append({
-            "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
-            "combate_str": "Preliminar Destacada 1 vs Preliminar Destacada 2 (Cartelera Estelar)",
-            "seleccion": "Preliminar Destacada 1",
-        })
-        combates_extraidos.append({
-            "evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}",
-            "combate_str": "Preliminar A vs Preliminar B (Preliminares)",
-            "seleccion": "Preliminar A",
+            "combate_str": f"{peleador_1} vs {peleador_2}",
+            "p1": peleador_1,
+            "p2": peleador_2,
         })
       if combates_extraidos:
         return combates_extraidos
   except Exception:
     pass
   return [
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "combate_str": "Pelea Estelar Principal", "seleccion": "Peleador Estelar"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "combate_str": "Combate Co-Estelar", "seleccion": "Peleador Co-Estelar"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "combate_str": "Combate Preliminar Principal", "seleccion": "Peleador Preliminar"}
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "combate_str": "Peleador Estelar A vs Peleador Estelar B", "p1": "Peleador Estelar A", "p2": "Peleador Estelar B"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "combate_str": "Peleador Co-Estelar A vs Peleador Co-Estelar B", "p1": "Peleador Co-Estelar A", "p2": "Peleador Co-Estelar B"}
   ]
 
 
@@ -384,27 +367,49 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Pro UFC [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo de combates y cartelera completa.*")
+  st.markdown("--- \n *Análisis cuantitativo de combates y cartelera oficial sincronizada.*")
+  
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
   for idx, op in enumerate(combates_ufc, 1):
-    with st.expander(f"🥊 {op.get('evento_str', 'UFC Evento')} — Combate #{idx}: {op.get('combate_str', 'Combate')}"):
+    with st.expander(f"🥊 {op.get('evento_str', 'UFC')} — Combate #{idx}: {op.get('combate_str', 'Peleadores')}"):
       col_u1, col_u2 = st.columns(2)
       with col_u1:
-        st.markdown(f"**Selección Principal:** `{op.get('seleccion', 'Peleador')}`")
-        prob_pro_ufc = st.slider("Probabilidad Estimada del Modelo (%):", 30.0, 90.0, 62.0, 0.5, key=f"ufc_prob_{idx}")
+        p1 = op.get('p1', 'Peleador A')
+        p2 = op.get('p2', 'Peleador B')
+        
+        peleador_elegido = st.selectbox(
+            "Selecciona al peleador a analizar:",
+            [p1, p2],
+            key=f"ufc_sel_{idx}"
+        )
+        
+        prob_pro_ufc = st.slider(
+            f"Probabilidad Estimada para {peleador_elegido} (%):", 
+            30.0, 90.0, 62.0, 0.5, 
+            key=f"ufc_prob_{idx}"
+        )
+        
       with col_u2:
-        momio_ufc_str = st.text_input("📈 Momio Casino (Americano):", value="-150", key=f"ufc_momio_{idx}")
-        try: momio_ufc = int(momio_ufc_str)
-        except ValueError: momio_ufc = -150
+        momio_ufc_str = st.text_input(
+            f"📈 Momio Casino (Americano) para {peleador_elegido}:", 
+            value="-150", 
+            key=f"ufc_momio_{idx}"
+        )
+        try: 
+          momio_ufc = int(momio_ufc_str)
+        except ValueError: 
+          momio_ufc = -150
 
       prob_imp_ufc, edge_ufc = calcular_edge_real(momio_ufc, prob_pro_ufc)
-      st.info(f"📊 Probabilidad Implícita: `{prob_imp_ufc:.2f}%` | 🎯 **Edge Neto: `+{edge_ufc:.2f}%`**")
+      
+      st.markdown("---")
+      st.info(f"📊 Probabilidad Implícita: `{prob_imp_ufc:.2f}%` | 🎯 **Edge Neto para {peleador_elegido}: `+{edge_ufc:.2f}%`**")
       
       if edge_ufc >= 3.0:
-        st.success("✅ ¡Combate Aprobado (+EV)! Cuenta con valor matemático favorable.")
+        st.success(f"✅ ¡Apuesta Aprobada (+EV) a favor de {peleador_elegido}! Cuenta con valor matemático favorable.")
       else:
-        st.warning("⚠️ Margen ajustado. Sin Edge suficiente para cuota con valor.")
+        st.warning(f"⚠️ Margen ajustado para {peleador_elegido}. Sin Edge suficiente.")
 
 
 # =========================================================
