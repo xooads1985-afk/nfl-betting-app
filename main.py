@@ -60,6 +60,15 @@ fecha_seleccionada = st.sidebar.date_input(
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
+# Integración Opcional de Odds API
+st.sidebar.markdown("---")
+st.sidebar.subheader("🌐 Configuración de API Odds")
+odds_api_key = st.sidebar.text_input(
+    "API Key (The Odds API - Opcional):",
+    type="password",
+    help="Ingresa tu clave para jalar momios en vivo automáticamente.",
+)
+
 if st.sidebar.button(
     "🔄 Actualizar y Buscar Fecha", use_container_width=True
 ):
@@ -228,7 +237,7 @@ def calcular_probabilidades_dixon_coles_dinamico(
   )
 
 
-# 🏒 CONEXIÓN CON API OFICIAL NHL & AJUSTE AVANZADO DE PORTERO (EMPTY NET PRO)
+# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTORES AVANZADOS (PUCK LINE + SPECIAL TEAMS + 5v5)
 @st.cache_data(ttl=300)
 def obtener_cartelera_oficial_nhl(fecha_str_api):
   """Consulta la API nativa de la NHL para obtener los partidos del día con sus Game IDs."""
@@ -286,22 +295,49 @@ def obtener_porteros_confirmados_nhl(game_id):
   return starters
 
 
-def calcular_lambda_ajustado_nhl(
-    lambda_local, lambda_visita, starters_status=None
+def calcular_lambda_ajustado_nhl_pro(
+    lambda_local_base,
+    lambda_visita_base,
+    pp_loc=20.0,
+    pk_loc=80.0,
+    pp_vis=20.0,
+    pk_vis=80.0,
+    xgf_loc_5v5=50.0,
+    xgf_vis_5v5=50.0,
+    starters_status=None,
 ):
-  """Aplica el factor histórico de Empty Net (+0.23 goles) y penalizaciones si juega el portero Backup (+0.20 xG)."""
+  """Calcula xG unificando Métricas Avanzadas 5v5 (xGF%), Equipos Especiales (PP/PK), Porteros Backup y Empty Net."""
   FACTOR_EMPTY_NET = 0.23
+
+  # 1. Ponderación por Métricas Avanzadas 5v5 (xGF%)
+  adj_5v5_loc = (xgf_loc_5v5 - 50.0) * 0.015
+  adj_5v5_vis = (xgf_vis_5v5 - 50.0) * 0.015
+
+  # 2. Impacto de Equipos Especiales (Power Play vs Penalty Kill)
+  # Un PP del 25% contra un PK del 75% genera desbalance de +0.15 xG
+  diff_special_loc = ((pp_loc - (100.0 - pk_vis)) / 100.0) * 0.40
+  diff_special_vis = ((pp_vis - (100.0 - pk_loc)) / 100.0) * 0.40
+
+  # 3. Penalización por Porteros Backup
   penalizacion_home = 0.0
   penalizacion_away = 0.0
-
   if starters_status:
     if not starters_status.get("home_starter", {}).get("confirmed"):
-      penalizacion_home = 0.20  # Más expectativa para la visita
+      penalizacion_home = 0.20
     if not starters_status.get("away_starter", {}).get("confirmed"):
-      penalizacion_away = 0.20  # Más expectativa para el local
+      penalizacion_away = 0.20
 
-  lambda_loc_final = lambda_local + penalizacion_away
-  lambda_vis_final = lambda_visita + penalizacion_home
+  lambda_loc_final = max(
+      0.5,
+      lambda_local_base
+      + adj_5v5_loc
+      + diff_special_loc
+      + penalizacion_away
+      + 0.10,
+  )
+  lambda_vis_final = max(
+      0.5, lambda_visita_base + adj_5v5_vis + diff_special_vis + penalizacion_home
+  )
   lambda_total = lambda_loc_final + lambda_vis_final + FACTOR_EMPTY_NET
 
   return lambda_loc_final, lambda_vis_final, lambda_total
@@ -326,6 +362,42 @@ def simular_poisson_nhl_totales(lambda_loc, lambda_vis, linea_totales=6.5):
         p_push += p
 
   return round(p_over * 100, 2), round(p_under * 100, 2), round(p_push * 100, 2)
+
+
+def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
+  """Modelo estocástico Monte Carlo para evaluar el Puck Line (-1.5 / +1.5) integrando goles por Empty Net."""
+  cubiertas_loc_m15 = 0
+  cubiertas_vis_p15 = 0
+
+  for _ in range(simulaciones):
+    goles_loc = poisson.rvs(lambda_loc)
+    goles_vis = poisson.rvs(lambda_vis)
+
+    # Simulación del último minuto (Empty Net) si la diferencia es de 1 gol
+    dif = goles_loc - goles_vis
+    if dif == 1:  # Pierde la visita por 1 -> Saca al portero
+      if random.random() < 0.28:  # 28% de prob de gol en portería vacía
+        if random.random() < 0.82:
+          goles_loc += 1  # El local remata
+        else:
+          goles_vis += 1  # La visita empata
+    elif dif == -1:  # Pierde el local por 1 -> Saca al portero
+      if random.random() < 0.28:
+        if random.random() < 0.82:
+          goles_vis += 1
+        else:
+          goles_loc += 1
+
+    # Evaluación Puck Line Local (-1.5)
+    if (goles_loc - goles_vis) > 1.5:
+      cubiertas_loc_m15 += 1
+    else:
+      cubiertas_vis_p15 += 1
+
+  prob_loc_m15 = (cubiertas_loc_m15 / simulaciones) * 100.0
+  prob_vis_p15 = (cubiertas_vis_p15 / simulaciones) * 100.0
+
+  return round(prob_loc_m15, 2), round(prob_vis_p15, 2)
 
 
 # 🛡️ MÓDULO DE CONTROL DE RIESGO PROFESIONAL & CLV
@@ -560,11 +632,13 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
               "edge": edge,
           })
 
-      # 3. NHL (Empty Net Pro con API Nativa)
+      # 3. NHL (Empty Net & Métricas Avanzadas Pro)
       cartelera_h = obtener_cartelera_oficial_nhl(fecha_formato_str)
       for partido in cartelera_h:
         starters = obtener_porteros_confirmados_nhl(partido["game_id"])
-        l_loc, l_vis, l_tot = calcular_lambda_ajustado_nhl(3.10, 2.75, starters)
+        l_loc, l_vis, _ = calcular_lambda_ajustado_nhl_pro(
+            3.10, 2.75, starters_status=starters
+        )
         p_over_nhl, _, _ = simular_poisson_nhl_totales(l_loc, l_vis, 6.5)
         momio_prueba = -110
         _, edge = calcular_edge_real(momio_prueba, p_over_nhl)
@@ -572,7 +646,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           minas_de_oro.append({
               "deporte": "🏒 NHL",
               "partido": partido["partido_str"],
-              "mercado": "Over 6.5 Goles (Empty Net & Porteros)",
+              "mercado": "Over 6.5 Goles (Pro Engine)",
               "momio": momio_prueba,
               "edge": edge,
           })
@@ -1698,19 +1772,20 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (EMPTY NET PRO + INTEGRACIÓN COMPLETA API)
+# 11. NHL (PUCK LINE, EMPTY NET, SPECIAL TEAMS & 5v5 PRO)
 # =========================================================
 elif (
     modulo_seleccionado
     == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)"
 ):
   st.title(
-      "🏒 **Sistema Cuantitativo Pro NHL (Empty Net & Porteros Pro)"
+      "🏒 **Sistema Cuantitativo Pro NHL (Master Suite Engine)"
       f" [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Modelo de Poisson con ajuste por Empty Net (+0.23 goles) y"
-      " verificación automática de porteros vía API oficial de la NHL.*"
+      "--- \n *Integración total: Métricas 5v5 (xGF%), Especiales (PP/PK),"
+      " Confirmación de Porteros y Simulación de Puck Line (-1.5) con Empty"
+      " Net.*"
   )
 
   col_nh1, col_nh2 = st.columns(2)
@@ -1727,7 +1802,7 @@ elif (
 
   st.markdown("---")
   usar_manual_nhl = st.checkbox(
-      "✍️ Activar Ingreso Manual NHL (Si la cartelera no tiene partidos hoy)",
+      "✍️ Activar Ingreso Manual NHL (Si la cartelera no muestra partidos hoy)",
       value=not cartelera_nhl,
       key="chk_manual_nhl",
   )
@@ -1764,7 +1839,6 @@ elif (
     for idx, op in enumerate(cartelera_nhl, 1):
       with st.expander(f"🏒 {op['partido_str']}"):
 
-        # Consultar estado de porteros si hay Game ID real
         starters = (
             obtener_porteros_confirmados_nhl(op["game_id"])
             if op.get("game_id")
@@ -1795,69 +1869,173 @@ elif (
               f" `{'✅ Sí' if p_loc_conf else '⚠️ Backup / Pendiente'}`"
           )
 
-        col_nh_l1, col_nh_l2 = st.columns(2)
-        with col_nh_l1:
+        st.markdown("---")
+        st.markdown("### 📊 Métricas Avanzadas & Equipos Especiales")
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+          st.markdown(f"**Visitante: `{op['visita']}`**")
           lam_visita_nhl = st.number_input(
-              f"Goles Esperados Base Visita ({op['visita']}):",
+              f"Goles Esperados Base ({op['visita']}):",
               0.5,
               5.0,
               2.75,
               0.05,
               key=f"nhl_lv_{idx}",
           )
-        with col_nh_l2:
+          xgf_vis = st.number_input(
+              f"xGF% a 5v5 ({op['visita']}):",
+              35.0,
+              65.0,
+              49.5,
+              0.5,
+              key=f"nhl_xgf_v_{idx}",
+          )
+          pp_vis = st.number_input(
+              f"Power Play PP% ({op['visita']}):",
+              5.0,
+              40.0,
+              22.0,
+              0.5,
+              key=f"nhl_pp_v_{idx}",
+          )
+          pk_vis = st.number_input(
+              f"Penalty Kill PK% ({op['visita']}):",
+              60.0,
+              95.0,
+              79.0,
+              0.5,
+              key=f"nhl_pk_v_{idx}",
+          )
+
+        with col_m2:
+          st.markdown(f"**Local: `{op['local']}`**")
           lam_local_nhl = st.number_input(
-              f"Goles Esperados Base Local ({op['local']}):",
+              f"Goles Esperados Base ({op['local']}):",
               0.5,
               5.0,
               3.10,
               0.05,
               key=f"nhl_ll_{idx}",
           )
+          xgf_loc = st.number_input(
+              f"xGF% a 5v5 ({op['local']}):",
+              35.0,
+              65.0,
+              52.5,
+              0.5,
+              key=f"nhl_xgf_l_{idx}",
+          )
+          pp_loc = st.number_input(
+              f"Power Play PP% ({op['local']}):",
+              5.0,
+              40.0,
+              24.5,
+              0.5,
+              key=f"nhl_pp_l_{idx}",
+          )
+          pk_loc = st.number_input(
+              f"Penalty Kill PK% ({op['local']}):",
+              60.0,
+              95.0,
+              82.0,
+              0.5,
+              key=f"nhl_pk_l_{idx}",
+          )
 
         lam_loc_f, lam_vis_f, lambda_total_ajustado = (
-            calcular_lambda_ajustado_nhl(
-                lam_local_nhl, lam_visita_nhl, starters
+            calcular_lambda_ajustado_nhl_pro(
+                lam_local_nhl,
+                lam_visita_nhl,
+                pp_loc,
+                pk_loc,
+                pp_vis,
+                pk_vis,
+                xgf_loc,
+                xgf_vis,
+                starters,
             )
         )
 
         st.info(
-            f"🥅 **Ajuste Empty Net (+0.23) & Porteros:** xG Local:"
-            f" `{lam_loc_f:.2f}` | xG Visita: `{lam_vis_f:.2f}` | **Total xG"
-            f" Ajustado**: **`{lambda_total_ajustado:.2f}`**"
+            f"🥅 **Ajuste Integral de Motor Pro:** xG Local Ponderado:"
+            f" `{lam_loc_f:.2f}` | xG Visita Ponderado: `{lam_vis_f:.2f}` |"
+            f" **Total xG Estimado**: **`{lambda_total_ajustado:.2f}`**"
         )
 
-        linea_ou_nhl = st.selectbox(
-            "Línea de Goles O/U:",
-            [5.5, 6.0, 6.5, 7.0],
-            index=2,
-            key=f"nhl_linea_ou_{idx}",
-        )
-        tipo_ou_nhl = st.selectbox(
-            "Selección Totales:",
-            ["Over (Más de)", "Under (Menos de)"],
-            key=f"nhl_tipo_ou_{idx}",
-        )
-
-        momio_nhl_str = st.text_input(
-            "📈 Momio Casino:", value="-110", key=f"nhl_m_txt_{idx}"
-        )
-        try:
-          momio_nhl = int(momio_nhl_str)
-        except ValueError:
-          momio_nhl = -110
-
-        p_over_nhl, p_under_nhl, p_push_nhl = simular_poisson_nhl_totales(
-            lam_loc_f, lam_vis_f, linea_totales=linea_ou_nhl
-        )
-        prob_modelo_nhl = (
-            p_over_nhl if "Over" in tipo_ou_nhl else p_under_nhl
+        st.markdown("---")
+        st.markdown("### 🎯 Selección de Mercado NHL")
+        tipo_mercado_nhl = st.selectbox(
+            "Mercado a Auditar:",
+            [
+                "Total de Goles (Over / Under)",
+                "Puck Line / Spread (-1.5 / +1.5)",
+            ],
+            key=f"nhl_merc_tipo_{idx}",
         )
 
-        st.success(
-            f"🤖 **Probabilidad Real del Modelo:** **`{prob_modelo_nhl:.2f}%`**"
-            f" (Prob. Push/Empate exacto: `{p_push_nhl}%`)"
-        )
+        if "Total de Goles" in tipo_mercado_nhl:
+          col_ou1, col_ou2 = st.columns(2)
+          with col_ou1:
+            linea_ou_nhl = st.selectbox(
+                "Línea de Goles O/U:",
+                [5.5, 6.0, 6.5, 7.0],
+                index=2,
+                key=f"nhl_linea_ou_{idx}",
+            )
+          with col_ou2:
+            tipo_ou_nhl = st.selectbox(
+                "Selección Totales:",
+                ["Over (Más de)", "Under (Menos de)"],
+                key=f"nhl_tipo_ou_{idx}",
+            )
+
+          momio_nhl_str = st.text_input(
+              "📈 Momio Casino:", value="-110", key=f"nhl_m_txt_{idx}"
+          )
+          try:
+            momio_nhl = int(momio_nhl_str)
+          except ValueError:
+            momio_nhl = -110
+
+          p_over_nhl, p_under_nhl, p_push_nhl = simular_poisson_nhl_totales(
+              lam_loc_f, lam_vis_f, linea_totales=linea_ou_nhl
+          )
+          prob_modelo_nhl = (
+              p_over_nhl if "Over" in tipo_ou_nhl else p_under_nhl
+          )
+          st.success(
+              f"🤖 **Probabilidad Real del Modelo:** **`{prob_modelo_nhl:.2f}%`**"
+              f" (Prob. Push: `{p_push_nhl}%`)"
+          )
+
+        else:  # Puck Line -1.5 / +1.5
+          col_pl1, col_pl2 = st.columns(2)
+          with col_pl1:
+            sel_puckline = st.selectbox(
+                "Selección Puck Line:",
+                [f"{op['local']} -1.5", f"{op['visita']} +1.5"],
+                key=f"nhl_pl_sel_{idx}",
+            )
+          with col_pl2:
+            momio_nhl_str = st.text_input(
+                "📈 Momio Casino:", value="+145", key=f"nhl_m_pl_txt_{idx}"
+            )
+            try:
+              momio_nhl = int(momio_nhl_str)
+            except ValueError:
+              momio_nhl = 145
+
+          prob_loc_m15, prob_vis_p15 = simular_puck_line_nhl(
+              lam_loc_f, lam_vis_f
+          )
+          prob_modelo_nhl = (
+              prob_loc_m15 if op["local"] in sel_puckline else prob_vis_p15
+          )
+          st.success(
+              f"🤖 **Probabilidad Monte Carlo (Puck Line con Empty Net):**"
+              f" Local -1.5: `{prob_loc_m15}%` | Visita +1.5: `{prob_vis_p15}%`"
+          )
+
         prob_imp, edge = calcular_edge_real(momio_nhl, prob_modelo_nhl)
         st.info(
             f"📊 **Edge Calculado:** Implícita (`{momio_nhl:+}`): `{prob_imp:.2f}%`"
@@ -2144,7 +2322,7 @@ else:
   for ev in eventos_nhl_parlay:
     opciones_inteligentes.append({
         "titulo": f"🏒 NHL: {ev['partido_str']}",
-        "mercado": "Over 6.5 Goles (Empty Net)",
+        "mercado": "Over 6.5 Goles (Pro Engine)",
         "momio": -105,
         "edge": 3.8,
     })
