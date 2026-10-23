@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# INICIALIZACIÓN SEGURA DE SESSION_STATE (EVITA ERRORES DE SESIÓN)
+# INICIALIZACIÓN SEGURA DE SESSION_STATE
 # ---------------------------------------------------------
 if "bankroll_global" not in st.session_state:
   st.session_state["bankroll_global"] = 15250.0
@@ -419,7 +419,7 @@ elif (
 
 
 # =========================================================
-# 5. FÚTBOL (CON PPDA, BALÓN PARADO, CLIMA, KELLY Y SQLITE)
+# 5. FÚTBOL (MÓDULO SUPREMO: PPDA, BALÓN PARADO, CLIMA, ÁRBITRO, 1H xG Y PENALES)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -429,8 +429,8 @@ elif (
       f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Time-Decay EMA, PPDA, Balón Parado, Clima, Criterio de Kelly y"
-      f" SQLite para la fecha: **{fecha_formato_str}**.*"
+      "--- \n *Time-Decay EMA, PPDA, Balón Parado, Clima, Tendencia Árbitral,"
+      f" Desglose 1H xG y Penales para la fecha: **{fecha_formato_str}**.*"
   )
 
   ligas_dict = {
@@ -512,6 +512,22 @@ elif (
           0.05,
           key=f"sp_v_{idx}",
       )
+      xg_1h_v = st.number_input(
+          "xG Promedio en Primer Tiempo (1H Visita):",
+          0.1,
+          2.0,
+          0.55,
+          0.05,
+          key=f"1h_v_{idx}",
+      )
+      pen_conv_v = st.slider(
+          "Generación y Conversión de Penales (Visita):",
+          0.0,
+          1.0,
+          0.30,
+          0.05,
+          key=f"pen_v_{idx}",
+      )
       baja_estrella_v = st.selectbox(
           "Ausencia Clave (Visita):",
           [
@@ -579,6 +595,22 @@ elif (
           0.05,
           key=f"sp_l_{idx}",
       )
+      xg_1h_l = st.number_input(
+          "xG Promedio en Primer Tiempo (1H Local):",
+          0.1,
+          2.0,
+          0.75,
+          0.05,
+          key=f"1h_l_{idx}",
+      )
+      pen_conv_l = st.slider(
+          "Generación y Conversión de Penales (Local):",
+          0.0,
+          1.0,
+          0.40,
+          0.05,
+          key=f"pen_l_{idx}",
+      )
       baja_estrella_l = st.selectbox(
           "Ausencia Clave (Local):",
           [
@@ -604,8 +636,10 @@ elif (
           key=f"desc_l_{idx}",
       )
 
-    st.markdown("🌤️ **Factores Exógenos y Climáticos del Partido:**")
-    col_cl1, col_cl2 = st.columns(2)
+    st.markdown(
+        "🌤️ **Factores Exógenos, Climáticos y Tendencia del Árbitro:**"
+    )
+    col_cl1, col_cl2, col_cl3 = st.columns(3)
     with col_cl1:
       clima_sel = st.selectbox(
           "Condición Climática:",
@@ -618,13 +652,23 @@ elif (
       )
     with col_cl2:
       cesped_sel = st.selectbox(
-          "Estado del Terreno de Juego:",
+          "Terreno de Juego:",
           [
               "Césped Natural Excelente",
               "Césped Natural Irregular / Pesado",
               "Césped Artificial (Sintético)",
           ],
           key=f"cesped_{idx}",
+      )
+    with col_cl3:
+      arbitro_tendencia = st.selectbox(
+          "Tendencia del Árbitro:",
+          [
+              "Neutral (Permisivo / Promedio)",
+              "Tarjeta Roja / Amarillas Frecuentes (Strict)",
+              "Fácil de Pitar Penales / Riguroso",
+          ],
+          key=f"arb_{idx}",
       )
 
     factor_clima = {
@@ -637,6 +681,14 @@ elif (
         "Césped Natural Irregular / Pesado": 0.96,
         "Césped Artificial (Sintético)": 1.03,
     }[cesped_sel]
+
+    # Ajuste por rigor del árbitro (afecta probabilidades de penales o faltas tácticas)
+    factor_arb = (
+        1.05
+        if "Riguroso" in arbitro_tendencia
+        else (1.0 if "Neutral" in arbitro_tendencia else 0.98)
+    )
+
     ema_factor = 1.04
 
     mod_baja_l = (
@@ -669,12 +721,14 @@ elif (
         + set_piece_l
         + mod_baja_l
         + varianza_dt_l
+        + pen_conv_l
     )
     base_xgv = (
         ((gf_v + gc_l) / 2.0) * press_factor_v
         + set_piece_v
         + mod_baja_v
         + varianza_dt_v
+        + pen_conv_v
     )
 
     calidad_tiros_l = xgot_l / 5.0
@@ -685,13 +739,15 @@ elif (
             0.5,
             (
                 (
-                    (base_xgl * 0.55)
-                    + (calidad_tiros_l * 0.25)
-                    + (set_piece_l * 0.20)
+                    (base_xgl * 0.50)
+                    + (calidad_tiros_l * 0.20)
+                    + (set_piece_l * 0.15)
+                    + (pen_conv_l * 0.15)
                 )
                 * f_l
                 * factor_clima
                 * factor_cesped
+                * factor_arb
                 * ema_factor
             ),
         ),
@@ -702,13 +758,15 @@ elif (
             0.5,
             (
                 (
-                    (base_xgv * 0.55)
-                    + (calidad_tiros_v * 0.25)
-                    + (set_piece_v * 0.20)
+                    (base_xgv * 0.50)
+                    + (calidad_tiros_v * 0.20)
+                    + (set_piece_v * 0.15)
+                    + (pen_conv_v * 0.15)
                 )
                 * f_v
                 * factor_clima
                 * factor_cesped
+                * factor_arb
                 * ema_factor
             ),
         ),
@@ -720,10 +778,13 @@ elif (
     )
     btts_no_prob = round(100.0 - btts_prob, 2)
 
+    # Proyecciones específicas para Primer Tiempo (1H)
+    total_1h_xg = round(xg_1h_l + xg_1h_v, 2)
+
     st.markdown("---")
     st.markdown(
-        f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita:"
-        f" `{xgv_calc}`):**"
+        f"📊 **Proyecciones del Modelo Supremos (xG Local: `{xgl_calc}` | xG"
+        f" Visita: `{xgv_calc}`):**"
     )
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
@@ -733,7 +794,8 @@ elif (
     st.info(
         f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5:"
         f" `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí:"
-        f" `{btts_prob}%`"
+        f" `{btts_prob}%` \n⏱️ **Proyección 1H (Primer Tiempo):** xG Acumulado"
+        f" 1H: `{total_1h_xg}`"
     )
 
     st.markdown("💰 **Auditoría de Momios, Criterio de Kelly & CLV:**")
