@@ -32,6 +32,9 @@ if "telegram_token" not in st.session_state:
 if "telegram_chat_id" not in st.session_state:
   st.session_state["telegram_chat_id"] = ""
 
+if "auto_activo" not in st.session_state:
+  st.session_state["auto_activo"] = False
+
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE)
@@ -208,6 +211,41 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
+# BACKGROUND WORKER (ESCANER Y ENVÍO AUTOMÁTICO 24/7)
+# ---------------------------------------------------------
+def tarea_en_segundo_plano():
+  """Hilo que revisa cada hora si es la hora configurada para escanear y reportar automáticamente."""
+  while True:
+    try:
+      ahora = datetime.now()
+      # Por ejemplo, se ejecuta de forma autónoma todos los días a las 09:00 AM
+      if ahora.hour == 9 and ahora.minute == 0:
+        token = st.session_state.get("telegram_token", "")
+        chat_id = st.session_state.get("telegram_chat_id", "")
+        api_key = st.session_state.get("api_key_guardada", "")
+
+        if token and chat_id and api_key:
+          # Escaneo automático de fútbol
+          partidos = obtener_partidos_y_momios_api("soccer_epl", api_key)
+          if partidos:
+            mensaje = (
+                "🤖 *MASTER SUITE ÉLITE — ESCANEO AUTOMÁTICO DIARIO* ⚽\nEl"
+                " sistema ha escaneado la jornada matutina con éxito."
+            )
+            enviar_alerta_telegram(token, chat_id, mensaje)
+      time.sleep(60)  # Espera 1 minuto antes de volver a verificar
+    except Exception:
+      time.sleep(60)
+
+
+# Iniciar el hilo en segundo plano una sola vez
+if "hilo_iniciado" not in st.session_state:
+  st.session_state["hilo_iniciado"] = True
+  t = threading.Thread(target=tarea_en_segundo_plano, daemon=True)
+  t.start()
+
+
+# ---------------------------------------------------------
 # SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
@@ -215,7 +253,6 @@ st.sidebar.title("🎯 Menú de la Master Suite Élite")
 fecha_seleccionada = st.sidebar.date_input(
     "📅 Selecciona la Fecha a Analizar:", value=date.today()
 )
-fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
@@ -226,11 +263,9 @@ input_api_key = st.sidebar.text_input(
     type="password",
     key="input_api_key_widget",
 )
-
 if input_api_key != st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = input_api_key
 
-# Configuración de Telegram en la barra lateral
 st.sidebar.markdown("---")
 st.sidebar.subheader("🤖 Configuración Bot Telegram")
 input_tg_token = st.sidebar.text_input(
@@ -288,24 +323,42 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 
   edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5)
 
-  if st.button("🚀 Ejecutar Escaneo en Tiempo Real", use_container_width=True):
-    with st.spinner("Conectando con la API y escaneando mercados..."):
+  col_esc1, col_esc2 = st.columns(2)
+  with col_esc1:
+    if st.button("🚀 Ejecutar Escaneo en Tiempo Real", use_container_width=True):
+      with st.spinner("Conectando con la API y escaneando mercados..."):
+        api_key = st.session_state["api_key_guardada"]
+        minas_de_oro = []
+
+        partidos_epl = obtener_partidos_y_momios_api("soccer_epl", api_key)
+        for p in partidos_epl:
+          _, edge = calcular_edge_real(-115, 58.0)
+          if edge >= edge_min_escanner:
+            minas_de_oro.append({
+                "deporte": "⚽ Fútbol (EPL)",
+                "partido": p["partido_str"],
+                "mercado": "Over 2.5 Goles",
+                "momio": -115,
+                "edge": edge,
+            })
+
+        st.session_state["resultado_escaneo"] = minas_de_oro
+
+  with col_esc2:
+    if st.button("🤖 Disparar Escaneo y Alerta Inmediata a Telegram", use_container_width=True):
       api_key = st.session_state["api_key_guardada"]
-      minas_de_oro = []
-
+      token = st.session_state["telegram_token"]
+      chat_id = st.session_state["telegram_chat_id"]
       partidos_epl = obtener_partidos_y_momios_api("soccer_epl", api_key)
-      for p in partidos_epl:
-        _, edge = calcular_edge_real(-115, 58.0)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "⚽ Fútbol (EPL)",
-              "partido": p["partido_str"],
-              "mercado": "Over 2.5 Goles",
-              "momio": -115,
-              "edge": edge,
-          })
-
-      st.session_state["resultado_escaneo"] = minas_de_oro
+      if partidos_epl:
+        msg = "🤖 *MASTER SUITE ÉLITE — REPORTE MANUAL +EV*\nPartidos escaneados en tiempo real. ¡Revisa tu panel!"
+        ok, res = enviar_alerta_telegram(token, chat_id, msg)
+        if ok:
+          st.success("✅ ¡Reporte disparado a Telegram con éxito!")
+        else:
+          st.error(res)
+      else:
+        st.warning("⚠️ No se encontraron partidos o falta configurar la API Key.")
 
   if "resultado_escaneo" in st.session_state and st.session_state[
       "resultado_escaneo"
@@ -322,8 +375,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       )
   else:
     st.info(
-        "ℹ️ Asegúrate de tener tu API Key ingresada en la barra lateral y haz"
-        " clic en escanear."
+        "ℹ️ Configura tu API Key en la barra lateral y ejecuta el escáner."
     )
 
 
@@ -481,7 +533,7 @@ elif (
 
 
 # =========================================================
-# 5. FÚTBOL (CON BOT DE TELEGRAM INTEGRADO)
+# 5. FÚTBOL (CON BOT DE TELEGRAM Y AUTOMATIZACIÓN)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -491,8 +543,8 @@ elif (
       f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Automatizado con API, Time-Decay, PPDA, Kelly y Alertas de"
-      f" Telegram para la fecha: **{fecha_formato_str}**.*"
+      "--- \n *Automatizado con API, Time-Decay, PPDA, Kelly y Worker 24/7 para"
+      f" la fecha: **{fecha_formato_str}**.*"
   )
 
   ligas_odds_api = {
