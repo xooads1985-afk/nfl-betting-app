@@ -48,7 +48,7 @@ def obtener_momios_odds_api(deporte_key, api_key):
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (Barra Lateral)
+# SELECTOR GLOBAL DE FECHA Y MENÚ (Barra Lateral con Memoria API Key)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú del Sistema Pro")
 
@@ -58,14 +58,27 @@ fecha_seleccionada = st.sidebar.date_input(
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
-# Integración Real de Odds API
+# Memoria Persistente para la API Key
+if "api_key_guardada" not in st.session_state:
+  st.session_state["api_key_guardada"] = ""
+
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
-odds_api_key = st.sidebar.text_input(
+
+input_api_key = st.sidebar.text_input(
     "API Key (The Odds API):",
+    value=st.session_state["api_key_guardada"],
     type="password",
-    help="Ingresa tu clave para jalar momios en vivo automáticamente.",
+    help=(
+        "Ingresa tu clave. Se mantendrá guardada en memoria automáticamente."
+    ),
 )
+
+# Guardar en sesión al escribir
+if input_api_key != st.session_state["api_key_guardada"]:
+  st.session_state["api_key_guardada"] = input_api_key
+
+odds_api_key = st.session_state["api_key_guardada"]
 
 if st.sidebar.button(
     "🔄 Actualizar y Buscar Fecha", use_container_width=True
@@ -176,7 +189,6 @@ def simular_partido_nfl_monte_carlo_pro(
     if puntos_local > puntos_vis:
       victorias_local += 1
 
-    # Evaluar hándicap (Spread local) -> Ej: Local -3.5 significa que Local debe ganar por 4+
     if (puntos_local - puntos_vis) + spread_local > 0:
       cubre_spread_local += 1
 
@@ -447,59 +459,6 @@ def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
   prob_vis_p15 = (cubiertas_vis_p15 / simulaciones) * 100.0
 
   return round(prob_loc_m15, 2), round(prob_vis_p15, 2)
-
-
-# 🛡️ MÓDULO DE CONTROL DE RIESGO PROFESIONAL & CLV
-def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
-  total_apuestas = len(historial_apuestas)
-  if total_apuestas == 0:
-    return "No hay apuestas registradas en el historial para auditar."
-
-  ganadas = sum(1 for x in historial_apuestas if x.get("resultado") == "ganada")
-  perdidas = sum(
-      1 for x in historial_apuestas if x.get("resultado") == "perdida"
-  )
-  tasa_acierto = (ganadas / total_apuestas) * 100
-
-  clv_positivos = sum(
-      1 for x in historial_apuestas if x.get("clv_positivo", False)
-  )
-  tasa_clv = (clv_positivos / total_apuestas) * 100
-
-  edge_promedio = (
-      sum(x.get("edge_neto", 0) for x in historial_apuestas) / total_apuestas
-  )
-
-  nombre_archivo = "reporte_pruebas.txt"
-  with open(nombre_archivo, "w", encoding="utf-8") as f:
-    f.write("=== DIAGNÓSTICO DE SISTEMA EN PRUEBAS ===\n")
-    f.write(
-        f"Fecha de reporte: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-    )
-    f.write("-----------------------------------------\n")
-    f.write(f"Total de operaciones simuladas: {total_apuestas}\n")
-    f.write(f"Récord (G-P): {ganadas} - {perdidas}\n")
-    f.write(f"Tasa de Acierto Real: {tasa_acierto:.2f}%\n")
-    f.write(f"Bankroll Simulado Actual: ${bankroll_simulado:.2f}\n")
-    f.write("-----------------------------------------\n")
-    f.write("AUDITORÍA MATEMÁTICA DEL MODELO:\n")
-    f.write(f"Edge Neto Promedio Calculado: +{edge_promedio:.2f}%\n")
-    f.write(f"Tasa de Vencer al Cierre (Beat the Close): {tasa_clv:.2f}%\n")
-    f.write("-----------------------------------------\n")
-
-    f.write("DIAGNÓSTICO TÉCNICO:\n")
-    if tasa_clv >= 60.0:
-      f.write(
-          "-> MODELO SALUDABLE: Estás batiendo la línea de cierre de forma"
-          " óptima.\n"
-      )
-    else:
-      f.write(
-          "-> ALERTA DE MODELO: Tu tasa de CLV es baja. El modelo deportivo"
-          " podría estar descalibrado.\n"
-      )
-
-  return nombre_archivo
 
 
 @st.cache_data(ttl=300)
@@ -897,7 +856,6 @@ elif (
           except ValueError:
             momio_nfl = -110
 
-        # Ejecución de la simulación Monte Carlo Pro completa
         spread_param = (
             linea_spread
             if tipo_mercado_nfl == "Spread / Hándicap"
