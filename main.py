@@ -76,13 +76,16 @@ def registrar_apuesta_db(
 
 
 # ---------------------------------------------------------
-# MOTOR DE ALERTAS PARA TELEGRAM (CON CONTROL DE TAMAÑO)
+# MOTOR DE ALERTAS PARA TELEGRAM (CON CONTROL Y VALIDACIÓN)
 # ---------------------------------------------------------
 def enviar_alerta_telegram(token, chat_id, mensaje):
   if not token or not chat_id:
-    return False, "Faltan el Token o el Chat ID de Telegram."
+    return False, "Faltan el Token o el Chat ID de Telegram en la barra lateral."
   
-  url = f"https://api.telegram.org/bot{token}/sendMessage"
+  token_limpio = token.strip()
+  chat_id_limpio = str(chat_id).strip()
+  
+  url = f"https://api.telegram.org/bot{token_limpio}/sendMessage"
   
   if len(mensaje) > 4000:
     fragmentos = [mensaje[i:i+4000] for i in range(0, len(mensaje), 4000)]
@@ -93,18 +96,18 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
   ultimo_error = ""
 
   for frag in fragmentos:
-    payload = {"chat_id": chat_id, "text": frag, "parse_mode": "Markdown"}
+    payload = {"chat_id": chat_id_limpio, "text": frag, "parse_mode": "Markdown"}
     try:
       response = requests.post(url, json=payload, timeout=5)
       if response.status_code != 200:
         exito = False
-        ultimo_error = f"Error de Telegram: {response.text}"
+        ultimo_error = f"Error de Telegram ({response.status_code}): Revisa tu Bot Token y Chat ID."
     except Exception as e:
       exito = False
       ultimo_error = f"Excepción de red: {str(e)}"
 
   if exito:
-    return True, "¡Alerta(s) enviada(s) con éxito a Telegram!"
+    return True, "¡Alerta enviada con éxito a Telegram!"
   else:
     return False, ultimo_error
 
@@ -187,7 +190,7 @@ def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
 
 
 # ---------------------------------------------------------
-# CONEXIÓN AUTOMATIZADA CON THE ODDS API Y PARSER DE VALOR REAL
+# CONEXIÓN AUTOMATIZADA CON THE ODDS API Y PARSER DE VALOR CLARO
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_partidos_y_momios_api(sport_key, api_key):
@@ -223,11 +226,27 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
                 
                 _, edge_calculado = calcular_edge_real(precio_momio, prob_modelo)
                 
+                if m_key == "h2h":
+                  mercado_claro = f"Ganador del Partido (Moneyline): {nombre_seleccion}"
+                elif m_key == "spreads":
+                  punto_spread = out.get("point", 0.0)
+                  mercado_claro = f"Hándicap / Spread: {nombre_seleccion} ({punto_spread})"
+                elif m_key == "totals":
+                  punto_total = out.get("point", 0.0)
+                  mercado_claro = f"Totales Over/Under: {nombre_seleccion} ({punto_total})"
+                else:
+                  mercado_claro = f"{m_key.upper()}: {nombre_seleccion}"
+
+                stake_sugerido = calcular_criterio_kelly(
+                    st.session_state["bankroll_global"], prob_modelo, int(precio_momio)
+                )
+
                 partidos_analizados.append({
                     "partido_str": f"{visita} @ {local}",
-                    "mercado": f"[{m_key.upper()}] {nombre_seleccion}",
+                    "mercado": mercado_claro,
                     "momio": int(precio_momio),
-                    "edge": round(edge_calculado, 2)
+                    "edge": round(edge_calculado, 2),
+                    "stake": stake_sugerido
                 })
       return partidos_analizados
   except Exception:
@@ -267,7 +286,7 @@ def tarea_en_segundo_plano():
           if minas_encontradas:
             picks_recorte = minas_encontradas[:12]
             mensaje = (
-                "🎯 *MASTER SUITE ÉLITE — MINAS DE ORO MATUTINAS (+EV)* 🚀\nOportunidades filtradas con valor matemático:\n\n"
+                "🎯 *MASTER SUITE ÉLITE — MINAS DE ORO MATUTINAS (+EV)* 🚀\nOportunidades con instrucción de apuesta clara:\n\n"
                 + "\n\n".join(picks_recorte)
             )
             enviar_alerta_telegram(token, chat_id, mensaje)
@@ -352,8 +371,8 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Radar dinámico conectado a The Odds API con desglose de mercados"
-      " y Edge real.*"
+      "--- \n *Radar dinámico conectado a The Odds API con instrucción de apuesta"
+      " clara y Edge real.*"
   )
 
   edge_min_escanner = st.slider(
@@ -386,6 +405,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
                   "mercado": p["mercado"],
                   "momio": p["momio"],
                   "edge": p["edge"],
+                  "stake": p["stake"]
               })
 
         st.session_state["resultado_escaneo"] = minas_de_oro
@@ -411,7 +431,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
         for p in picks:
           if p["edge"] >= edge_min_escanner:
             minas_manual.append(
-                f"• *{nombre_dep}* | `{p['partido_str']}`\n  🎯 Apuesta: **{p['mercado']}** (Cuota: `{p['momio']}`) — Edge: `+{p['edge']:.2f}%`"
+                f"• *{nombre_dep}* | `{p['partido_str']}`\n  🎯 Apuesta: **{p['mercado']}**\n  📈 Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`"
             )
 
       if minas_manual:
@@ -446,7 +466,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           f" **{item['mercado']}**"
       )
       st.info(
-          f"• Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**"
+          f"• Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`** | 💡 **Stake: `${item['stake']} MXN`**"
       )
   else:
     st.info(
@@ -468,15 +488,18 @@ elif (
   cartelera_nba = obtener_partidos_y_momios_api("basketball_nba", api_key)
   if not cartelera_nba:
     cartelera_nba = [{
-        "partido_str": "Boston Celtics @ Los Angeles Lakers (Ejemplo)",
-        "local": "Los Angeles Lakers",
-        "visita": "Boston Celtics",
-        "momios": {},
+        "partido_str": "Boston Celtics @ Los Angeles Lakers",
+        "mercado": "Spread (Ejemplo)",
+        "momio": -110,
+        "edge": 4.5,
+        "stake": 150.0
     }]
 
-  for idx, op in enumerate(cartelera_nba[:5], 1):
-    parts = op["partido_str"].split(" @ ")
-    visita_nba = parts[0].replace("📅 ", "")
+  partidos_unicos_nba = sorted(list(set([p["partido_str"] for p in cartelera_nba])))
+
+  for idx, partido_str in enumerate(partidos_unicos_nba[:5], 1):
+    parts = partido_str.split(" @ ")
+    visita_nba = parts[0]
     local_nba = parts[1] if len(parts) > 1 else "Local"
     st.markdown(f"### 🏀 Encuentro #{idx}: `{visita_nba} @ {local_nba}`")
 
@@ -645,9 +668,10 @@ elif (
   if not cartelera_soccer:
     cartelera_soccer = [{
         "partido_str": "Ipswich Town @ Nottingham Forest",
-        "mercado": "Hándicap Local (-0.5)",
+        "mercado": "Ganador del Partido (Moneyline): Nottingham Forest",
         "momio": -110,
-        "edge": 4.5
+        "edge": 4.5,
+        "stake": 150.0
     }]
 
   partidos_unicos = sorted(list(set([p["partido_str"] for p in cartelera_soccer])))
@@ -885,7 +909,7 @@ elif (
                     (base_xgv * 0.50)
                     + ((xgot_v / 5.0) * 0.20)
                     + (set_piece_l * 0.15)
-                    + (pen_conv_l * 0.15)
+                    + (pen_conv_v * 0.15)
                 )
                 * factor_clima
                 * factor_cesped
@@ -1021,7 +1045,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
     for reg in registros:
       st.info(
           f"🆔 ID: {reg[0]} | 📅 {reg[1]} | Deporte: **{reg[2]}** | Partido: `{reg[3]}` \n•"
-          f" Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%`"
+          f" Mercado: **{reg[4]}** | Momio: `{reg[5]}`} | Edge: `+{reg[6]:.2f}%`"
           f" | Stake: `${reg[7]} MXN` | Estado: `{reg[8]}`"
       )
   else:
