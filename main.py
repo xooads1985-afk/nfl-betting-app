@@ -74,7 +74,6 @@ input_api_key = st.sidebar.text_input(
     ),
 )
 
-# Guardar en sesión al escribir
 if input_api_key != st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = input_api_key
 
@@ -94,8 +93,8 @@ modulo_seleccionado = st.sidebar.radio(
     [
         "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)",
         (
-            "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de"
-            " Posesiones)"
+            "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3"
+            " Capas)"
         ),
         "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
@@ -148,7 +147,7 @@ def calcular_probabilidad_modelo_gaussiano(
   return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# 🏈 SIMULADOR MONTE CARLO PRO NFL (ZONA ROJA, TURNOVERS & SPREAD/TOTALES)
+# 🏈 SIMULADOR MONTE CARLO PRO NFL (CON 3 CAPAS: CLIMA, 3RD DOWN & LESIONES QB)
 def simular_partido_nfl_monte_carlo_pro(
     lambda_pos_local,
     lambda_pos_visitante,
@@ -158,18 +157,64 @@ def simular_partido_nfl_monte_carlo_pro(
     turnovers_vis=1.0,
     spread_local=-3.5,
     linea_totales=45.5,
+    viento_mph=5.0,
+    temperatura_c=20.0,
+    qb_status_loc="Titular Sano",
+    qb_status_vis="Titular Sano",
+    tercera_down_loc=40.0,
+    tercera_down_vis=40.0,
     simulaciones=10000,
 ):
+  # CAPA 1: Ajuste por Clima Extremo
+  mult_clima_loc = 1.0
+  mult_clima_vis = 1.0
+  if viento_mph > 20.0:
+    # Viento fuerte reduce eficiencia de pase y puntos totales
+    factor_viento = 1.0 - ((viento_mph - 20.0) * 0.008)
+    mult_clima_loc *= max(0.82, factor_viento)
+    mult_clima_vis *= max(0.82, factor_viento)
+  if temperatura_c < 0.0:
+    # Frío extremo reduce ligera fluidez ofensiva
+    mult_clima_loc *= 0.95
+    mult_clima_vis *= 0.95
+
+  # CAPA 3: Ajuste por Lesiones de QB / Playmakers
+  if qb_status_loc == "Duda":
+    eficiencia_rz_loc *= 0.88
+    lambda_pos_local *= 0.90
+  elif qb_status_loc == "Baja / Suplente":
+    eficiencia_rz_loc *= 0.70
+    lambda_pos_local *= 0.78
+
+  if qb_status_vis == "Duda":
+    eficiencia_rz_vis *= 0.88
+    lambda_pos_visitante *= 0.90
+  elif qb_status_vis == "Baja / Suplente":
+    eficiencia_rz_vis *= 0.70
+    lambda_pos_visitante *= 0.78
+
+  # CAPA 2: Ajuste por 3rd Down y Trincheras
+  mod_3rd_loc = 1.0 + ((tercera_down_loc - 40.0) / 200.0)
+  mod_3rd_vis = 1.0 + ((tercera_down_vis - 40.0) / 200.0)
+
+  lam_efectiva_loc = (
+      max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15))
+      * mult_clima_loc
+      * mod_3rd_loc
+  )
+  lam_efectiva_vis = (
+      max(1.0, lambda_pos_local - (turnovers_vis * 0.15))
+      * mult_clima_vis
+      * mod_3rd_vis
+  )
+
+  prob_td_loc = max(0.40, min(0.88, (eficiencia_rz_loc / 100.0) * mult_clima_loc))
+  prob_td_vis = max(0.40, min(0.88, (eficiencia_rz_vis / 100.0) * mult_clima_vis))
+
   victorias_local = 0
   cubre_spread_local = 0
   supera_totales = 0
   total_puntos_acumulados = 0
-
-  lam_efectiva_loc = max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15))
-  lam_efectiva_vis = max(1.0, lambda_pos_local - (turnovers_vis * 0.15))
-
-  prob_td_loc = max(0.50, min(0.88, eficiencia_rz_loc / 100.0))
-  prob_td_vis = max(0.50, min(0.88, eficiencia_rz_vis / 100.0))
 
   for _ in range(simulaciones):
     anotaciones_local = poisson.rvs(lam_efectiva_loc)
@@ -643,19 +688,19 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 
 
 # =========================================================
-# 1. NFL (MONTE CARLO PRO - ZONA ROJA, TURNOVERS, SPREAD & TOTALES)
+# 1. NFL (MONTE CARLO PRO CON 3 CAPAS: CLIMA, 3RD DOWN & QB)
 # =========================================================
 elif (
     modulo_seleccionado
-    == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo de Posesiones)"
+    == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)"
 ):
   st.title(
-      "🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo Pro)"
+      "🛡️ **Sistema Cuantitativo Pro NFL (Monte Carlo Pro con 3 Capas)"
       f" [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Simulación estocástica avanzada: Zona Roja, Turnovers,"
-      " Hándicaps (Spread) y Totales (Over/Under).*"
+      "--- \n *Simulación estocástica avanzada con Clima Extremo, Eficiencia en"
+      " 3ra Oportunidad y Ponderador de Lesiones de QB.*"
   )
 
   col1, col2 = st.columns(2)
@@ -707,7 +752,7 @@ elif (
     for idx, op in enumerate(cartelera, 1):
       with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
         st.markdown(
-            "### 🧬 Parámetros Avanzados: Posesiones, Zona Roja & Turnovers"
+            "### 🧬 Parámetros Base, Zona Roja & Turnovers (Modelo Central)"
         )
         col_mc1, col_mc2 = st.columns(2)
         with col_mc1:
@@ -736,7 +781,6 @@ elif (
               0.1,
               key=f"nfl_to_v_{idx}",
           )
-
         with col_mc2:
           st.markdown(f"**Local: `{op['local']}`**")
           lam_pos_local = st.number_input(
@@ -762,6 +806,57 @@ elif (
               0.8,
               0.1,
               key=f"nfl_to_l_{idx}",
+          )
+
+        st.markdown("---")
+        st.markdown(
+            "### 🛡️ CAPAS AVANZADAS: Clima, 3rd Down & Estatus de QB"
+        )
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+          viento_mph = st.number_input(
+              "💨 Velocidad Viento (mph):",
+              0.0,
+              40.0,
+              5.0,
+              1.0,
+              key=f"nfl_viento_{idx}",
+          )
+          temp_c = st.number_input(
+              "❄️ Temperatura (°C):",
+              -20.0,
+              40.0,
+              18.0,
+              1.0,
+              key=f"nfl_temp_{idx}",
+          )
+        with col_c2:
+          qb_vis_status = st.selectbox(
+              f"Estatus QB Visita ({op['visita']}):",
+              ["Titular Sano", "Duda", "Baja / Suplente"],
+              key=f"nfl_qb_v_{idx}",
+          )
+          qb_loc_status = st.selectbox(
+              f"Estatus QB Local ({op['local']}):",
+              ["Titular Sano", "Duda", "Baja / Suplente"],
+              key=f"nfl_qb_l_{idx}",
+          )
+        with col_c3:
+          t3_vis = st.number_input(
+              f"Conv. 3rd Down Visita (%):",
+              25.0,
+              60.0,
+              40.0,
+              1.0,
+              key=f"nfl_t3_v_{idx}",
+          )
+          t3_loc = st.number_input(
+              f"Conv. 3rd Down Local (%):",
+              25.0,
+              60.0,
+              40.0,
+              1.0,
+              key=f"nfl_t3_l_{idx}",
           )
 
         st.markdown("---")
@@ -877,6 +972,12 @@ elif (
                 to_vis,
                 spread_param,
                 totales_param,
+                viento_mph,
+                temp_c,
+                qb_loc_status,
+                qb_vis_status,
+                t3_loc,
+                t3_vis,
             )
         )
 
@@ -900,9 +1001,9 @@ elif (
           )
 
         st.success(
-            "🤖 **Simulación Monte Carlo Pro (10,000 iteraciones):** Puntos"
-            f" Totales Esperados: **`{puntos_esperados_mc}`** | Prob. Local ML:"
-            f" `{prob_local_mc}%`"
+            "🤖 **Simulación Monte Carlo Pro (10,000 iteraciones con 3 Capas):**"
+            f" Puntos Totales Esperados: **`{puntos_esperados_mc}`** | Prob."
+            f" Local ML: `{prob_local_mc}%`"
         )
 
         prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
