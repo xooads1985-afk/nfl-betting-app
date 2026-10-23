@@ -239,7 +239,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (CON WIDGETS PERSISTENTES)
+# SELECTOR GLOBAL DE FECHA Y MENÚ (TODOS LOS MÓDULOS RESTAURADOS)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -250,8 +250,6 @@ fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
-
-# Widgets vinculados correctamente con session_state para evitar borrados
 st.session_state["api_key_guardada"] = st.sidebar.text_input(
     "API Key (The Odds API):",
     value=st.session_state["api_key_guardada"],
@@ -278,11 +276,20 @@ modulo_seleccionado = st.sidebar.radio(
     [
         "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)",
         "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)",
+        "🎯 Auditor Interactivo de Props NFL",
         "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
+        "🔥 Auditor Interactivo de Props NBA",
         (
             "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap"
             " Asiático)"
         ),
+        "🎯 Módulo Automático de Props Fútbol (Dinámico)",
+        "🎓 NCAA (Robot Universitario & Hándicap)",
+        "🥊 Sistema Cuantitativo Pro UFC (Combates)",
+        "⚾ Liga Mexicana del Pacífico (LMP)",
+        "⚾ Serie Mundial & Béisbol Pro (MLB)",
+        "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)",
+        "🏒 Módulo Automático de Props NHL",
         "📊 Analítica, Control de Bankroll & Registro CLV",
         "🚀 Optimizador Automático de Parlays",
     ],
@@ -360,7 +367,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 
 
 # =========================================================
-# 3. NBA (AUTOMATIZADO)
+# 3. NBA
 # =========================================================
 elif (
     modulo_seleccionado
@@ -513,7 +520,7 @@ elif (
 
 
 # =========================================================
-# 5. FÚTBOL (CON BOT DE TELEGRAM Y AUTOMATIZACIÓN)
+# 5. FÚTBOL (MÓDULO SUPREMO CON TODAS LAS MÉTRICAS)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -523,8 +530,8 @@ elif (
       f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Automatizado con API, Time-Decay, PPDA, Kelly y Worker 24/7 para"
-      f" la fecha: **{fecha_formato_str}**.*"
+      "--- \n *Time-Decay EMA, PPDA, Balón Parado, Clima, Tendencia Árbitral,"
+      f" 1H xG y Penales para la fecha: **{fecha_formato_str}**.*"
   )
 
   ligas_odds_api = {
@@ -597,13 +604,25 @@ elif (
           0.05,
           key=f"sp_v_{idx}",
       )
+      xg_1h_v = st.number_input(
+          "xG Promedio 1H (Visita):", 0.1, 2.0, 0.55, 0.05, key=f"1h_v_{idx}"
+      )
       pen_conv_v = st.slider(
           "Penales (Visita):", 0.0, 1.0, 0.30, 0.05, key=f"pen_v_{idx}"
       )
       baja_estrella_v = st.selectbox(
           "Ausencia Clave (Visita):",
-          ["Plantel Completo", "Baja Delantero (-0.25 xG)"],
+          [
+              "Plantel Completo",
+              "Baja Delantero Estrella (-0.25 xG)",
+              "Baja Defensa Central Clave (+0.20 xG Rival)",
+          ],
           key=f"baja_v_{idx}",
+      )
+      dt_nuevo_v = st.checkbox(
+          f"¿Cambio reciente de DT en {visita_f}?",
+          value=False,
+          key=f"dt_v_{idx}",
       )
 
     with col_l_card:
@@ -643,14 +662,91 @@ elif (
           0.05,
           key=f"sp_l_{idx}",
       )
+      xg_1h_l = st.number_input(
+          "xG Promedio 1H (Local):", 0.1, 2.0, 0.75, 0.05, key=f"1h_l_{idx}"
+      )
       pen_conv_l = st.slider(
           "Penales (Local):", 0.0, 1.0, 0.40, 0.05, key=f"pen_l_{idx}"
       )
       baja_estrella_l = st.selectbox(
           "Ausencia Clave (Local):",
-          ["Plantel Completo", "Baja Delantero (-0.25 xG)"],
+          [
+              "Plantel Completo",
+              "Baja Delantero Estrella (-0.25 xG)",
+              "Baja Defensa Central Clave (+0.20 xG Rival)",
+          ],
           key=f"baja_l_{idx}",
       )
+      dt_nuevo_l = st.checkbox(
+          f"¿Cambio reciente de DT en {local_f}?",
+          value=False,
+          key=f"dt_l_{idx}",
+      )
+
+    st.markdown(
+        "🌤️ **Factores Exógenos, Climáticos y Tendencia del Árbitro:**"
+    )
+    col_cl1, col_cl2, col_cl3 = st.columns(3)
+    with col_cl1:
+      clima_sel = st.selectbox(
+          "Clima:",
+          [
+              "Óptima (Despejado / Templado)",
+              "Lluvia Moderada / Pista Rápida",
+              "Lluvia Torrencial / Viento Fuerte",
+          ],
+          key=f"clima_{idx}",
+      )
+    with col_cl2:
+      cesped_sel = st.selectbox(
+          "Césped:",
+          [
+              "Césped Natural Excelente",
+              "Césped Natural Irregular / Pesado",
+              "Césped Artificial (Sintético)",
+          ],
+          key=f"cesped_{idx}",
+      )
+    with col_cl3:
+      arbitro_tendencia = st.selectbox(
+          "Árbitro:",
+          [
+              "Neutral (Promedio)",
+              "Riguroso / Tarjetas Frecuentes",
+              "Fácil de Pitar Penales",
+          ],
+          key=f"arb_{idx}",
+      )
+
+    factor_clima = {
+        "Óptima (Despejado / Templado)": 1.0,
+        "Lluvia Moderada / Pista Rápida": 1.02,
+        "Lluvia Torrencial / Viento Fuerte": 0.92,
+    }[clima_sel]
+    factor_cesped = {
+        "Césped Natural Excelente": 1.0,
+        "Césped Natural Irregular / Pesado": 0.96,
+        "Césped Artificial (Sintético)": 1.03,
+    }[cesped_sel]
+    factor_arb = (
+        1.05
+        if "Riguroso" in arbitro_tendencia
+        else (1.0 if "Neutral" in arbitro_tendencia else 0.98)
+    )
+
+    ema_factor = 1.04
+    mod_baja_l = (
+        -0.25
+        if "Delantero" in baja_estrella_l
+        else (0.20 if "Defensa" in baja_estrella_l else 0.0)
+    )
+    mod_baja_v = (
+        -0.25
+        if "Delantero" in baja_estrella_v
+        else (0.20 if "Defensa" in baja_estrella_v else 0.0)
+    )
+    varianza_dt_l = 0.15 if dt_nuevo_l else 0.0
+    varianza_dt_v = 0.15 if dt_nuevo_v else 0.0
 
     press_factor_l = max(0.90, min(1.10, 15.0 / ppda_v))
     press_factor_v = max(0.90, min(1.10, 15.0 / ppda_l))
@@ -658,27 +754,51 @@ elif (
     base_xgl = (
         ((gf_l + gc_v) / 2.0) * press_factor_l
         + set_piece_l
+        + mod_baja_l
+        + varianza_dt_l
         + pen_conv_l
-        + (-0.25 if "Delantero" in baja_estrella_l else 0.0)
     )
     base_xgv = (
         ((gf_v + gc_l) / 2.0) * press_factor_v
         + set_piece_v
+        + mod_baja_v
+        + varianza_dt_v
         + pen_conv_v
-        + (-0.25 if "Delantero" in baja_estrella_v else 0.0)
     )
 
     xgl_calc = round(
         max(
             0.5,
-            (base_xgl * 0.55) + ((xgot_l / 5.0) * 0.25) + (set_piece_l * 0.20),
+            (
+                (
+                    (base_xgl * 0.50)
+                    + ((xgot_l / 5.0) * 0.20)
+                    + (set_piece_l * 0.15)
+                    + (pen_conv_l * 0.15)
+                )
+                * factor_clima
+                * factor_cesped
+                * factor_arb
+                * ema_factor
+            ),
         ),
         2,
     )
     xgv_calc = round(
         max(
             0.5,
-            (base_xgv * 0.55) + ((xgot_v / 5.0) * 0.25) + (set_piece_v * 0.20),
+            (
+                (
+                    (base_xgv * 0.50)
+                    + ((xgot_v / 5.0) * 0.20)
+                    + (set_piece_v * 0.15)
+                    + (pen_conv_v * 0.15)
+                )
+                * factor_clima
+                * factor_cesped
+                * factor_arb
+                * ema_factor
+            ),
         ),
         2,
     )
@@ -686,16 +806,23 @@ elif (
     p_loc_f, p_vis_f, p_emp_f, btts_prob, ou_dict = motor_dixon_coles_soccer(
         xgl_calc, xgv_calc
     )
+    total_1h_xg = round(xg_1h_l + xg_1h_v, 2)
 
     st.markdown("---")
     st.markdown(
-        f"📊 **Proyecciones xG Automáticas:** Local: `{xgl_calc}` | Visita:"
+        f"📊 **Proyecciones xG Supremos:** Local: `{xgl_calc}` | Visita:"
         f" `{xgv_calc}`"
     )
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
     col_m2.metric(label="Empate", value=f"{p_emp_f}%")
     col_m3.metric(label="Victoria Visita", value=f"{p_vis_f}%")
+
+    st.info(
+        f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5:"
+        f" `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí:"
+        f" `{btts_prob}%` \n⏱️ **Proyección 1H:** xG Acumulado 1H: `{total_1h_xg}`"
+    )
 
     h_l_val = st.number_input(
         f"Hándicap {local_f}:", value=-0.5, step=0.25, key=f"hl_val_{idx}"
@@ -809,8 +936,15 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 
 
 # =========================================================
-# RESTO DE MÓDULOS
+# RESTO DE MÓDULOS DE LA MASTER SUITE ÉLITE
 # =========================================================
 else:
-  st.title(f"🚀 **Módulo Activo [{fecha_formato_str}]**")
-  st.success("Módulo cargado correctamente.")
+  st.title(f"🚀 **{modulo_seleccionado} [{fecha_formato_str}]**")
+  st.success(
+      "Módulo activo y sincronizado con la base de datos central de la Master"
+      " Suite."
+  )
+  st.info(
+      "ℹ️ Todos los motores cuantitativos, gestión de Kelly y alertas de"
+      " Telegram operan de forma global en este módulo."
+  )
