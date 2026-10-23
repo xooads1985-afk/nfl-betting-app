@@ -1086,11 +1086,11 @@ elif (
 
 
 # =========================================================
-# 2. PROPS NFL (HIPERVITAMINADO CON 3 CAPAS PRO)
+# 2. PROPS NFL (HIPERVITAMINADO CON MEDIAS MÓVILES L5)
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
-  st.title(f"🎯 **Auditor Pro de Props NFL (3 Capas Avanzadas) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis individual de jugadores evaluando rendimiento L5, Matchup Defensivo y Snap Share.*")
+  st.title(f"🎯 **Auditor Pro de Props NFL (Medias Móviles & 3 Capas) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis individual de jugadores evaluando rendimiento L5 real, Matchup Defensivo y Carga de Trabajo.*")
   
   col_pnfl1, col_pnfl2 = st.columns(2)
   with col_pnfl1:
@@ -1111,12 +1111,12 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       "football", "nfl", fecha_formato_api, fecha_formato_str
   )
   st.markdown("---")
-  st.subheader("📊 Auditoría de Props Individuales")
+  st.subheader("📊 Auditoría Dinámica de Props Individuales")
 
   if not cartelera_nfl_hoy:
     st.info(
         "ℹ️ No hay partidos oficiales de la NFL en cartelera para la fecha"
-        f" `{fecha_formato_str}`. Puedes simular ingresando datos en el panel."
+        f" `{fecha_formato_str}`. Usando modo de simulación interactiva."
     )
     cartelera_nfl_hoy = [{
         "partido_str": "📅 [Simulación Manual] Kansas City Chiefs vs Baltimore Ravens",
@@ -1129,16 +1129,24 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       col_pr1, col_pr2 = st.columns(2)
       with col_pr1:
         jugador = st.text_input(
-            "Nombre del Jugador:", value="Patrick Mahomes" if idx == 1 else "Travis Kelce", key=f"nfl_prop_j_{idx}"
+            "Nombre del Jugador:", value="", placeholder="Ej. Patrick Mahomes / Travis Kelce", key=f"nfl_prop_j_{idx}"
         )
         posicion_jugador = st.selectbox(
             "Posición:", ["QB (Mariscal)", "RB (Corredor)", "WR / TE (Receptor)"], key=f"nfl_prop_pos_{idx}"
         )
       with col_pr2:
-        mercado = st.text_input(
-            "Mercado Específico:",
-            value="Yardas de Pase Over 265.5" if "QB" in posicion_jugador else "Yardas por Recepción Over 65.5",
-            key=f"nfl_prop_m_{idx}",
+        mercado = st.selectbox(
+            "Tipo de Prop:",
+            ["Yardas de Pase", "Yardas por Tierra", "Yardas por Recepción", "Recepciones Totales", "Touchdowns Totales"],
+            key=f"nfl_prop_m_tipo_{idx}"
+        )
+        linea_casino_prop = st.number_input(
+            "Línea Establecida por el Casino (O/U):",
+            0.5,
+            400.0,
+            265.5,
+            0.5,
+            key=f"nfl_linea_casino_{idx}"
         )
         momio_str = st.text_input(
             "📈 Momio Casino (Americano):", value="-115", key=f"nfl_prop_mom_txt_{idx}"
@@ -1149,12 +1157,17 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
           momio = -115
 
       st.markdown("---")
-      st.markdown("### 🧬 CAPAS PRO DE EVALUACIÓN DE PROPS")
+      st.markdown("### 🧬 CAPAS PRO DE EVALUACIÓN & RENDIMIENTO L5")
+      
       col_cp1, col_cp2, col_cp3 = st.columns(3)
       with col_cp1:
-        st.markdown("**1. Inercia Reciente (L5)**")
-        cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_prop_c_{idx}")
-        no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nfl_prop_nc_{idx}")
+        st.markdown("**1. Historial L5 (Últimos 5 Partidos)**")
+        st.caption("Ingresa las estadísticas de los últimos 5 partidos separados por coma:")
+        l5_str_input = st.text_input(
+            "Ej: 280, 310, 245, 290, 260",
+            value="280, 210, 295, 240, 275",
+            key=f"nfl_l5_vals_{idx}"
+        )
       with col_cp2:
         st.markdown("**2. Matchup Defensivo Rival**")
         calidad_defensa_rival = st.select_slider(
@@ -1164,7 +1177,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
             key=f"nfl_def_rival_{idx}"
         )
       with col_cp3:
-        st.markdown("**3. Carga de Trabajo (Snap/Target Share)**")
+        st.markdown("**3. Carga de Trabajo (Snap / Target Share)**")
         participacion_jugador = st.select_slider(
             "Porcentaje de Participación / Diseños de Jugada:",
             options=["Rotación / Suplente", "Moderado", "Titular Estándar", "Arma Principal (Core)"],
@@ -1172,16 +1185,37 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
             key=f"nfl_snap_{idx}"
         )
 
-      prob_base_prop = 50.0 + (cumple - no_cumple) * 5.5
+      try:
+        lista_l5 = [float(x.strip()) for x in l5_str_input.split(",") if x.strip()]
+        if len(lista_l5) == 0:
+          lista_l5 = [0.0]
+      except Exception:
+        lista_l5 = [250.0]
+
+      media_l5 = sum(lista_l5) / len(lista_l5)
+      partidos_encima = sum(1 for val in lista_l5 if val > linea_casino_prop)
+      partidos_debajo = len(lista_l5) - partidos_encima
+
+      tipo_apuesta_prop = st.radio(
+          "Selección Lógica Sugerida por Modelo:",
+          ["Over (Más de la línea)", "Under (Menos de la línea)"],
+          index=0,
+          horizontal=True,
+          key=f"nfl_tipo_ap_prop_{idx}"
+      )
+
+      prob_base_prop = 50.0 + ((partidos_encima - partidos_debajo) * 6.0)
+      diferencia_media_linea = media_l5 - linea_casino_prop
+      prob_base_prop += (diferencia_media_linea * 0.15)
 
       if calidad_defensa_rival == "Muy Débil (Favorable)":
-        prob_base_prop += 6.0
+        prob_base_prop += 6.5
       elif calidad_defensa_rival == "Débil":
         prob_base_prop += 3.0
       elif calidad_defensa_rival == "Fuerte":
         prob_base_prop -= 3.5
       elif calidad_defensa_rival == "Elite (Hostil)":
-        prob_base_prop -= 7.0
+        prob_base_prop -= 7.5
 
       if participacion_jugador == "Arma Principal (Core)":
         prob_base_prop += 5.0
@@ -1190,9 +1224,14 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       elif participacion_jugador == "Rotación / Suplente":
         prob_base_prop -= 6.0
 
-      prob_modelo_prop = max(35.0, min(85.0, round(prob_base_prop, 2)))
+      if "Under" in tipo_apuesta_prop:
+        prob_base_prop = 100.0 - prob_base_prop
 
+      prob_modelo_prop = max(30.0, min(88.0, round(prob_base_prop, 2)))
+
+      st.info(f"📈 **Análisis L5:** Media Móvil Calculada: **`{media_l5:.1f}`** | Cumple Línea en L5: `{partidos_encima}/5 partidos`")
       st.success(f"🤖 **Probabilidad Real del Modelo Pro (Props):** **`{prob_modelo_prop:.2f}%`**")
+      
       prob_imp, edge = calcular_edge_real(momio, prob_modelo_prop)
       st.info(
           f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` |"
