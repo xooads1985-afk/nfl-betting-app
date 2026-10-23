@@ -237,7 +237,7 @@ def calcular_probabilidades_dixon_coles_dinamico(
   )
 
 
-# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTORES AVANZADOS (PUCK LINE + SPECIAL TEAMS + 5v5 + L5)
+# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTOR PRO BLINDADO (5v5, PP/PK, L5 con Caps, B2B y Empty Net)
 @st.cache_data(ttl=300)
 def obtener_cartelera_oficial_nhl(fecha_str_api):
   url = f"https://api-web.nhle.com/v1/schedule/{fecha_str_api}"
@@ -306,11 +306,13 @@ def calcular_lambda_ajustado_nhl_pro(
     goles_contra_l5_loc=12.0,
     goles_favor_l5_vis=14.0,
     goles_contra_l5_vis=13.0,
+    b2b_home=False,
+    b2b_away=False,
     starters_status=None,
 ):
-  """Calcula xG unificando Métricas 5v5, Equipos Especiales, Inercia L5,
+  """Calcula xG unificando Métricas 5v5, Equipos Especiales, Inercia L5
 
-  Porteros Backup y Empty Net.
+  con Caps de Seguridad, Cansancio B2B, Porteros Backup y Empty Net.
   """
   FACTOR_EMPTY_NET = 0.23
 
@@ -322,19 +324,23 @@ def calcular_lambda_ajustado_nhl_pro(
   diff_special_loc = ((pp_loc - (100.0 - pk_vis)) / 100.0) * 0.40
   diff_special_vis = ((pp_vis - (100.0 - pk_loc)) / 100.0) * 0.40
 
-  # 3. Factor de Inercia por Rachas Recientes (L5 - Últimos 5 partidos)
+  # 3. Factor de Inercia L5 con Topes de Seguridad (Caps: -0.4 a +0.4)
   prom_gf_loc = goles_favor_l5_loc / 5.0
   prom_ga_loc = goles_contra_l5_loc / 5.0
   prom_gf_vis = goles_favor_l5_vis / 5.0
   prom_ga_vis = goles_contra_l5_vis / 5.0
 
-  inercia_ofensiva_loc = (prom_gf_loc - 3.0) * 0.20
-  inercia_defensiva_loc = (prom_ga_loc - 3.0) * 0.15
+  inercia_ofensiva_loc = max(-0.4, min(0.4, (prom_gf_loc - 3.0) * 0.20))
+  inercia_defensiva_loc = max(-0.4, min(0.4, (prom_ga_loc - 3.0) * 0.15))
 
-  inercia_ofensiva_vis = (prom_gf_vis - 3.0) * 0.20
-  inercia_defensiva_vis = (prom_ga_vis - 3.0) * 0.15
+  inercia_ofensiva_vis = max(-0.4, min(0.4, (prom_gf_vis - 3.0) * 0.20))
+  inercia_defensiva_vis = max(-0.4, min(0.4, (prom_ga_vis - 3.0) * 0.15))
 
-  # 4. Penalización por Porteros Backup o No Confirmados
+  # 4. Factor de Cansancio / Back-to-Back (B2B)
+  penalty_b2b_home = -0.18 if b2b_home else 0.0
+  penalty_b2b_vis = -0.18 if b2b_away else 0.0
+
+  # 5. Penalización por Porteros Backup o No Confirmados
   penalizacion_home = 0.0
   penalizacion_away = 0.0
   if starters_status:
@@ -350,6 +356,7 @@ def calcular_lambda_ajustado_nhl_pro(
       + diff_special_loc
       + inercia_ofensiva_loc
       + inercia_defensiva_vis
+      + penalty_b2b_home
       + penalizacion_away
       + 0.10,
   )
@@ -360,6 +367,7 @@ def calcular_lambda_ajustado_nhl_pro(
       + diff_special_vis
       + inercia_ofensiva_vis
       + inercia_defensiva_loc
+      + penalty_b2b_vis
       + penalizacion_home,
   )
   lambda_total = lambda_loc_final + lambda_vis_final + FACTOR_EMPTY_NET
@@ -645,7 +653,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
               "edge": edge,
           })
 
-      # 3. NHL (Empty Net & Métricas Avanzadas Pro & Inercia L5)
+      # 3. NHL (Engine Pro con Caps L5 y B2B)
       cartelera_h = obtener_cartelera_oficial_nhl(fecha_formato_str)
       for partido in cartelera_h:
         starters = obtener_porteros_confirmados_nhl(partido["game_id"])
@@ -1782,7 +1790,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (PUCK LINE, EMPTY NET, SPECIAL TEAMS, 5v5 & INERCIA L5 PRO)
+# 11. NHL (PUCK LINE, EMPTY NET, SPECIAL TEAMS, 5v5, CAPS L5 & B2B PRO)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -1794,8 +1802,8 @@ elif (
   )
   st.markdown(
       "--- \n *Integración total: Métricas 5v5 (xGF%), Especiales (PP/PK),"
-      " Confirmación de Porteros, Inercia Goleadora L5 y Simulación de Puck"
-      " Line (-1.5) con Empty Net.*"
+      " Confirmación de Porteros, Inercia L5 con Caps, Cansancio B2B y"
+      " Simulación de Puck Line (-1.5) con Empty Net.*"
   )
 
   col_nh1, col_nh2 = st.columns(2)
@@ -1884,7 +1892,8 @@ elif (
 
         st.markdown("---")
         st.markdown(
-            "### 📊 Métricas Avanzadas, Equipos Especiales e Inercia L5"
+            "### 📊 Métricas Avanzadas, Equipos Especiales & Inercia L5 (Con"
+            " Caps)"
         )
         col_m1, col_m2 = st.columns(2)
         with col_m1:
@@ -1937,6 +1946,11 @@ elif (
               1.0,
               key=f"nhl_ga_l5_v_{idx}",
           )
+          b2b_vis_chk = st.checkbox(
+              f"✈️ {op['visita']} en Back-to-Back / Gira Pesada",
+              value=False,
+              key=f"nhl_b2b_v_{idx}",
+          )
 
         with col_m2:
           st.markdown(f"**Local: `{op['local']}`**")
@@ -1988,6 +2002,11 @@ elif (
               1.0,
               key=f"nhl_ga_l5_l_{idx}",
           )
+          b2b_loc_chk = st.checkbox(
+              f"🏠 {op['local']} en Back-to-Back / Gira Pesada",
+              value=False,
+              key=f"nhl_b2b_l_{idx}",
+          )
 
         lam_loc_f, lam_vis_f, lambda_total_ajustado = (
             calcular_lambda_ajustado_nhl_pro(
@@ -2003,12 +2022,14 @@ elif (
                 ga_l5_loc,
                 gf_l5_vis,
                 ga_l5_vis,
+                b2b_loc_chk,
+                b2b_vis_chk,
                 starters,
             )
         )
 
         st.info(
-            f"🥅 **Ajuste Integral de Motor Pro (con Inercia L5):** xG Local"
+            f"🥅 **Ajuste Integral de Motor Pro (B2B & Caps):** xG Local"
             f" Ponderado: `{lam_loc_f:.2f}` | xG Visita Ponderado:"
             f" `{lam_vis_f:.2f}` | **Total xG Estimado**: **`{lambda_total_ajustado:.2f}`**"
         )
