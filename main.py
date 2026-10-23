@@ -1030,7 +1030,7 @@ elif (
         prob_local_mc, prob_spread_mc, prob_over_mc, puntos_esperados_mc = (
             simular_partido_nfl_monte_carlo_pro(
                 lam_pos_local,
-                lam_pos_visita,
+                lam_pos_visitante,
                 rz_loc,
                 rz_vis,
                 to_loc,
@@ -1172,10 +1172,8 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
             key=f"nfl_snap_{idx}"
         )
 
-      # Algoritmo de probabilidad ponderada para props
       prob_base_prop = 50.0 + (cumple - no_cumple) * 5.5
 
-      # Ajuste por Matchup Defensivo
       if calidad_defensa_rival == "Muy Débil (Favorable)":
         prob_base_prop += 6.0
       elif calidad_defensa_rival == "Débil":
@@ -1185,7 +1183,6 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       elif calidad_defensa_rival == "Elite (Hostil)":
         prob_base_prop -= 7.0
 
-      # Ajuste por Carga de Trabajo
       if participacion_jugador == "Arma Principal (Core)":
         prob_base_prop += 5.0
       elif participacion_jugador == "Titular Estándar":
@@ -1888,7 +1885,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
   if not cartelera_ufc:
     st.info(
-        "ℹ️ No hay eventos oficiales de la UFC registrados in la API para la"
+        "ℹ️ No hay eventos oficiales de la UFC registrados en la API para la"
         f" fecha `{fecha_formato_str}`."
     )
   else:
@@ -2112,7 +2109,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   st.info(
       f"📊 **Edge Calculado:** Implícita (`{momio_mlb:+}`):"
       f" `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge"
-      f" Neto: **`{edge_+.2f}%`**"
+      f" Neto: **`{edge_mlb:+.2f}%`**"
   )
 
   if momio_mlb < -150:
@@ -2745,7 +2742,7 @@ else:
 
   leg_1_data = next(
       (x for x in opciones_inteligentes if x["titulo"] == leg_1_nombre),
-      opciones_inteligences[0] if 'opciones_inteligences' in locals() else opciones_inteligentes[0],
+      opciones_inteligentes[0],
   )
   leg_2_data = next(
       (x for x in opciones_inteligentes if x["titulo"] == leg_2_nombre),
