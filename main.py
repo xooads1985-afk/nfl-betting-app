@@ -615,7 +615,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     fip_mlb_l = float(fip_ml_l_str)
     woba_mlb_l = float(woba_ml_l_str)
     fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_mlb_v_str)
+    woba_mlb_v = float(woba_ml_v_str)
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
