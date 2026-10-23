@@ -18,13 +18,13 @@ st.set_page_config(
 
 
 # ---------------------------------------------------------
-# CONEXIÓN CON THE ODDS API (MOMIOS EN VIVO)
+# CONEXIÓN CON THE ODDS API (MOMIOS EN VIVO: H2H, SPREADS, TOTALS)
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_momios_odds_api(deporte_key, api_key):
   if not api_key:
     return {}
-  url = f"https://api.the-odds-api.v4/sports/{deporte_key}/odds/?apiKey={api_key}&regions=us&markets=h2h&oddsFormat=american"
+  url = f"https://api.the-odds-api.com/v4/sports/{deporte_key}/odds/?apiKey={api_key}&regions=us&markets=h2h,spreads,totals&oddsFormat=american"
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
@@ -34,50 +34,17 @@ def obtener_momios_odds_api(deporte_key, api_key):
         home_team = evento.get("home_team")
         bookmakers = evento.get("bookmakers", [])
         if bookmakers:
-          # Tomamos la primera casa disponible (ej. Pinnacle o DraftKings)
           markets = bookmakers[0].get("markets", [])
+          mercados_dict = {}
           for market in markets:
-            if market.get("key") == "h2h":
-              outcomes = market.get("outcomes", [])
-              for out in outcomes:
-                if out.get("name") == home_team:
-                  diccionario_momios[home_team] = out.get("price")
+            m_key = market.get("key")
+            outcomes = market.get("outcomes", [])
+            mercados_dict[m_key] = outcomes
+          diccionario_momios[home_team] = mercados_dict
       return diccionario_momios
   except Exception:
     pass
   return {}
-
-
-# ---------------------------------------------------------
-# HILO EN SEGUNDO PLANO PARA CAPTURA AUTOMÁTICA DE CLV
-# ---------------------------------------------------------
-def hilo_captura_clv(base_datos, api_deportiva):
-  print("[INFO] Hilo secundario de monitoreo CLV iniciado.")
-  while True:
-    try:
-      ahora = datetime.now()
-      margen_tiempo = ahora + timedelta(minutes=2)
-      apuestas_proximas = base_datos.obtener_apuestas_sin_clv(
-          desde=ahora, hasta=margen_tiempo
-      )
-      for apuesta in apuestas_proximas:
-        cuota_cierre_real = api_deportiva.obtener_cuota_actual(
-            apuesta["id_partido"]
-        )
-        if cuota_cierre_real:
-          clv_positivo = apuesta["cuota_comprada"] > cuota_cierre_real
-          base_datos.actualizar_clv_apuesta(
-              id_partido=apuesta["id_partido"],
-              cuota_cierre=cuota_cierre_real,
-              clv_positivo=clv_positivo,
-          )
-    except Exception as e:
-      print(f"[ERROR HILO CLV] Fallo en la captura: {e}")
-    time.sleep(60)
-
-
-if "hilo_clv_iniciado" not in st.session_state:
-  st.session_state["hilo_clv_iniciado"] = True
 
 
 # ---------------------------------------------------------
@@ -168,7 +135,7 @@ def calcular_probabilidad_modelo_gaussiano(
   return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# 🏈 SIMULADOR MONTE CARLO PRO NFL (ZONA ROJA & TURNOVERS)
+# 🏈 SIMULADOR MONTE CARLO PRO NFL (ZONA ROJA, TURNOVERS & SPREAD/TOTALES)
 def simular_partido_nfl_monte_carlo_pro(
     lambda_pos_local,
     lambda_pos_visitante,
@@ -176,9 +143,13 @@ def simular_partido_nfl_monte_carlo_pro(
     eficiencia_rz_vis=75.0,
     turnovers_loc=1.0,
     turnovers_vis=1.0,
+    spread_local=-3.5,
+    linea_totales=45.5,
     simulaciones=10000,
 ):
   victorias_local = 0
+  cubre_spread_local = 0
+  supera_totales = 0
   total_puntos_acumulados = 0
 
   lam_efectiva_loc = max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15))
@@ -199,14 +170,30 @@ def simular_partido_nfl_monte_carlo_pro(
     for _ in range(anotaciones_vis):
       puntos_vis += 7 if random.random() < prob_td_vis else 3
 
-    total_puntos_acumulados += puntos_local + puntos_vis
+    ptos_partido = puntos_local + puntos_vis
+    total_puntos_acumulados += ptos_partido
 
     if puntos_local > puntos_vis:
       victorias_local += 1
 
+    # Evaluar hándicap (Spread local) -> Ej: Local -3.5 significa que Local debe ganar por 4+
+    if (puntos_local - puntos_vis) + spread_local > 0:
+      cubre_spread_local += 1
+
+    if ptos_partido > linea_totales:
+      supera_totales += 1
+
   prob_local = (victorias_local / simulaciones) * 100.0
-  promedio_goles_partido = total_puntos_acumulados / simulaciones
-  return round(prob_local, 2), round(promedio_goles_partido, 1)
+  prob_spread = (cubre_spread_local / simulaciones) * 100.0
+  prob_over = (supera_totales / simulaciones) * 100.0
+  promedio_puntos = total_puntos_acumulados / simulaciones
+
+  return (
+      round(prob_local, 2),
+      round(prob_spread, 2),
+      round(prob_over, 2),
+      round(promedio_puntos, 1),
+  )
 
 
 # 🏀 MODELO DE DISTRIBUCIÓN NORMAL PARA HÁNDICAP NBA
@@ -463,44 +450,6 @@ def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
 
 
 # 🛡️ MÓDULO DE CONTROL DE RIESGO PROFESIONAL & CLV
-def modulo_control_riesgo(
-    historial_apuestas, bankroll_actual, stake_sugerido_kelly
-):
-  ultimas_20 = (
-      historial_apuestas[-20:]
-      if len(historial_apuestas) >= 20
-      else historial_apuestas
-  )
-  perdidas_seguidas = 0
-
-  for apuesta in reversed(ultimas_20):
-    if apuesta.get("resultado") == "perdida":
-      perdidas_seguidas += 1
-    else:
-      break
-
-  factor_ajuste = 1.0
-  if perdidas_seguidas >= 5:
-    factor_ajuste = 0.5
-  if perdidas_seguidas >= 8:
-    factor_ajuste = 0.25
-
-  clv_ganados = sum(1 for x in ultimas_20 if x.get("clv_positivo", False))
-  total_evaluado = len(ultimas_20)
-
-  if total_evaluado > 10:
-    tasa_clv = clv_ganados / total_evaluado
-    if tasa_clv < 0.50:
-      factor_ajuste = min(factor_ajuste, 0.5)
-
-  stake_final = stake_sugerido_kelly * factor_ajuste
-  max_permitido = bankroll_actual * 0.03
-  if stake_final > max_permitido:
-    stake_final = max_permitido
-
-  return round(stake_final, 2), perdidas_seguidas, factor_ajuste
-
-
 def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
   total_apuestas = len(historial_apuestas)
   if total_apuestas == 0:
@@ -735,7 +684,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 
 
 # =========================================================
-# 1. NFL (MONTE CARLO PRO - ZONA ROJA & TURNOVERS)
+# 1. NFL (MONTE CARLO PRO - ZONA ROJA, TURNOVERS, SPREAD & TOTALES)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -746,8 +695,8 @@ elif (
       f" [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Simulación estocástica avanzada: Integrando eficiencia en"
-      " Zona Roja y diferencial de entregas de balón (Turnovers).*"
+      "--- \n *Simulación estocástica avanzada: Zona Roja, Turnovers,"
+      " Hándicaps (Spread) y Totales (Over/Under).*"
   )
 
   col1, col2 = st.columns(2)
@@ -766,12 +715,34 @@ elif (
   momios_api_nfl = obtener_momios_odds_api("americanfootball_nfl", odds_api_key)
 
   st.markdown("---")
+  usar_manual_nfl = st.checkbox(
+      "✍️ Activar Ingreso Manual NFL (Si la cartelera no muestra partidos hoy)",
+      value=not cartelera,
+      key="chk_manual_nfl",
+  )
+
+  if usar_manual_nfl:
+    col_mn1, col_mn2 = st.columns(2)
+    with col_mn1:
+      eq_v_man = st.text_input(
+          "Equipo Visitante:", value="Kansas City Chiefs", key="nfl_man_vis"
+      )
+    with col_mn2:
+      eq_l_man = st.text_input(
+          "Equipo Local:", value="Baltimore Ravens", key="nfl_man_loc"
+      )
+    cartelera = [{
+        "partido_str": f"📅 [Manual] {eq_v_man} @ {eq_l_man}",
+        "local": eq_l_man,
+        "visita": eq_v_man,
+    }]
+
   st.subheader("📊 Partidos en Cartelera NFL")
 
   if not cartelera:
     st.info(
-        "ℹ️ No hay partidos de la NFL programados en la fecha"
-        f" `{fecha_formato_str}`."
+        "ℹ️ No hay partidos de la NFL disponibles. Activa el ingreso manual"
+        " arriba."
     )
   else:
     for idx, op in enumerate(cartelera, 1):
@@ -834,36 +805,146 @@ elif (
               key=f"nfl_to_l_{idx}",
           )
 
-        tipo_sel_nfl = st.selectbox(
-            "Selección:",
-            [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
-            key=f"nfl_sel_eq_{idx}",
+        st.markdown("---")
+        st.markdown("### 🎯 Selección de Mercado NFL")
+        tipo_mercado_nfl = st.selectbox(
+            "Mercado a Auditar:",
+            [
+                "Money Line (Ganador Directo)",
+                "Spread / Hándicap",
+                "Total de Puntos (Over / Under)",
+            ],
+            key=f"nfl_merc_tipo_{idx}",
         )
 
-        momio_sugerido_api = momios_api_nfl.get(op["local"], -110)
-        momio_nfl_str = st.text_input(
-            "📈 Momio Casino (Americano):",
-            value=str(momio_sugerido_api),
-            key=f"nfl_m_txt_{idx}",
-        )
-        try:
-          momio_nfl = int(momio_nfl_str)
-        except ValueError:
-          momio_nfl = -110
+        mercados_equipo_api = momios_api_nfl.get(op["local"], {})
+        momio_default = -110
 
-        prob_local_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo_pro(
-            lam_pos_local, lam_pos_visita, rz_loc, rz_vis, to_loc, to_vis
-        )
+        if tipo_mercado_nfl == "Money Line (Ganador Directo)":
+          tipo_sel_nfl = st.selectbox(
+              "Selección:",
+              [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
+              key=f"nfl_sel_eq_{idx}",
+          )
+          momio_sug = momio_default
+          if "h2h" in mercados_equipo_api:
+            for out in mercados_equipo_api["h2h"]:
+              if out.get("name") == op["local"] and "Local" in tipo_sel_nfl:
+                momio_sug = out.get("price", -110)
+              elif (
+                  out.get("name") == op["visita"] and "Visitante" in tipo_sel_nfl
+              ):
+                momio_sug = out.get("price", -110)
 
-        if "Local" in tipo_sel_nfl:
-          prob_mod = prob_local_mc
+          momio_nfl_str = st.text_input(
+              "📈 Momio Casino:",
+              value=str(momio_sug),
+              key=f"nfl_m_txt_{idx}",
+          )
+          try:
+            momio_nfl = int(momio_nfl_str)
+          except ValueError:
+            momio_nfl = -110
+
+        elif tipo_mercado_nfl == "Spread / Hándicap":
+          col_sp1, col_sp2 = st.columns(2)
+          with col_sp1:
+            sel_spread = st.selectbox(
+                "Selección Spread:",
+                [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
+                key=f"nfl_sp_sel_{idx}",
+            )
+          with col_sp2:
+            linea_spread = st.number_input(
+                "Línea Hándicap Local (Ej: -3.5 o +3.5):",
+                -20.5,
+                20.5,
+                -3.5,
+                0.5,
+                key=f"nfl_linea_spread_{idx}",
+            )
+
+          momio_nfl_str = st.text_input(
+              "📈 Momio Casino:", value="-110", key=f"nfl_m_spread_txt_{idx}"
+          )
+          try:
+            momio_nfl = int(momio_nfl_str)
+          except ValueError:
+            momio_nfl = -110
         else:
-          prob_mod = round(100.0 - prob_local_mc, 2)
+          col_ou1, col_ou2 = st.columns(2)
+          with col_ou1:
+            tipo_ou_nfl = st.selectbox(
+                "Selección Totales:",
+                ["Over (Más de)", "Under (Menos de)"],
+                key=f"nfl_tipo_ou_{idx}",
+            )
+          with col_ou2:
+            linea_totales_nfl = st.number_input(
+                "Línea de Puntos O/U:",
+                30.5,
+                65.5,
+                45.5,
+                0.5,
+                key=f"nfl_linea_ou_{idx}",
+            )
+
+          momio_nfl_str = st.text_input(
+              "📈 Momio Casino:", value="-110", key=f"nfl_m_ou_txt_{idx}"
+          )
+          try:
+            momio_nfl = int(momio_nfl_str)
+          except ValueError:
+            momio_nfl = -110
+
+        # Ejecución de la simulación Monte Carlo Pro completa
+        spread_param = (
+            linea_spread
+            if tipo_mercado_nfl == "Spread / Hándicap"
+            else -3.5
+        )
+        totales_param = (
+            linea_totales_nfl
+            if tipo_mercado_nfl == "Total de Puntos (Over / Under)"
+            else 45.5
+        )
+
+        prob_local_mc, prob_spread_mc, prob_over_mc, puntos_esperados_mc = (
+            simular_partido_nfl_monte_carlo_pro(
+                lam_pos_local,
+                lam_pos_visita,
+                rz_loc,
+                rz_vis,
+                to_loc,
+                to_vis,
+                spread_param,
+                totales_param,
+            )
+        )
+
+        if tipo_mercado_nfl == "Money Line (Ganador Directo)":
+          prob_mod = (
+              prob_local_mc
+              if "Local" in tipo_sel_nfl
+              else round(100.0 - prob_local_mc, 2)
+          )
+        elif tipo_mercado_nfl == "Spread / Hándicap":
+          prob_mod = (
+              prob_spread_mc
+              if "Local" in sel_spread
+              else round(100.0 - prob_spread_mc, 2)
+          )
+        else:
+          prob_mod = (
+              prob_over_mc
+              if "Over" in tipo_ou_nfl
+              else round(100.0 - prob_over_mc, 2)
+          )
 
         st.success(
-            "🤖 **Simulación Monte Carlo Pro (10,000 iteraciones):** Probabilidad"
-            f" Local: `{prob_local_mc}%` | **Puntos Totales Esperados**:"
-            f" **`{puntos_esperados_mc}`**"
+            "🤖 **Simulación Monte Carlo Pro (10,000 iteraciones):** Puntos"
+            f" Totales Esperados: **`{puntos_esperados_mc}`** | Prob. Local ML:"
+            f" `{prob_local_mc}%`"
         )
 
         prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
@@ -1050,7 +1131,13 @@ elif (
               key=f"nba_han_{idx}",
           )
         with col_h3:
-          momio_sugerido_nba = momios_api_nba.get(op["local"], -110)
+          momio_sugerido_nba = -110
+          mercados_nba_dict = momios_api_nba.get(op["local"], {})
+          if "h2h" in mercados_nba_dict:
+            for out in mercados_nba_dict["h2h"]:
+              if out.get("name") == op["local"]:
+                momio_sugerido_nba = out.get("price", -110)
+
           momio_nba_str = st.text_input(
               "📈 Momio Casino (Americano):",
               value=str(momio_sugerido_nba),
@@ -2126,7 +2213,12 @@ elif (
             key=f"nhl_merc_tipo_{idx}",
         )
 
-        momio_sugerido_nhl = momios_api_nhl.get(op["local"], -110)
+        momio_sugerido_nhl = -110
+        mercados_nhl_dict = momios_api_nhl.get(op["local"], {})
+        if "h2h" in mercados_nhl_dict:
+          for out in mercados_nhl_dict["h2h"]:
+            if out.get("name") == op["local"]:
+              momio_sugerido_nhl = out.get("price", -110)
 
         if "Total de Goles" in tipo_mercado_nhl:
           col_ou1, col_ou2 = st.columns(2)
@@ -2387,52 +2479,6 @@ elif (
             file_name="reporte_pruebas.txt",
             mime="text/plain",
         )
-
-  st.markdown("---")
-  st.subheader("🛡️ Simulador en Vivo del Cortafuegos de Riesgo")
-  col_sim1, col_sim2 = st.columns(2)
-  with col_sim1:
-    bk_prueba = st.number_input(
-        "Bankroll de Prueba (MXN):", 1000.0, 100000.0, 15250.0, 500.0
-    )
-    stake_kelly_prueba = st.number_input(
-        "Stake Sugerido Inicial (Kelly MXN):", 10.0, 2000.0, 300.0, 50.0
-    )
-  with col_sim2:
-    simular_racha_perdidas = st.slider(
-        "Simular Racha de Derrotas Seguidas:", 0, 10, 2
-    )
-    simular_clv_bajo = st.checkbox(
-        "Simular CLV Descalibrado (< 50% en últimas 20)", value=False
-    )
-
-  historial_sim = []
-  for i in range(20):
-    res = "perdida" if i < simular_racha_perdidas else "ganada"
-    clv = False if simular_clv_bajo else True
-    historial_sim.append({"resultado": res, "clv_positivo": clv, "monto": 200})
-
-  stake_calculado, perdidas_detectadas, factor_aplicado = modulo_control_riesgo(
-      historial_sim, bk_prueba, stake_kelly_prueba
-  )
-
-  col_res1, col_res2, col_res3 = st.columns(3)
-  with col_res1:
-    st.metric("⚠️ Derrotas Consecutivas", f"{perdidas_detectadas}")
-  with col_res2:
-    st.metric(
-        "📉 Factor de Reducción", f"{int(factor_aplicado * 100)}% del Stake"
-    )
-  with col_res3:
-    st.metric("💵 Stake Final Seguro", f"${stake_calculado} MXN")
-
-  if factor_aplicado < 1.0:
-    st.warning(
-        "🛡️ **Cortafuegos Activo:** Reducción automática al"
-        f" `{int(factor_aplicado * 100)}%`."
-    )
-  else:
-    st.success("✅ **Riesgo Óptimo:** Operando bajo Kelly y techo del 3%.")
 
 
 # =========================================================
