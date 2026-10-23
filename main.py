@@ -476,11 +476,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO AVANZADO CON SELECTOR DE LIGAS, L5, PROMEDIO DE GOLES Y SELLO DEL MODELO)
+# 5. FÚTBOL (MÓDULO PRO AVANZADO COMPLETO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Selección de ligas mundiales, promedio de goles L5 y Sello del Modelo para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Selección de ligas mundiales, promedios L5 de goles y Sello del Modelo para la fecha: **{fecha_formato_str}**.*")
   
   ligas_dict = {
       "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
@@ -510,24 +510,24 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     visita_f = op['visita']
     
     with st.expander(f"⚽ Encuentro #{idx}: {visita_f} @ {local_f}"):
-      st.markdown("🧬 **Asistente de Factores Duros & Promedio de Goles (L5: V - E - D)**")
+      st.markdown("🧬 **Asistente de Factores Duros y Promedios L5 (V - E - D y Goles)**")
       col_v, col_l = st.columns(2)
       with col_v:
         st.markdown(f"**✈️ Visitante:** `{visita_f}`")
         v5_v = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
         e5_v = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
         d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
-        gf_v = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.4, 0.1, key=f"gf_v_{idx}")
-        gc_v = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 1.1, 0.1, key=f"gc_v_{idx}")
+        gf_v = st.number_input("Promedio Goles Anotados L5:", 0.0, 5.0, 1.4, 0.1, key=f"gf_v_{idx}")
+        gc_v = st.number_input("Promedio Goles Recibidos L5:", 0.0, 5.0, 1.1, 0.1, key=f"gc_v_{idx}")
       with col_l:
         st.markdown(f"**🏠 Local:** `{local_f}`")
         v5_l = st.number_input("Victorias L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
         e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
         d5_l = st.number_input("Derrotas L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
-        gf_l = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
-        gc_l = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 0.9, 0.1, key=f"gc_l_{idx}")
+        gf_l = st.number_input("Promedio Goles Anotados L5:", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
+        gc_l = st.number_input("Promedio Goles Recibidos L5:", 0.0, 5.0, 0.9, 0.1, key=f"gc_l_{idx}")
 
-      # Cálculo avanzado de xG usando el promedio real de goles L5 y la defensa
+      # Cálculo avanzado de xG con promedios L5
       xgl_calc = round(max(0.5, (gf_l + gc_v) / 2.0), 2)
       xgv_calc = round(max(0.5, (gf_v + gc_l) / 2.0), 2)
       
@@ -536,7 +536,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       btts_no_prob = round(100.0 - btts_prob, 2)
       
       st.markdown("---")
-      st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}`):**")
+      st.markdown(f"📊 **Proyecciones Dixon-Coles (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}`):**")
       col_m1, col_m2, col_m3 = st.columns(3)
       col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
       col_m2.metric(label="Empate", value=f"{p_emp_f}%")
@@ -545,7 +545,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       st.info(f"🎯 **Mercados Automáticos:** Over 2.5: `{over25_prob}%` | Under 2.5: `{under25_prob}%` | BTTS Sí: `{btts_prob}%` | BTTS No: `{btts_no_prob}%`")
       
       st.markdown("---")
-      st.markdown("💰 **Auditoría de Momios del Casino (Ingresa la cuota ofrecida):**")
+      st.markdown("💰 **Auditoría de Momios del Casino por Mercado:**")
       
       tab_ah_l, tab_ah_v, tab_ou, tab_btts = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under 2.5", "🤝 Ambos Anotan (BTTS)"])
       
@@ -623,7 +623,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         else:
           st.warning("⚠️ Sin margen suficiente en BTTS.")
 
-      # Análisis Automático: Sello del Modelo (El mejor pick del partido)
+      # Sello del Modelo (Mejor Pick del Partido)
       st.markdown("---")
       mejor_mercado, mejor_edge, mejor_momio = max(edges_partido, key=lambda x: x[1])
       
@@ -818,7 +818,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   margen_diferencia = round(abs(runs_local - runs_visita), 1)
   if margen_diferencia >= 1.5:
     favorito_rl = "Local" if runs_local > runs_visita else "Visitante"
-    st.info(f"🔥 El diferencial de carreras ($xDiff$) es de `{margen_diferencia}`. Solidez detectada para buscar el **Run Line (-1.5)** a favor del equipo **{favorito_rl}**.")
+    st.info(f"🔥 El diferencial de carreras ($xDiff$) is de `{margen_diferencia}`. Solidez detectada para buscar el **Run Line (-1.5)** a favor del equipo **{favorito_rl}**.")
   else:
     st.info(f"⚠️ El diferencial es de `{margen_diferencia}` carreras. Duelo muy cerrado para arriesgar un Run Line; mejor operar Moneyline.")
 
