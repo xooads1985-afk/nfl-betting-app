@@ -155,8 +155,6 @@ def obtener_cartelera_oficial_nhl(fecha_str_api_nhl, fecha_str_humana):
 def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   url = f"https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates={fecha_str_api}&limit=20"
   nombre_evento = "UFC Fight Night / PPV"
-  combates_extraidos = []
-  
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
@@ -167,7 +165,6 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   except Exception:
     pass
   
-  # Estructuramos una cartelera formal completa de 5 combates clave (Estelar, Co-Estelar, Principales y Preliminares)
   cartelera_completa = [
       {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Pelea Estelar (Main Event)", "p1": "Peleador Estelar A", "p2": "Peleador Estelar B"},
       {"evento_str": f"🥊 [{fecha_str_humana}] {nombre_evento}", "tipo": "Combate Co-Estelar", "p1": "Peleador Co-Estelar A", "p2": "Peleador Co-Estelar B"},
@@ -281,10 +278,11 @@ def motor_ufc_cuantitativo(s1, p1, t1, k1, s2, p2, t2, k2):
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
-  rating_1 = (9.0 - fip_p1) + (woba_p1 * 10.0)
-  rating_2 = (9.0 - fip_p2) + (woba_p2 * 10.0)
+  # Motor sabermétrico con FIP ponderado (factor x2.2) para reflejar dominio real del abridor
+  rating_1 = ((9.0 - fip_p1) * 2.2) + (woba_p1 * 8.0)
+  rating_2 = ((9.0 - fip_p2) * 2.2) + (woba_p2 * 8.0)
   diff = rating_1 - rating_2
-  prob_1 = 1.0 / (1.0 + math.exp(-diff * 0.5))
+  prob_1 = 1.0 / (1.0 + math.exp(-diff * 0.45))
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
 
@@ -496,11 +494,11 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC (CARTELERA COMPLETA Y NOMBRES EDITABLES)
+# 8. UFC
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Cartelera completa con múltiples combates (Estelar, Co-Estelar y Preliminares) para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Cartelera completa con múltiples combates para la fecha: **{fecha_formato_str}**.*")
   
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
@@ -564,7 +562,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
 
 # =========================================================
-# 9. LIGA MEXICANA DEL PACÍFICO (LMP)
+# 9. LIGA MEXICANA DEL PACÍFICO (LMP) - CON CASILLAS LIBRES
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
   st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
@@ -573,13 +571,21 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
   col_lmp1, col_lmp2 = st.columns(2)
   with col_lmp1:
     st.markdown("**🧢 Equipo Local (LMP)**")
-    fip_l = st.number_input("FIP Lanzador Abridor Local:", 2.00, 6.00, 3.85, 0.05, key="fip_l")
-    woba_l = st.number_input("wOBA Colectivo Ofensiva Local:", 0.280, 0.420, 0.335, 0.005, key="woba_l")
+    fip_l_str = st.text_input("FIP Lanzador Abridor Local:", value="3.85", key="fip_l_txt")
+    woba_l_str = st.text_input("wOBA Colectivo Ofensiva Local:", value="0.335", key="woba_l_txt")
   with col_lmp2:
     st.markdown("**🧢 Equipo Visitante (LMP)**")
-    fip_v = st.number_input("FIP Lanzador Abridor Visita:", 2.00, 6.00, 4.10, 0.05, key="fip_v")
-    woba_v = st.number_input("wOBA Colectivo Ofensiva Visita:", 0.280, 0.420, 0.320, 0.005, key="woba_v")
+    fip_v_str = st.text_input("FIP Lanzador Abridor Visita:", value="4.10", key="fip_v_txt")
+    woba_v_str = st.text_input("wOBA Colectivo Ofensiva Visita:", value="0.320", key="woba_v_txt")
     
+  try:
+    fip_l = float(fip_l_str)
+    woba_l = float(woba_l_str)
+    fip_v = float(fip_v_str)
+    woba_v = float(woba_v_str)
+  except ValueError:
+    fip_l, woba_l, fip_v, woba_v = 3.85, 0.335, 4.10, 0.320
+
   p_lmp_l, p_lmp_v = motor_beisbol_avanzado(fip_l, woba_l, fip_v, woba_v)
   
   st.markdown("---")
@@ -589,7 +595,7 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
 
 # =========================================================
-# 10. MLB
+# 10. MLB - CON CASILLAS LIBRES (SERIE MUNDIAL)
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   st.title(f"⚾ **Béisbol Pro MLB [{fecha_formato_str}]**")
@@ -598,13 +604,21 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   col_mlb1, col_mlb2 = st.columns(2)
   with col_mlb1:
     st.markdown("**🏟️ Equipo Local (MLB)**")
-    fip_mlb_l = st.number_input("FIP Abridor Local:", 2.00, 5.50, 3.45, 0.05, key="fip_ml_l")
-    woba_mlb_l = st.number_input("wOBA Ofensiva Local:", 0.280, 0.400, 0.330, 0.005, key="woba_ml_l")
+    fip_ml_l_str = st.text_input("FIP Abridor Local:", value="1.58", key="fip_ml_l_txt")
+    woba_ml_l_str = st.text_input("wOBA Ofensiva Local:", value="0.330", key="woba_ml_l_txt")
   with col_mlb2:
     st.markdown("**🏟️ Equipo Visitante (MLB)**")
-    fip_mlb_v = st.number_input("FIP Abridor Visita:", 2.00, 5.50, 3.75, 0.05, key="fip_ml_v")
-    woba_mlb_v = st.number_input("wOBA Ofensiva Visita:", 0.280, 0.400, 0.315, 0.005, key="woba_ml_v")
+    fip_ml_v_str = st.text_input("FIP Abridor Visita:", value="2.44", key="fip_ml_v_txt")
+    woba_ml_v_str = st.text_input("wOBA Ofensiva Visita:", value="0.320", key="woba_ml_v_txt")
     
+  try:
+    fip_mlb_l = float(fip_ml_l_str)
+    woba_mlb_l = float(woba_ml_l_str)
+    fip_mlb_v = float(fip_ml_v_str)
+    woba_mlb_v = float(woba_mlb_v_str)
+  except ValueError:
+    fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
+
   p_mlb_l, p_mlb_v = motor_beisbol_avanzado(fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v)
   
   st.markdown("---")
@@ -618,8 +632,6 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
   st.title(f"🏒 **Sistema Pro NHL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Simulación Poisson NHL para la fecha: **{fecha_formato_str}**.*")
-  
   cartelera = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
     with st.expander(f"🏒 {op['partido_str']}"):
@@ -631,8 +643,7 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
 # =========================================================
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
   st.title(f"🏒 **Props NHL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Props de Hockey para la fecha: **{fecha_formato_str}**.*")
-  st.success("🤖 Módulo de Props de Hockey (Shots on Goal / SOG) activo.")
+  st.success("🤖 Módulo de Props de Hockey activo.")
 
 
 # =========================================================
@@ -648,5 +659,4 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 # =========================================================
 else:
   st.title(f"🚀 **Optimizador Automático de Parlays Pro [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Optimizador estructurado para la fecha: **{fecha_formato_str}**.*")
   st.success("🚀 Optimizador de Parlays listo para estructurar apuestas combinadas.")
