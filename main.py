@@ -1279,19 +1279,17 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA (DISTRIBUCIÓN NORMAL CDF)
+# 3. NBA (DISTRIBUCIÓN NORMAL CDF & PERSISTENCIA)
 # =========================================================
 elif (
     modulo_seleccionado
     == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)"
 ):
   st.title(
-      "🏀 **Sistema Cuantitativo Pro NBA (Distribución Normal)"
-      f" [{fecha_formato_str}]**"
+      f"🏀 **Sistema Cuantitativo Pro NBA (Distribución Normal & Memoria) [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Modelo de Distribución Normal (CDF) para calcular si los"
-      " equipos cubren el Hándicap.*"
+      "--- \n *Modelo de Distribución Normal (CDF) avanzado para calcular si los equipos cubren el Hándicap con persistencia de sesión.*"
   )
 
   col1, col2 = st.columns(2)
@@ -1315,99 +1313,129 @@ elif (
   if not cartelera_nba:
     st.info(
         "ℹ️ No hay partidos de la NBA registrados en la API para la fecha"
-        f" `{fecha_formato_str}`."
+        f" `{fecha_formato_str}`. Usando modo de simulación interactiva."
     )
-  else:
-    for idx, op in enumerate(cartelera_nba, 1):
-      with st.expander(f"🏀 Encuentro #{idx}: {op['partido_str']}"):
-        col_n1, col_n2, col_n3 = st.columns(3)
-        with col_n1:
-          media_local = st.number_input(
-              f"Media Puntos Local ({op['local']}):",
-              80.0,
-              140.0,
-              114.5,
-              0.5,
-              key=f"nba_ml_{idx}",
-          )
-        with col_n2:
-          media_visita = st.number_input(
-              f"Media Puntos Visita ({op['visita']}):",
-              80.0,
-              140.0,
-              111.0,
-              0.5,
-              key=f"nba_mv_{idx}",
-          )
-        with col_n3:
-          desv_est = st.number_input(
-              "Desviación Estándar (NBA):",
-              5.0,
-              20.0,
-              11.5,
-              0.5,
-              key=f"nba_desv_{idx}",
-          )
+    cartelera_nba = [{
+        "partido_str": "📅 [Simulación Manual] Boston Celtics vs Los Angeles Lakers",
+        "local": "Los Angeles Lakers",
+        "visita": "Boston Celtics"
+    }]
 
-        col_h1, col_h2, col_h3 = st.columns(3)
-        with col_h1:
-          tipo_apuesta_nba = st.selectbox(
-              "Selección Hándicap:",
-              [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
-              key=f"nba_ap_{idx}",
-          )
-        with col_h2:
-          handicap_val = st.number_input(
-              "Línea Hándicap Local (Ej. -4.5 o +4.5):",
-              -25.0,
-              25.0,
-              -4.5,
-              0.5,
-              key=f"nba_han_{idx}",
-          )
-        with col_h3:
-          momio_sugerido_nba = -110
-          mercados_nba_dict = momios_api_nba.get(op["local"], {})
-          if "h2h" in mercados_nba_dict:
-            for out in mercados_nba_dict["h2h"]:
-              if out.get("name") == op["local"]:
-                momio_sugerido_nba = out.get("price", -110)
+  for idx, op in enumerate(cartelera_nba, 1):
+    key_nba_l = f"nba_pts_loc_{idx}"
+    key_nba_v = f"nba_pts_vis_{idx}"
+    key_nba_h = f"nba_han_val_{idx}"
+    key_nba_m = f"nba_mom_txt_{idx}"
 
-          momio_nba_str = st.text_input(
-              "📈 Momio Casino (Americano):",
-              value=str(momio_sugerido_nba),
-              key=f"nba_m_txt_{idx}",
-          )
-          try:
-            momio_nba = int(momio_nba_str)
-          except ValueError:
-            momio_nba = -110
+    if key_nba_l not in st.session_state:
+      st.session_state[key_nba_l] = "115.5"
+    if key_nba_v not in st.session_state:
+      st.session_state[key_nba_v] = "112.0"
+    if key_nba_h not in st.session_state:
+      st.session_state[key_nba_h] = -4.5
+    if key_nba_m not in st.session_state:
+      st.session_state[key_nba_m] = "-110"
 
-        prob_local_cubre = calcular_probabilidad_handicap_nba(
-            media_local, media_visita, handicap_val, desv_est
+    with st.expander(f"🏀 Encuentro NBA #{idx}: {op['partido_str']}"):
+      col_n1, col_n2, col_n3 = st.columns(3)
+      with col_n1:
+        media_local = st.number_input(
+            f"Media Puntos Local ({op['local']}):",
+            80.0,
+            150.0,
+            value=float(st.session_state[key_nba_l]),
+            step=0.5,
+            key=f"nba_ml_{idx}",
+        )
+        st.session_state[key_nba_l] = media_local
+      with col_n2:
+        media_visita = st.number_input(
+            f"Media Puntos Visita ({op['visita']}):",
+            80.0,
+            150.0,
+            value=float(st.session_state[key_nba_v]),
+            step=0.5,
+            key=f"nba_mv_{idx}",
+        )
+        st.session_state[key_nba_v] = media_visita
+      with col_n3:
+        desv_est = st.number_input(
+            "Desviación Estándar (NBA):",
+            5.0,
+            25.0,
+            11.5,
+            0.5,
+            key=f"nba_desv_{idx}",
         )
 
-        if "Local" in tipo_apuesta_nba:
-          prob_modelo_nba = prob_local_cubre
-        else:
-          prob_modelo_nba = round(100.0 - prob_local_cubre, 2)
-
-        st.success(
-            "🤖 **Probabilidad Real (Modelo Normal CDF):**"
-            f" **`{prob_modelo_nba:.2f}%`**"
+      col_h1, col_h2, col_h3 = st.columns(3)
+      with col_h1:
+        tipo_apuesta_nba = st.selectbox(
+            "Selección Hándicap:",
+            [f"Local ({op['local']})", f"Visitante ({op['visita']})"],
+            key=f"nba_ap_{idx}",
         )
-        prob_imp, edge = calcular_edge_real(momio_nba, prob_modelo_nba)
-        st.info(
-            f"📊 **Edge Calculado:** Implícita (`{momio_nba:+}`): `{prob_imp:.2f}%`"
-            f" | Modelo: `{prob_modelo_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
+      with col_h2:
+        handicap_val = st.number_input(
+            "Línea Hándicap Local (Ej. -4.5 o +4.5):",
+            -25.0,
+            25.0,
+            value=float(st.session_state[key_nba_h]),
+            step=0.5,
+            key=f"nba_han_{idx}",
         )
+        st.session_state[key_nba_h] = handicap_val
+      with col_h3:
+        momio_sugerido_nba = -110
+        mercados_nba_dict = momios_api_nba.get(op["local"], {})
+        if "h2h" in mercados_nba_dict:
+          for out in mercados_nba_dict["h2h"]:
+            if out.get("name") == op["local"]:
+              momio_sugerido_nba = out.get("price", -110)
 
-        if momio_nba < -150:
-          st.error("🚨 Infringe Regla de Oro (-150).")
-        elif edge >= edge_min_nba:
-          st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
-        else:
-          st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
+        momio_nba_str = st.text_input(
+            "📈 Momio Casino (Americano):",
+            value=str(st.session_state[key_nba_m]),
+            key=f"nba_m_txt_{idx}",
+        )
+        st.session_state[key_nba_m] = momio_nba_str
+        try:
+          momio_nba = int(momio_nba_str)
+        except ValueError:
+          momio_nba = -110
+
+      # Capa adicional opcional: cansancio B2B
+      b2b_nba_loc = st.checkbox(f"🏠 {op['local']} en Back-to-Back (Descanso menor a 24 hrs)", value=False, key=f"nba_b2b_l_{idx}")
+      b2b_nba_vis = st.checkbox(f"✈️ {op['visita']} en Back-to-Back (Descanso menor a 24 hrs)", value=False, key=f"nba_b2b_v_{idx}")
+
+      media_loc_efectiva = media_local - (2.5 if b2b_nba_loc else 0.0)
+      media_vis_efectiva = media_visita - (2.5 if b2b_nba_vis else 0.0)
+
+      prob_local_cubre = calcular_probabilidad_handicap_nba(
+          media_loc_efectiva, media_vis_efectiva, handicap_val, desv_est
+      )
+
+      if "Local" in tipo_apuesta_nba:
+        prob_modelo_nba = prob_local_cubre
+      else:
+        prob_modelo_nba = round(100.0 - prob_local_cubre, 2)
+
+      st.success(
+          "🤖 **Probabilidad Real (Modelo Normal CDF + Ajuste B2B):**"
+          f" **`{prob_modelo_nba:.2f}%`**"
+      )
+      prob_imp, edge = calcular_edge_real(momio_nba, prob_modelo_nba)
+      st.info(
+          f"📊 **Edge Calculado:** Implícita (`{momio_nba:+}`): `{prob_imp:.2f}%`"
+          f" | Modelo: `{prob_modelo_nba:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
+      )
+
+      if momio_nba < -150:
+        st.error("🚨 Infringe Regla de Oro (-150).")
+      elif edge >= edge_min_nba:
+        st.success(f"✅ Aprobado (+EV). Edge: `{edge:+.2f}%`")
+      else:
+        st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
 
 
 # =========================================================
