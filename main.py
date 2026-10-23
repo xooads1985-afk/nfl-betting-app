@@ -595,11 +595,11 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 
 
 # =========================================================
-# 10. MLB - CON CASILLAS LIBRES (SERIE MUNDIAL)
+# 10. MLB - MÓDULO PRO AVANZADO (SERIE MUNDIAL & RUN LINE / TOTALES)
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
-  st.title(f"⚾ **Béisbol Pro MLB [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo sabermétrico para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"⚾ **Béisbol Pro MLB & Serie Mundial [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Modelo sabermétrico avanzado con proyecciones de Carreras Esperadas ($xR$), Run Line y Totales para la fecha: **{fecha_formato_str}**.*")
   
   col_mlb1, col_mlb2 = st.columns(2)
   with col_mlb1:
@@ -619,12 +619,40 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
+  # Calculamos la probabilidad base de victoria
   p_mlb_l, p_mlb_v = motor_beisbol_avanzado(fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v)
   
+  # Estimación cuantitativa de carreras esperadas ($xR$) por novena
+  runs_local = round(max(2.0, (woba_mlb_l * 18.0) - (fip_mlb_v * 0.6)), 2)
+  runs_visita = round(max(2.0, (woba_mlb_v * 18.0) - (fip_mlb_l * 0.6)), 2)
+  total_carreras_proyectado = round(runs_local + runs_visita, 1)
+
   st.markdown("---")
+  st.subheader("📊 **Resultados y Proyecciones del Modelo**")
+  
   cmlb1, cmlb2 = st.columns(2)
-  cmlb1.metric(label="Prob. Victoria Local (MLB)", value=f"{p_mlb_l}%")
-  cmlb2.metric(label="Prob. Victoria Visita (MLB)", value=f"{p_mlb_v}%")
+  cmlb1.metric(label="Prob. Victoria Local (Moneyline)", value=f"{p_mlb_l}%", delta=f"xR: {runs_local} carreras")
+  cmlb2.metric(label="Prob. Victoria Visita (Moneyline)", value=f"{p_mlb_v}%", delta=f"xR: {runs_visita} carreras")
+
+  st.markdown("---")
+  st.subheader("🎯 **Análisis de Mercados Avanzados (Run Line & Totales)**")
+  
+  col_mkt1, col_mkt2 = st.columns(2)
+  with col_mkt1:
+    st.info(f"📈 **Total de Carreras Proyectado (Over / Under):** \n### `{total_carreras_proyectado} carreras`")
+    if total_carreras_proyectado > 8.5:
+      st.markdown("💡 *Tendencia del modelo: Perfil ofensivo favorable para altas (Over).*")
+    else:
+      st.markdown("💡 *Tendencia del modelo: Duelo de pitcheo favorable para bajas (Under).*")
+      
+  with col_mkt2:
+    margen_diferencia = round(abs(runs_local - runs_visita), 1)
+    st.success(f"⚖️ **Diferencial de Carreras ($xDiff$):** \n### `{margen_diferencia} carreras`")
+    if margen_diferencia >= 1.5:
+      favorito_rl = "Local" if runs_local > runs_visita else "Visitante"
+      st.markdown(f"🔥 *El modelo detecta solidez para cubrir el **Run Line (-1.5)** a favor del equipo **{favorito_rl}**.*")
+    else:
+      st.markdown("⚠️ *Duelo muy cerrado; se recomienda operar estrictamente en Moneyline o evitar hándicaps amplios.*")
 
 
 # =========================================================
