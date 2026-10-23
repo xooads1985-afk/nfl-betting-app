@@ -52,7 +52,6 @@ def obtener_momios_odds_api(deporte_key, api_key):
 # ---------------------------------------------------------
 @st.cache_data(ttl=600)
 def obtener_clima_estadio_nfl(nombre_equipo_local):
-  # Coordenadas aproximadas de estadios principales de la NFL para consulta automática
   estadios_coords = {
       "Kansas City Chiefs": (39.0489, -94.4839),
       "Buffalo Bills": (42.7738, -78.7870),
@@ -65,12 +64,8 @@ def obtener_clima_estadio_nfl(nombre_equipo_local):
       "Pittsburgh Steelers": (40.4468, -80.0158),
       "Cleveland Browns": (41.5061, -81.6995),
   }
-
-  coords = estadios_coords.get(
-      nombre_equipo_local, (39.8283, -98.5795)
-  )  # Centro de EE.UU. por defecto
+  coords = estadios_coords.get(nombre_equipo_local, (39.8283, -98.5795))
   lat, lon = coords
-
   url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,wind_speed_10m"
   try:
     response = requests.get(url, timeout=3)
@@ -79,11 +74,11 @@ def obtener_clima_estadio_nfl(nombre_equipo_local):
       current = data.get("current", {})
       temp = current.get("temperature_2m", 15.0)
       viento_kmh = current.get("wind_speed_10m", 10.0)
-      viento_mph = round(viento_kmh * 0.621371, 1)  # Convertir km/h a mph
+      viento_mph = round(viento_kmh * 0.621371, 1)
       return float(temp), float(viento_mph), True
   except Exception:
     pass
-  return 18.0, 5.0, False  # Valores predeterminados si falla la red
+  return 18.0, 5.0, False
 
 
 # ---------------------------------------------------------
@@ -91,13 +86,11 @@ def obtener_clima_estadio_nfl(nombre_equipo_local):
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_estatus_qb_automatico(nombre_equipo):
-  # Consulta en tiempo real al reporte de lesiones de ESPN API
   url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries"
   try:
     response = requests.get(url, timeout=3)
     if response.status_code == 200:
       data = response.json()
-      # Recorremos los equipos buscando coincidencias y evaluando al QB titular
       for team in data.get("teams", []):
         if nombre_equipo.lower() in team.get("displayName", "").lower():
           for player in team.get("injuries", []):
@@ -110,7 +103,7 @@ def obtener_estatus_qb_automatico(nombre_equipo):
                 return "Duda"
   except Exception:
     pass
-  return "Titular Sano"  # Por defecto si no hay reporte negativo
+  return "Titular Sano"
 
 
 # ---------------------------------------------------------
@@ -231,7 +224,6 @@ def simular_partido_nfl_monte_carlo_pro(
     tercera_down_vis=40.0,
     simulaciones=10000,
 ):
-  # CAPA 1: Ajuste por Clima Extremo
   mult_clima_loc = 1.0
   mult_clima_vis = 1.0
   if viento_mph > 20.0:
@@ -242,7 +234,6 @@ def simular_partido_nfl_monte_carlo_pro(
     mult_clima_loc *= 0.95
     mult_clima_vis *= 0.95
 
-  # CAPA 3: Ajuste por Lesiones de QB / Playmakers
   if qb_status_loc == "Duda":
     eficiencia_rz_loc *= 0.88
     lambda_pos_local *= 0.90
@@ -257,7 +248,6 @@ def simular_partido_nfl_monte_carlo_pro(
     eficiencia_rz_vis *= 0.70
     lambda_pos_visitante *= 0.78
 
-  # CAPA 2: Ajuste por 3rd Down y Trincheras
   mod_3rd_loc = 1.0 + ((tercera_down_loc - 40.0) / 200.0)
   mod_3rd_vis = 1.0 + ((tercera_down_vis - 40.0) / 200.0)
 
@@ -814,7 +804,6 @@ elif (
     )
   else:
     for idx, op in enumerate(cartelera, 1):
-      # Jalar datos automáticos de clima y lesiones
       temp_auto, viento_auto, clima_ok = obtener_clima_estadio_nfl(op["local"])
       qb_loc_auto = obtener_estatus_qb_automatico(op["local"])
       qb_vis_auto = obtener_estatus_qb_automatico(op["visita"])
@@ -884,7 +873,7 @@ elif (
         if clima_ok:
           st.success(f"🌤️ **Clima detectado automáticamente en el estadio de `{op['local']}`:** Viento: `{viento_auto} mph` | Temperatura: `{temp_auto}°C`")
         else:
-          st.warning("⚠️ Usando valores predeterminados de clima (ajuste manual disponible abajo).")
+          st.warning("⚠️ Usando valores predeterminados de clima.")
 
         col_c1, col_c2, col_c3 = st.columns(3)
         with col_c1:
@@ -1097,11 +1086,12 @@ elif (
 
 
 # =========================================================
-# 2. Props NFL
+# 2. PROPS NFL (HIPERVITAMINADO CON 3 CAPAS PRO)
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
-  st.title(f"🎯 **Props Automáticos NFL ({fecha_formato_str})**")
-  st.markdown("--- \n *Rendimiento individual de jugadores en la NFL.*")
+  st.title(f"🎯 **Auditor Pro de Props NFL (3 Capas Avanzadas) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis individual de jugadores evaluando rendimiento L5, Matchup Defensivo y Snap Share.*")
+  
   col_pnfl1, col_pnfl2 = st.columns(2)
   with col_pnfl1:
     bankroll_props_nfl = st.number_input(
@@ -1121,61 +1111,103 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
       "football", "nfl", fecha_formato_api, fecha_formato_str
   )
   st.markdown("---")
-  st.subheader("📊 Auditoría de Props NFL")
+  st.subheader("📊 Auditoría de Props Individuales")
 
   if not cartelera_nfl_hoy:
     st.info(
-        "ℹ️ No hay partidos de la NFL en cartelera para la fecha"
-        f" `{fecha_formato_str}`."
+        "ℹ️ No hay partidos oficiales de la NFL en cartelera para la fecha"
+        f" `{fecha_formato_str}`. Puedes simular ingresando datos en el panel."
     )
-  else:
-    for idx, op in enumerate(cartelera_nfl_hoy, 1):
-      with st.expander(f"🎯 Prop NFL: {op['partido_str']}"):
+    cartelera_nfl_hoy = [{
+        "partido_str": "📅 [Simulación Manual] Kansas City Chiefs vs Baltimore Ravens",
+        "local": "Baltimore Ravens",
+        "visita": "Kansas City Chiefs"
+    }]
+
+  for idx, op in enumerate(cartelera_nfl_hoy, 1):
+    with st.expander(f"🎯 Prop NFL #{idx}: {op['partido_str']}"):
+      col_pr1, col_pr2 = st.columns(2)
+      with col_pr1:
         jugador = st.text_input(
-            "Jugador:", value="Patrick Mahomes", key=f"nfl_prop_j_{idx}"
+            "Nombre del Jugador:", value="Patrick Mahomes" if idx == 1 else "Travis Kelce", key=f"nfl_prop_j_{idx}"
         )
+        posicion_jugador = st.selectbox(
+            "Posición:", ["QB (Mariscal)", "RB (Corredor)", "WR / TE (Receptor)"], key=f"nfl_prop_pos_{idx}"
+        )
+      with col_pr2:
         mercado = st.text_input(
-            "Mercado:",
-            value="Yardas de Pase Over 265.5",
+            "Mercado Específico:",
+            value="Yardas de Pase Over 265.5" if "QB" in posicion_jugador else "Yardas por Recepción Over 65.5",
             key=f"nfl_prop_m_{idx}",
         )
-
         momio_str = st.text_input(
-            "📈 Momio Casino:", value="-115", key=f"nfl_prop_mom_txt_{idx}"
+            "📈 Momio Casino (Americano):", value="-115", key=f"nfl_prop_mom_txt_{idx}"
         )
         try:
           momio = int(momio_str)
         except ValueError:
           momio = -115
 
-        col_pj1, col_pj2 = st.columns(2)
-        with col_pj1:
-          cumple = st.number_input(
-              "Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_prop_c_{idx}"
-          )
-        with col_pj2:
-          no_cumple = st.number_input(
-              "Partidos sin cumplir línea (L5):",
-              0,
-              5,
-              2,
-              key=f"nfl_prop_nc_{idx}",
-          )
-
-        prob = max(40.0, min(80.0, 50.0 + (cumple - no_cumple) * 6.0))
-        st.success(f"🤖 **Probabilidad Real del Modelo Pro:** **`{prob:.2f}%`**")
-        prob_imp, edge = calcular_edge_real(momio, prob)
-        st.info(
-            f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` |"
-            f" Modelo: `{prob:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
+      st.markdown("---")
+      st.markdown("### 🧬 CAPAS PRO DE EVALUACIÓN DE PROPS")
+      col_cp1, col_cp2, col_cp3 = st.columns(3)
+      with col_cp1:
+        st.markdown("**1. Inercia Reciente (L5)**")
+        cumple = st.number_input("Partidos cumpliendo línea (L5):", 0, 5, 3, key=f"nfl_prop_c_{idx}")
+        no_cumple = st.number_input("Partidos sin cumplir línea (L5):", 0, 5, 2, key=f"nfl_prop_nc_{idx}")
+      with col_cp2:
+        st.markdown("**2. Matchup Defensivo Rival**")
+        calidad_defensa_rival = st.select_slider(
+            "Nivel Defensivo del Rival frente a esta posición:",
+            options=["Muy Débil (Favorable)", "Débil", "Promedio", "Fuerte", "Elite (Hostil)"],
+            value="Promedio",
+            key=f"nfl_def_rival_{idx}"
+        )
+      with col_cp3:
+        st.markdown("**3. Carga de Trabajo (Snap/Target Share)**")
+        participacion_jugador = st.select_slider(
+            "Porcentaje de Participación / Diseños de Jugada:",
+            options=["Rotación / Suplente", "Moderado", "Titular Estándar", "Arma Principal (Core)"],
+            value="Titular Estándar",
+            key=f"nfl_snap_{idx}"
         )
 
-        if momio < -150:
-          st.error("🚨 Infringe Regla de Oro (-150).")
-        elif edge >= edge_min_props_nfl:
-          st.success(f"✅ Aprobado Prop (+EV). Edge: `{edge:+.2f}%`")
-        else:
-          st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
+      # Algoritmo de probabilidad ponderada para props
+      prob_base_prop = 50.0 + (cumple - no_cumple) * 5.5
+
+      # Ajuste por Matchup Defensivo
+      if calidad_defensa_rival == "Muy Débil (Favorable)":
+        prob_base_prop += 6.0
+      elif calidad_defensa_rival == "Débil":
+        prob_base_prop += 3.0
+      elif calidad_defensa_rival == "Fuerte":
+        prob_base_prop -= 3.5
+      elif calidad_defensa_rival == "Elite (Hostil)":
+        prob_base_prop -= 7.0
+
+      # Ajuste por Carga de Trabajo
+      if participacion_jugador == "Arma Principal (Core)":
+        prob_base_prop += 5.0
+      elif participacion_jugador == "Titular Estándar":
+        prob_base_prop += 2.0
+      elif participacion_jugador == "Rotación / Suplente":
+        prob_base_prop -= 6.0
+
+      prob_modelo_prop = max(35.0, min(85.0, round(prob_base_prop, 2)))
+
+      st.success(f"🤖 **Probabilidad Real del Modelo Pro (Props):** **`{prob_modelo_prop:.2f}%`**")
+      prob_imp, edge = calcular_edge_real(momio, prob_modelo_prop)
+      st.info(
+          f"📊 **Edge Calculado:** Implícita (`{momio:+}`): `{prob_imp:.2f}%` |"
+          f" Modelo: `{prob_modelo_prop:.2f}%` | Edge Neto: **`{edge:+.2f}%`**"
+      )
+
+      if momio < -150:
+        st.error("🚨 Infringe Regla de Oro (-150). Cuota demasiado pesada.")
+      elif edge >= edge_min_props_nfl:
+        st.success(f"✅ **¡PROP APROBADO (+EV)!** Edge favorable de `{edge:+.2f}%`.")
+      else:
+        st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`). Se recomienda omitir.")
 
 
 # =========================================================
@@ -1856,7 +1888,7 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 
   if not cartelera_ufc:
     st.info(
-        "ℹ️ No hay eventos oficiales de la UFC registrados en la API para la"
+        "ℹ️ No hay eventos oficiales de la UFC registrados in la API para la"
         f" fecha `{fecha_formato_str}`."
     )
   else:
@@ -2080,7 +2112,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   st.info(
       f"📊 **Edge Calculado:** Implícita (`{momio_mlb:+}`):"
       f" `{prob_imp_mlb:.2f}%` | Modelo: `{prob_modelo_mlb:.2f}%` | Edge"
-      f" Neto: **`{edge_mlb:+.2f}%`**"
+      f" Neto: **`{edge_+.2f}%`**"
   )
 
   if momio_mlb < -150:
@@ -2713,7 +2745,7 @@ else:
 
   leg_1_data = next(
       (x for x in opciones_inteligentes if x["titulo"] == leg_1_nombre),
-      opciones_inteligentes[0],
+      opciones_inteligences[0] if 'opciones_inteligences' in locals() else opciones_inteligentes[0],
   )
   leg_2_data = next(
       (x for x in opciones_inteligentes if x["titulo"] == leg_2_nombre),
@@ -2737,13 +2769,11 @@ else:
         f" `{leg_2_data['momio']}` | Edge: `+{leg_2_data['edge']}%`"
     )
 
-
   def decimal_a_americano(dec):
     if dec >= 2.0:
       return int((dec - 1) * 100)
     else:
       return int(-100 / (dec - 1))
-
 
   dec_1 = (
       (100 / abs(leg_1_data["momio"])) + 1
