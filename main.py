@@ -302,20 +302,6 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
 def calcular_probabilidad_handicap_nba(media_loc, media_vis, handicap_loc):
   return round((1 - stats.norm.cdf(-handicap_loc, loc=media_loc - media_vis, scale=11.5)) * 100, 2)
 
-def motor_monte_carlo_nfl(epa_loc, epa_vis, wind_mph):
-  simulaciones = 5000
-  victorias_loc = 0
-  factor_viento = 0.90 if wind_mph > 20 else 1.0
-  
-  for _ in range(simulaciones):
-    pts_loc = random.normalvariate(23.0 + (epa_loc * 7), 6.5) * factor_viento
-    pts_vis = random.normalvariate(21.0 + (epa_vis * 7), 6.5) * factor_viento
-    if pts_loc > pts_vis:
-      victorias_loc += 1
-      
-  prob_loc = (victorias_loc / simulaciones) * 100.0
-  return round(prob_loc, 2), round(100.0 - prob_loc, 2)
-
 def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
   max_goles = 7
   matriz_probs = [[0.0 for _ in range(max_goles)] for _ in range(max_goles)]
@@ -348,7 +334,7 @@ def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**")
   st.markdown(f"--- \n *Radar de valor +EV sincronizado para la fecha: **{fecha_formato_str}**.*")
-  st.info("ℹ️ Selecciona un módulo en el menú lateral o ejecuta el radar desde aquí.")
+  st.info("ℹ️ Selecciona un módulo en el menú lateral para iniciar.")
 
 
 # =========================================================
@@ -368,11 +354,219 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
 
 # =========================================================
-# 3. NBA
+# 3. NBA (CON KELLY, SQLITE, TARJETAS DE TELEGRAM Y CORRELACIONES)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
   st.title(f"🏀 **Sistema Cuantitativo Pro NBA Élite [{fecha_formato_str}]**")
-  st.success("NBA activo.")
+  st.markdown(f"--- \n *Time-Decay EMA, Criterio de Kelly, SQLite y Tarjetas para la fecha: **{fecha_formato_str}**.*")
+  
+  cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
+  
+  if not cartelera_nba:
+    st.warning(f"⚠️ No se encontraron encuentros oficiales de la NBA para la fecha {fecha_formato_str}.")
+  
+  for idx, op in enumerate(cartelera_nba, 1):
+    local_nba = op['local']
+    visita_nba = op['visita']
+    
+    st.markdown(f"### 🏀 Encuentro #{idx}: `{visita_nba} @ {local_nba}`")
+    
+    col_v_nba, col_l_nba = st.columns(2)
+    with col_v_nba:
+      st.markdown(f"**✈️ Visitante: {visita_nba}**")
+      off_rtg_v = st.number_input("Offensive Rating (Visita):", 100.0, 125.0, 114.5, 0.5, key=f"off_v_{idx}")
+      def_rtg_v = st.number_input("Defensive Rating (Visita):", 100.0, 125.0, 112.0, 0.5, key=f"def_v_{idx}")
+      pace_v = st.number_input("Ritmo / Pace (Visita):", 90.0, 105.0, 99.5, 0.1, key=f"pace_v_{idx}")
+      reb_rate_v = st.number_input("Tasa Rebotes Prom. (Visita):", 35.0, 55.0, 43.5, 0.1, key=f"reb_v_{idx}")
+      ast_rate_v = st.number_input("Asistencias Prom. (Visita):", 20.0, 32.0, 26.0, 0.1, key=f"ast_v_{idx}")
+      baja_estrella_v = st.selectbox("Ausencia Clave (Visita):", ["Plantel Completo", "Baja Estrella Principal (-4.5 Rating)", "Baja Protector de Aro / Ctro (+3.5 Def Rating Rival)"], key=f"baja_v_{idx}")
+      coach_nuevo_v = st.checkbox(f"¿Cambio reciente de Coach en {visita_nba}?", value=False, key=f"coach_v_{idx}")
+      b2b_v = st.selectbox("Situación Descanso (Visita):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=1, key=f"b2b_v_{idx}")
+
+    with col_l_nba:
+      st.markdown(f"**🏠 Local: {local_nba}**")
+      off_rtg_l = st.number_input("Offensive Rating (Local):", 100.0, 125.0, 117.0, 0.5, key=f"off_l_{idx}")
+      def_rtg_l = st.number_input("Defensive Rating (Local):", 100.0, 125.0, 110.5, 0.5, key=f"def_l_{idx}")
+      pace_l = st.number_input("Ritmo / Pace (Local):", 90.0, 105.0, 100.2, 0.1, key=f"pace_l_{idx}")
+      reb_rate_l = st.number_input("Tasa Rebotes Prom. (Local):", 35.0, 55.0, 44.2, 0.1, key=f"reb_l_{idx}")
+      ast_rate_l = st.number_input("Asistencias Prom. (Local):", 20.0, 32.0, 27.5, 0.1, key=f"ast_l_{idx}")
+      baja_estrella_l = st.selectbox("Ausencia Clave (Local):", ["Plantel Completo", "Baja Estrella Principal (-4.5 Rating)", "Baja Protector de Aro / Ctro (+3.5 Def Rating Rival)"], key=f"baja_l_{idx}")
+      coach_nuevo_l = st.checkbox(f"¿Cambio reciente de Coach en {local_nba}?", value=False, key=f"coach_l_{idx}")
+      b2b_l = st.selectbox("Situación Descanso (Local):", ["Descansado (2+ días)", "Normal (1 día)", "Back-to-Back (B2B - Fatiga)"], index=0, key=f"b2b_l_{idx}")
+
+    mult_b2b = {
+        "Descansado (2+ días)": 1.02,
+        "Normal (1 día)": 1.0,
+        "Back-to-Back (B2B - Fatiga)": 0.95
+    }
+    
+    ema_factor_nba = 1.02
+
+    mod_baja_l = -4.5 if "Estrella" in baja_estrella_l else (3.5 if "Protector" in baja_estrella_l else 0.0)
+    mod_baja_v = -4.5 if "Estrella" in baja_estrella_v else (3.5 if "Protector" in baja_estrella_v else 0.0)
+
+    varianza_coach_l = 2.0 if coach_nuevo_l else 0.0
+    varianza_coach_v = 2.0 if coach_nuevo_v else 0.0
+
+    factor_fatiga_l = mult_b2b[b2b_l]
+    factor_fatiga_v = mult_b2b[b2b_v]
+
+    pace_promedio = (pace_l + pace_v) / 2.0
+    
+    off_adj_l = off_rtg_l + mod_baja_l + varianza_coach_l
+    def_adj_v = def_rtg_v + mod_baja_v
+
+    off_adj_v = off_rtg_v + mod_baja_v + varianza_coach_v
+    def_adj_l = def_rtg_l + mod_baja_l
+
+    pts_loc_proj = round((((off_adj_l + def_adj_v) / 200.0) * pace_promedio * factor_fatiga_l) * ema_factor_nba, 2)
+    pts_vis_proj = round((((off_adj_v + def_adj_l) / 200.0) * pace_promedio * factor_fatiga_v) * ema_factor_nba, 2)
+    
+    total_puntos_proj = round(pts_loc_proj + pts_vis_proj, 1)
+    diferencial_proyectado = round(pts_loc_proj - pts_vis_proj, 2)
+
+    rebotes_proj_total = round((pace_promedio * 0.42) + ((reb_rate_l + reb_rate_v) / 2.0 * 0.5), 1)
+    asistencias_proj_total = round((pace_promedio * 0.24) + ((ast_rate_l + ast_rate_v) / 2.0 * 0.4), 1)
+    
+    pts_1h_loc = round(pts_loc_proj * 0.51, 2)
+    pts_1h_vis = round(pts_vis_proj * 0.51, 2)
+    total_1h_proj = round(pts_1h_loc + pts_1h_vis, 1)
+    dif_1h_proj = round(pts_1h_loc - pts_1h_vis, 2)
+
+    st.markdown("---")
+    st.markdown(f"📊 **Proyecciones del Modelo NBA Élite:**")
+    
+    col_mn1, col_mn2, col_mn3, col_mn4 = st.columns(4)
+    col_mn1.metric(label="Score Final Proyectado", value=f"{pts_loc_proj} - {pts_vis_proj}")
+    col_mn2.metric(label="Total Puntos (Full Game)", value=f"{total_puntos_proj} pts")
+    col_mn3.metric(label="Rebotes Proyectados", value=f"{rebotes_proj_total}")
+    col_mn4.metric(label="Asistencias Proyectadas", value=f"{asistencias_proj_total}")
+
+    st.info(f"⏱️ **Proyección Primeras Mitades (1H):** Puntos 1H: `{total_1h_proj}` pts | Diferencial 1H ({local_nba}): `+{dif_1h_proj}` pts")
+
+    st.markdown("💰 **Auditoría de Líneas, Criterio de Kelly & CLV:**")
+    tab_nba_spread, tab_nba_totales, tab_nba_1h, tab_nba_clv = st.tabs(["⚖️ Spread (Full Game)", "📈 Totales (Full Game)", "⏱️ Primeras Mitades (1H)", "📊 Seguimiento CLV"])
+
+    edges_nba_partido = []
+
+    with tab_nba_spread:
+      col_sp1, col_sp2 = st.columns(2)
+      with col_sp1:
+        spread_casino = st.number_input(f"Spread del Casino para {local_nba}:", -20.0, 20.0, -4.5, 0.5, key=f"sp_cas_{idx}")
+      with col_sp2:
+        momio_sp_str = st.text_input("Momio Casino (Spread):", value="-110", key=f"mom_sp_{idx}")
+        try: mom_sp_int = int(momio_sp_str)
+        except ValueError: mom_sp_int = -110
+
+      prob_cobertura = round((1 - stats.norm.cdf(-spread_casino, loc=diferencial_proyectado, scale=11.5)) * 100, 2)
+      pi_sp, edge_sp = calcular_edge_real(mom_sp_int, prob_cobertura)
+      stake_kelly_sp = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_cobertura, mom_sp_int)
+      edges_nba_partido.append((f"Spread {local_nba} ({spread_casino})", edge_sp, mom_sp_int, "SPREAD_LOC", prob_cobertura, stake_kelly_sp))
+
+      st.markdown(f"• Prob. Implícita: `{pi_sp:.2f}%` | Prob. Modelo: `{prob_cobertura}%` | 🎯 **Edge Neto: `+{edge_sp:.2f}%`**")
+      st.info(f"💡 **Stake Óptimo (Criterio de Kelly al 25%):** `${stake_kelly_sp} MXN`")
+      if edge_sp >= 3.0:
+        st.success(f"✅ **¡Mina de Oro (+EV)!**")
+      else:
+        st.warning("⚠️ Sin margen suficiente.")
+
+    with tab_nba_totales:
+      col_tot1, col_tot2, col_tot3 = st.columns(3)
+      with col_tot1:
+        tipo_ou_nba = st.selectbox("Mercado O/U:", ["Over (Más de)", "Under (Menos de)"], key=f"ou_nba_tipo_{idx}")
+      with col_tot2:
+        linea_ou_nba = st.number_input("Línea de Puntos Total Casino:", 200.0, 255.0, 226.5, 0.5, key=f"ou_nba_linea_{idx}")
+      with col_tot3:
+        momio_ou_nba_str = st.text_input("Momio Casino (O/U):", value="-110", key=f"mom_nba_ou_{idx}")
+        try: mom_ou_nba_int = int(momio_ou_nba_str)
+        except ValueError: mom_ou_nba_int = -110
+
+      prob_over_nba = round((1 - stats.norm.cdf(linea_ou_nba, loc=total_puntos_proj, scale=14.0)) * 100, 2)
+      prob_ou_modelo = prob_over_nba if "Over" in tipo_ou_nba else round(100.0 - prob_over_nba, 2)
+      
+      pi_nba_ou, edge_nba_ou = calcular_edge_real(mom_ou_nba_int, prob_ou_modelo)
+      stake_kelly_nba_ou = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_ou_modelo, mom_ou_nba_int)
+      nombre_mercado_nba_ou = f"{tipo_ou_nba} {linea_ou_nba}"
+      tag_nba_ou = "OVER" if "Over" in tipo_ou_nba else "UNDER"
+      edges_nba_partido.append((nombre_mercado_nba_ou, edge_nba_ou, mom_ou_nba_int, tag_nba_ou, prob_ou_modelo, stake_kelly_nba_ou))
+
+      st.markdown(f"• Prob. Implícita: `{pi_nba_ou:.2f}%` | Prob. Modelo: `{prob_ou_modelo}%` | 🎯 **Edge Neto: `+{edge_nba_ou:.2f}%`**")
+      st.info(f"💡 **Stake Óptimo (Criterio de Kelly al 25%):** `${stake_kelly_nba_ou} MXN`")
+      if edge_nba_ou >= 3.0:
+        st.success(f"✅ **¡Mina de Oro (+EV)!**")
+      else:
+        st.warning("⚠️ Sin margen suficiente.")
+
+    with tab_nba_1h:
+      st.markdown("⏱️ **Auditoría de Primeras Mitades (1H Over/Under):**")
+      col_1h_1, col_1h_2 = st.columns(2)
+      with col_1h_1:
+        linea_1h_casino = st.number_input("Línea 1H Totales del Casino:", 100.0, 130.0, 114.5, 0.5, key=f"l_1h_{idx}")
+      with col_1h_2:
+        momio_1h_str = st.text_input("Momio Casino (1H Over):", value="-110", key=f"m_1h_{idx}")
+        try: mom_1h_int = int(momio_1h_str)
+        except ValueError: mom_1h_int = -110
+
+      prob_1h_model = round((1 - stats.norm.cdf(linea_1h_casino, loc=total_1h_proj, scale=8.0)) * 100, 2)
+      pi_1h, edge_1h = calcular_edge_real(mom_1h_int, prob_1h_model)
+      stake_kelly_1h = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_1h_model, mom_1h_int)
+      edges_nba_partido.append((f"1H Over {linea_1h_casino}", edge_1h, mom_1h_int, "OVER_1H", prob_1h_model, stake_kelly_1h))
+      
+      st.markdown(f"• Proyección 1H del Modelo: `{total_1h_proj} pts` | Prob. Implícita: `{pi_1h:.2f}%` | 🎯 **Edge 1H: `+{edge_1h:.2f}%`**")
+      st.info(f"💡 **Stake Óptimo (Criterio de Kelly al 25%):** `${stake_kelly_1h} MXN`")
+      if edge_1h >= 3.0:
+        st.success(f"🔥 **¡VALOR EN PRIMERA MITAD (1H)!**")
+      else:
+        st.warning("⚠️ Sin margen suficiente en 1H.")
+
+    with tab_nba_clv:
+      st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value) — NBA:**")
+      cnba_1, cnba_2 = st.columns(2)
+      with cnba_1:
+        m_tomado_nba = st.number_input("Momio Tomado (Americano):", value=-110, key=f"mt_nba_{idx}")
+      with cnba_2:
+        m_cierre_nba = st.number_input("Momio de Cierre (CLV):", value=-120, key=f"mc_nba_{idx}")
+      
+      if m_tomado_nba > m_cierre_nba:
+        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO EN NBA!**")
+      else:
+        st.warning("⚠️ El mercado cerró con mejor cuota.")
+
+    # Sello del Modelo NBA con Bloqueo de Correlaciones y Tarjeta Telegram
+    mejor_mercado_nba, mejor_edge_nba, mejor_momio_nba, mejor_tag_nba, mejor_prob_nba, mejor_stake_nba = max(edges_nba_partido, key=lambda x: x[1])
+    
+    bloqueo_nba_activo = False
+    if mejor_tag_nba == "OVER" and total_puntos_proj < 215.0:
+      bloqueo_nba_activo = True
+    elif mejor_tag_nba == "UNDER" and total_puntos_proj > 238.0:
+      bloqueo_nba_activo = True
+
+    if bloqueo_nba_activo:
+      st.warning(f"🛡️ **Filtro Anti-Correlaciones Negativas (NBA):** Sello en *{mejor_mercado_nba}* bloqueado.")
+      alternativas_nba = [e for e in edges_nba_partido if e[3] != mejor_tag_nba]
+      if alternativas_nba:
+        mejor_mercado_nba, mejor_edge_nba, mejor_momio_nba, _, mejor_prob_nba, mejor_stake_nba = max(alternativas_nba, key=lambda x: x[1])
+
+    if mejor_edge_nba >= 3.0 and not bloqueo_nba_activo:
+      st.success(f"🔥 **SELLO DEL MODELO NBA (MEJOR PICK): ¡{mejor_mercado_nba}!** (Edge: `+{mejor_edge_nba:.2f}%` | Cuota: `{mejor_momio_nba}` | Stake: `${mejor_stake_nba} MXN`)")
+      
+      with st.expander("📤 **Generar Tarjeta de Pick NBA (Para Telegram / Comunidades)**"):
+        texto_tarjeta_nba = f"""🎯 **MASTER SUITE ANALÍTICA ÉLITE — PICK NBA** 🏀
+🏟️ **Encuentro:** {visita_nba} @ {local_nba}
+📊 **Mercado Seleccionado:** {mejor_mercado_nba}
+📈 **Momio Casino:** {mejor_momio_nba} | **Prob. Modelo:** {mejor_prob_nba:.1f}%
+🔥 **Edge Neto (+EV):** +{mejor_edge_nba:.2f}%
+💰 **Stake Sugerido (Kelly):** ${mejor_stake_nba} MXN
+📌 *Análisis respaldado por Posesiones, Pace, Eficiencias y Time-Decay EMA.*"""
+        st.text_area("Copia el texto de abajo:", value=texto_tarjeta_nba, height=150, key=f"tarjeta_nba_{idx}")
+        
+        if st.button(f"📥 Guardar Apuesta NBA en Base de Datos", key=f"btn_db_nba_{idx}"):
+          registrar_apuesta_db(fecha_formato_str, "NBA", f"{visita_nba} @ {local_nba}", mejor_mercado_nba, mejor_momio_nba, mejor_edge_nba, mejor_stake_nba)
+          st.success("✅ ¡Apuesta NBA guardada exitosamente en el historial SQLite!")
+    else:
+      st.info(f"⚖️ **Sello del Modelo NBA:** Mejor proyección en **{mejor_mercado_nba}** (`+{mejor_edge_nba:.2f}%`).")
+    
+    st.markdown("---")
 
 
 # =========================================================
@@ -574,7 +768,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         except ValueError: mom_b_int = -120
         
       prob_b_model = btts_prob if "Sí" in sel_btts else btts_no_prob
-      pi_b, edge_b = calcular_edge_real(momio_b_int, prob_b_model)
+      pi_b, edge_b = calcular_edge_real(mom_b_int, prob_b_model)
       stake_kelly_b = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_b_model, momio_b_int)
       edges_partido.append((sel_btts, edge_b, mom_b_int, "BTTS", prob_b_model, stake_kelly_b))
       
@@ -616,7 +810,6 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     if mejor_edge >= 3.0 and not bloqueo_activo:
       st.success(f"🔥 **SELLO DEL MODELO (MEJOR PICK): ¡{mejor_mercado}!** (Edge: `+{mejor_edge:.2f}%` | Cuota: `{mejor_momio}` | Stake: `${mejor_stake} MXN`)")
       
-      # Generador de Tarjeta de Exportación (Copiar para Telegram / Grupos)
       with st.expander("📤 **Generar Tarjeta de Pick (Para Telegram / Comunidades)**"):
         texto_tarjeta = f"""🎯 **MASTER SUITE ANALÍTICA ÉLITE — PICK OFICIAL** ⚽
 🏟️ **Encuentro:** {visita_f} @ {local_f}
@@ -681,7 +874,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
   st.title(f"🏒 **NHL [{fecha_formato_str}]**")
-  st.success("🏒 Activo.")
+  st.success("Activo.")
 
 
 # =========================================================
@@ -719,7 +912,7 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
     for reg in registros:
       st.info(f"🆔 ID: {reg[0]} | 📅 {reg[1]} | **{reg[2]}**: `{reg[3]}` \n• Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%` | Stake: `${reg[7]} MXN` | Estado: `{reg[8]}`")
   else:
-    st.info("ℹ️ Aún no hay apuestas guardadas desde el módulo de fútbol. Genera un Sello del Modelo y guárdalo.")
+    st.info("ℹ️ Aún no hay apuestas guardadas en el sistema. Genera un Sello del Modelo en Fútbol o NBA y guárdalo.")
 
 
 # =========================================================
