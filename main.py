@@ -476,11 +476,11 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO AVANZADO CON ASISTENTE L5 Y LÍNEA ASIÁTICA)
+# 5. FÚTBOL (MÓDULO PRO AVANZADO CON CÁLCULO AUTOMÁTICO Y MOMIOS DE CASINO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
-  st.title(f"⚽ **Dixon-Coles Pro & Auditoría de Minas de Oro — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Matriz de Poisson bivariada y Asistente de Factores Duros L5 para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"⚽ **Dixon-Coles Pro & Auditoría de Mercados — Fútbol [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Modelo de Poisson bivariado con cálculo automático de goles y auditoría de momios para la fecha: **{fecha_formato_str}**.*")
   
   cartelera = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
   for idx, op in enumerate(cartelera, 1):
@@ -488,60 +488,89 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     visita_f = op['visita']
     
     with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
-      st.markdown("💎 **Selecciona el Tipo de Mercado a Auditar:**")
-      tipo_mercado = st.selectbox(
-          "Mercado:", 
-          ["Mina de Oro: Línea Asiática de Cuarta / Hándicap", "Over / Under 2.5 Goles", "Ambos Anotan (BTTS)"], 
-          key=f"t_mercado_{idx}"
-      )
-      
-      c_sel1, c_sel2, c_sel3 = st.columns(3)
-      with c_sel1:
-        seleccion_apuesta = st.selectbox("Selección:", ["Over (Más de)", "Under (Menos de)", "Victoria Local", "Victoria Visita"], key=f"sel_ap_{idx}")
-      with c_sel2:
-        linea_asiatica = st.number_input("Línea Asiática / Hándicap:", -3.5, 3.5, -0.5, 0.25, key=f"l_as_{idx}")
-      with c_sel3:
-        momio_amer_f = st.text_input("Momio Americano:", value="+180", key=f"mom_f_{idx}")
-        try: momio_int_f = int(momio_amer_f)
-        except ValueError: momio_int_f = 180
-
-      st.markdown("---")
-      st.markdown("🧬 **Asistente de Factores Duros (Desglose Real L5: V - E - D)**")
-      
-      col_v, col_l = st.columns(2)
-      with col_v:
-        st.markdown(f"**Equipo Visitante:** `{visita_f}`")
-        v5_v = st.number_input("Victorias L5:", 0, 5, 0, 1, key=f"v5_v_{idx}")
-        e5_v = st.number_input("Empates L5:", 0, 5, 3, 1, key=f"e5_v_{idx}")
-        d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
-      with col_l:
-        st.markdown(f"**Equipo Local:** `{local_f}`")
-        v5_l = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_l_{idx}")
-        e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
-        d5_l = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_l_{idx}")
-
-      pts_l = (v5_l * 3) + e5_l
-      pts_v = (v5_v * 3) + e5_v
-      prob_sugerida_l5 = round(min(85.0, max(15.0, 50.0 + ((pts_l - pts_v) * 4.2))), 2)
+      st.markdown("⚙️ **Goles Esperados (xG) Calculados por el Modelo:**")
+      col_xg1, col_xg2 = st.columns(2)
+      with col_xg1:
+        xgl_calc = st.number_input(f"xG Local ({local_f}):", 0.5, 4.0, 1.65, 0.05, key=f"xgl_{idx}")
+      with col_xg2:
+        xgv_calc = st.number_input(f"xG Visita ({visita_f}):", 0.5, 4.0, 1.15, 0.05, key=f"xgv_{idx}")
+        
+      p_loc_f, p_vis_f, p_emp_f, btts_prob, over25_prob = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
+      under25_prob = round(100.0 - over25_prob, 2)
+      btts_no_prob = round(100.0 - btts_prob, 2)
       
       st.markdown("---")
-      st.info(f"💡 **Probabilidad Sugerida por Desglose L5 (V-E-D):** `{prob_sugerida_l5}%`")
+      st.markdown("📊 **Proyecciones Estadísticas del Modelo:**")
+      col_m1, col_m2, col_m3 = st.columns(3)
+      col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
+      col_m2.metric(label="Empate", value=f"{p_emp_f}%")
+      col_m3.metric(label="Victoria Visita", value=f"{p_vis_f}%")
       
-      prob_modelo_pro = st.slider(f"📊 Probabilidad Real Calculada por el Modelo Pro (%):", 0.0, 100.0, float(prob_sugerida_l5 + 0.62), 0.1, key=f"slider_prob_{idx}")
-
-      pi_f, edge_f = calcular_edge_real(momio_int_f, prob_modelo_pro)
+      st.info(f"🎯 **Totales y BTTS Automáticos:** Over 2.5: `{over25_prob}%` | Under 2.5: `{under25_prob}%` | BTTS Sí: `{btts_prob}%` | BTTS No: `{btts_no_prob}%`")
       
       st.markdown("---")
-      st.markdown(f"📊 **Auditoría de Edge para {visita_f} @ {local_f}:**")
-      st.markdown(f"• Probabilidad Implícita (`{momio_amer_f}`): `{pi_f:.2f}%` | Probabilidad del Modelo Pro: `{prob_modelo_pro}%`")
-      st.markdown(f"🎯 **Edge Neto Calculado:** `+{edge_f:.2f}%`")
-
-      if edge_f >= 3.0:
-        st.success(f"✅ **¡MINA DE ORO APROBADA (+EV)!** Edge de `+{edge_f:.2f}%` detectado con éxito.")
-      elif edge_f > 0:
-        st.warning(f"⚠️ **Edge Moderado** (`+{edge_f:.2f}%`). Operar con precaución.")
-      else:
-        st.error("❌ **Sin valor matemático suficiente.**")
+      st.markdown("💰 **Auditoría de Momios del Casino (Ingresa la cuota ofrecida):**")
+      
+      tab_ah, tab_ou, tab_btts = st.tabs(["⚖️ Líneas Asiáticas / Hándicaps", "📈 Over / Under 2.5", "🤝 Ambos Anotan (BTTS)"])
+      
+      with tab_ah:
+        col_ah1, col_ah2, col_ah3 = st.columns(3)
+        with col_ah1:
+          eq_ah = st.selectbox("Equipo:", [local_f, visita_f], key=f"eq_ah_{idx}")
+        with col_ah2:
+          h_val = st.number_input("Hándicap (Ej. -0.5, +1.0):", -2.5, 2.5, -0.5, 0.25, key=f"h_val_{idx}")
+        with col_ah3:
+          momio_ah_str = st.text_input("Momio Casino (AH):", value="-110", key=f"mom_ah_{idx}")
+          try: mom_ah_int = int(momio_ah_str)
+          except ValueError: mom_ah_int = -110
+          
+        # Estimación de probabilidad para hándicap basada en Dixon-Coles
+        prob_ah_model = p_loc_f if eq_ah == local_f else p_vis_f
+        if h_val < 0:
+          prob_ah_model = max(5.0, prob_ah_model + (h_val * 12.0))
+        else:
+          prob_ah_model = min(95.0, prob_ah_model + (abs(h_val) * 15.0))
+          
+        pi_ah, edge_ah = calcular_edge_real(mom_ah_int, round(prob_ah_model, 2))
+        st.markdown(f"• Prob. Implícita: `{pi_ah:.2f}%` | Prob. Modelo: `{prob_ah_model:.2f}%` | 🎯 **Edge Neto: `+{edge_ah:.2f}%`**")
+        if edge_ah >= 3.0:
+          st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {eq_ah} ({h_val}).")
+        else:
+          st.warning("⚠️ Sin margen suficiente en este hándicap.")
+          
+      with tab_ou:
+        col_ou1, col_ou2 = st.columns(2)
+        with col_ou1:
+          sel_ou = st.selectbox("Selección O/U:", ["Over 2.5", "Under 2.5"], key=f"sel_ou_{idx}")
+        with col_ou2:
+          momio_ou_str = st.text_input("Momio Casino (O/U):", value="-115", key=f"mom_ou_{idx}")
+          try: mom_ou_int = int(momio_ou_str)
+          except ValueError: mom_ou_int = -115
+          
+        prob_ou_model = over25_prob if "Over" in sel_ou else under25_prob
+        pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
+        st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
+        if edge_ou >= 3.0:
+          st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_ou}.")
+        else:
+          st.warning("⚠️ Sin margen suficiente en totales.")
+          
+      with tab_btts:
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+          sel_btts = st.selectbox("Selección BTTS:", ["Ambos Anotan (Sí)", "No Anotan (No)"], key=f"sel_btts_{idx}")
+        with col_b2:
+          momio_b_str = st.text_input("Momio Casino (BTTS):", value="-120", key=f"mom_b_{idx}")
+          try: mom_b_int = int(momio_b_str)
+          except ValueError: mom_b_int = -120
+          
+        prob_b_model = btts_prob if "Sí" in sel_btts else btts_no_prob
+        pi_b, edge_b = calcular_edge_real(mom_b_int, prob_b_model)
+        st.markdown(f"• Prob. Implícita: `{pi_b:.2f}%` | Prob. Modelo: `{prob_b_model}%` | 🎯 **Edge Neto: `+{edge_b:.2f}%`**")
+        if edge_b >= 3.0:
+          st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_btts}.")
+        else:
+          st.warning("⚠️ Sin margen suficiente en BTTS.")
 
 
 # =========================================================
@@ -688,7 +717,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
     fip_mlb_l = float(fip_ml_l_str)
     woba_mlb_l = float(woba_ml_l_str)
     fip_mlb_v = float(fip_ml_v_str)
-    woba_mlb_v = float(woba_ml_v_str)
+    woba_mlb_v = float(woba_mlb_v_str)
   except ValueError:
     fip_mlb_l, woba_mlb_l, fip_mlb_v, woba_mlb_v = 1.58, 0.330, 2.44, 0.320
 
