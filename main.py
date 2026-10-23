@@ -17,6 +17,15 @@ st.set_page_config(
     layout="wide",
 )
 
+# ---------------------------------------------------------
+# INICIALIZACIÓN SEGURA DE SESSION_STATE (EVITA ERRORES DE SESIÓN)
+# ---------------------------------------------------------
+if "bankroll_global" not in st.session_state:
+  st.session_state["bankroll_global"] = 15250.0
+
+if "api_key_guardada" not in st.session_state:
+  st.session_state["api_key_guardada"] = ""
+
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE PARA BANKROLL & CLV)
@@ -75,6 +84,8 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
 def calcular_criterio_kelly(
     bankroll, prob_modelo_pct, momio_americano, fraccion_kelly=0.25
 ):
+  if bankroll is None or bankroll <= 0:
+    bankroll = 15250.0
   p = prob_modelo_pct / 100.0
   if momio_americano > 0:
     b = momio_americano / 100.0
@@ -83,7 +94,7 @@ def calcular_criterio_kelly(
   q = 1.0 - p
   kelly_full = (b * p - q) / b
   if kelly_full <= 0:
-    return 0.0
+    return 10.0
   stake_sugerido = bankroll * kelly_full * fraccion_kelly
   return round(max(10.0, stake_sugerido), 2)
 
@@ -226,12 +237,6 @@ fecha_seleccionada = st.sidebar.date_input(
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
-
-if "bankroll_global" not in st.session_state:
-  st.session_state["bankroll_global"] = 15250.0
-
-if "api_key_guardada" not in st.session_state:
-  st.session_state["api_key_guardada"] = ""
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
@@ -814,7 +819,7 @@ elif (
           mom_hv_int, round(prob_hv_model, 2)
       )
       stake_kelly_hv = calcular_criterio_kelly(
-          st.session_state["bankroll_global"], prob_hv_model, momio_hv_int
+          st.session_state["bankroll_global"], prob_hv_model, mom_hv_int
       )
       edges_partido.append((
           f"Hándicap Visita ({visita_f} {h_v_val})",
