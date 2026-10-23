@@ -476,13 +476,12 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO AVANZADO CON SELECTOR DE LIGAS Y ASISTENTE L5)
+# 5. FÚTBOL (MÓDULO PRO AVANZADO CON SELECTOR DE LIGAS, L5, PROMEDIO DE GOLES Y SELLO DEL MODELO)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Selección de ligas mundiales, matriz Poisson y Asistente L5 para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Selección de ligas mundiales, promedio de goles L5 y Sello del Modelo para la fecha: **{fecha_formato_str}**.*")
   
-  # Selector de Ligas de Fútbol
   ligas_dict = {
       "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
       "🇪🇸 La Liga (España)": "esp.1",
@@ -511,24 +510,26 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     visita_f = op['visita']
     
     with st.expander(f"⚽ Encuentro #{idx}: {visita_f} @ {local_f}"):
-      st.markdown("🧬 **Asistente de Factores Duros (Desglose Real L5: V - E - D)**")
+      st.markdown("🧬 **Asistente de Factores Duros & Promedio de Goles (L5: V - E - D)**")
       col_v, col_l = st.columns(2)
       with col_v:
         st.markdown(f"**✈️ Visitante:** `{visita_f}`")
         v5_v = st.number_input("Victorias L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
         e5_v = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
         d5_v = st.number_input("Derrotas L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
+        gf_v = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.4, 0.1, key=f"gf_v_{idx}")
+        gc_v = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 1.1, 0.1, key=f"gc_v_{idx}")
       with col_l:
         st.markdown(f"**🏠 Local:** `{local_f}`")
         v5_l = st.number_input("Victorias L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
         e5_l = st.number_input("Empates L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
         d5_l = st.number_input("Derrotas L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
+        gf_l = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
+        gc_l = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 0.9, 0.1, key=f"gc_l_{idx}")
 
-      # Conversión de L5 a Goles Esperados (xG) para Dixon-Coles
-      pts_l = (v5_l * 3) + e5_l
-      pts_v = (v5_v * 3) + e5_v
-      xgl_calc = round(max(0.8, 1.25 + (pts_l * 0.08)), 2)
-      xgv_calc = round(max(0.7, 1.00 + (pts_v * 0.07)), 2)
+      # Cálculo avanzado de xG usando el promedio real de goles L5 y la defensa
+      xgl_calc = round(max(0.5, (gf_l + gc_v) / 2.0), 2)
+      xgv_calc = round(max(0.5, (gf_v + gc_l) / 2.0), 2)
       
       p_loc_f, p_vis_f, p_emp_f, btts_prob, over25_prob = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
       under25_prob = round(100.0 - over25_prob, 2)
@@ -548,6 +549,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       
       tab_ah_l, tab_ah_v, tab_ou, tab_btts = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under 2.5", "🤝 Ambos Anotan (BTTS)"])
       
+      edges_partido = []
+
       with tab_ah_l:
         col_hl1, col_hl2 = st.columns(2)
         with col_hl1:
@@ -559,6 +562,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
           
         prob_hl_model = max(5.0, min(95.0, p_loc_f + (h_l_val * -15.0)))
         pi_hl, edge_hl = calcular_edge_real(mom_hl_int, round(prob_hl_model, 2))
+        edges_partido.append((f"Hándicap Local ({local_f} {h_l_val})", edge_hl, mom_hl_int))
         st.markdown(f"• Prob. Implícita: `{pi_hl:.2f}%` | Prob. Modelo: `{prob_hl_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hl:.2f}%`**")
         if edge_hl >= 3.0:
           st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({h_l_val}).")
@@ -576,6 +580,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
           
         prob_hv_model = max(5.0, min(95.0, p_vis_f + (h_v_val * -15.0)))
         pi_hv, edge_hv = calcular_edge_real(mom_hv_int, round(prob_hv_model, 2))
+        edges_partido.append((f"Hándicap Visita ({visita_f} {h_v_val})", edge_hv, mom_hv_int))
         st.markdown(f"• Prob. Implícita: `{pi_hv:.2f}%` | Prob. Modelo: `{prob_hv_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hv:.2f}%`**")
         if edge_hv >= 3.0:
           st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({h_v_val}).")
@@ -593,6 +598,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
           
         prob_ou_model = over25_prob if "Over" in sel_ou else under25_prob
         pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
+        edges_partido.append((sel_ou, edge_ou, mom_ou_int))
         st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
         if edge_ou >= 3.0:
           st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_ou}.")
@@ -610,11 +616,21 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
           
         prob_b_model = btts_prob if "Sí" in sel_btts else btts_no_prob
         pi_b, edge_b = calcular_edge_real(mom_b_int, prob_b_model)
+        edges_partido.append((sel_btts, edge_b, mom_b_int))
         st.markdown(f"• Prob. Implícita: `{pi_b:.2f}%` | Prob. Modelo: `{prob_b_model}%` | 🎯 **Edge Neto: `+{edge_b:.2f}%`**")
         if edge_b >= 3.0:
           st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_btts}.")
         else:
           st.warning("⚠️ Sin margen suficiente en BTTS.")
+
+      # Análisis Automático: Sello del Modelo (El mejor pick del partido)
+      st.markdown("---")
+      mejor_mercado, mejor_edge, mejor_momio = max(edges_partido, key=lambda x: x[1])
+      
+      if mejor_edge >= 3.0:
+        st.success(f"🔥 **SELLO DEL MODELO (MEJOR PICK DEL PARTIDO): ¡{mejor_mercado}!** \n\n El sistema analizó todos los mercados y detectó la mayor rentabilidad (+EV) con un **Edge Neto de `+{mejor_edge:.2f}%`** y cuota de `{mejor_momio}`.")
+      else:
+        st.info(f"⚖️ **Sello del Modelo:** El mercado con mejor proyección relativa es **{mejor_mercado}** (`+{mejor_edge:.2f}%`), pero se sugiere precaución al no superar el umbral estricto del 3.0%.")
 
 
 # =========================================================
