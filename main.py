@@ -237,10 +237,9 @@ def calcular_probabilidades_dixon_coles_dinamico(
   )
 
 
-# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTORES AVANZADOS (PUCK LINE + SPECIAL TEAMS + 5v5)
+# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTORES AVANZADOS (PUCK LINE + SPECIAL TEAMS + 5v5 + L5)
 @st.cache_data(ttl=300)
 def obtener_cartelera_oficial_nhl(fecha_str_api):
-  """Consulta la API nativa de la NHL para obtener los partidos del día con sus Game IDs."""
   url = f"https://api-web.nhle.com/v1/schedule/{fecha_str_api}"
   partidos_nhl = []
   try:
@@ -264,7 +263,6 @@ def obtener_cartelera_oficial_nhl(fecha_str_api):
 
 
 def obtener_porteros_confirmados_nhl(game_id):
-  """Detecta si los porteros titulares de ambos equipos están confirmados en el reporte de la NHL."""
   url = f"https://api-web.nhle.com/v1/gamecenter/{game_id}/play-by-play"
   starters = {
       "home_starter": {"name": "No Confirmado", "confirmed": False},
@@ -304,9 +302,16 @@ def calcular_lambda_ajustado_nhl_pro(
     pk_vis=80.0,
     xgf_loc_5v5=50.0,
     xgf_vis_5v5=50.0,
+    goles_favor_l5_loc=15.0,
+    goles_contra_l5_loc=12.0,
+    goles_favor_l5_vis=14.0,
+    goles_contra_l5_vis=13.0,
     starters_status=None,
 ):
-  """Calcula xG unificando Métricas Avanzadas 5v5 (xGF%), Equipos Especiales (PP/PK), Porteros Backup y Empty Net."""
+  """Calcula xG unificando Métricas 5v5, Equipos Especiales, Inercia L5,
+
+  Porteros Backup y Empty Net.
+  """
   FACTOR_EMPTY_NET = 0.23
 
   # 1. Ponderación por Métricas Avanzadas 5v5 (xGF%)
@@ -314,11 +319,22 @@ def calcular_lambda_ajustado_nhl_pro(
   adj_5v5_vis = (xgf_vis_5v5 - 50.0) * 0.015
 
   # 2. Impacto de Equipos Especiales (Power Play vs Penalty Kill)
-  # Un PP del 25% contra un PK del 75% genera desbalance de +0.15 xG
   diff_special_loc = ((pp_loc - (100.0 - pk_vis)) / 100.0) * 0.40
   diff_special_vis = ((pp_vis - (100.0 - pk_loc)) / 100.0) * 0.40
 
-  # 3. Penalización por Porteros Backup
+  # 3. Factor de Inercia por Rachas Recientes (L5 - Últimos 5 partidos)
+  prom_gf_loc = goles_favor_l5_loc / 5.0
+  prom_ga_loc = goles_contra_l5_loc / 5.0
+  prom_gf_vis = goles_favor_l5_vis / 5.0
+  prom_ga_vis = goles_contra_l5_vis / 5.0
+
+  inercia_ofensiva_loc = (prom_gf_loc - 3.0) * 0.20
+  inercia_defensiva_loc = (prom_ga_loc - 3.0) * 0.15
+
+  inercia_ofensiva_vis = (prom_gf_vis - 3.0) * 0.20
+  inercia_defensiva_vis = (prom_ga_vis - 3.0) * 0.15
+
+  # 4. Penalización por Porteros Backup o No Confirmados
   penalizacion_home = 0.0
   penalizacion_away = 0.0
   if starters_status:
@@ -332,11 +348,19 @@ def calcular_lambda_ajustado_nhl_pro(
       lambda_local_base
       + adj_5v5_loc
       + diff_special_loc
+      + inercia_ofensiva_loc
+      + inercia_defensiva_vis
       + penalizacion_away
       + 0.10,
   )
   lambda_vis_final = max(
-      0.5, lambda_visita_base + adj_5v5_vis + diff_special_vis + penalizacion_home
+      0.5,
+      lambda_visita_base
+      + adj_5v5_vis
+      + diff_special_vis
+      + inercia_ofensiva_vis
+      + inercia_defensiva_loc
+      + penalizacion_home,
   )
   lambda_total = lambda_loc_final + lambda_vis_final + FACTOR_EMPTY_NET
 
@@ -344,7 +368,6 @@ def calcular_lambda_ajustado_nhl_pro(
 
 
 def simular_poisson_nhl_totales(lambda_loc, lambda_vis, linea_totales=6.5):
-  """Matriz de probabilidad de Poisson para Over/Under/Push en la NHL."""
   max_goles = 12
   probs_h = [poisson.pmf(i, lambda_loc) for i in range(max_goles)]
   probs_a = [poisson.pmf(j, lambda_vis) for j in range(max_goles)]
@@ -365,7 +388,6 @@ def simular_poisson_nhl_totales(lambda_loc, lambda_vis, linea_totales=6.5):
 
 
 def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
-  """Modelo estocástico Monte Carlo para evaluar el Puck Line (-1.5 / +1.5) integrando goles por Empty Net."""
   cubiertas_loc_m15 = 0
   cubiertas_vis_p15 = 0
 
@@ -373,22 +395,20 @@ def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
     goles_loc = poisson.rvs(lambda_loc)
     goles_vis = poisson.rvs(lambda_vis)
 
-    # Simulación del último minuto (Empty Net) si la diferencia es de 1 gol
     dif = goles_loc - goles_vis
-    if dif == 1:  # Pierde la visita por 1 -> Saca al portero
-      if random.random() < 0.28:  # 28% de prob de gol en portería vacía
+    if dif == 1:
+      if random.random() < 0.28:
         if random.random() < 0.82:
-          goles_loc += 1  # El local remata
+          goles_loc += 1
         else:
-          goles_vis += 1  # La visita empata
-    elif dif == -1:  # Pierde el local por 1 -> Saca al portero
+          goles_vis += 1
+    elif dif == -1:
       if random.random() < 0.28:
         if random.random() < 0.82:
           goles_vis += 1
         else:
           goles_loc += 1
 
-    # Evaluación Puck Line Local (-1.5)
     if (goles_loc - goles_vis) > 1.5:
       cubiertas_loc_m15 += 1
     else:
@@ -439,7 +459,6 @@ def modulo_control_riesgo(
   return round(stake_final, 2), perdidas_seguidas, factor_ajuste
 
 
-# 📝 FUNCIÓN DE DIAGNÓSTICO Y REPORTE DE PRUEBAS
 def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
   total_apuestas = len(historial_apuestas)
   if total_apuestas == 0:
@@ -487,12 +506,6 @@ def generar_resumen_pruebas(historial_apuestas, bankroll_simulado):
       f.write(
           "-> ALERTA DE MODELO: Tu tasa de CLV es baja. El modelo deportivo"
           " podría estar descalibrado.\n"
-      )
-
-    if tasa_acierto < 52.0 and tasa_clv > 60.0:
-      f.write(
-          "-> NOTA DE VARIANZA: Tienes buen CLV pero mala suerte en resultados."
-          " Sigue probando.\n"
       )
 
   return nombre_archivo
@@ -632,7 +645,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
               "edge": edge,
           })
 
-      # 3. NHL (Empty Net & Métricas Avanzadas Pro)
+      # 3. NHL (Empty Net & Métricas Avanzadas Pro & Inercia L5)
       cartelera_h = obtener_cartelera_oficial_nhl(fecha_formato_str)
       for partido in cartelera_h:
         starters = obtener_porteros_confirmados_nhl(partido["game_id"])
@@ -719,7 +732,6 @@ elif (
   else:
     for idx, op in enumerate(cartelera, 1):
       with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
-
         col_mc1, col_mc2 = st.columns(2)
         with col_mc1:
           lam_pos_visita = st.number_input(
@@ -905,7 +917,6 @@ elif (
   else:
     for idx, op in enumerate(cartelera_nba, 1):
       with st.expander(f"🏀 Encuentro #{idx}: {op['partido_str']}"):
-
         col_n1, col_n2, col_n3 = st.columns(3)
         with col_n1:
           media_local = st.number_input(
@@ -1132,7 +1143,6 @@ elif (
   else:
     for idx, op in enumerate(cartelera_soccer, 1):
       with st.expander(f"⚽ Encuentro #{idx}: {op['partido_str']}"):
-
         st.markdown(
             "### 🧬 Estadísticas L5 (V-E-D) & Goles Esperados ($\\lambda, \\mu$)"
             " [Rho Fijo: -0.12]"
@@ -1772,7 +1782,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL (PUCK LINE, EMPTY NET, SPECIAL TEAMS & 5v5 PRO)
+# 11. NHL (PUCK LINE, EMPTY NET, SPECIAL TEAMS, 5v5 & INERCIA L5 PRO)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -1784,8 +1794,8 @@ elif (
   )
   st.markdown(
       "--- \n *Integración total: Métricas 5v5 (xGF%), Especiales (PP/PK),"
-      " Confirmación de Porteros y Simulación de Puck Line (-1.5) con Empty"
-      " Net.*"
+      " Confirmación de Porteros, Inercia Goleadora L5 y Simulación de Puck"
+      " Line (-1.5) con Empty Net.*"
   )
 
   col_nh1, col_nh2 = st.columns(2)
@@ -1838,7 +1848,6 @@ elif (
   else:
     for idx, op in enumerate(cartelera_nhl, 1):
       with st.expander(f"🏒 {op['partido_str']}"):
-
         starters = (
             obtener_porteros_confirmados_nhl(op["game_id"])
             if op.get("game_id")
@@ -1852,7 +1861,9 @@ elif (
               if starters
               else "No verificado (Manual)"
           )
-          p_vis_conf = starters["away_starter"]["confirmed"] if starters else False
+          p_vis_conf = (
+              starters["away_starter"]["confirmed"] if starters else False
+          )
           st.markdown(
               f"🧤 **Portero Visitante ({op['visita']}):** `{p_vis_nom}` |"
               f" Confirmado: `{'✅ Sí' if p_vis_conf else '⚠️ Backup / Pendiente'}`"
@@ -1863,14 +1874,18 @@ elif (
               if starters
               else "No verificado (Manual)"
           )
-          p_loc_conf = starters["home_starter"]["confirmed"] if starters else False
+          p_loc_conf = (
+              starters["home_starter"]["confirmed"] if starters else False
+          )
           st.markdown(
               f"🧤 **Portero Local ({op['local']}):** `{p_loc_nom}` | Confirmado:"
               f" `{'✅ Sí' if p_loc_conf else '⚠️ Backup / Pendiente'}`"
           )
 
         st.markdown("---")
-        st.markdown("### 📊 Métricas Avanzadas & Equipos Especiales")
+        st.markdown(
+            "### 📊 Métricas Avanzadas, Equipos Especiales e Inercia L5"
+        )
         col_m1, col_m2 = st.columns(2)
         with col_m1:
           st.markdown(f"**Visitante: `{op['visita']}`**")
@@ -1905,6 +1920,22 @@ elif (
               79.0,
               0.5,
               key=f"nhl_pk_v_{idx}",
+          )
+          gf_l5_vis = st.number_input(
+              f"Goles Totales Anotados (L5) - {op['visita']}:",
+              0.0,
+              30.0,
+              14.0,
+              1.0,
+              key=f"nhl_gf_l5_v_{idx}",
+          )
+          ga_l5_vis = st.number_input(
+              f"Goles Totales Recibidos (L5) - {op['visita']}:",
+              0.0,
+              30.0,
+              13.0,
+              1.0,
+              key=f"nhl_ga_l5_v_{idx}",
           )
 
         with col_m2:
@@ -1941,6 +1972,22 @@ elif (
               0.5,
               key=f"nhl_pk_l_{idx}",
           )
+          gf_l5_loc = st.number_input(
+              f"Goles Totales Anotados (L5) - {op['local']}:",
+              0.0,
+              30.0,
+              15.0,
+              1.0,
+              key=f"nhl_gf_l5_l_{idx}",
+          )
+          ga_l5_loc = st.number_input(
+              f"Goles Totales Recibidos (L5) - {op['local']}:",
+              0.0,
+              30.0,
+              12.0,
+              1.0,
+              key=f"nhl_ga_l5_l_{idx}",
+          )
 
         lam_loc_f, lam_vis_f, lambda_total_ajustado = (
             calcular_lambda_ajustado_nhl_pro(
@@ -1952,14 +1999,18 @@ elif (
                 pk_vis,
                 xgf_loc,
                 xgf_vis,
+                gf_l5_loc,
+                ga_l5_loc,
+                gf_l5_vis,
+                ga_l5_vis,
                 starters,
             )
         )
 
         st.info(
-            f"🥅 **Ajuste Integral de Motor Pro:** xG Local Ponderado:"
-            f" `{lam_loc_f:.2f}` | xG Visita Ponderado: `{lam_vis_f:.2f}` |"
-            f" **Total xG Estimado**: **`{lambda_total_ajustado:.2f}`**"
+            f"🥅 **Ajuste Integral de Motor Pro (con Inercia L5):** xG Local"
+            f" Ponderado: `{lam_loc_f:.2f}` | xG Visita Ponderado:"
+            f" `{lam_vis_f:.2f}` | **Total xG Estimado**: **`{lambda_total_ajustado:.2f}`**"
         )
 
         st.markdown("---")
@@ -2008,7 +2059,7 @@ elif (
               f" (Prob. Push: `{p_push_nhl}%`)"
           )
 
-        else:  # Puck Line -1.5 / +1.5
+        else:
           col_pl1, col_pl2 = st.columns(2)
           with col_pl1:
             sel_puckline = st.selectbox(
@@ -2302,7 +2353,6 @@ else:
   )
   eventos_nhl_parlay = obtener_cartelera_oficial_nhl(fecha_formato_str)
 
-  # Catálogo inteligente de opciones con mercado explícito
   opciones_inteligentes = []
 
   for ev in eventos_nfl_parlay:
@@ -2327,7 +2377,6 @@ else:
         "edge": 3.8,
     })
 
-  # Respaldo si no hay cartelera activa
   if not opciones_inteligentes:
     opciones_inteligentes = [
         {
@@ -2375,7 +2424,6 @@ else:
         key="parlay_leg2",
     )
 
-  # Extraer los datos específicos del diccionario
   leg_1_data = next(
       (x for x in opciones_inteligentes if x["titulo"] == leg_1_nombre),
       opciones_inteligentes[0],
@@ -2402,11 +2450,13 @@ else:
         f" `{leg_2_data['momio']}` | Edge: `+{leg_2_data['edge']}%`"
     )
 
+
   def decimal_a_americano(dec):
     if dec >= 2.0:
       return int((dec - 1) * 100)
     else:
       return int(-100 / (dec - 1))
+
 
   dec_1 = (
       (100 / abs(leg_1_data["momio"])) + 1
