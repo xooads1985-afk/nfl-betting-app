@@ -274,7 +274,6 @@ def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
         
   btts = sum(matriz_probs[i][j] for i in range(1, max_goles) for j in range(1, max_goles)) * 100.0
   
-  # Probabilidades para diferentes líneas de Over/Under
   ou_probs = {}
   for linea in [1.5, 2.5, 3.5, 4.5]:
     prob_over = sum(matriz_probs[i][j] for i in range(max_goles) for j in range(max_goles) if (i + j) > linea) * 100.0
@@ -481,7 +480,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO LIMPIO CON SELECTORES DINÁMICOS)
+# 5. FÚTBOL (MÓDULO PRO LIMPIO, DIRECTO Y CON ENTRADA LIBRE DE SIGNOS)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
@@ -533,7 +532,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       gf_l = st.number_input("Goles Anotados Prom. L5:", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
       gc_l = st.number_input("Goles Recibidos Prom. L5:", 0.0, 5.0, 0.9, 0.1, key=f"gc_l_{idx}")
 
-    # Cálculos automáticos de xG y Dixon-Coles con múltiples líneas de Over/Under
+    # Cálculos automáticos de xG y Dixon-Coles
     xgl_calc = round(max(0.5, (gf_l + gc_v) / 2.0), 2)
     xgv_calc = round(max(0.5, (gf_v + gc_l) / 2.0), 2)
     
@@ -549,50 +548,49 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     
     st.info(f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5: `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí: `{btts_prob}%`")
     
-    st.markdown("💰 **Auditoría de Momios del Casino (Selectores Dinámicos):**")
+    st.markdown("💰 **Auditoría de Momios del Casino (Mercados Directos):**")
     tab_ah_l, tab_ah_v, tab_ou, tab_btts = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under (Múltiples Líneas)", "🤝 Ambos Anotan (BTTS)"])
     
     edges_partido = []
 
     with tab_ah_l:
-      col_hl1, col_hl2, col_hl3 = st.columns(3)
+      col_hl1, col_hl2 = st.columns(2)
       with col_hl1:
-        h_l_val = st.number_input(f"Hándicap {local_f}:", -3.5, 3.5, -0.5, 0.25, key=f"hl_val_{idx}")
+        # Se usa text_input para ingresar libremente el hándicap con su signo (-0.5, +0.25, etc.)
+        h_l_str = st.text_input(f"Hándicap {local_f} (Ej. -0.5, +0.25):", value="-0.5", key=f"hl_val_{idx}")
+        try: h_l_val = float(h_l_str)
+        except ValueError: h_l_val = -0.5
       with col_hl2:
-        tipo_hl = st.selectbox("Signo / Opción:", ["Negativo (-)", "Positivo (+)"], key=f"tipo_hl_{idx}")
-      with col_hl3:
         momio_hl_str = st.text_input("Momio Casino (Local):", value="-110", key=f"mom_hl_{idx}")
         try: mom_hl_int = int(momio_hl_str)
         except ValueError: mom_hl_int = -110
         
-      ajuste_h = -abs(h_l_val) if tipo_hl == "Negativo (-)" else abs(h_l_val)
-      prob_hl_model = max(5.0, min(95.0, p_loc_f + (ajuste_h * 15.0)))
+      prob_hl_model = max(5.0, min(95.0, p_loc_f + (h_l_val * 15.0)))
       pi_hl, edge_hl = calcular_edge_real(mom_hl_int, round(prob_hl_model, 2))
-      edges_partido.append((f"Hándicap Local ({local_f} {ajuste_h})", edge_hl, mom_hl_int))
+      edges_partido.append((f"Hándicap Local ({local_f} {h_l_val})", edge_hl, mom_hl_int))
       st.markdown(f"• Prob. Implícita: `{pi_hl:.2f}%` | Prob. Modelo: `{prob_hl_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hl:.2f}%`**")
       if edge_hl >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({ajuste_h}).")
+        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({h_l_val}).")
       else:
         st.warning("⚠️ Sin margen suficiente en este hándicap local.")
 
     with tab_ah_v:
-      col_hv1, col_hv2, col_hv3 = st.columns(3)
+      col_hv1, col_hv2 = st.columns(2)
       with col_hv1:
-        h_v_val = st.number_input(f"Hándicap {visita_f}:", -3.5, 3.5, +0.5, 0.25, key=f"hv_val_{idx}")
+        h_v_str = st.text_input(f"Hándicap {visita_f} (Ej. +0.5, -0.25):", value="+0.5", key=f"hv_val_{idx}")
+        try: h_v_val = float(h_v_str)
+        except ValueError: h_v_val = 0.5
       with col_hv2:
-        tipo_hv = st.selectbox("Signo / Opción:", ["Positivo (+)", "Negativo (-)"], key=f"tipo_hv_{idx}")
-      with col_hv3:
         momio_hv_str = st.text_input("Momio Casino (Visita):", value="+120", key=f"mom_hv_{idx}")
         try: mom_hv_int = int(momio_hv_str)
         except ValueError: mom_hv_int = 120
         
-      ajuste_hv = abs(h_v_val) if tipo_hv == "Positivo (+)" else -abs(h_v_val)
-      prob_hv_model = max(5.0, min(95.0, p_vis_f + (ajuste_hv * 15.0)))
+      prob_hv_model = max(5.0, min(95.0, p_vis_f + (h_v_val * 15.0)))
       pi_hv, edge_hv = calcular_edge_real(mom_hv_int, round(prob_hv_model, 2))
-      edges_partido.append((f"Hándicap Visita ({visita_f} {ajuste_hv})", edge_hv, mom_hv_int))
+      edges_partido.append((f"Hándicap Visita ({visita_f} {h_v_val})", edge_hv, mom_hv_int))
       st.markdown(f"• Prob. Implícita: `{pi_hv:.2f}%` | Prob. Modelo: `{prob_hv_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hv:.2f}%`**")
       if edge_hv >= 3.0:
-        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({ajuste_hv}).")
+        st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({h_v_val}).")
       else:
         st.warning("⚠️ Sin margen suficiente en este hándicap visitante.")
         
