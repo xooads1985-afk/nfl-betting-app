@@ -176,11 +176,10 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   except Exception:
     pass
   
-  # Si la API solo trae la estelar o está vacía, completamos la cartelera formal del evento para análisis completo
   cartelera_completa = combates_extraidos if combates_extraidos else []
   cartelera_completa.extend([
       {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Co-Estelar", "p1": "Peleador Co-Estelar 1", "p2": "Peleador Co-Estelar 2"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal (Main Card)", "p1": "Atleta Destacado A", "p2": "Atleta Destacado B"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal", "p1": "Atleta Destacado A", "p2": "Atleta Destacado B"},
       {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Preliminar", "p1": "Preliminar Fighter 1", "p2": "Preliminar Fighter 2"}
   ])
   return cartelera_completa
@@ -237,7 +236,7 @@ st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS UNIVERSALES
+# MOTORES MATEMÁTICOS UNIVERSALES (INCLUYENDO UFC PRO)
 # ---------------------------------------------------------
 def calcular_edge_real(momio_casino, probabilidad_modelo):
   prob_imp = (100.0 / (momio_casino + 100.0) if momio_casino > 0 else abs(momio_casino) / (abs(momio_casino) + 100.0)) * 100.0
@@ -245,6 +244,19 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
 
 def calcular_probabilidad_handicap_nba(media_loc, media_vis, handicap_loc):
   return round((1 - stats.norm.cdf(-handicap_loc, loc=media_loc - media_vis, scale=11.5)) * 100, 2)
+
+def calcular_probabilidad_ufc_cuantitativo(
+    striking_p1, precision_p1, takedowns_p1, ko_rate_p1,
+    striking_p2, precision_p2, takedowns_p2, ko_rate_p2
+):
+  # Motor cuantitativo basado en eficiencia de golpeo, lucha y poder de finalización
+  score_p1 = (striking_p1 * (precision_p1 / 100.0) * 1.2) + (takedowns_p1 * 0.8) + (ko_rate_p1 * 1.5)
+  score_p2 = (striking_p2 * (precision_p2 / 100.0) * 1.2) + (takedowns_p2 * 0.8) + (ko_rate_p2 * 1.5)
+  
+  diff = score_p1 - score_p2
+  prob_p1 = 1.0 / (1.0 + math.exp(-diff * 0.35)) # Función logística sigmoide para convertir rating a probabilidad
+  
+  return round(prob_p1 * 100.0, 2), round((1.0 - prob_p1) * 100.0, 2)
 
 
 # =========================================================
@@ -365,11 +377,11 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC (SISTEMA CUANTITATIVO PRO CON CARTELERA COMPLETA Y ANÁLISIS)
+# 8. UFC (SISTEMA CUANTITATIVO PRO CON MOTOR ESTADÍSTICO)
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
-  st.title(f"🥊 **Sistema Pro UFC [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo de combates, selección de peleadores y auditoría de valor +EV.*")
+  st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
+  st.markdown("--- \n *Motor matemático basado en eficiencia de golpeo, lucha (takedowns) y poder de finalización.*")
   
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
@@ -380,48 +392,59 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
     p2 = op.get('p2', 'Peleador 2')
     
     with st.expander(f"{evento_nombre} — [{tipo_pelea}]: {p1} vs {p2}"):
-      col_u1, col_u2 = st.columns(2)
-      with col_u1:
-        peleador_elegido = st.selectbox(
-            "🥊 Selecciona al peleador a analizar:",
-            [p1, p2],
-            key=f"ufc_sel_{idx}"
-        )
-        
-        prob_pro_ufc = st.slider(
-            f"📊 Probabilidad Estimada del Modelo para {peleador_elegido} (%):", 
-            30.0, 90.0, 60.0, 0.5, 
-            key=f"ufc_prob_{idx}"
-        )
-        
-      with col_u2:
-        momio_ufc_str = st.text_input(
-            f"📈 Momio Casino (Americano) para {peleador_elegido}:", 
-            value="-150", 
-            key=f"ufc_momio_{idx}"
-        )
-        try: 
-          momio_ufc = int(momio_ufc_str)
-        except ValueError: 
-          momio_ufc = -150
-
-      # Cálculo cuantitativo de valor y Edge real
-      prob_imp_ufc, edge_ufc = calcular_edge_real(momio_ufc, prob_pro_ufc)
+      st.markdown(f"### ⚔️ **Parámetros Estadísticos del Combate**")
       
+      col_ fighter1, col_fighter2 = st.columns(2)
+      with col_fighter1:
+        st.markdown(f"**🔵 {p1} (Esquina Roja)**")
+        strike_1 = st.number_input(f"Golpes Sig. / Min:", 1.0, 15.0, 4.5, 0.1, key=f"s1_{idx}")
+        prec_1 = st.number_input(f"Precisión de Golpeo (%):", 20.0, 90.0, 50.0, 1.0, key=f"prec1_{idx}")
+        td_1 = st.number_input(f"Derribos Prom. / 15min:", 0.0, 8.0, 1.5, 0.1, key=f"td1_{idx}")
+        ko_1 = st.number_input(f"Tasa de Finalización / KO (%):", 0.0, 100.0, 40.0, 1.0, key=f"ko1_{idx}")
+        
+      with col_fighter2:
+        st.markdown(f"**🔴 {p2} (Esquina Azul)**")
+        strike_2 = st.number_input(f"Golpes Sig. / Min:", 1.0, 15.0, 4.0, 0.1, key=f"s2_{idx}")
+        prec_2 = st.number_input(f"Precisión de Golpeo (%):", 20.0, 90.0, 45.0, 1.0, key=f"prec2_{idx}")
+        td_2 = st.number_input(f"Derribos Prom. / 15min:", 0.0, 8.0, 1.0, 0.1, key=f"td2_{idx}")
+        ko_2 = st.number_input(f"Tasa de Finalización / KO (%):", 0.0, 100.0, 35.0, 1.0, key=f"ko2_{idx}")
+
+      # Ejecutamos el modelo matemático cuantitativo
+      prob_p1, prob_p2 = calcular_probabilidad_ufc_cuantitativo(
+          strike_1, prec_1, td_1, ko_1,
+          strike_2, prec_2, td_2, ko_2
+      )
+
       st.markdown("---")
-      st.markdown(f"### 📋 **Reporte de Auditoría para: `{peleador_elegido}`**")
+      st.markdown(f"### 🤖 **Resultados del Modelo Matemático**")
       
-      col_res1, col_res2, col_res3 = st.columns(3)
-      col_res1.metric(label="Probabilidad Modelo", value=f"{prob_pro_ufc}%")
-      col_res2.metric(label="Probabilidad Implícita", value=f"{prob_imp_ufc:.2f}%")
-      col_res3.metric(label="Edge Neto (+EV)", value=f"+{edge_ufc:.2f}%" if edge_ufc > 0 else f"{edge_ufc:.2f}%", delta=f"{edge_ufc:.2f}%")
+      col_m1, col_m2 = st.columns(2)
+      col_m1.metric(label=f"Prob. Modelo: {p1}", value=f"{prob_p1}%")
+      col_m2.metric(label=f"Prob. Modelo: {p2}", value=f"{prob_p2}%")
 
-      if edge_ufc >= 3.0:
-        st.success(f"✅ **¡APUESTA RECOMENDADA (+EV)!** El modelo detecta un valor favorable del **+{edge_ufc:.2f}%** a favor de **{peleador_elegido}**.")
-      elif edge_ufc > 0:
-        st.warning(f"⚠️ **Margen moderado.** El Edge es positivo (`+{edge_ufc:.2f}%`), pero se recomienda evaluar con cautela.")
+      st.markdown("---")
+      st.markdown(f"### 🎯 **Auditoría de Momios y Valor (+EV)**")
+      
+      col_aud1, col_aud2 = st.columns(2)
+      with col_aud1:
+        peleador_apuesta = st.selectbox("Selecciona a quién deseas apostar:", [p1, p2], key=f"apuesta_sel_{idx}")
+        prob_modelo_elegido = prob_p1 if peleador_apuesta == p1 else prob_p2
+        
+      with col_aud2:
+        momio_str = st.text_input(f"Momio Casino (Americano) para {peleador_apuesta}:", value="-120", key=f"momio_ufc_{idx}")
+        try: momio_val = int(momio_str)
+        except ValueError: momio_val = -120
+
+      prob_imp, edge_neto = calcular_edge_real(momio_val, prob_modelo_elegido)
+      
+      st.info(f"📈 Probabilidad Implícita del Casino: `{prob_imp:.2f}%` | 🎯 **Edge Neto: `+{edge_neto:.2f}%`**")
+      
+      if edge_neto >= 3.0:
+        st.success(f"✅ **¡APUESTA RECOMENDADA (+EV)!** Excelente valor matemático a favor de **{peleador_apuesta}** con un Edge de `+{edge_neto:.2f}%`.")
+      elif edge_neto > 0:
+        st.warning(f"⚠️ **Edge Moderado.** Hay valor positivo (`+{edge_neto:.2f}%`), operarlo con bankroll reducido.")
       else:
-        st.error(f"❌ **Sin valor matemático.** La cuota del casino castiga las probabilidades reales de {peleador_elegido}.")
+        st.error(f"❌ **Sin valor matemático.** El momio del casino castiga la rentabilidad para {peleador_apuesta}.")
 
 
 # =========================================================
