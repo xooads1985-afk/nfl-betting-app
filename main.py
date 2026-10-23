@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# INICIALIZACIÓN SEGURA DE SESSION_STATE
+# INICIALIZACIÓN Y PERSISTENCIA DE SESSION_STATE
 # ---------------------------------------------------------
 if "bankroll_global" not in st.session_state:
   st.session_state["bankroll_global"] = 15250.0
@@ -31,9 +31,6 @@ if "telegram_token" not in st.session_state:
 
 if "telegram_chat_id" not in st.session_state:
   st.session_state["telegram_chat_id"] = ""
-
-if "auto_activo" not in st.session_state:
-  st.session_state["auto_activo"] = False
 
 
 # ---------------------------------------------------------
@@ -214,18 +211,15 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 # BACKGROUND WORKER (ESCANER Y ENVÍO AUTOMÁTICO 24/7)
 # ---------------------------------------------------------
 def tarea_en_segundo_plano():
-  """Hilo que revisa cada hora si es la hora configurada para escanear y reportar automáticamente."""
   while True:
     try:
       ahora = datetime.now()
-      # Por ejemplo, se ejecuta de forma autónoma todos los días a las 09:00 AM
       if ahora.hour == 9 and ahora.minute == 0:
         token = st.session_state.get("telegram_token", "")
         chat_id = st.session_state.get("telegram_chat_id", "")
         api_key = st.session_state.get("api_key_guardada", "")
 
         if token and chat_id and api_key:
-          # Escaneo automático de fútbol
           partidos = obtener_partidos_y_momios_api("soccer_epl", api_key)
           if partidos:
             mensaje = (
@@ -233,12 +227,11 @@ def tarea_en_segundo_plano():
                 " sistema ha escaneado la jornada matutina con éxito."
             )
             enviar_alerta_telegram(token, chat_id, mensaje)
-      time.sleep(60)  # Espera 1 minuto antes de volver a verificar
+      time.sleep(60)
     except Exception:
       time.sleep(60)
 
 
-# Iniciar el hilo en segundo plano una sola vez
 if "hilo_iniciado" not in st.session_state:
   st.session_state["hilo_iniciado"] = True
   t = threading.Thread(target=tarea_en_segundo_plano, daemon=True)
@@ -246,7 +239,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ
+# SELECTOR GLOBAL DE FECHA Y MENÚ (CON WIDGETS PERSISTENTES)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -257,33 +250,22 @@ fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API Odds")
-input_api_key = st.sidebar.text_input(
+
+# Widgets vinculados correctamente con session_state para evitar borrados
+st.session_state["api_key_guardada"] = st.sidebar.text_input(
     "API Key (The Odds API):",
     value=st.session_state["api_key_guardada"],
     type="password",
-    key="input_api_key_widget",
 )
-if input_api_key != st.session_state["api_key_guardada"]:
-  st.session_state["api_key_guardada"] = input_api_key
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🤖 Configuración Bot Telegram")
-input_tg_token = st.sidebar.text_input(
-    "Bot Token:",
-    value=st.session_state["telegram_token"],
-    type="password",
-    key="input_tg_token_widget",
+st.session_state["telegram_token"] = st.sidebar.text_input(
+    "Bot Token:", value=st.session_state["telegram_token"], type="password"
 )
-input_tg_chat = st.sidebar.text_input(
-    "Chat ID:",
-    value=st.session_state["telegram_chat_id"],
-    key="input_tg_chat_widget",
+st.session_state["telegram_chat_id"] = st.sidebar.text_input(
+    "Chat ID:", value=st.session_state["telegram_chat_id"]
 )
-
-if input_tg_token != st.session_state["telegram_token"]:
-  st.session_state["telegram_token"] = input_tg_token
-if input_tg_chat != st.session_state["telegram_chat_id"]:
-  st.session_state["telegram_chat_id"] = input_tg_chat
 
 if st.sidebar.button("🔄 Actualizar y Sincronizar Datos", use_container_width=True):
   st.cache_data.clear()
@@ -374,9 +356,7 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
           f" **Edge Neto: `+{item['edge']:.2f}%`**"
       )
   else:
-    st.info(
-        "ℹ️ Configura tu API Key en la barra lateral y ejecuta el escáner."
-    )
+    st.info("ℹ️ Configura tu API Key en la barra lateral y ejecuta el escáner.")
 
 
 # =========================================================
