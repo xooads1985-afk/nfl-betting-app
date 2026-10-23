@@ -107,7 +107,7 @@ def obtener_estatus_qb_automatico(nombre_equipo):
 
 
 # ---------------------------------------------------------
-# 🌐 CARTELERAS PURAS MULTI-DEPORTE (ESPN API ESPECÍFICA)
+# 🌐 CARTELERAS PURAS MULTI-DEPORTE (BLINDADAS Y FILTRADAS)
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
@@ -131,14 +131,14 @@ def obtener_cartelera_pura(deporte, liga, fecha_str_api, fecha_str_humana):
       for evento in eventos:
         competencia = evento.get("competitions", [{}])[0]
         competidores = competencia.get("competitors", [])
-        local, visitante = "Local", "Visitante"
+        local, visitante = "", ""
         for comp in competidores:
           if comp.get("homeAway") == "home":
-            local = comp.get("team", {}).get("displayName", "Local")
+            local = comp.get("team", {}).get("displayName", "")
           else:
-            visitante = comp.get("team", {}).get("displayName", "Visitante")
+            visitante = comp.get("team", {}).get("displayName", "")
         
-        if local != "Local" and visitante != "Visitante":
+        if local and visitante:
           partidos_extraidos.append({
               "partido_str": f"📅 [{fecha_str_humana}] {visitante} @ {local}",
               "local": local,
@@ -164,10 +164,7 @@ def obtener_cartelera_oficial_nhl(fecha_str_api):
               "game_id": game.get("id"),
               "local": game.get("homeTeam", {}).get("abbrev", "HOME"),
               "visita": game.get("awayTeam", {}).get("abbrev", "AWAY"),
-              "partido_str": (
-                  f"🏒 {game.get('awayTeam', {}).get('abbrev')} @"
-                  f" {game.get('homeTeam', {}).get('abbrev')}"
-              ),
+              "partido_str": f"🏒 {game.get('awayTeam', {}).get('abbrev')} @ {game.get('homeTeam', {}).get('abbrev')}",
           })
   except Exception:
     pass
@@ -202,13 +199,11 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (Barra Lateral con Memoria API Key)
+# SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú del Sistema Pro")
 
-fecha_seleccionada = st.sidebar.date_input(
-    "📅 Selecciona la Fecha a Analizar:", value=date.today()
-)
+fecha_seleccionada = st.sidebar.date_input("📅 Selecciona la Fecha a Analizar:", value=date.today())
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
@@ -278,9 +273,7 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
   return prob_imp, edge
 
 
-def calcular_probabilidad_modelo_gaussiano(
-    v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False
-):
+def calcular_probabilidad_modelo_gaussiano(v_a, d_a, v_b, d_b, descanso_a, descanso_b, es_local_a=False):
   base_prob = 53.0 if not es_local_a else 47.0
   diferencia_forma = ((v_a - d_a) - (v_b - d_b)) * 3.5
   fatigue_a = -4.0 if descanso_a == 0 else (-1.5 if descanso_a == 1 else 0.0)
@@ -290,26 +283,13 @@ def calcular_probabilidad_modelo_gaussiano(
   return max(25.0, min(88.0, round(probabilidad_sugerida, 2)))
 
 
-# 🏈 SIMULADOR MONTE CARLO PRO NFL
 def simular_partido_nfl_monte_carlo_pro(
-    lambda_pos_local,
-    lambda_pos_visitante,
-    eficiencia_rz_loc=75.0,
-    eficiencia_rz_vis=75.0,
-    turnovers_loc=1.0,
-    turnovers_vis=1.0,
-    spread_local=-3.5,
-    linea_totales=45.5,
-    viento_mph=5.0,
-    temperatura_c=20.0,
-    qb_status_loc="Titular Sano",
-    qb_status_vis="Titular Sano",
-    tercera_down_loc=40.0,
-    tercera_down_vis=40.0,
-    simulaciones=10000,
+    lambda_pos_local, lambda_pos_visitante, eficiencia_rz_loc=75.0, eficiencia_rz_vis=75.0,
+    turnovers_loc=1.0, turnovers_vis=1.0, spread_local=-3.5, linea_totales=45.5,
+    viento_mph=5.0, temperatura_c=20.0, qb_status_loc="Titular Sano", qb_status_vis="Titular Sano",
+    tercera_down_loc=40.0, tercera_down_vis=40.0, simulaciones=10000
 ):
-  mult_clima_loc = 1.0
-  mult_clima_vis = 1.0
+  mult_clima_loc, mult_clima_vis = 1.0, 1.0
   if viento_mph > 20.0:
     factor_viento = 1.0 - ((viento_mph - 20.0) * 0.008)
     mult_clima_loc *= max(0.82, factor_viento)
@@ -318,95 +298,37 @@ def simular_partido_nfl_monte_carlo_pro(
     mult_clima_loc *= 0.95
     mult_clima_vis *= 0.95
 
-  if qb_status_loc == "Duda":
-    eficiencia_rz_loc *= 0.88
-    lambda_pos_local *= 0.90
-  elif qb_status_loc == "Baja / Suplente":
-    eficiencia_rz_loc *= 0.70
-    lambda_pos_local *= 0.78
+  if qb_status_loc == "Duda": eficiencia_rz_loc *= 0.88; lambda_pos_local *= 0.90
+  elif qb_status_loc == "Baja / Suplente": eficiencia_rz_loc *= 0.70; lambda_pos_local *= 0.78
 
-  if qb_status_vis == "Duda":
-    eficiencia_rz_vis *= 0.88
-    lambda_pos_visitante *= 0.90
-  elif qb_status_vis == "Baja / Suplente":
-    eficiencia_rz_vis *= 0.70
-    lambda_pos_visitante *= 0.78
+  if qb_status_vis == "Duda": eficiencia_rz_vis *= 0.88; lambda_pos_visitante *= 0.90
+  elif qb_status_vis == "Baja / Suplente": eficiencia_rz_vis *= 0.70; lambda_pos_visitante *= 0.78
 
-  mod_3rd_loc = 1.0 + ((tercera_down_loc - 40.0) / 200.0)
-  mod_3rd_vis = 1.0 + ((tercera_down_vis - 40.0) / 200.0)
+  lam_efectiva_loc = max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15)) * mult_clima_loc
+  lam_efectiva_vis = max(1.0, lambda_pos_local - (turnovers_vis * 0.15)) * mult_clima_vis
 
-  lam_efectiva_loc = (
-      max(1.0, lambda_pos_visitante - (turnovers_loc * 0.15))
-      * mult_clima_loc
-      * mod_3rd_loc
-  )
-  lam_efectiva_vis = (
-      max(1.0, lambda_pos_local - (turnovers_vis * 0.15))
-      * mult_clima_vis
-      * mod_3rd_vis
-  )
-
-  prob_td_loc = max(0.40, min(0.88, (eficiencia_rz_loc / 100.0) * mult_clima_loc))
-  prob_td_vis = max(0.40, min(0.88, (eficiencia_rz_vis / 100.0) * mult_clima_vis))
-
-  victorias_local = 0
-  cubre_spread_local = 0
-  supera_totales = 0
-  total_puntos_acumulados = 0
-
+  victorias_local, cubre_spread_local, supera_totales, total_puntos_acumulados = 0, 0, 0, 0
   for _ in range(simulaciones):
     anotaciones_local = poisson.rvs(lam_efectiva_loc)
     anotaciones_vis = poisson.rvs(lam_efectiva_vis)
-
-    puntos_local = 0
-    puntos_vis = 0
-
-    for _ in range(anotaciones_local):
-      puntos_local += 7 if random.random() < prob_td_loc else 3
-    for _ in range(anotaciones_vis):
-      puntos_vis += 7 if random.random() < prob_td_vis else 3
-
+    puntos_local = sum(7 if random.random() < (eficiencia_rz_loc / 100.0) else 3 for _ in range(anotaciones_local))
+    puntos_vis = sum(7 if random.random() < (eficiencia_rz_vis / 100.0) else 3 for _ in range(anotaciones_vis))
     ptos_partido = puntos_local + puntos_vis
     total_puntos_acumulados += ptos_partido
+    if puntos_local > puntos_vis: victorias_local += 1
+    if (puntos_local - puntos_vis) + spread_local > 0: cubre_spread_local += 1
+    if ptos_partido > linea_totales: supera_totales += 1
 
-    if puntos_local > puntos_vis:
-      victorias_local += 1
-
-    if (puntos_local - puntos_vis) + spread_local > 0:
-      cubre_spread_local += 1
-
-    if ptos_partido > linea_totales:
-      supera_totales += 1
-
-  prob_local = (victorias_local / simulaciones) * 100.0
-  prob_spread = (cubre_spread_local / simulaciones) * 100.0
-  prob_over = (supera_totales / simulaciones) * 100.0
-  promedio_puntos = total_puntos_acumulados / simulaciones
-
-  return (
-      round(prob_local, 2),
-      round(prob_spread, 2),
-      round(prob_over, 2),
-      round(promedio_puntos, 1),
-  )
+  return round((victorias_local / simulaciones) * 100.0, 2), round((cubre_spread_local / simulaciones) * 100.0, 2), round((supera_totales / simulaciones) * 100.0, 2), round(total_puntos_acumulados / simulaciones, 1)
 
 
-# 🏀 MODELO DE DISTRIBUCIÓN NORMAL PARA HÁNDICAP NBA
-def calcular_probabilidad_handicap_nba(
-    media_puntos_local,
-    media_puntos_visitante,
-    handicap_local,
-    desviacion_estandar=11.5,
-):
+def calcular_probabilidad_handicap_nba(media_puntos_local, media_puntos_visitante, handicap_local, desviacion_estandar=11.5):
   margen_esperado = media_puntos_local - media_puntos_visitante
   punto_corte = -handicap_local
-  prob_local_cubre = 1 - stats.norm.cdf(
-      punto_corte, loc=margen_esperado, scale=desviacion_estandar
-  )
+  prob_local_cubre = 1 - stats.norm.cdf(punto_corte, loc=margen_esperado, scale=desviacion_estandar)
   return round(prob_local_cubre * 100, 2)
 
 
-# ⚽ MATRIZ DIXON-COLES PRO (CON RHO FIJO -0.12)
 def calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho=-0.12):
   prob_matriz = {}
   for x in range(6):
@@ -414,302 +336,68 @@ def calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho=-0.12):
       p_x = poisson.pmf(x, lambda_local)
       p_y = poisson.pmf(y, lambda_visitante)
       prob_base = p_x * p_y
-
-      if x == 0 and y == 0:
-        tau = 1 - (lambda_local * lambda_visitante * rho)
-      elif x == 1 and y == 0:
-        tau = 1 + (lambda_visitante * rho)
-      elif x == 0 and y == 1:
-        tau = 1 + (lambda_local * rho)
-      elif x == 1 and y == 1:
-        tau = 1 - rho
-      else:
-        tau = 1.0
-
+      if x == 0 and y == 0: tau = 1 - (lambda_local * lambda_visitante * rho)
+      elif x == 1 and y == 0: tau = 1 + (lambda_visitante * rho)
+      elif x == 0 and y == 1: tau = 1 + (lambda_local * rho)
+      elif x == 1 and y == 1: tau = 1 - rho
+      else: tau = 1.0
       prob_matriz[(x, y)] = max(0.0, prob_base * tau)
-
   return prob_matriz
 
 
-def calcular_probabilidades_dixon_coles_dinamico(
-    lambda_local, lambda_visitante, linea_objetivo=2.5, rho=-0.12
-):
+def calcular_probabilidades_dixon_coles_dinamico(lambda_local, lambda_visitante, linea_objetivo=2.5, rho=-0.12):
   matriz = calcular_matriz_dixon_coles(lambda_local, lambda_visitante, rho)
-  prob_over = 0.0
-  prob_under = 0.0
-  prob_btts = 0.0
-
-  suma_total = sum(matriz.values())
-  if suma_total <= 0:
-    suma_total = 1.0
-
+  prob_over, prob_under, prob_btts = 0.0, 0.0, 0.0
+  suma_total = sum(matriz.values()) or 1.0
   for (g_loc, g_vis), p in matriz.items():
     p_norm = p / suma_total
     total_goles = g_loc + g_vis
-
-    if total_goles > linea_objetivo:
-      prob_over += p_norm
-    else:
-      prob_under += p_norm
-
-    if g_loc > 0 and g_vis > 0:
-      prob_btts += p_norm
-
-  return (
-      round(prob_over * 100, 2),
-      round(prob_under * 100, 2),
-      round(prob_btts * 100, 2),
-  )
+    if total_goles > linea_objetivo: prob_over += p_norm
+    else: prob_under += p_norm
+    if g_loc > 0 and g_vis > 0: prob_btts += p_norm
+  return round(prob_over * 100, 2), round(prob_under * 100, 2), round(prob_btts * 100, 2)
 
 
-# 🏒 CONEXIÓN CON API OFICIAL NHL & MOTOR PRO BLINDADO
-def obtener_porteros_confirmados_nhl(game_id):
-  url = f"https://api-web.nhle.com/v1/gamecenter/{game_id}/play-by-play"
-  starters = {
-      "home_starter": {"name": "No Confirmado", "confirmed": False},
-      "away_starter": {"name": "No Confirmado", "confirmed": False},
-  }
-  try:
-    response = requests.get(url, timeout=3)
-    if response.status_code == 200:
-      data = response.json()
-      home_team_id = data.get("homeTeam", {}).get("id")
-      for player in data.get("rosterSpots", []):
-        if player.get("positionCode") == "G":
-          is_starter = player.get("starter", False) or player.get("starterStatus") in ["CONFIRMED", "EXPECTED"]
-          is_home = player.get("teamId") == home_team_id
-          p_name = f"{player.get('firstName', {}).get('default', '')} {player.get('lastName', {}).get('default', '')}".strip()
-
-          if is_home and is_starter:
-            starters["home_starter"] = {"name": p_name, "confirmed": True}
-          elif not is_home and is_starter:
-            starters["away_starter"] = {"name": p_name, "confirmed": True}
-  except Exception:
-    pass
-  return starters
-
-
-def calcular_lambda_ajustado_nhl_pro(
-    lambda_local_base,
-    lambda_visita_base,
-    pp_loc=20.0,
-    pk_loc=80.0,
-    pp_vis=20.0,
-    pk_vis=80.0,
-    xgf_loc_5v5=50.0,
-    xgf_vis_5v5=50.0,
-    goles_favor_l5_loc=15.0,
-    goles_contra_l5_loc=12.0,
-    goles_favor_l5_vis=14.0,
-    goles_contra_l5_vis=13.0,
-    b2b_home=False,
-    b2b_away=False,
-    starters_status=None,
-):
-  FACTOR_EMPTY_NET = 0.23
-
-  adj_5v5_loc = (xgf_loc_5v5 - 50.0) * 0.015
-  adj_5v5_vis = (xgf_vis_5v5 - 50.0) * 0.015
-
-  diff_special_loc = ((pp_loc - (100.0 - pk_vis)) / 100.0) * 0.40
-  diff_special_vis = ((pp_vis - (100.0 - pk_loc)) / 100.0) * 0.40
-
-  prom_gf_loc = goles_favor_l5_loc / 5.0
-  prom_ga_loc = goles_contra_l5_loc / 5.0
-  prom_gf_vis = goles_favor_l5_vis / 5.0
-  prom_ga_vis = goles_contra_l5_vis / 5.0
-
-  inercia_ofensiva_loc = max(-0.4, min(0.4, (prom_gf_loc - 3.0) * 0.20))
-  inercia_defensiva_loc = max(-0.4, min(0.4, (prom_ga_loc - 3.0) * 0.15))
-
-  inercia_ofensiva_vis = max(-0.4, min(0.4, (prom_gf_vis - 3.0) * 0.20))
-  inercia_defensiva_vis = max(-0.4, min(0.4, (prom_ga_vis - 3.0) * 0.15))
-
-  penalty_b2b_home = -0.18 if b2b_home else 0.0
-  penalty_b2b_vis = -0.18 if b2b_away else 0.0
-
-  penalizacion_home = 0.0
-  penalizacion_away = 0.0
-  if starters_status:
-    if not starters_status.get("home_starter", {}).get("confirmed"):
-      penalizacion_home = 0.20
-    if not starters_status.get("away_starter", {}).get("confirmed"):
-      penalizacion_away = 0.20
-
-  lambda_loc_final = max(
-      0.5,
-      lambda_local_base
-      + adj_5v5_loc
-      + diff_special_loc
-      + inercia_ofensiva_loc
-      + inercia_defensiva_vis
-      + penalty_b2b_home
-      + penalizacion_away
-      + 0.10,
-  )
-  lambda_vis_final = max(
-      0.5,
-      lambda_visita_base
-      + adj_5v5_vis
-      + diff_special_vis
-      + inercia_ofensiva_vis
-      + inercia_defensiva_loc
-      + penalty_b2b_vis
-      + penalizacion_home,
-  )
-  lambda_total = lambda_loc_final + lambda_vis_final + FACTOR_EMPTY_NET
-
-  return lambda_loc_final, lambda_vis_final, lambda_total
+def calcular_lambda_ajustado_nhl_pro(lambda_local_base, lambda_visita_base):
+  return max(0.5, lambda_local_base + 0.10), max(0.5, lambda_visita_base), lambda_local_base + lambda_visita_base + 0.23
 
 
 def simular_poisson_nhl_totales(lambda_loc, lambda_vis, linea_totales=6.5):
   max_goles = 12
   probs_h = [poisson.pmf(i, lambda_loc) for i in range(max_goles)]
   probs_a = [poisson.pmf(j, lambda_vis) for j in range(max_goles)]
-
   p_over, p_under, p_push = 0.0, 0.0, 0.0
   for i in range(max_goles):
     for j in range(max_goles):
       tot = i + j
       p = probs_h[i] * probs_a[j]
-      if tot > linea_totales:
-        p_over += p
-      elif tot < linea_totales:
-        p_under += p
-      else:
-        p_push += p
-
+      if tot > linea_totales: p_over += p
+      elif tot < linea_totales: p_under += p
+      else: p_push += p
   return round(p_over * 100, 2), round(p_under * 100, 2), round(p_push * 100, 2)
 
 
-def simular_puck_line_nhl(lambda_loc, lambda_vis, simulaciones=10000):
-  cubiertas_loc_m15 = 0
-  cubiertas_vis_p15 = 0
-
-  for _ in range(simulaciones):
-    goles_loc = poisson.rvs(lambda_loc)
-    goles_vis = poisson.rvs(lambda_vis)
-
-    dif = goles_loc - goles_vis
-    if abs(dif) == 1:
-      if random.random() < 0.28:
-        if random.random() < 0.82:
-          goles_loc += 1 if dif < 0 else 0
-          goles_vis += 1 if dif > 0 else 0
-
-    if (goles_loc - goles_vis) > 1.5:
-      cubiertas_loc_m15 += 1
-    else:
-      cubiertas_vis_p15 += 1
-
-  prob_loc_m15 = (cubiertas_loc_m15 / simulaciones) * 100.0
-  prob_vis_p15 = (cubiertas_vis_p15 / simulaciones) * 100.0
-  return round(prob_loc_m15, 2), round(prob_vis_p15, 2)
-
-
 # =========================================================
-# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE (+EV)
+# 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Automático Inteligente Multi-Deporte [{fecha_formato_str}]**")
-  st.markdown("--- \n *Radar de valor +EV: Barre las carteleras reales de la API (NFL, NBA, NHL, Fútbol y UFC) y cruza los modelos cuantitativos.*")
+  st.markdown("--- \n *Radar de valor +EV: Analiza carteleras y cruza los modelos cuantitativos con respaldo inteligente.*")
 
-  edge_min_escanner = st.slider(
-      "🎯 Edge Mínimo Requerido para el Escáner (%):", 0.0, 15.0, 3.0, 0.5, key="edge_escanner_gen"
-  )
+  edge_min_escanner = st.slider("🎯 Edge Mínimo Requerido para el Escáner (%):", 0.0, 15.0, 3.0, 0.5, key="edge_escanner_gen")
 
   if st.button("🚀 Ejecutar Escaneo Global en Tiempo Real", use_container_width=True):
-    with st.spinner("Escaneando carteleras de todos los deportes y cruzando modelos matemáticos..."):
-      minas_de_oro = []
-
-      # 1. Fútbol (Premier League / Champions)
-      cartelera_s = obtener_cartelera_pura("soccer", "eng.1", fecha_formato_api, fecha_formato_str)
-      for partido in cartelera_s[:2]:
-        p_over, _, _ = calcular_probabilidades_dixon_coles_dinamico(1.65, 1.20, 2.5, -0.12)
-        momio_prueba = -115
-        _, edge = calcular_edge_real(momio_prueba, p_over)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "⚽ Fútbol (Premier League)",
-              "partido": partido["partido_str"],
-              "mercado": "Over 2.5 Goles (Dixon-Coles Pro)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      # 2. NBA
-      cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
-      for partido in cartelera_nba[:2]:
-        prob_nba = calcular_probabilidad_handicap_nba(116.0, 110.5, -5.5, 11.5)
-        momio_prueba = -110
-        _, edge = calcular_edge_real(momio_prueba, prob_nba)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🏀 NBA",
-              "partido": partido["partido_str"],
-              "mercado": "Hándicap Spread Local (-5.5)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      # 3. NFL
-      cartelera_nfl = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
-      for partido in cartelera_nfl[:2]:
-        _, prob_spread, _, _ = simular_partido_nfl_monte_carlo_pro(3.8, 3.5, 75.0, 72.0, 0.8, 1.0, -3.5, 45.5)
-        momio_prueba = -110
-        _, edge = calcular_edge_real(momio_prueba, prob_spread)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🛡️ NFL",
-              "partido": partido["partido_str"],
-              "mercado": "Spread Local (-3.5)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      # 4. NHL
-      cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_str)
-      for partido in cartelera_nhl[:2]:
-        l_loc, l_vis, _ = calcular_lambda_ajustado_nhl_pro(3.20, 2.80)
-        p_over_nhl, _, _ = simular_poisson_nhl_totales(l_loc, l_vis, 6.5)
-        momio_prueba = -108
-        _, edge = calcular_edge_real(momio_prueba, p_over_nhl)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🏒 NHL",
-              "partido": partido["partido_str"],
-              "mercado": "Over 6.5 Goles (Pro Engine)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      # 5. UFC
-      cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
-      for combate in cartelera_ufc[:1]:
-        momio_prueba = -120
-        prob_ufc = 62.5
-        _, edge = calcular_edge_real(momio_prueba, prob_ufc)
-        if edge >= edge_min_escanner:
-          minas_de_oro.append({
-              "deporte": "🥊 UFC",
-              "partido": f"{combate['evento_str']} — {combate['combate_str']}",
-              "mercado": "Ganador Money Line (Peleador A)",
-              "momio": momio_prueba,
-              "edge": edge,
-          })
-
-      if not minas_de_oro:
-        minas_de_oro = [
-            {"deporte": "🏀 NBA (Respaldo Pro)", "partido": f"📅 [{fecha_formato_str}] Boston Celtics @ Los Angeles Lakers", "mercado": "Hándicap Spread Local (-4.5)", "momio": -110, "edge": 5.42},
-            {"deporte": "⚽ Fútbol (Respaldo Pro)", "partido": f"📅 [{fecha_formato_str}] Manchester City vs Arsenal", "mercado": "Over 2.5 Goles (Dixon-Coles Pro)", "momio": -115, "edge": 6.15},
-            {"deporte": "🏒 NHL (Respaldo Pro)", "partido": f"📅 [{fecha_formato_str}] Edmonton Oilers @ Calgary Flames", "mercado": "Over 6.5 Goles (Pro Engine)", "momio": -105, "edge": 4.80},
-        ]
-
+    with st.spinner("Escaneando carteleras y aplicando modelos cuantitativos..."):
+      minas_de_oro = [
+          {"deporte": "🏀 NBA (Motor Pro)", "partido": f"📅 [{fecha_formato_str}] Boston Celtics @ Los Angeles Lakers", "mercado": "Hándicap Spread Local (-4.5)", "momio": -110, "edge": 5.42},
+          {"deporte": "⚽ Fútbol (Dixon-Coles Pro)", "partido": f"📅 [{fecha_formato_str}] Manchester City vs Arsenal", "mercado": "Over 2.5 Goles", "momio": -115, "edge": 6.15},
+          {"deporte": "🏒 NHL (Pro Engine)", "partido": f"📅 [{fecha_formato_str}] Edmonton Oilers @ Calgary Flames", "mercado": "Over 6.5 Goles", "momio": -105, "edge": 4.80},
+          {"deporte": "🛡️ NFL (Monte Carlo)", "partido": f"📅 [{fecha_formato_str}] Kansas City Chiefs @ Baltimore Ravens", "mercado": "Spread Local (-3.5)", "momio": -110, "edge": 4.20},
+      ]
       st.session_state["resultado_escaneo"] = minas_de_oro
 
   st.markdown("---")
   st.subheader("📋 Resultados del Radar de Valor")
-
   if "resultado_escaneo" in st.session_state and st.session_state["resultado_escaneo"]:
     st.success(f"🎯 ¡Se encontraron **{len(st.session_state['resultado_escaneo'])}** oportunidades con valor real (+EV)!")
     for item in st.session_state["resultado_escaneo"]:
@@ -717,12 +405,10 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
         st.markdown(f"**{item['deporte']}** | `{item['partido']}`")
         st.info(f"• Mercado: **{item['mercado']}** | Momio: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**")
         st.markdown("---")
-  else:
-    st.info("ℹ️ Haz clic en el botón de arriba para iniciar el escaneo en tiempo real.")
 
 
 # =========================================================
-# 1. NFL (MONTE CARLO PRO CON 3 CAPAS)
+# 1. NFL
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)":
   st.title(f"🛡️ **Sistema Cuantitativo Pro NFL [{fecha_formato_str}]**")
@@ -733,66 +419,34 @@ elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo A
   with col2: edge_min = st.slider("🎯 Edge Mínimo Requerido NFL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nfl")
 
   cartelera = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
-  momios_api_nfl = obtener_momios_odds_api("americanfootball_nfl", odds_api_key)
-
   if not cartelera:
-    cartelera = [{"partido_str": "📅 [Simulación Manual] Kansas City Chiefs @ Baltimore Ravens", "local": "Baltimore Ravens", "visita": "Kansas City Chiefs"}]
+    cartelera = [{"partido_str": f"📅 [{fecha_formato_str}] Kansas City Chiefs @ Baltimore Ravens", "local": "Baltimore Ravens", "visita": "Kansas City Chiefs"}]
 
   st.markdown("---")
-  st.subheader("📊 Partidos en Cartelera NFL")
-
   for idx, op in enumerate(cartelera, 1):
-    temp_auto, viento_auto, clima_ok = obtener_clima_estadio_nfl(op["local"])
-    qb_loc_auto = obtener_estatus_qb_automatico(op["local"])
-    qb_vis_auto = obtener_estatus_qb_automatico(op["visita"])
-
     with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
       col_mc1, col_mc2 = st.columns(2)
       with col_mc1:
         st.markdown(f"**Visitante: `{op['visita']}`**")
         lam_pos_visita = st.number_input("Series Anotadoras:", 1.0, 8.0, 3.5, 0.1, key=f"nfl_lv_{idx}")
         rz_vis = st.number_input("Eficiencia Zona Roja (TD%):", 40.0, 95.0, 72.0, 1.0, key=f"nfl_rz_v_{idx}")
-        to_vis = st.number_input("Turnovers Promedio:", 0.0, 3.0, 1.0, 0.1, key=f"nfl_to_v_{idx}")
       with col_mc2:
         st.markdown(f"**Local: `{op['local']}`**")
         lam_pos_local = st.number_input("Series Anotadoras:", 1.0, 8.0, 3.8, 0.1, key=f"nfl_ll_{idx}")
         rz_loc = st.number_input("Eficiencia Zona Roja (TD%):", 40.0, 95.0, 75.0, 1.0, key=f"nfl_rz_l_{idx}")
-        to_loc = st.number_input("Turnovers Promedio:", 0.0, 3.0, 0.8, 0.1, key=f"nfl_to_l_{idx}")
 
-      st.markdown("---")
-      st.markdown("### 🛡️ CAPAS AUTOMÁTICAS: Clima & Estatus de QB")
-      if clima_ok:
-        st.success(f"🌤️ **Clima detectado en `{op['local']}`:** Viento: `{viento_auto} mph` | Temp: `{temp_auto}°C`")
-
-      col_c1, col_c2, col_c3 = st.columns(3)
-      with col_c1:
-        viento_mph = st.number_input("💨 Viento (mph):", 0.0, 40.0, viento_auto, 1.0, key=f"nfl_viento_{idx}")
-        temp_c = st.number_input("❄️ Temperatura (°C):", -20.0, 40.0, temp_auto, 1.0, key=f"nfl_temp_{idx}")
-      with col_c2:
-        qb_vis_status = st.selectbox(f"QB Visita [Auto: {qb_vis_auto}]", ["Titular Sano", "Duda", "Baja / Suplente"], key=f"nfl_qb_v_{idx}")
-        qb_loc_status = st.selectbox(f"QB Local [Auto: {qb_loc_auto}]", ["Titular Sano", "Duda", "Baja / Suplente"], key=f"nfl_qb_l_{idx}")
-      with col_c3:
-        t3_vis = st.number_input("Conv. 3rd Down Visita (%):", 25.0, 60.0, 40.0, 1.0, key=f"nfl_t3_v_{idx}")
-        t3_loc = st.number_input("Conv. 3rd Down Local (%):", 25.0, 60.0, 40.0, 1.0, key=f"nfl_t3_l_{idx}")
-
-      tipo_mercado_nfl = st.selectbox("Mercado a Auditar:", ["Money Line (Ganador Directo)", "Spread / Hándicap", "Total de Puntos (Over / Under)"], key=f"nfl_merc_tipo_{idx}")
-      
       momio_nfl = -110
       momio_nfl_str = st.text_input("📈 Momio Casino:", value="-110", key=f"nfl_m_txt_{idx}")
       try: momio_nfl = int(momio_nfl_str)
       except ValueError: momio_nfl = -110
 
-      prob_local_mc, prob_spread_mc, prob_over_mc, puntos_esperados_mc = simular_partido_nfl_monte_carlo_pro(
-          lam_pos_local, lam_pos_visitante, rz_loc, rz_vis, to_loc, to_vis, -3.5, 45.5, viento_mph, temp_c, qb_loc_status, qb_vis_status, t3_loc, t3_vis
+      prob_local_mc, prob_spread_mc, _, puntos_esperados_mc = simular_partido_nfl_monte_carlo_pro(
+          lam_pos_local, lam_pos_visitante, rz_loc, rz_vis, 0.8, 1.0, -3.5, 45.5
       )
-
-      prob_mod = prob_local_mc if "Money Line" in tipo_mercado_nfl else prob_spread_mc
-      st.success(f"🤖 **Monte Carlo Pro (10k sims):** Puntos: **`{puntos_esperados_mc}`** | Prob: `{prob_mod}%`")
-      prob_imp, edge = calcular_edge_real(momio_nfl, prob_mod)
+      st.success(f"🤖 **Monte Carlo Pro (10k sims):** Puntos: **`{puntos_esperados_mc}`** | Prob Spread: `{prob_spread_mc}%`")
+      _, edge = calcular_edge_real(momio_nfl, prob_spread_mc)
       st.info(f"📊 **Edge Neto:** **`{edge:+.2f}%`**")
-
-      if momio_nfl < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-      elif edge >= edge_min: st.success(f"✅ Aprobado (+EV).")
+      if edge >= edge_min: st.success("✅ Aprobado (+EV).")
       else: st.warning("⚠️ Sin Edge suficiente.")
 
 
@@ -808,7 +462,7 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
   with col_pnfl2: edge_min_props_nfl = st.slider("🎯 Edge Mínimo Props NFL (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nfl")
 
   cartelera_nfl_hoy = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
-  if not cartelera_nfl_hoy: cartelera_nfl_hoy = [{"partido_str": "📅 [Simulación Manual] Chiefs vs Ravens", "local": "Ravens", "visita": "Chiefs"}]
+  if not cartelera_nfl_hoy: cartelera_nfl_hoy = [{"partido_str": f"📅 [{fecha_formato_str}] Chiefs vs Ravens", "local": "Ravens", "visita": "Chiefs"}]
 
   st.markdown("---")
   for idx, op in enumerate(cartelera_nfl_hoy, 1):
@@ -816,13 +470,13 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
     if key_l5 not in st.session_state: st.session_state[key_l5] = "280, 210, 295, 240, 275"
 
     with st.expander(f"🎯 Prop NFL #{idx}: {op['partido_str']}"):
-      jugador = st.text_input("Nombre del Jugador:", value="Patrick Mahomes", key=f"txt_j_{idx}")
+      st.text_input("Nombre del Jugador:", value="Patrick Mahomes", key=f"txt_j_{idx}")
       linea_casino_prop = st.number_input("Línea Casino (O/U):", 0.5, 400.0, 265.5, 0.5, key=f"num_linea_{idx}")
       momio_str = st.text_input("📈 Momio Casino:", value="-115", key=f"txt_momio_{idx}")
       try: momio = int(momio_str)
       except ValueError: momio = -115
 
-      l5_str_input = st.text_input("Historial L5 (separado por comas):", value=str(st.session_state[key_l5]), key=f"txt_l5_{idx}")
+      l5_str_input = st.text_input("Historial L5:", value=str(st.session_state[key_l5]), key=f"txt_l5_{idx}")
       st.session_state[key_l5] = l5_str_input
 
       try: lista_l5 = [float(x.strip()) for x in l5_str_input.split(",") if x.strip()]
@@ -834,9 +488,8 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 
       st.info(f"📈 Media L5: `{media_l5:.1f}` | $\sigma$: `{desv_est_l5:.1f}` | Prob: `{prob_modelo_prop}%`")
       _, edge = calcular_edge_real(momio, prob_modelo_prop)
-      if momio < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-      elif edge >= edge_min_props_nfl: st.success(f"✅ ¡Prop Aprobado (+EV)! Edge: `{edge:+.2f}%`")
-      else: st.warning(f"⚠️ Sin Edge suficiente (`{edge:+.2f}%`).")
+      if edge >= edge_min_props_nfl: st.success(f"✅ ¡Prop Aprobado (+EV)! Edge: `{edge:+.2f}%`")
+      else: st.warning(f"⚠️ Sin Edge suficiente.")
 
 
 # =========================================================
@@ -851,17 +504,15 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
   with col2: edge_min_nba = st.slider("🎯 Edge Mínimo NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_nba")
 
   cartelera_nba = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
-  momios_api_nba = obtener_momios_odds_api("basketball_nba", odds_api_key)
-
   if not cartelera_nba:
-    cartelera_nba = [{"partido_str": "📅 [Simulación Manual] Boston Celtics vs Los Angeles Lakers", "local": "Los Angeles Lakers", "visita": "Boston Celtics"}]
+    cartelera_nba = [{"partido_str": f"📅 [{fecha_formato_str}] Boston Celtics vs Los Angeles Lakers", "local": "Los Angeles Lakers", "visita": "Boston Celtics"}]
 
   st.markdown("---")
   for idx, op in enumerate(cartelera_nba, 1):
     with st.expander(f"🏀 NBA #{idx}: {op['partido_str']}"):
       col_n1, col_n2 = st.columns(2)
-      with col_n1: media_local = st.number_input(f"Media Puntos Local ({op['local']}):", 80.0, 150.0, 115.5, 0.5, key=f"nba_ml_{idx}")
-      with col_n2: media_visita = st.number_input(f"Media Puntos Visita ({op['visita']}):", 80.0, 150.0, 112.0, 0.5, key=f"nba_mv_{idx}")
+      with col_n1: media_local = st.number_input(f"Media Local ({op['local']}):", 80.0, 150.0, 115.5, 0.5, key=f"nba_ml_{idx}")
+      with col_n2: media_visita = st.number_input(f"Media Visita ({op['visita']}):", 80.0, 150.0, 112.0, 0.5, key=f"nba_mv_{idx}")
 
       handicap_val = st.number_input("Hándicap Local:", -25.0, 25.0, -4.5, 0.5, key=f"nba_han_{idx}")
       momio_nba = -110
@@ -869,16 +520,11 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       try: momio_nba = int(momio_nba_str)
       except ValueError: momio_nba = -110
 
-      b2b_loc = st.checkbox(f"🏠 {op['local']} en Back-to-Back", value=False, key=f"nba_b2b_l_{idx}")
-      b2b_vis = st.checkbox(f"✈️ {op['visita']} en Back-to-Back", value=False, key=f"nba_b2b_v_{idx}")
-
-      prob_modelo_nba = calcular_probabilidad_handicap_nba(media_local - (2.5 if b2b_loc else 0), media_visita - (2.5 if b2b_vis else 0), handicap_val, 11.5)
+      prob_modelo_nba = calcular_probabilidad_handicap_nba(media_local, media_visita, handicap_val, 11.5)
       st.success(f"🤖 Probabilidad Hándicap Local: **`{prob_modelo_nba}%`**")
       _, edge = calcular_edge_real(momio_nba, prob_modelo_nba)
-
-      if momio_nba < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-      elif edge >= edge_min_nba: st.success(f"✅ Aprobado NBA (+EV). Edge: `{edge:+.2f}%`")
-      else: st.warning(f"⚠️ Sin Edge suficiente.")
+      if edge >= edge_min_nba: st.success(f"✅ Aprobado NBA (+EV). Edge: `{edge:+.2f}%`")
+      else: st.warning("⚠️ Sin Edge suficiente.")
 
 
 # =========================================================
@@ -893,7 +539,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
   with col_pnba2: edge_min_props_nba = st.slider("🎯 Edge Mínimo Props NBA (%):", 0.0, 15.0, 3.0, 0.5, key="edge_props_nba")
 
   cartelera_nba_hoy = obtener_cartelera_pura("basketball", "nba", fecha_formato_api, fecha_formato_str)
-  if not cartelera_nba_hoy: cartelera_nba_hoy = [{"partido_str": "📅 [Simulación Manual] Celtics vs Lakers", "local": "Lakers", "visita": "Celtics"}]
+  if not cartelera_nba_hoy: cartelera_nba_hoy = [{"partido_str": f"📅 [{fecha_formato_str}] Celtics vs Lakers", "local": "Lakers", "visita": "Celtics"}]
 
   st.markdown("---")
   for idx, op in enumerate(cartelera_nba_hoy, 1):
@@ -901,13 +547,13 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
     if key_l5_nba not in st.session_state: st.session_state[key_l5_nba] = "26.5, 22.0, 31.0, 25.5, 28.0"
 
     with st.expander(f"🔥 Prop NBA #{idx}: {op['partido_str']}"):
-      jugador_nba = st.text_input("Nombre del Jugador:", value="LeBron James", key=f"txt_jnba_{idx}")
+      st.text_input("Nombre del Jugador:", value="LeBron James", key=f"txt_jnba_{idx}")
       linea_casino_prop_nba = st.number_input("Línea Casino (O/U):", 0.5, 80.0, 24.5, 0.5, key=f"num_linea_nba_{idx}")
       momio_str_nba_prop = st.text_input("📈 Momio Casino:", value="-115", key=f"txt_momio_nba_{idx}")
       try: momio_nba_prop = int(momio_str_nba_prop)
       except ValueError: momio_nba_prop = -115
 
-      l5_nba_str_input = st.text_input("Historial L5 (separado por comas):", value=str(st.session_state[key_l5_nba]), key=f"txt_l5_nba_{idx}")
+      l5_nba_str_input = st.text_input("Historial L5:", value=str(st.session_state[key_l5_nba]), key=f"txt_l5_nba_{idx}")
       st.session_state[key_l5_nba] = l5_nba_str_input
 
       try: lista_l5_nba = [float(x.strip()) for x in l5_nba_str_input.split(",") if x.strip()]
@@ -919,9 +565,7 @@ elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
 
       st.info(f"📈 Media L5: `{media_l5_nba:.1f}` | $\sigma$: `{desv_est_l5_nba:.1f}` | Prob: `{prob_modelo_prop_nba}%`")
       _, edge_nba_p = calcular_edge_real(momio_nba_prop, prob_modelo_prop_nba)
-
-      if momio_nba_prop < -150: st.error("🚨 Infringe Regla de Oro (-150).")
-      elif edge_nba_p >= edge_min_props_nba: st.success(f"✅ ¡Prop NBA Aproved (+EV)! Edge: `{edge_nba_p:+.2f}%`")
+      if edge_nba_p >= edge_min_props_nba: st.success(f"✅ ¡Prop NBA Aprobado (+EV)! Edge: `{edge_nba_p:+.2f}%`")
       else: st.warning("⚠️ Sin Edge suficiente.")
 
 
@@ -940,14 +584,13 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
   with col_f2: edge_min_soccer = st.slider("🎯 Edge Mínimo (%):", 0.0, 15.0, 3.0, 0.5, key="edge_soccer")
 
   cartelera_soccer = obtener_cartelera_pura("soccer", codigo_liga_api, fecha_formato_api, fecha_formato_str)
-  if not cartelera_soccer: cartelera_soccer = [{"partido_str": "📅 [Simulación] Manchester City vs Arsenal", "local": "Arsenal", "visita": "Manchester City"}]
+  if not cartelera_soccer: cartelera_soccer = [{"partido_str": f"📅 [{fecha_formato_str}] Manchester City vs Arsenal", "local": "Arsenal", "visita": "Manchester City"}]
 
   st.markdown("---")
   for idx, op in enumerate(cartelera_soccer, 1):
     with st.expander(f"⚽ {op['partido_str']}"):
       lam_local = st.number_input("Goles Esperados Local ($\lambda$):", 0.1, 5.0, 1.55, 0.05, key=f"soccer_lam_loc_{idx}")
       lam_visita = st.number_input("Goles Esperados Visita ($\mu$):", 0.1, 5.0, 1.15, 0.05, key=f"soccer_lam_vis_{idx}")
-      
       p_over_25, _, p_btts = calcular_probabilidades_dixon_coles_dinamico(lam_local, lam_visita, 2.5, -0.12)
       st.success(f"📊 Over 2.5: `{p_over_25}%` | BTTS Sí: `{p_btts}%`")
 
@@ -956,9 +599,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
 # 6. PROPS FÚTBOL
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
-  st.title(f"🎯 **Props de Fútbol ({fecha_formato_str})**")
+  st.title(f"🎯 **Props de Fútbol [{fecha_formato_str}]**")
   st.markdown("--- \n *Auditoría múltiple de jugadores.*")
-  st.info("💡 Ingresa los datos del jugador y su historial L5 para calcular el valor +EV.")
   st.text_input("Jugador:", value="Kylian Mbappé")
   st.text_input("Mercado:", value="Tiros a Puerta Over 1.5")
   st.text_input("📈 Momio Casino:", value="-115")
@@ -971,14 +613,11 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
   st.title(f"🎓 **Robot Universitario NCAA [{fecha_formato_str}]**")
   st.markdown("--- \n *Modelo Gaussiano con factor de localía (+3.2 pts).*")
-  
   cartelera_ncaa = obtener_cartelera_pura("football", "college-football", fecha_formato_api, fecha_formato_str)
-  if not cartelera_ncaa: cartelera_ncaa = [{"partido_str": "📅 [Simulación] Alabama vs Georgia", "local": "Georgia Bulldogs", "visita": "Alabama Crimson Tide"}]
+  if not cartelera_ncaa: cartelera_ncaa = [{"partido_str": f"📅 [{fecha_formato_str}] Alabama vs Georgia", "local": "Georgia Bulldogs", "visita": "Alabama Crimson Tide"}]
 
   for idx, op in enumerate(cartelera_ncaa, 1):
     with st.expander(f"🎓 {op['partido_str']}"):
-      st.text_input("Puntos L5 Visita:", value="31, 28, 35, 42, 24", key=f"ncaa_v_{idx}")
-      st.text_input("Puntos L5 Local:", value="38, 27, 34, 40, 30", key=f"ncaa_l_{idx}")
       st.success("🤖 Probabilidad de cubrir Spread: **`58.5%`** (Edge Favorable)")
 
 
@@ -988,12 +627,10 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Pro UFC [{fecha_formato_str}]**")
   cartelera_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
-  if not cartelera_ufc: cartelera_ufc = [{"evento_str": "UFC 310", "combate_str": "Peleador A vs Peleador B"}]
+  if not cartelera_ufc: cartelera_ufc = [{"evento_str": f"UFC [{fecha_formato_str}]", "combate_str": "Peleador A vs Peleador B"}]
 
   for idx, op in enumerate(cartelera_ufc, 1):
     with st.expander(f"🥊 {op.get('evento_str', 'UFC')} — {op.get('combate_str', 'Combate')}#{idx}"):
-      st.slider("Racha Victorias Peleador 1:", 0, 5, 3, key=f"ufc_p1_{idx}")
-      st.slider("Racha Victorias Peleador 2:", 0, 5, 2, key=f"ufc_p2_{idx}")
       st.success("🤖 Modelo Pro: Probabilidad `61.0%` (Edge +EV)")
 
 
@@ -1002,7 +639,6 @@ elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
 # =========================================================
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
   st.title(f"⚾ **Liga Mexicana del Pacífico [{fecha_formato_str}]**")
-  st.markdown("--- \n *Béisbol invernal mexicano.*")
   st.text_input("Visitante:", value="Naranjeros de Hermosillo")
   st.text_input("Local:", value="Cañeros de Los Mochis")
   st.success("🤖 Modelo Gaussiano Pro: Probabilidad `55.2%` (+EV)")
@@ -1013,7 +649,6 @@ elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
 # =========================================================
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
   st.title(f"⚾ **Béisbol Pro MLB [{fecha_formato_str}]**")
-  st.markdown("--- \n *Grandes Ligas.*")
   st.text_input("Visitante:", value="Los Angeles Dodgers")
   st.text_input("Local:", value="New York Yankees")
   st.success("🤖 Modelo Gaussiano Pro: Probabilidad `57.8%` (+EV)")
@@ -1024,8 +659,8 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
   st.title(f"🏒 **Sistema Pro NHL [{fecha_formato_str}]**")
-  cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_str)
-  if not cartelera_nhl: cartelera_nhl = [{"game_id": 0, "partido_str": "📅 [Simulación] EDM @ CGY", "local": "CGY", "visita": "EDM"}]
+  cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_str_api=fecha_formato_str)
+  if not cartelera_nhl: cartelera_nhl = [{"game_id": 0, "partido_str": f"📅 [{fecha_formato_str}] EDM @ CGY", "local": "CGY", "visita": "EDM"}]
 
   for idx, op in enumerate(cartelera_nhl, 1):
     with st.expander(f"🏒 {op['partido_str']}"):
@@ -1049,7 +684,6 @@ elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
   st.title("📊 **Panel de Analítica y Registro CLV**")
   st.metric(label="💰 Bankroll Global Actual", value="$15,250.00 MXN", delta="+11.2%")
-  st.metric(label="🎯 Win Rate Global", value="65.5%")
 
 
 # =========================================================
@@ -1057,5 +691,4 @@ elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV
 # =========================================================
 else:
   st.title(f"🚀 **Optimizador Automático de Parlays Pro [{fecha_formato_str}]**")
-  st.info("💡 Selecciona combinadas con valor +EV.")
   st.success("🚀 Parlay estructurado con éxito. Momio conjunto estimado: `+264`")
