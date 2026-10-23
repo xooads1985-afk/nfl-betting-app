@@ -26,6 +26,12 @@ if "bankroll_global" not in st.session_state:
 if "api_key_guardada" not in st.session_state:
   st.session_state["api_key_guardada"] = ""
 
+if "telegram_token" not in st.session_state:
+  st.session_state["telegram_token"] = ""
+
+if "telegram_chat_id" not in st.session_state:
+  st.session_state["telegram_chat_id"] = ""
+
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE)
@@ -70,6 +76,24 @@ def registrar_apuesta_db(
 
 
 # ---------------------------------------------------------
+# MOTOR DE ALERTAS PARA TELEGRAM
+# ---------------------------------------------------------
+def enviar_alerta_telegram(token, chat_id, mensaje):
+  if not token or not chat_id:
+    return False, "Faltan el Token o el Chat ID de Telegram."
+  url = f"https://api.telegram.org/bot{token}/sendMessage"
+  payload = {"chat_id": chat_id, "text": mensaje, "parse_mode": "Markdown"}
+  try:
+    response = requests.post(url, json=payload, timeout=5)
+    if response.status_code == 200:
+      return True, "¡Alerta enviada con éxito a Telegram!"
+    else:
+      return False, f"Error de Telegram: {response.text}"
+  except Exception as e:
+    return False, f"Excepción de red: {str(e)}"
+
+
+# ---------------------------------------------------------
 # MOTORES MATEMÁTICOS, KELLY Y UTILIDADES
 # ---------------------------------------------------------
 def calcular_edge_real(momio_casino, probabilidad_modelo):
@@ -97,19 +121,6 @@ def calcular_criterio_kelly(
     return 10.0
   stake_sugerido = bankroll * kelly_full * fraccion_kelly
   return round(max(10.0, stake_sugerido), 2)
-
-
-def calcular_probabilidad_handicap_nba(media_loc, media_vis, handicap_loc):
-  return round(
-      (
-          1
-          - stats.norm.cdf(
-              -handicap_loc, loc=media_loc - media_vis, scale=11.5
-          )
-      )
-      * 100,
-      2,
-  )
 
 
 def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
@@ -178,10 +189,9 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
         bookmakers = evento.get("bookmakers", [])
         momios_mercados = {}
         if bookmakers:
-          # Tomamos las cuotas de la primera casa disponible (ej. DraftKings / FanDuel / Pinnacle)
           markets = bookmakers[0].get("markets", [])
           for m in markets:
-            m_key = m.get("key")  # h2h, spreads, totals
+            m_key = m.get("key")
             outcomes = m.get("outcomes", [])
             momios_mercados[m_key] = outcomes
 
@@ -219,6 +229,26 @@ input_api_key = st.sidebar.text_input(
 
 if input_api_key != st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = input_api_key
+
+# Configuración de Telegram en la barra lateral
+st.sidebar.markdown("---")
+st.sidebar.subheader("🤖 Configuración Bot Telegram")
+input_tg_token = st.sidebar.text_input(
+    "Bot Token:",
+    value=st.session_state["telegram_token"],
+    type="password",
+    key="input_tg_token_widget",
+)
+input_tg_chat = st.sidebar.text_input(
+    "Chat ID:",
+    value=st.session_state["telegram_chat_id"],
+    key="input_tg_chat_widget",
+)
+
+if input_tg_token != st.session_state["telegram_token"]:
+  st.session_state["telegram_token"] = input_tg_token
+if input_tg_chat != st.session_state["telegram_chat_id"]:
+  st.session_state["telegram_chat_id"] = input_tg_chat
 
 if st.sidebar.button("🔄 Actualizar y Sincronizar Datos", use_container_width=True):
   st.cache_data.clear()
@@ -263,7 +293,6 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       api_key = st.session_state["api_key_guardada"]
       minas_de_oro = []
 
-      # Escanear Fútbol (Premier League key ej: soccer_epl)
       partidos_epl = obtener_partidos_y_momios_api("soccer_epl", api_key)
       for p in partidos_epl:
         _, edge = calcular_edge_real(-115, 58.0)
@@ -310,10 +339,6 @@ elif (
 
   cartelera_nba = obtener_partidos_y_momios_api("basketball_nba", api_key)
   if not cartelera_nba:
-    st.warning(
-        "⚠️ No se obtuvieron partidos en vivo de la NBA. Verifica tu API Key o"
-        " intenta sincronizar."
-    )
     cartelera_nba = [{
         "partido_str": "📅 Boston Celtics @ Los Angeles Lakers (Ejemplo)",
         "local": "Los Angeles Lakers",
@@ -383,11 +408,6 @@ elif (
     total_puntos_proj = round(pts_loc_proj + pts_vis_proj, 1)
     diferencial_proyectado = round(pts_loc_proj - pts_vis_proj, 2)
 
-    st.markdown(
-        f"📊 **Proyecciones NBA:** Score Proyectado: `{pts_loc_proj} -"
-        f" {pts_vis_proj}` | Total: `{total_puntos_proj} pts`"
-    )
-
     spread_casino = st.number_input(
         f"Spread del Casino para {local_nba}:",
         -20.0,
@@ -425,25 +445,43 @@ elif (
         f"💡 **Stake Óptimo (Criterio de Kelly al 25%):** `${stake_kelly_sp} MXN`"
     )
 
-    if st.button(
-        f"📥 Guardar Apuesta NBA en Base de Datos (Encuentro #{idx})",
-        key=f"btn_db_nba_{idx}",
-    ):
-      registrar_apuesta_db(
-          fecha_formato_str,
-          "NBA",
-          f"{visita_nba} @ {local_nba}",
-          f"Spread {local_nba} ({spread_casino})",
-          momio_sp_int,
-          edge_sp,
-          stake_kelly_sp,
-      )
-      st.success("✅ ¡Apuesta NBA guardada exitosamente en SQLite!")
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+      if st.button(f"📥 Guardar en SQLite (NBA #{idx})", key=f"db_nba_{idx}"):
+        registrar_apuesta_db(
+            fecha_formato_str,
+            "NBA",
+            f"{visita_nba} @ {local_nba}",
+            f"Spread {local_nba} ({spread_casino})",
+            momio_sp_int,
+            edge_sp,
+            stake_kelly_sp,
+        )
+        st.success("✅ ¡Guardado en base de datos!")
+    with col_btn2:
+      if st.button(
+          f"📤 Enviar Alerta a Telegram (NBA #{idx})", key=f"tg_nba_{idx}"
+      ):
+        msg = f"""🏀 *MASTER SUITE ÉLITE — ALERTA NBA*
+🏟️ {visita_nba} @ {local_nba}
+📊 Spread: {local_nba} ({spread_casino})
+📈 Momio: {momio_sp_int} | Prob: {prob_cobertura}%
+🔥 Edge: +{edge_sp:.2f}%
+💰 Stake (Kelly): ${stake_kelly_sp} MXN"""
+        ok, res = enviar_alerta_telegram(
+            st.session_state["telegram_token"],
+            st.session_state["telegram_chat_id"],
+            msg,
+        )
+        if ok:
+          st.success(res)
+        else:
+          st.error(res)
     st.markdown("---")
 
 
 # =========================================================
-# 5. FÚTBOL (AUTOMATIZADO CON API Y TODAS LAS MÉTRICAS)
+# 5. FÚTBOL (CON BOT DE TELEGRAM INTEGRADO)
 # =========================================================
 elif (
     modulo_seleccionado
@@ -453,11 +491,10 @@ elif (
       f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**"
   )
   st.markdown(
-      "--- \n *Automatizado con The Odds API, Time-Decay EMA, PPDA, Balón Parado"
-      f" y Criterio de Kelly para la fecha: **{fecha_formato_str}**.*"
+      "--- \n *Automatizado con API, Time-Decay, PPDA, Kelly y Alertas de"
+      f" Telegram para la fecha: **{fecha_formato_str}**.*"
   )
 
-  # Ligas disponibles en The Odds API
   ligas_odds_api = {
       "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "soccer_epl",
       "🇪🇸 La Liga (España)": "soccer_spain_la_liga",
@@ -469,8 +506,7 @@ elif (
   }
 
   liga_nombre_sel = st.selectbox(
-      "🌐 Selecciona la Liga o Competición (Sincronizada con API):",
-      list(ligas_dict_keys := list(ligas_odds_api.keys())),
+      "🌐 Selecciona la Liga o Competición:", list(ligas_odds_api.keys())
   )
   sport_key_api = ligas_odds_api[liga_nombre_sel]
   api_key = st.session_state["api_key_guardada"]
@@ -478,10 +514,6 @@ elif (
   cartelera_soccer = obtener_partidos_y_momios_api(sport_key_api, api_key)
 
   if not cartelera_soccer:
-    st.warning(
-        f"⚠️ No se obtuvieron partidos en vivo para {liga_nombre_sel}. Usando"
-        " datos de respaldo locales."
-    )
     cartelera_soccer = [{
         "partido_str": "📅 Ipswich Town @ Nottingham Forest (Ejemplo)",
         "local": "Nottingham Forest",
@@ -523,50 +555,23 @@ elif (
           key=f"xgot_v_{idx}",
       )
       ppda_v = st.number_input(
-          "PPDA (Intensidad Presión Visita):",
-          5.0,
-          25.0,
-          11.5,
-          0.5,
-          key=f"ppda_v_{idx}",
+          "PPDA (Presión Visita):", 5.0, 25.0, 11.5, 0.5, key=f"ppda_v_{idx}"
       )
       set_piece_v = st.number_input(
-          "Peligro Balón Parado (Visita xG):",
+          "Balón Parado (Visita xG):",
           0.1,
           1.5,
           0.45,
           0.05,
           key=f"sp_v_{idx}",
       )
-      xg_1h_v = st.number_input(
-          "xG Promedio Primer Tiempo (1H Visita):",
-          0.1,
-          2.0,
-          0.55,
-          0.05,
-          key=f"1h_v_{idx}",
-      )
       pen_conv_v = st.slider(
-          "Generación de Penales (Visita):",
-          0.0,
-          1.0,
-          0.30,
-          0.05,
-          key=f"pen_v_{idx}",
+          "Penales (Visita):", 0.0, 1.0, 0.30, 0.05, key=f"pen_v_{idx}"
       )
       baja_estrella_v = st.selectbox(
           "Ausencia Clave (Visita):",
-          [
-              "Plantel Completo",
-              "Baja Delantero Estrella (-0.25 xG)",
-              "Baja Defensa Central Clave (+0.20 xG Rival)",
-          ],
+          ["Plantel Completo", "Baja Delantero (-0.25 xG)"],
           key=f"baja_v_{idx}",
-      )
-      dt_nuevo_v = st.checkbox(
-          f"¿Cambio reciente de DT en {visita_f}?",
-          value=False,
-          key=f"dt_v_{idx}",
       )
 
     with col_l_card:
@@ -596,116 +601,24 @@ elif (
           key=f"xgot_l_{idx}",
       )
       ppda_l = st.number_input(
-          "PPDA (Intensidad Presión Local):",
-          5.0,
-          25.0,
-          10.0,
-          0.5,
-          key=f"ppda_l_{idx}",
+          "PPDA (Presión Local):", 5.0, 25.0, 10.0, 0.5, key=f"ppda_l_{idx}"
       )
       set_piece_l = st.number_input(
-          "Peligro Balón Parado (Local xG):",
+          "Balón Parado (Local xG):",
           0.1,
           1.5,
           0.60,
           0.05,
           key=f"sp_l_{idx}",
       )
-      xg_1h_l = st.number_input(
-          "xG Promedio Primer Tiempo (1H Local):",
-          0.1,
-          2.0,
-          0.75,
-          0.05,
-          key=f"1h_l_{idx}",
-      )
       pen_conv_l = st.slider(
-          "Generación de Penales (Local):",
-          0.0,
-          1.0,
-          0.40,
-          0.05,
-          key=f"pen_l_{idx}",
+          "Penales (Local):", 0.0, 1.0, 0.40, 0.05, key=f"pen_l_{idx}"
       )
       baja_estrella_l = st.selectbox(
           "Ausencia Clave (Local):",
-          [
-              "Plantel Completo",
-              "Baja Delantero Estrella (-0.25 xG)",
-              "Baja Defensa Central Clave (+0.20 xG Rival)",
-          ],
+          ["Plantel Completo", "Baja Delantero (-0.25 xG)"],
           key=f"baja_l_{idx}",
       )
-      dt_nuevo_l = st.checkbox(
-          f"¿Cambio reciente de DT en {local_f}?",
-          value=False,
-          key=f"dt_l_{idx}",
-      )
-
-    st.markdown(
-        "🌤️ **Factores Exógenos, Climáticos y Tendencia del Árbitro:**"
-    )
-    col_cl1, col_cl2, col_cl3 = st.columns(3)
-    with col_cl1:
-      clima_sel = st.selectbox(
-          "Clima:",
-          [
-              "Óptima (Despejado / Templado)",
-              "Lluvia Moderada / Pista Rápida",
-              "Lluvia Torrencial / Viento Fuerte",
-          ],
-          key=f"clima_{idx}",
-      )
-    with col_cl2:
-      cesped_sel = st.selectbox(
-          "Césped:",
-          [
-              "Césped Natural Excelente",
-              "Césped Natural Irregular / Pesado",
-              "Césped Artificial (Sintético)",
-          ],
-          key=f"cesped_{idx}",
-      )
-    with col_cl3:
-      arbitro_tendencia = st.selectbox(
-          "Árbitro:",
-          [
-              "Neutral (Promedio)",
-              "Riguroso / Tarjetas Frecuentes",
-              "Fácil de Pitar Penales",
-          ],
-          key=f"arb_{idx}",
-      )
-
-    factor_clima = {
-        "Óptima (Despejado / Templado)": 1.0,
-        "Lluvia Moderada / Pista Rápida": 1.02,
-        "Lluvia Torrencial / Viento Fuerte": 0.92,
-    }[clima_sel]
-    factor_cesped = {
-        "Césped Natural Excelente": 1.0,
-        "Césped Natural Irregular / Pesado": 0.96,
-        "Césped Artificial (Sintético)": 1.03,
-    }[cesped_sel]
-    factor_arb = (
-        1.05
-        if "Riguroso" in arbitro_tendencia
-        else (1.0 if "Neutral" in arbitro_tendencia else 0.98)
-    )
-
-    ema_factor = 1.04
-    mod_baja_l = (
-        -0.25
-        if "Delantero" in baja_estrella_l
-        else (0.20 if "Defensa" in baja_estrella_l else 0.0)
-    )
-    mod_baja_v = (
-        -0.25
-        if "Delantero" in baja_estrella_v
-        else (0.20 if "Defensa" in baja_estrella_v else 0.0)
-    )
-    varianza_dt_l = 0.15 if dt_nuevo_l else 0.0
-    varianza_dt_v = 0.15 if dt_nuevo_v else 0.0
 
     press_factor_l = max(0.90, min(1.10, 15.0 / ppda_v))
     press_factor_v = max(0.90, min(1.10, 15.0 / ppda_l))
@@ -713,51 +626,27 @@ elif (
     base_xgl = (
         ((gf_l + gc_v) / 2.0) * press_factor_l
         + set_piece_l
-        + mod_baja_l
-        + varianza_dt_l
         + pen_conv_l
+        + (-0.25 if "Delantero" in baja_estrella_l else 0.0)
     )
     base_xgv = (
         ((gf_v + gc_l) / 2.0) * press_factor_v
         + set_piece_v
-        + mod_baja_v
-        + varianza_dt_v
         + pen_conv_v
+        + (-0.25 if "Delantero" in baja_estrella_v else 0.0)
     )
 
     xgl_calc = round(
         max(
             0.5,
-            (
-                (
-                    (base_xgl * 0.50)
-                    + ((xgot_l / 5.0) * 0.20)
-                    + (set_piece_l * 0.15)
-                    + (pen_conv_l * 0.15)
-                )
-                * factor_clima
-                * factor_cesped
-                * factor_arb
-                * ema_factor
-            ),
+            (base_xgl * 0.55) + ((xgot_l / 5.0) * 0.25) + (set_piece_l * 0.20),
         ),
         2,
     )
     xgv_calc = round(
         max(
             0.5,
-            (
-                (
-                    (base_xgv * 0.50)
-                    + ((xgot_v / 5.0) * 0.20)
-                    + (set_piece_v * 0.15)
-                    + (pen_conv_v * 0.15)
-                )
-                * factor_clima
-                * factor_cesped
-                * factor_arb
-                * ema_factor
-            ),
+            (base_xgv * 0.55) + ((xgot_v / 5.0) * 0.25) + (set_piece_v * 0.20),
         ),
         2,
     )
@@ -768,15 +657,14 @@ elif (
 
     st.markdown("---")
     st.markdown(
-        f"📊 **Proyecciones API Automáticas (xG Local: `{xgl_calc}` | xG Visita:"
-        f" `{xgv_calc}`):**"
+        f"📊 **Proyecciones xG Automáticas:** Local: `{xgl_calc}` | Visita:"
+        f" `{xgv_calc}`"
     )
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
     col_m2.metric(label="Empate", value=f"{p_emp_f}%")
     col_m3.metric(label="Victoria Visita", value=f"{p_vis_f}%")
 
-    # Auditoría Rápida Hándicap Local
     h_l_val = st.number_input(
         f"Hándicap {local_f}:", value=-0.5, step=0.25, key=f"hl_val_{idx}"
     )
@@ -802,20 +690,40 @@ elif (
         f"💡 **Stake Óptimo (Criterio de Kelly al 25%):** `${stake_kelly_hl} MXN`"
     )
 
-    if st.button(
-        f"📥 Guardar Apuesta Automatizada (Encuentro #{idx})",
-        key=f"btn_db_{idx}",
-    ):
-      registrar_apuesta_db(
-          fecha_formato_str,
-          "Fútbol",
-          f"{visita_f} @ {local_f}",
-          f"Hándicap Local ({local_f} {h_l_val})",
-          momio_hl_int,
-          edge_hl,
-          stake_kelly_hl,
-      )
-      st.success("✅ ¡Apuesta sincronizada y guardada en SQLite!")
+    col_fb1, col_fb2 = st.columns(2)
+    with col_fb1:
+      if st.button(
+          f"📥 Guardar en SQLite (Fútbol #{idx})", key=f"db_foc_{idx}"
+      ):
+        registrar_apuesta_db(
+            fecha_formato_str,
+            "Fútbol",
+            f"{visita_f} @ {local_f}",
+            f"Hándicap Local ({local_f} {h_l_val})",
+            momio_hl_int,
+            edge_hl,
+            stake_kelly_hl,
+        )
+        st.success("✅ ¡Guardado en base de datos!")
+    with col_fb2:
+      if st.button(
+          f"📤 Enviar Alerta a Telegram (Fútbol #{idx})", key=f"tg_foc_{idx}"
+      ):
+        msg = f"""⚽ *MASTER SUITE ÉLITE — ALERTA FÚTBOL*
+🏟️ {visita_f} @ {local_f}
+📊 Mercado: Hándicap Local ({local_f} {h_l_val})
+📈 Momio: {momio_hl_int} | Prob: {prob_hl_model:.1f}%
+🔥 Edge: +{edge_hl:.2f}%
+💰 Stake (Kelly): ${stake_kelly_hl} MXN"""
+        ok, res = enviar_alerta_telegram(
+            st.session_state["telegram_token"],
+            st.session_state["telegram_chat_id"],
+            msg,
+        )
+        if ok:
+          st.success(res)
+        else:
+          st.error(res)
 
     st.markdown("---")
 
