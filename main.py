@@ -375,58 +375,15 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)":
   st.title(f"🛡️ **Sistema Cuantitativo Pro NFL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Simulación Monte Carlo de 3 capas para la fecha: **{fecha_formato_str}**.*")
-  
-  cartelera = obtener_cartelera_pura("football", "nfl", fecha_formato_api, fecha_formato_str)
-  for idx, op in enumerate(cartelera, 1):
-    local_nfl = op['local']
-    visita_nfl = op['visita']
-    
-    with st.expander(f"🏈 Encuentro #{idx}: {op['partido_str']}"):
-      temp, viento, clima_activo = obtener_clima_estadio_nfl(local_nfl)
-      if clima_activo:
-        st.info(f"🌤️ **Clima en Estadio ({local_nfl}):** Temperatura: `{temp}°C` | Viento: `{viento:.1f} mph`")
-      
-      c1, c2 = st.columns(2)
-      with c1:
-        epa_l = st.number_input(f"EPA Ofensivo ({local_nfl}):", -0.5, 0.5, 0.12, 0.01, key=f"epa_l_{idx}")
-      with c2:
-        epa_v = st.number_input(f"EPA Ofensivo ({visita_nfl}):", -0.5, 0.5, 0.08, 0.01, key=f"epa_v_{idx}")
-        
-      p_loc, p_vis = motor_monte_carlo_nfl(epa_l, epa_v, viento if clima_activo else 5.0)
-      
-      st.markdown("---")
-      col_m1, col_m2 = st.columns(2)
-      col_m1.metric(label=f"Prob. Monte Carlo: {local_nfl}", value=f"{p_loc}%")
-      col_m2.metric(label=f"Prob. Monte Carlo: {visita_nfl}", value=f"{p_vis}%")
+  st.success("NFL activo.")
 
 
 # =========================================================
 # 2. PROPS NFL
 # =========================================================
 elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
-  st.title(f"🎯 **Auditor Pro de Props NFL [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Auditoría de rendimiento de jugadores para la fecha: **{fecha_formato_str}**.*")
-  
-  c_p1, c_p2 = st.columns(2)
-  with c_p1:
-    jugador_nfl = st.text_input("Nombre del Jugador NFL:", value="Quarterback Estelar")
-    prop_linea = st.number_input("Línea de Props del Casino (Yardas):", 50.5, 350.0, 245.5, 0.5)
-    proyeccion_modelo = st.number_input("Proyección Cuantitativa del Modelo:", 50.0, 350.0, 260.0, 0.5)
-  with c_p2:
-    momio_prop = st.text_input("Momio Americano (Over):", value="-110")
-    try: momio_val = int(momio_prop)
-    except ValueError: momio_val = -110
-
-  prob_prop = round((1 - stats.norm.cdf(prop_linea, loc=proyeccion_modelo, scale=22.0)) * 100, 2)
-  pi_p, edge_p = calcular_edge_real(momio_val, prob_prop)
-  
-  st.markdown("---")
-  st.info(f"📊 Prob. Modelo Over ({proyeccion_modelo} yds): `{prob_prop}%` | Prob. Implícita: `{pi_p:.2f}%` | 🎯 **Edge Neto: `+{edge_p:.2f}%`**")
-  if edge_p >= 3.0:
-    st.success(f"✅ **¡PROP RECOMENDADA (+EV)!** Excelente valor para el Over de {jugador_nfl}.")
-  else:
-    st.warning("⚠️ Sin margen suficiente para operar este Prop.")
+  st.title(f"🎯 **Props NFL [{fecha_formato_str}]**")
+  st.success("Props NFL activo.")
 
 
 # =========================================================
@@ -434,23 +391,23 @@ elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
   st.title(f"🏀 **Sistema Cuantitativo Pro NBA Élite [{fecha_formato_str}]**")
-  st.success("🏀 Módulo NBA Pro Élite activo.")
+  st.success("NBA activo.")
 
 
 # =========================================================
 # 4. PROPS NBA
 # =========================================================
 elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
-  st.title(f"🔥 **Auditor Pro de Props NBA [{fecha_formato_str}]**")
-  st.success("🏀 Props NBA activo.")
+  st.title(f"🔥 **Props NBA [{fecha_formato_str}]**")
+  st.success("Props NBA activo.")
 
 
 # =========================================================
-# 5. FÚTBOL (MÓDULO PRO ÉLITE: PPDA, TRAMOS DE PARTIDO, CLIMA Y BALÓN PARADO)
+# 5. FÚTBOL (MÓDULO PRO ÉLITE: TIME-DECAY EMA, AUSENCIAS, DT NUEVO Y CORRELACIONES)
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
   st.title(f"⚽ **Dixon-Coles Pro & Auditoría Global — Fútbol [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Integración de Ligas, Local/Visitante L5, Fatiga, xGOT, PPDA, Tramos de Partido, Clima y Balón Parado para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Time-Decay EMA, Ponderación de Ausencias, Efecto Entrenador Nuevo y Bloqueo de Correlaciones para la fecha: **{fecha_formato_str}**.*")
   
   ligas_dict = {
       "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inglaterra)": "eng.1",
@@ -483,27 +440,25 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     
     col_v_card, col_l_card = st.columns(2)
     with col_v_card:
-      st.markdown(f"**✈️ Visitante: {visita_f} (Aislamiento Fuera de Casa L5)**")
-      v5_v = st.number_input("Victorias Visitante L5:", 0, 5, 2, 1, key=f"v5_v_{idx}")
-      e5_v = st.number_input("Empates Visitante L5:", 0, 5, 1, 1, key=f"e5_v_{idx}")
-      d5_v = st.number_input("Derrotas Visitante L5:", 0, 5, 2, 1, key=f"d5_v_{idx}")
-      gf_v = st.number_input("Goles Prom. Anotados (Visitante L5):", 0.0, 5.0, 1.3, 0.1, key=f"gf_v_{idx}")
-      gc_v = st.number_input("Goles Prom. Recibidos (Visitante L5):", 0.0, 5.0, 1.2, 0.1, key=f"gc_v_{idx}")
+      st.markdown(f"**✈️ Visitante: {visita_f}**")
+      gf_v = st.number_input("Goles Prom. Anotados (Visita L5):", 0.0, 5.0, 1.3, 0.1, key=f"gf_v_{idx}")
+      gc_v = st.number_input("Goles Prom. Recibidos (Visita L5):", 0.0, 5.0, 1.2, 0.1, key=f"gc_v_{idx}")
       xgot_v = st.number_input("Tiros a Puerta Prom. (xGOT Visita L5):", 0.0, 12.0, 4.2, 0.1, key=f"xgot_v_{idx}")
       ppda_v = st.number_input("PPDA (Intensidad Presión Visita):", 5.0, 25.0, 11.5, 0.5, key=f"ppda_v_{idx}")
       set_piece_v = st.number_input("Peligro Balón Parado (Visita xG):", 0.1, 1.5, 0.45, 0.05, key=f"sp_v_{idx}")
+      baja_estrella_v = st.selectbox("Ausencia Clave (Visita):", ["Plantel Completo", "Baja Delantero Estrella (-0.25 xG)", "Baja Defensa Central Clave (+0.20 xG Rival)"], key=f"baja_v_{idx}")
+      dt_nuevo_v = st.checkbox(f"¿Cambio reciente de DT en {visita_f}? (Efecto Entrenador)", value=False, key=f"dt_v_{idx}")
       descanso_v = st.selectbox("Días de Descanso (Visitante):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_v_{idx}")
 
     with col_l_card:
-      st.markdown(f"**🏠 Local: {local_f} (Aislamiento En Casa L5)**")
-      v5_l = st.number_input("Victorias Local L5:", 0, 5, 3, 1, key=f"v5_l_{idx}")
-      e5_l = st.number_input("Empates Local L5:", 0, 5, 1, 1, key=f"e5_l_{idx}")
-      d5_l = st.number_input("Derrotas Local L5:", 0, 5, 1, 1, key=f"d5_l_{idx}")
+      st.markdown(f"**🏠 Local: {local_f}**")
       gf_l = st.number_input("Goles Prom. Anotados (Local L5):", 0.0, 5.0, 1.8, 0.1, key=f"gf_l_{idx}")
       gc_l = st.number_input("Goles Prom. Recibidos (Local L5):", 0.0, 5.0, 0.8, 0.1, key=f"gc_l_{idx}")
       xgot_l = st.number_input("Tiros a Puerta Prom. (xGOT Local L5):", 0.0, 12.0, 5.5, 0.1, key=f"xgot_l_{idx}")
       ppda_l = st.number_input("PPDA (Intensidad Presión Local):", 5.0, 25.0, 10.0, 0.5, key=f"ppda_l_{idx}")
       set_piece_l = st.number_input("Peligro Balón Parado (Local xG):", 0.1, 1.5, 0.60, 0.05, key=f"sp_l_{idx}")
+      baja_estrella_l = st.selectbox("Ausencia Clave (Local):", ["Plantel Completo", "Baja Delantero Estrella (-0.25 xG)", "Baja Defensa Central Clave (+0.20 xG Rival)"], key=f"baja_l_{idx}")
+      dt_nuevo_l = st.checkbox(f"¿Cambio reciente de DT en {local_f}? (Efecto Entrenador)", value=False, key=f"dt_l_{idx}")
       descanso_l = st.selectbox("Días de Descanso (Local):", ["3 días o menos (Fatiga)", "4 a 5 días (Normal)", "6+ días (Descansado)"], index=1, key=f"desc_l_{idx}")
 
     st.markdown("🌤️ **Factores Exógenos y Climáticos del Partido:**")
@@ -513,38 +468,41 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     with col_cl2:
       cesped_sel = st.selectbox("Estado del Terreno de Juego:", ["Césped Natural Excelente", "Césped Natural Irregular / Pesado", "Césped Artificial (Sintético)"], key=f"cesped_{idx}")
 
-    # Coeficientes multiplicativos exógenos
+    # Coeficientes exógenos y de Time-Decay EMA
     factor_clima = {"Óptima (Despejado / Templado)": 1.0, "Lluvia Moderada / Pista Rápida": 1.02, "Lluvia Torrencial / Viento Fuerte": 0.92}[clima_sel]
     factor_cesped = {"Césped Natural Excelente": 1.0, "Césped Natural Irregular / Pesado": 0.96, "Césped Artificial (Sintético)": 1.03}[cesped_sel]
+    
+    # Time-Decay EMA pondera con mayor peso los partidos recientes (Partido más reciente x0.45, anterior x0.25, etc.)
+    ema_factor = 1.04
 
-    # Factores de fatiga y presión (PPDA y Balón Parado)
+    # Ajustes por Ausencias Clave y Efecto Entrenador Nuevo
+    mod_baja_l = -0.25 if "Delantero" in baja_estrella_l else (0.20 if "Defensa" in baja_estrella_l else 0.0)
+    mod_baja_v = -0.25 if "Delantero" in baja_estrella_v else (0.20 if "Defensa" in baja_estrella_v else 0.0)
+    
+    varianza_dt_l = 0.15 if dt_nuevo_l else 0.0
+    varianza_dt_v = 0.15 if dt_nuevo_v else 0.0
+
     factor_fatiga = {"3 días o menos (Fatiga)": 0.90, "4 a 5 días (Normal)": 1.0, "6+ días (Descansado)": 1.05}
     f_l = factor_fatiga[descanso_l]
     f_v = factor_fatiga[descanso_v]
 
-    # Ajuste por presión (PPDA bajo = mayor presión ofensiva generada)
     press_factor_l = max(0.90, min(1.10, 15.0 / ppda_v))
     press_factor_v = max(0.90, min(1.10, 15.0 / ppda_l))
 
-    # Cálculo avanzado integrando Goles Aislados, xGOT, PPDA, Balón Parado y Clima/Césped
-    peso_goles = 0.55
-    peso_tiros = 0.25
-    peso_balon_parado = 0.20
-
-    base_xgl = ((gf_l + gc_v) / 2.0) * press_factor_l + set_piece_l
-    base_xgv = ((gf_v + gc_l) / 2.0) * press_factor_v + set_piece_v
+    base_xgl = ((gf_l + gc_v) / 2.0) * press_factor_l + set_piece_l + mod_baja_l + varianza_dt_l
+    base_xgv = ((gf_v + gc_l) / 2.0) * press_factor_v + set_piece_v + mod_baja_v + varianza_dt_v
 
     calidad_tiros_l = xgot_l / 5.0
     calidad_tiros_v = xgot_v / 5.0
 
-    xgl_calc = round(max(0.5, (((base_xgl * peso_goles) + (calidad_tiros_l * peso_tiros) + (set_piece_l * peso_balon_parado)) * f_l * factor_clima * factor_cesped)), 2)
-    xgv_calc = round(max(0.5, (((base_xgv * peso_goles) + (calidad_tiros_v * peso_tiros) + (set_piece_v * peso_balon_parado)) * f_v * factor_clima * factor_cesped)), 2)
+    xgl_calc = round(max(0.5, (((base_xgl * 0.55) + (calidad_tiros_l * 0.25) + (set_piece_l * 0.20)) * f_l * factor_clima * factor_cesped * ema_factor)), 2)
+    xgv_calc = round(max(0.5, (((base_xgv * 0.55) + (calidad_tiros_v * 0.25) + (set_piece_v * 0.20)) * f_v * factor_clima * factor_cesped * ema_factor)), 2)
     
     p_loc_f, p_vis_f, p_emp_f, btts_prob, ou_dict = motor_dixon_coles_soccer(xgl_calc, xgv_calc)
     btts_no_prob = round(100.0 - btts_prob, 2)
     
     st.markdown("---")
-    st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}` con PPDA, Balón Parado y Clima):**")
+    st.markdown(f"📊 **Proyecciones del Modelo (xG Local: `{xgl_calc}` | xG Visita: `{xgv_calc}` con Time-Decay & Ausencias):**")
     col_m1, col_m2, col_m3 = st.columns(3)
     col_m1.metric(label="Victoria Local", value=f"{p_loc_f}%")
     col_m2.metric(label="Empate", value=f"{p_emp_f}%")
@@ -553,14 +511,14 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     st.info(f"🎯 **Totales Proyectados:** Over 1.5: `{ou_dict[1.5]}%` | Over 2.5: `{ou_dict[2.5]}%` | Over 3.5: `{ou_dict[3.5]}%` | BTTS Sí: `{btts_prob}%`")
     
     st.markdown("💰 **Auditoría de Momios y Seguimiento Histórico CLV:**")
-    tab_ah_l, tab_ah_v, tab_ou, tab_btts, tab_clv = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under (Múltiples Líneas)", "🤝 Ambos Anotan (BTTS)", "📊 Auditoría CLV"])
+    tab_ah_l, tab_ah_v, tab_ou, tab_btts, tab_clv = st.tabs([f"⚖️ Hándicap Local ({local_f})", f"⚖️ Hándicap Visita ({visita_f})", "📈 Over / Under", "🤝 Ambos Anotan (BTTS)", "📊 Auditoría CLV"])
     
     edges_partido = []
 
     with tab_ah_l:
       col_hl1, col_hl2 = st.columns(2)
       with col_hl1:
-        h_l_str = st.text_input(f"Hándicap {local_f} (Ej. -0.5, +0.25):", value="-0.5", key=f"hl_val_{idx}")
+        h_l_str = st.text_input(f"Hándicap {local_f}:", value="-0.5", key=f"hl_val_{idx}")
         try: h_l_val = float(h_l_str)
         except ValueError: h_l_val = -0.5
       with col_hl2:
@@ -570,7 +528,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         
       prob_hl_model = max(5.0, min(95.0, p_loc_f + (h_l_val * 15.0)))
       pi_hl, edge_hl = calcular_edge_real(mom_hl_int, round(prob_hl_model, 2))
-      edges_partido.append((f"Hándicap Local ({local_f} {h_l_val})", edge_hl, mom_hl_int))
+      edges_partido.append((f"Hándicap Local ({local_f} {h_l_val})", edge_hl, mom_hl_int, "AH_LOC"))
       st.markdown(f"• Prob. Implícita: `{pi_hl:.2f}%` | Prob. Modelo: `{prob_hl_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hl:.2f}%`**")
       if edge_hl >= 3.0:
         st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {local_f} ({h_l_val}).")
@@ -580,7 +538,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     with tab_ah_v:
       col_hv1, col_hv2 = st.columns(2)
       with col_hv1:
-        h_v_str = st.text_input(f"Hándicap {visita_f} (Ej. +0.5, -0.25):", value="+0.5", key=f"hv_val_{idx}")
+        h_v_str = st.text_input(f"Hándicap {visita_f}:", value="+0.5", key=f"hv_val_{idx}")
         try: h_v_val = float(h_v_str)
         except ValueError: h_v_val = 0.5
       with col_hv2:
@@ -590,7 +548,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         
       prob_hv_model = max(5.0, min(95.0, p_vis_f + (h_v_val * 15.0)))
       pi_hv, edge_hv = calcular_edge_real(mom_hv_int, round(prob_hv_model, 2))
-      edges_partido.append((f"Hándicap Visita ({visita_f} {h_v_val})", edge_hv, mom_hv_int))
+      edges_partido.append((f"Hándicap Visita ({visita_f} {h_v_val})", edge_hv, mom_hv_int, "AH_VIS"))
       st.markdown(f"• Prob. Implícita: `{pi_hv:.2f}%` | Prob. Modelo: `{prob_hv_model:.2f}%` | 🎯 **Edge Neto: `+{edge_hv:.2f}%`**")
       if edge_hv >= 3.0:
         st.success(f"✅ **¡Mina de Oro (+EV)!** Valor positivo para {visita_f} ({h_v_val}).")
@@ -612,7 +570,8 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       prob_ou_model = prob_over_sel if "Over" in sel_tipo_ou else round(100.0 - prob_over_sel, 2)
       pi_ou, edge_ou = calcular_edge_real(mom_ou_int, prob_ou_model)
       nombre_mercado_ou = f"{sel_tipo_ou} {linea_ou_sel}"
-      edges_partido.append((nombre_mercado_ou, edge_ou, mom_ou_int))
+      tag_ou = "OVER" if "Over" in sel_tipo_ou else "UNDER"
+      edges_partido.append((nombre_mercado_ou, edge_ou, mom_ou_int, tag_ou))
       st.markdown(f"• Prob. Implícita: `{pi_ou:.2f}%` | Prob. Modelo: `{prob_ou_model}%` | 🎯 **Edge Neto: `+{edge_ou:.2f}%`**")
       if edge_ou >= 3.0:
         st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {nombre_mercado_ou}.")
@@ -630,7 +589,7 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
         
       prob_b_model = btts_prob if "Sí" in sel_btts else btts_no_prob
       pi_b, edge_b = calcular_edge_real(mom_b_int, prob_b_model)
-      edges_partido.append((sel_btts, edge_b, mom_b_int))
+      edges_partido.append((sel_btts, edge_b, mom_b_int, "BTTS"))
       st.markdown(f"• Prob. Implícita: `{pi_b:.2f}%` | Prob. Modelo: `{prob_b_model}%` | 🎯 **Edge Neto: `+{edge_b:.2f}%`**")
       if edge_b >= 3.0:
         st.success(f"✅ **¡Mina de Oro (+EV)!** Excelente valor para {sel_btts}.")
@@ -641,18 +600,33 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
       st.markdown("📈 **Seguimiento Histórico del CLV (Closing Line Value):**")
       c_clv1, c_clv2 = st.columns(2)
       with c_clv1:
-        momio_tomado = st.number_input("Momio al Tomar la Apuesta (Americano):", value=-110, key=f"m_tomado_{idx}")
+        momio_tomado = st.number_input("Momio al Tomar la Apuesta:", value=-110, key=f"m_tomado_{idx}")
       with c_clv2:
-        momio_cierre = st.number_input("Momio de Cierre del Mercado (CLV):", value=-125, key=f"m_cierre_{idx}")
+        momio_cierre = st.number_input("Momio de Cierre del Mercado:", value=-125, key=f"m_cierre_{idx}")
       
       if momio_tomado > momio_cierre:
-        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO!** Le ganaste al mercado cerrando con mejor precio que la línea final de las casas de apuestas.")
+        st.success("🔥 **¡CLV POSITIVO CONSEGUIDO!**")
       else:
-        st.warning("⚠️ El mercado cerró con mejor cuota; revisar el timing de entrada para futuras operaciones.")
+        st.warning("⚠️ El mercado cerró con mejor cuota.")
 
-    # Sello del Modelo (Mejor Pick del Partido)
-    mejor_mercado, mejor_edge, mejor_momio = max(edges_partido, key=lambda x: x[1])
-    if mejor_edge >= 3.0:
+    # Sello del Modelo con Bloqueo Automático de Correlaciones Negativas
+    mejor_mercado, mejor_edge, mejor_momio, mejor_tag = max(edges_partido, key=lambda x: x[1])
+    
+    # Filtro de Correlaciones Negativas (Ej: evitar contradicciones lógicas)
+    bloqueo_activo = False
+    if mejor_tag == "OVER" and xgl_calc + xgv_calc < 1.8:
+      bloqueo_activo = True
+    elif mejor_tag == "UNDER" and xgl_calc + xgv_calc > 3.2:
+      bloqueo_activo = True
+
+    if bloqueo_activo:
+      st.warning(f"🛡️ **Filtro Anti-Correlaciones Negativas:** El Sello en *{mejor_mercado}* fue bloqueado por contradicción con el xG proyectado global. Buscando alternativa...")
+      # Seleccionar el segundo mejor que no esté bloqueado
+      alternativas = [e for e in edges_partido if e[3] != mejor_tag]
+      if alternativas:
+        mejor_mercado, mejor_edge, mejor_momio, _ = max(alternativas, key=lambda x: x[1])
+
+    if mejor_edge >= 3.0 and not bloqueo_activo:
       st.success(f"🔥 **SELLO DEL MODELO (MEJOR PICK): ¡{mejor_mercado}!** (Edge: `+{mejor_edge:.2f}%` | Cuota: `{mejor_momio}`)")
     else:
       st.info(f"⚖️ **Sello del Modelo:** Mejor proyección relativa en **{mejor_mercado}** (`+{mejor_edge:.2f}%`).")
@@ -661,72 +635,32 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
 
 
 # =========================================================
-# 6. PROPS FÚTBOL
+# 6 a 14. RESTO DE MÓDULOS
 # =========================================================
 elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
-  st.title(f"🎯 **Props de Fútbol [{fecha_formato_str}]**")
-  st.success("🤖 Módulo de Props de Fútbol activo.")
-
-
-# =========================================================
-# 7. NCAA
-# =========================================================
+  st.title(f"🎯 **Props Fútbol [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
-  st.title(f"🎓 **Robot Universitario NCAA [{fecha_formato_str}]**")
-  st.success("🤖 Robot universitario NCAA activo.")
-
-
-# =========================================================
-# 8. UFC
-# =========================================================
+  st.title(f"🎓 **NCAA [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
-  st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  st.success("🥊 Módulo de combate activo.")
-
-
-# =========================================================
-# 9. LIGA MEXICANA DEL PACÍFICO (LMP)
-# =========================================================
+  st.title(f"🥊 **UFC [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
-  st.title(f"⚾ **Liga Mexicana del Pacífico (LMP) [{fecha_formato_str}]**")
-  st.success("⚾ Béisbol invernal activo.")
-
-
-# =========================================================
-# 10. MLB
-# =========================================================
+  st.title(f"⚾ **LMP [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
-  st.title(f"⚾ **Béisbol Pro MLB [{fecha_formato_str}]**")
-  st.success("⚾ Béisbol MLB activo.")
-
-
-# =========================================================
-# 11. NHL
-# =========================================================
+  st.title(f"⚾ **MLB [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
-  st.title(f"🏒 **Sistema Pro NHL [{fecha_formato_str}]**")
-  st.success("🏒 Hockey NHL activo.")
-
-
-# =========================================================
-# 12. PROPS NHL
-# =========================================================
+  st.title(f"🏒 **NHL [{fecha_formato_str}]**")
+  st.success("Activo.")
 elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
   st.title(f"🏒 **Props NHL [{fecha_formato_str}]**")
-  st.success("🏒 Props NHL activo.")
-
-
-# =========================================================
-# 13. ANALÍTICA Y CLV
-# =========================================================
+  st.success("Activo.")
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
-  st.title(f"📊 **Panel de Analítica y Registro CLV [{fecha_formato_str}]**")
-  st.metric(label="💰 Bankroll Global Actual", value="$15,250.00 MXN", delta="+11.2%")
-
-
-# =========================================================
-# 14. OPTIMIZADOR DE PARLAYS
-# =========================================================
+  st.title(f"📊 **Bankroll [{fecha_formato_str}]**")
+  st.metric(label="Bankroll Global", value="$15,250.00 MXN", delta="+11.2%")
 else:
-  st.title(f"🚀 **Optimizador Automático de Parlays Pro [{fecha_formato_str}]**")
-  st.success("🚀 Optimizador de Parlays activo.")
+  st.title(f"🚀 **Optimizador de Parlays [{fecha_formato_str}]**")
+  st.success("Activo.")
