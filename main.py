@@ -181,8 +181,8 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
   cartelera_completa = combates_extraidos if combates_extraidos else []
   cartelera_completa.extend([
       {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Co-Estelar", "p1": "Peleador Co-Estelar 1", "p2": "Peleador Co-Estelar 2"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal", "p1": "Atleta Destacado A", "p2": "Atleta Destacado B"},
-      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Preliminar", "p1": "Preliminar Fighter 1", "p2": "Preliminar Fighter 2"}
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Cartelera Principal", "p1": "Peleador 3", "p2": "Peleador 4"},
+      {"evento_str": f"🥊 [{fecha_str_humana}] UFC Fight Night", "tipo": "Pelea Preliminar", "p1": "Peleador 5", "p2": "Peleador 6"}
   ])
   return cartelera_completa
 
@@ -192,7 +192,6 @@ def obtener_eventos_ufc_pro(fecha_str_api, fecha_str_humana):
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
-# Capturamos la fecha seleccionada en el sidebar
 fecha_seleccionada = st.sidebar.date_input("📅 Selecciona la Fecha a Analizar:", value=date.today())
 fecha_formato_api = fecha_seleccionada.strftime("%Y%m%d")
 fecha_formato_api_nhl = fecha_seleccionada.strftime("%Y-%m-%d")
@@ -506,21 +505,31 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
 
 
 # =========================================================
-# 8. UFC
+# 8. UFC (NOMBRES EDITABLES + MOTOR MATEMÁTICO)
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
   st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Motor matemático de combate para la fecha: **{fecha_formato_str}**.*")
+  st.markdown(f"--- \n *Cartelera oficial y combate automatizado para la fecha: **{fecha_formato_str}**.*")
   
   combates_ufc = obtener_eventos_ufc_pro(fecha_formato_api, fecha_formato_str)
   
   for idx, op in enumerate(combates_ufc, 1):
     evento_nombre = op.get('evento_str', 'UFC Evento')
     tipo_pelea = op.get('tipo', 'Combate')
-    p1 = op.get('p1', 'Peleador 1')
-    p2 = op.get('p2', 'Peleador 2')
+    default_p1 = op.get('p1', 'Peleador 1')
+    default_p2 = op.get('p2', 'Peleador 2')
     
-    with st.expander(f"{evento_nombre} — [{tipo_pelea}]: {p1} vs {p2}"):
+    with st.expander(f"{evento_nombre} — [{tipo_pelea}]"):
+      st.markdown("### ✍️ **Edición de Nombres de los Peleadores**")
+      col_n1, col_n2 = st.columns(2)
+      with col_n1:
+        p1 = st.text_input(f"Nombre Peleador 1 (Esquina Roja):", value=default_p1, key=f"p1_name_{idx}")
+      with col_n2:
+        p2 = st.text_input(f"Nombre Peleador 2 (Esquina Azul):", value=default_p2, key=f"p2_name_{idx}")
+        
+      st.markdown("---")
+      st.markdown(f"### ⚔️ **Estadísticas para el Modelo Cuantitativo**")
+      
       c1, c2 = st.columns(2)
       with c1:
         st.markdown(f"**🔵 {p1}**")
