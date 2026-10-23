@@ -291,6 +291,33 @@ def motor_beisbol_avanzado(fip_p1, woba_p1, fip_p2, woba_p2):
   prob_1 = 1.0 / (1.0 + math.exp(-diff * 0.45))
   return round(prob_1 * 100.0, 2), round((1.0 - prob_1) * 100.0, 2)
 
+def motor_nhl_avanzado(xg_l, xg_v, gsax_l, gsax_v):
+  # Motor de Poisson bivariado para hockey con ajuste de GSAx (Goals Saved Above Expected) y Empty Net
+  lambda_l = max(1.0, xg_l - (gsax_l * 0.15) + 0.22)
+  lambda_v = max(1.0, xg_v - (gsax_v * 0.15) + 0.20)
+  
+  max_goles = 8
+  p_l, p_v, p_empate_reg = 0.0, 0.0, 0.0
+  matriz = [[0.0 for _ in range(max_goles)] for _ in range(max_goles)]
+  
+  for gl in range(max_goles):
+    for gv in range(max_goles):
+      prob = poisson.pmf(gl, lambda_l) * poisson.pmf(gv, lambda_v)
+      matriz[gl][gv] = prob
+      if gl > gv:
+        p_l += prob
+      elif gv > gl:
+        p_v += prob
+      else:
+        p_empate_reg += prob
+        
+  # Asignación de prórroga / shootout (50% probabilidad en empate reglamentario)
+  p_win_l = (p_l + (p_empate_reg * 0.52)) * 100.0
+  p_win_v = (p_v + (p_empate_reg * 0.48)) * 100.0
+  total_goles_proj = round(lambda_l + lambda_v, 2)
+  
+  return round(p_win_l, 2), round(p_win_v, 2), total_goles_proj, round(lambda_l, 2), round(lambda_v, 2)
+
 
 # =========================================================
 # 0. ESCÁNER AUTOMÁTICO INTELIGENTE MULTI-DEPORTE
@@ -360,9 +387,9 @@ elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo A
       
       c1, c2 = st.columns(2)
       with c1:
-        epa_l = st.slider(f"EPA Ofensivo ({local_nfl}):", -0.5, 0.5, 0.12, 0.01, key=f"epa_l_{idx}")
+        epa_l = st.number_input(f"EPA Ofensivo ({local_nfl}):", -0.5, 0.5, 0.12, 0.01, key=f"epa_l_{idx}")
       with c2:
-        epa_v = st.slider(f"EPA Ofensivo ({visita_nfl}):", -0.5, 0.5, 0.08, 0.01, key=f"epa_v_{idx}")
+        epa_v = st.number_input(f"EPA Ofensivo ({visita_nfl}):", -0.5, 0.5, 0.08, 0.01, key=f"epa_v_{idx}")
         
       p_loc, p_vis = motor_monte_carlo_nfl(epa_l, epa_v, viento if clima_activo else 5.0)
       
@@ -416,7 +443,7 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
       with c2:
         media_v = st.number_input("Proyección Puntos Visita:", 90.0, 140.0, 112.0, 0.5, key=f"nba_mv_{idx}")
         
-      spread_propuesto = st.slider("Hándicap / Spread Local:", -15.0, 15.0, -4.5, 0.5, key=f"nba_sp_{idx}")
+      spread_propuesto = st.number_input("Hándicap / Spread Local:", -15.0, 15.0, -4.5, 0.5, key=f"nba_sp_{idx}")
       prob_cobertura = calcular_probabilidad_handicap_nba(media_l, media_v, spread_propuesto)
       
       st.info(f"📊 Probabilidad estimada del modelo para cubrir el Spread ({spread_propuesto}): **`{prob_cobertura}%`**")
@@ -462,9 +489,9 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
     with st.expander(f"⚽ {op['partido_str']}"):
       c1, c2 = st.columns(2)
       with c1:
-        lam_l = st.slider("Goles Esperados (xG) Local:", 0.5, 3.5, 1.65, 0.05, key=f"dc_l_{idx}")
+        lam_l = st.number_input("Goles Esperados (xG) Local:", 0.5, 3.5, 1.65, 0.05, key=f"dc_l_{idx}")
       with c2:
-        lam_v = st.slider("Goles Esperados (xG) Visita:", 0.5, 3.5, 1.15, 0.05, key=f"dc_v_{idx}")
+        lam_v = st.number_input("Goles Esperados (xG) Visita:", 0.5, 3.5, 1.15, 0.05, key=f"dc_v_{idx}")
         
       p_l, p_v, p_e, btts, over25 = motor_dixon_coles_soccer(lam_l, lam_v)
       
@@ -668,11 +695,11 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 
 
 # =========================================================
-# 11. NHL - MÓDULO PRO AVANZADO (POISSON & EMPTY NET)
+# 11. NHL - MÓDULO PRO AVANZADO (POISSON, GSAX & EMPTY NET)
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
-  st.title(f"🏒 **Sistema Pro NHL & Totales [{fecha_formato_str}]**")
-  st.markdown(f"--- \n *Modelo de Poisson con ajuste por Empty Net para la fecha: **{fecha_formato_str}**.*")
+  st.title(f"🏒 **Sistema Pro NHL & Totales Élite [{fecha_formato_str}]**")
+  st.markdown(f"--- \n *Modelo estocástico de Poisson con GSAx, ajuste por Empty Net y Puck Line para la fecha: **{fecha_formato_str}**.*")
   
   cartelera_nhl = obtener_cartelera_oficial_nhl(fecha_formato_api_nhl, fecha_formato_str)
   for idx, op in enumerate(cartelera_nhl, 1):
@@ -680,23 +707,51 @@ elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Tota
     visita_nhl = op.get('visita', 'AWAY')
     
     with st.expander(f"🏒 {op['partido_str']}"):
+      st.markdown("### ⚙️ **Parámetros Cuantitativos Avanzados de Hockey**")
       c1, c2 = st.columns(2)
       with c1:
-        xg_l_nhl = st.slider(f"Goles Esperados (xG) Local ({local_nhl}):", 1.0, 5.0, 3.10, 0.05, key=f"nhl_l_{idx}")
+        st.markdown(f"**🏠 Local: {local_nhl}**")
+        xg_l_nhl = st.number_input(f"xG Esperados Local:", 1.0, 5.0, 3.10, 0.05, key=f"nhl_l_{idx}")
+        gsax_l = st.number_input(f"Portero GSAx Local (Salvadas vs Esperadas):", -2.0, 2.0, 0.25, 0.05, key=f"nhl_gsax_l_{idx}")
       with c2:
-        xg_v_nhl = st.slider(f"Goles Esperados (xG) Visita ({visita_nhl}):", 1.0, 5.0, 2.85, 0.05, key=f"nhl_v_{idx}")
+        st.markdown(f"**✈️ Visita: {visita_nhl}**")
+        xg_v_nhl = st.number_input(f"xG Esperados Visita:", 1.0, 5.0, 2.85, 0.05, key=f"nhl_v_{idx}")
+        gsax_v = st.number_input(f"Portero GSAx Visita (Salvadas vs Esperadas):", -2.0, 2.0, -0.10, 0.05, key=f"nhl_gsax_v_{idx}")
         
-      # Simulación Poisson con ajuste de portería vacía (Empty Net factor ~ +0.35 goles globales)
-      xg_l_neto = xg_l_nhl + 0.18
-      xg_v_neto = xg_v_nhl + 0.17
-      total_goles_nhl = round(xg_l_neto + xg_v_neto, 2)
+      # Ejecución del motor avanzado de NHL
+      p_win_l, p_win_v, total_goles_proj, lam_l_neta, lam_v_neta = motor_nhl_avanzado(xg_l_nhl, xg_v_nhl, gsax_l, gsax_v)
       
       st.markdown("---")
-      col_n1, col_n2 = st.columns(2)
-      col_n1.metric(label=f"Proyección Goles Local ({local_nhl})", value=f"{xg_l_neto:.2f}")
-      col_n2.metric(label=f"Proyección Goles Visita ({visita_nhl})", value=f"{xg_v_neto:.2f}")
+      st.subheader("📊 **Resultados del Modelo & Probabilidades**")
       
-      st.info(f"🎯 **Total Proyectado con Empty Net:** **`{total_goles_nhl} Goles`**")
+      col_r1, col_r2 = st.columns(2)
+      col_r1.metric(label=f"Prob. Victoria Local ({local_nhl})", value=f"{p_win_l}%", delta=f"Goles Netos: {lam_l_neta}")
+      col_r2.metric(label=f"Prob. Victoria Visita ({visita_nhl})", value=f"{p_win_v}%", delta=f"Goles Netos: {lam_v_neta}")
+
+      st.markdown("---")
+      st.subheader("🎯 **Auditoría de Totales (Over / Under) & Puck Line (-1.5)**")
+      
+      col_nhl_ou1, col_nhl_ou2 = st.columns(2)
+      with col_nhl_ou1:
+        linea_nhl_casino = st.number_input("Línea de Goles del Casino (Ej. 5.5, 6.5):", 4.5, 8.5, 6.5, 0.5, key=f"linea_nhl_{idx}")
+      with col_nhl_ou2:
+        st.markdown(f"### 📈 Proyección Total: `{total_goles_proj} Goles`")
+
+      dif_nhl = round(total_goles_proj - linea_nhl_casino, 2)
+      if dif_nhl > 0.4:
+        st.success(f"🔥 **SELLO DEL MODELO: ¡JUGAR OVER (ALTAS) {linea_nhl_casino} Goles!** (Margen: `+{dif_nhl}`)")
+      elif dif_nhl < -0.4:
+        st.success(f"❄️ **SELLO DEL MODELO: ¡JUGAR UNDER (BAJAS) {linea_nhl_casino} Goles!** (Margen: `{dif_nhl}`)")
+      else:
+        st.warning(f"⚠️ **Línea ajustada / sin valor claro** (Proyección: {total_goles_proj} vs Línea: {linea_nhl_casino}).")
+
+      # Auditoría de Puck Line (-1.5)
+      diff_goles_match = round(abs(lam_l_neta - lam_v_neta), 2)
+      if diff_goles_match >= 1.4:
+        favorito_pl = local_nhl if lam_l_neta > lam_v_neta else visita_nhl
+        st.info(f"⚖️ **Puck Line (-1.5) Detectado:** Diferencial de `+{diff_goles_match} goles`. Alta viabilidad para buscar el hándicap de puck line a favor de **{favorito_pl}**.")
+      else:
+        st.info(f"⚖️ **Diferencial cerrado (`{diff_goles_match} goles`):** Se recomienda operar estrictamente en Moneyline o Totales.")
 
 
 # =========================================================
