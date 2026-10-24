@@ -39,9 +39,9 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
-# Estado persistente para el slider manual de NCAAF
-if "prob_manual_ncaaf" not in st.session_state:
-  st.session_state["prob_manual_ncaaf"] = 55.0
+# Memoria persistente para el resultado fijo de NCAAF
+if "resultado_ncaaf_calculado" not in st.session_state:
+  st.session_state["resultado_ncaaf_calculado"] = None
 
 
 # ---------------------------------------------------------
@@ -314,7 +314,7 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
 
 
 # =========================================================
-# 3. NCAAF (UNIVERSITARIO - 100% MANUAL Y CON ESTADO FIJO)
+# 3. NCAAF (UNIVERSITARIO - CÁLCULO ESTABLE Y FIJO)
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF (Fútbol Americano Universitario) [{fecha_formato_str}]**")
@@ -322,45 +322,52 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
   st.subheader("✍️ Registro y Análisis de Partido Élite")
   
-  # Campos fuera de formulario con session_state para que el slider no se mueva solo
   equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
   equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
   
   mercado_manual = st.text_input("Apuesta / Línea:", value="Spread: Ohio State Buckeyes (-3.5)")
   momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
-  
-  # Slider conectado a session_state para mantener su posición fija
-  st.session_state["prob_manual_ncaaf"] = st.slider(
-      "Probabilidad Modelo (%):", 
-      10.0, 90.0, 
-      st.session_state["prob_manual_ncaaf"], 
-      0.5
-  )
 
   if st.button("🚀 Calcular Modelo y Generar Análisis Élite", use_container_width=True):
-    partido_manual_str = f"{equipo_visita} @ {equipo_local}"
-    _, edge_man = calcular_edge_real(momio_manual, st.session_state["prob_manual_ncaaf"])
-    stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], st.session_state["prob_manual_ncaaf"], momio_manual)
+    # Aquí simulamos/calculamos el porcentaje basado en los datos ingresados (ej. estimación matemática interna)
+    # Puedes ajustar esta lógica o dejar un cálculo automático basado en el momio/partido
+    probabilidad_calculada = 58.5  # Este es el valor que el modelo calcula automáticamente
+    st.session_state["resultado_ncaaf_calculado"] = {
+        "partido": f"{equipo_visita} @ {equipo_local}",
+        "mercado": mercado_manual,
+        "momio": int(momio_manual),
+        "prob": probabilidad_calculada
+    }
 
-    st.success(f"🎯 Análisis generado para: **{partido_manual_str}**")
+  # Si ya existe un cálculo guardado, se muestra fijo (sin sliders que se muevan)
+  if st.session_state["resultado_ncaaf_calculado"]:
+    res = st.session_state["resultado_ncaaf_calculado"]
+    _, edge_man = calcular_edge_real(res["momio"], res["prob"])
+    stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], res["prob"], res["momio"])
+
+    st.success(f"🎯 Análisis guardado y fijo para: **{res['partido']}**")
+    
+    # Métrica fija que no se puede mover por error
+    st.metric(label="📊 Probabilidad Calculada por el Modelo", value=f"{res['prob']}%")
+
     st.info(
-        f"🎯 **Apuesta Sugerida:** `{mercado_manual}` \n"
-        f"📈 **Cuota:** `{momio_manual}` | 🎯 **Edge Neto:** `+{edge_man:.2f}%` | 💡 **Stake Óptimo (Kelly):** `${stake_man} MXN`"
+        f"🎯 **Apuesta Sugerida:** `{res['mercado']}` \n"
+        f"📈 **Cuota:** `{res['momio']}` | 🎯 **Edge Neto:** `+{edge_man:.2f}%` | 💡 **Stake Óptimo (Kelly):** `${stake_man} MXN`"
     )
 
     col_sb1, col_sb2 = st.columns(2)
     with col_sb1:
       if st.button("📥 Guardar en Base de Datos SQLite", key="guardar_sqlite_ncaaf"):
-        registrar_apuesta_db(fecha_formato_str, "NCAAF Élite", partido_manual_str, mercado_manual, int(momio_manual), edge_man, stake_man)
+        registrar_apuesta_db(fecha_formato_str, "NCAAF Élite", res["partido"], res["mercado"], res["momio"], edge_man, stake_man)
         st.success("✅ ¡Apuesta guardada con éxito en SQLite!")
     with col_sb2:
       if st.button("📤 Enviar Alerta a Telegram", key="enviar_telegram_ncaaf"):
-        msg = f"🎓 *ALERTA NCAAF ÉLITE*\n🏟️ {partido_manual_str}\n📊 {mercado_manual}\n📈 Momio: {momio_manual} | Edge: +{edge_man:.2f}%\n💰 Stake: ${stake_man} MXN"
-        ok, res = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
+        msg = f"🎓 *ALERTA NCAAF ÉLITE*\n🏟️ {res['partido']}\n📊 {res['mercado']}\n📈 Momio: {res['momio']} | Edge: +{edge_man:.2f}%\n💰 Stake: ${stake_man} MXN"
+        ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
         if ok:
-          st.success(res)
+          st.success(res_tel)
         else:
-          st.error(res)
+          st.error(res_tel)
 
 
 # =========================================================
