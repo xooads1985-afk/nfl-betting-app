@@ -180,45 +180,63 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-# 1. Motor NCAAF Actualizado (Power Ratings + Distribución Normal + Bye Weeks + QB Impact)
-def calcular_probabilidades_ncaaf(power_rating_local, power_rating_visitante, ventaja_localia=2.5):
-  return (power_rating_local + ventaja_localia) - power_rating_visitante
+# =========================================================
+# BASE DE DATOS Y MOTOR NCAAF (CONFERENCIAS DE ÉLITE)
+# =========================================================
+POWER_RATINGS_BASE = {
+    "Georgia Bulldogs": 96.0, "Texas Longhorns": 95.0, "Alabama Crimson Tide": 93.5,
+    "LSU Tigers": 89.0, "Ole Miss Rebels": 90.5, "Tennessee Volunteers": 91.0,
+    "Ohio State Buckeyes": 95.5, "Oregon Ducks": 94.0, "Penn State Nittany Lions": 89.5,
+    "Michigan Wolverines": 88.0, "USC Trojans": 86.5,
+    "Utah Utes": 86.0, "Kansas State Wildcats": 85.5, "Oklahoma State Cowboys": 84.0,
+    "Colorado Buffaloes": 82.0, "Miami Hurricanes": 88.5, "Clemson Tigers": 87.0,
+    "Florida State Seminoles": 81.0
+}
 
-def aplicar_matriz_correctiva_ncaaf(margen_base, total_base, datos_contexto):
-  margen_ajustado = margen_base
-  total_ajustado = total_base
-  if datos_contexto.get("local_viene_de_bye", False) and not datos_contexto.get("visita_viene_de_bye", False):
-    margen_ajustado += 1.5
-  elif datos_contexto.get("visita_viene_de_bye", False) and not datos_contexto.get("local_viene_de_bye", False):
-    margen_ajustado -= 1.5
-    
-  if datos_contexto.get("local_qb_titular_baja", False):
-    margen_ajustado -= datos_contexto.get("puntos_impacto_qb_local", 7.0)
-    total_ajustado -= 4.0
-    
-  if datos_contexto.get("visita_qb_titular_baja", False):
-    margen_ajustado += datos_contexto.get("puntos_impacto_qb_visita", 7.0)
-    total_ajustado -= 4.0
-    
-  return margen_ajustado, total_ajustado
+def obtener_power_rating(equipo):
+  return POWER_RATINGS_BASE.get(equipo, 78.0)
 
-def analizar_lineas_ncaaf_normal(pr_local, pr_visita, total_proyectado, linea_spread_casino, linea_total_casino, datos_contexto):
-  margen_base = calcular_probabilidades_ncaaf(pr_local, pr_visita)
-  margen_ajustado, total_ajustado = aplicar_matriz_correctiva_ncaaf(margen_base, total_proyectado, datos_contexto)
+def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_casino, linea_total_casino, contexto):
+  ventaja_casa = 2.5
+  margen_base = (pr_local + ventaja_casa) - pr_visita
   
-  z_spread = (linea_spread_casino - margen_ajustado) / 13.5
-  prob_local_cubre = stats.norm.cdf(z_spread) * 100.0
-  prob_visita_cubre = 100.0 - prob_local_cubre
+  if contexto.get("local_viene_de_bye", False) and not contexto.get("visita_viene_de_bye", False):
+    margen_base += 1.5
+  elif contexto.get("visita_viene_de_bye", False) and not contexto.get("local_viene_de_bye", False):
+    margen_base -= 1.5
+      
+  if contexto.get("local_qb_baja", False):
+    margen_base -= contexto.get("impacto_qb_local", 7.0)
+    total_proyectado -= 4.0
+      
+  if contexto.get("visita_qb_baja", False):
+    margen_base += contexto.get("impacto_qb_visita", 7.0)
+    total_proyectado -= 4.0
+
+  desv_spread = 13.5
+  desv_totales = 14.0
   
-  z_totales = (linea_total_casino - total_ajustado) / 14.0
-  prob_under = stats.norm.cdf(z_totales) * 100.0
+  z_spread = (linea_spread_casino - margen_base) / desv_spread
+  prob_local_handicap = norm.cdf(z_spread) * 100.0
+  prob_visita_handicap = 100.0 - prob_local_handicap
+  
+  z_totales = (linea_total_casino - total_proyectado) / desv_totales
+  prob_under = norm.cdf(z_totales) * 100.0
   prob_over = 100.0 - prob_under
   
+  opciones = [
+      {"mercado": f"Hándicap Local ({linea_spread_casino:+.1f})", "prob": prob_local_handicap},
+      {"mercado": f"Hándicap Visita ({-linea_spread_casino:+.1f})", "prob": prob_visita_handicap},
+      {"mercado": f"Over {linea_total_casino:.1f}", "prob": prob_over},
+      {"mercado": f"Under {linea_total_casino:.1f}", "prob": prob_under}
+  ]
+  validas = [o for o in opciones if o["prob"] >= 70.0]
   return {
-      "margen_proyectado": round(margen_ajustado, 2),
-      "total_proyectado": round(total_ajustado, 2),
-      "prob_local": round(prob_local_cubre, 2),
-      "prob_visita": round(prob_visita_cubre, 2),
+      "margen_proyectado": round(margen_base, 2),
+      "total_proyectado": round(total_proyectado, 2),
+      "validas": validas,
+      "prob_local": round(prob_local_handicap, 2),
+      "prob_visita": round(prob_visita_handicap, 2),
       "prob_over": round(prob_over, 2),
       "prob_under": round(prob_under, 2)
   }
@@ -418,44 +436,52 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NCAAF (ACTUALIZADO CON DISTRIBUCIÓN NORMAL)
+# 1. SISTEMA PRO NCAAF (CON PARSER PLAYDOIT & CONFERENCIAS ÉLITE)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor de Distribución Normal con Power Ratings, Bye Weeks y matriz correctiva por lesiones de QB.*")
+  st.markdown("--- \n *Análisis por Conferencia de Élite, Power Ratings predefinidos y Parser Automático estilo Playdoit.*")
 
-  col1, col2 = st.columns(2)
-  with col1:
-    el = st.text_input("Equipo Local:", value="Ohio State", key="ncaaf_el")
-    pr_l = st.number_input("Power Rating Local:", value=94.5, step=0.5, key="ncaaf_prl")
+  # Opción de entrada: Manual por selectores o Carga Rápida de Líneas estilo Playdoit
+    
+  el = st.text_input("Equipo Local (Ej. Georgia Bulldogs):", value="Georgia Bulldogs", key="ncaaf_el")
+  ev = st.text_input("Equipo Visitante (Ej. Clemson Tigers):", value="Clemson Tigers", key="ncaaf_ev")
+
+  # Enlace automático de Power Ratings de élite
+  pr_l = obtener_power_rating(el)
+  pr_v = obtener_power_rating(ev)
+
+  st.info(f"📊 Power Ratings asignados automáticamente: **{el} (`{pr_l}`)** vs **{ev} (`{pr_v}`)**")
+
+  col_c1, col_c2 = st.columns(2)
+  with col_c1:
     bye_l = st.checkbox("Local Descansado (Bye Week)", key="ncaaf_byel")
     qb_l = st.checkbox("QB Titular Local Lesionado", key="ncaaf_qbl")
-  with col2:
-    ev = st.text_input("Equipo Visitante:", value="Penn State", key="ncaaf_ev")
-    pr_v = st.number_input("Power Rating Visitante:", value=88.0, step=0.5, key="ncaaf_prv")
+  with col_c2:
     bye_v = st.checkbox("Visitante Descansado (Bye Week)", key="ncaaf_byev")
     qb_v = st.checkbox("QB Titular Visitante Lesionado", key="ncaaf_qbv")
 
   st.markdown("---")
   col3, col4, col5 = st.columns(3)
   with col3:
-    tot_proy = st.number_input("Total de Puntos Proyectado:", value=51.5, step=0.5, key="ncaaf_tot")
+    tot_proy = st.number_input("Total Proyectado por Modelo:", value=52.0, step=0.5, key="ncaaf_tot")
   with col4:
-    linea_sp = st.number_input("Línea Spread Casino (Local):", value=-3.5, step=0.5, key="ncaaf_lsp")
+    linea_sp = st.number_input("Línea Spread Casino (Local):", value=-14.5, step=0.5, key="ncaaf_lsp")
   with col5:
-    linea_tot = st.number_input("Línea Total Casino (O/U):", value=49.5, step=0.5, key="ncaaf_ltot")
+    linea_tot = st.number_input("Línea Total Casino (O/U):", value=46.5, step=0.5, key="ncaaf_ltot")
 
   contexto_ncaaf = {
       "local_viene_de_bye": bye_l, "visita_viene_de_bye": bye_v,
-      "local_qb_titular_baja": qb_l, "visita_qb_titular_baja": qb_v,
-      "puntos_impacto_qb_local": 7.0, "puntos_impacto_qb_visita": 7.0
+      "local_qb_baja": qb_l, "visita_qb_baja": qb_v,
+      "impacto_qb_local": 7.0, "impacto_qb_visita": 7.0
   }
 
   if st.button("🚀 Ejecutar Análisis Matemático NCAAF", use_container_width=True):
-    res_ncaaf = analizar_lineas_ncaaf_normal(pr_l, pr_v, tot_proy, linea_sp, linea_tot, contexto_ncaaf)
+    res_ncaaf = analizar_lineas_ncaaf(pr_l, pr_v, tot_proy, linea_sp, linea_tot, contexto_ncaaf)
     st.session_state["resultado_ncaaf_calculado"] = {
         "partido": f"{ev} @ {el}",
-        "analisis": res_ncaaf
+        "analisis": res_ncaaf,
+        "local": el, "visita": ev
     }
 
   if st.session_state["resultado_ncaaf_calculado"]:
@@ -468,30 +494,21 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
     col_n2.metric("📊 Total Puntos Proyectado", f"{res['total_proyectado']} pts")
 
     col_n3, col_n4, col_n5, col_n6 = st.columns(4)
-    col_n3.metric(f"Prob. {el} Cubre ({linea_sp})", f"{res['prob_local']}%")
-    col_n4.metric(f"Prob. {ev} Cubre ({-linea_sp})", f"{res['prob_visita']}%")
+    col_n3.metric(f"Prob. {r['local']} Cubre ({linea_sp})", f"{res['prob_local']}%")
+    col_n4.metric(f"Prob. {r['visita']} Cubre ({-linea_sp})", f"{res['prob_visita']}%")
     col_n5.metric(f"Prob. Over {linea_tot}", f"{res['prob_over']}%")
     col_n6.metric(f"Prob. Under {linea_tot}", f"{res['prob_under']}%")
 
-    st.markdown("### 📌 Opciones Recomendadas (>70% Éxito)")
-    opciones_eval = [
-        ("Spread " + el, res['prob_local'], linea_sp),
-        ("Spread " + ev, res['prob_visita'], -linea_sp),
-        ("Over " + str(linea_tot), res['prob_over'], linea_tot),
-        ("Under " + str(linea_tot), res['prob_under'], linea_tot)
-    ]
-    
-    hay_valida = False
-    for merc, prob, lin in opciones_eval:
-      if prob >= 70.0:
-        hay_valida = True
-        st.info(f"✅ **{merc}** | Probabilidad: `{prob}%`")
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], prob, -110)
-        if st.button(f"📥 Guardar en SQLite ({merc})", key=f"db_ncaaf_{merc}"):
-          registrar_apuesta_db(fecha_formato_str, "NCAAF Élite", r["partido"], merc, -110, prob - 52.38, stk)
-          st.success("¡Apuesta NCAAF guardada con éxito!")
-    if not hay_valida:
-      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este juego universitario.")
+    st.markdown("### 📌 Opciones Certificadas (>70% Éxito)")
+    if res["validas"]:
+      for jugada in res["validas"]:
+        st.info(f"✅ **{jugada['mercado']}** | Probabilidad de Éxito: `{jugada['prob']:.2f}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_ncaaf_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "NCAAF Élite", r["partido"], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("¡Apuesta NCAAF guardada con éxito en SQLite!")
+    else:
+      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este partido.")
 
 
 # =========================================================
