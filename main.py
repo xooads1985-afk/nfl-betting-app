@@ -246,25 +246,25 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
-# FILTRO DE EQUIPOS DE LAS 4 CONFERENCIAS PRINCIPALES (SEC, B1G, Big 12, ACC)[span_5](start_span)[span_5](end_span)
+# FILTRO DE EQUIPOS DE LAS 4 CONFERENCIAS PRINCIPALES (SEC, B1G, Big 12, ACC)[span_1](start_span)[span_1](end_span)
 # ---------------------------------------------------------
 EQUIPOS_CONFERENCIAS_PRINCIPALES = [
-    # SEC (Southeastern Conference)[span_6](start_span)[span_6](end_span)
+    # SEC (Southeastern Conference)[span_2](start_span)[span_2](end_span)
     "Georgia", "Alabama", "Texas", "Oklahoma", "LSU", "Ole Miss", "Tennessee", 
     "Auburn", "Florida", "Texas A&M", "Missouri", "Kentucky", "South Carolina", 
     "Arkansas", "Mississippi State", "Vanderbilt",
     
-    # Big Ten Conference (B1G)[span_7](start_span)[span_7](end_span)
+    # Big Ten Conference (B1G)[span_3](start_span)[span_3](end_span)
     "Ohio State", "Michigan", "Oregon", "USC", "Washington", "Penn State", 
     "Iowa", "Wisconsin", "Nebraska", "Michigan State", "Illinois", "Minnesota", 
-    "Purdue", "Indiana", "Northwestern", "Maryland", "Rutgers", "UCLA", "California", "Stanford" -> "Cal", # (O variantes comunes)
+    "Purdue", "Indiana", "Northwestern", "Maryland", "Rutgers", "UCLA", "California", "Stanford", "Cal",
     
-    # Big 12 Conference[span_8](start_span)[span_8](end_span)
+    # Big 12 Conference[span_4](start_span)[span_4](end_span)
     "Utah", "Kansas State", "Arizona State", "Kansas", "Iowa State", "Oklahoma State", 
     "Baylor", "TCU", "Texas Tech", "West Virginia", "UCF", "Cincinnati", "Houston", 
     "BYU", "Colorado", "Arizona",
     
-    # Atlantic Coast Conference (ACC)[span_9](start_span)[span_9](end_span)
+    # Atlantic Coast Conference (ACC)[span_5](start_span)[span_5](end_span)
     "Clemson", "Florida State", "Miami", "Cal", "Stanford", "SMU", "Louisville", 
     "North Carolina", "NC State", "Virginia Tech", "Pittsburgh", "Duke", "Syracuse", 
     "Wake Forest", "Virginia", "Boston College", "Georgia Tech"
@@ -326,7 +326,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (CON CREDENCIALES PREDEFINIDAS)
+# SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -495,12 +495,11 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario - SEC, B1G, Big 12, ACC)":
   st.title(f"🎓 **Sistema Cuantitativo Pro NCAAF (Conferencias Principales) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo por capas filtrado exclusivamente para los mejores programas de la SEC, Big Ten, Big 12 y ACC.*[span_10](start_span)[span_10](end_span)")
+  st.markdown("--- \n *Análisis cuantitativo por capas filtrado exclusivamente para los mejores programas de la SEC, Big Ten, Big 12 y ACC.*[span_6](start_span)[span_6](end_span)")
 
   api_key = st.session_state["api_key_guardada"]
   cartelera_ncaa_raw = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
 
-  # Filtrar únicamente partidos de las 4 conferencias principales de la imagen
   cartelera_ncaa = [
       p for p in cartelera_ncaa_raw 
       if es_partido_conferencias_principales(p["partido_str"])
@@ -516,7 +515,7 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario 
     }]
 
   partidos_unicos_ncaa = sorted(list(set([p["partido_str"] for p in cartelera_ncaa])))
-  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros de élite (SEC, B1G, Big 12, ACC)[span_11](start_span)[span_11](end_span) para analizar.")
+  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros de élite (SEC, B1G, Big 12, ACC)[span_7](start_span)[span_7](end_span) para analizar.")
 
   for idx, partido_str in enumerate(partidos_unicos_ncaa[:10], 1):
     parts = partido_str.split(" @ ")
