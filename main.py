@@ -5,6 +5,7 @@ import random
 import sqlite3
 import threading
 import time
+import numpy as np
 import requests
 import scipy.stats as stats
 from scipy.stats import poisson
@@ -179,7 +180,7 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-# Motores de Cálculo
+# Motores de Cálculo por Deporte
 def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
   pr_local = ppg_local - (pap_local * 0.95)
   pr_visita = ppg_visita - (pap_visita * 0.95)
@@ -233,21 +234,45 @@ def motor_matematico_nba_totales(off_local, def_local, off_visita, def_visita, l
   prob_under = sum([poisson.pmf(k, lam_adj / 2.5) for k in range(int(math.floor(linea_casa)) + 1)])
   return round(max(5.0, min(95.0, (1.0 - prob_under) * 100.0)), 2), lam_adj
 
-def motor_matematico_soccer(goles_favor_local, goles_contra_local, goles_favor_visita, goles_contra_visita, linea_ou=2.5):
-  lam_l = max(0.2, (goles_favor_local + goles_contra_visita) / 2.0)
-  lam_v = max(0.2, (goles_favor_visita + goles_contra_local) / 2.0)
-  p_win_l, p_tie, p_win_v, p_over = 0.0, 0.0, 0.0, 0.0
-  for gl in range(7):
-    for gv in range(7):
-      p = poisson.pmf(gl, lam_l) * poisson.pmf(gv, lam_v)
-      if gl > gv: p_win_l += p
-      elif gl == gv: p_tie += p
-      else: p_win_v += p
-      if (gl + gv) > linea_ou: p_over += p
+# Motor Pro Fútbol Actualizado (Poisson Bivariado con Matriz & Filtros >70%)
+def calcular_matriz_probabilidades(avg_goles_local, avg_goles_visitante, max_goles=6):
+  prob_local = [poisson.pmf(i, avg_goles_local) for i in range(max_goles + 1)]
+  prob_visitante = [poisson.pmf(j, avg_goles_visitante) for j in range(max_goles + 1)]
+  matriz_prob = np.outer(prob_local, prob_visitante)
+  matriz_prob /= matriz_prob.sum()
+  return matriz_prob
+
+def analizar_mercados_futbol(equipo_local, equipo_visita, xg_local, xg_visita, momio_playdoit_1x2):
+  matriz = calcular_matriz_probabilidades(xg_local, xg_visita)
+  prob_local_win = float(np.sum(np.triu(matriz, 1).T)) * 100
+  prob_visitante_win = float(np.sum(np.tril(matriz, -1).T)) * 100
+  prob_empate = float(np.diag(matriz).sum()) * 100
+  
+  total_goles_matriz = np.fromfunction(lambda i, j: i + j, matriz.shape, dtype=int)
+  prob_under_25 = float(matriz[total_goles_matriz < 3].sum()) * 100
+  prob_over_25 = 100 - prob_under_25
+  
+  opciones_equipos = [
+      {"mercado": f"Gana {equipo_local}", "prob": prob_local_win, "tipo": "1X2"},
+      {"mercado": f"Gana {equipo_visita}", "prob": prob_visitante_win, "tipo": "1X2"},
+      {"mercado": "Empate", "prob": prob_empate, "tipo": "1X2"},
+      {"mercado": "Over 2.5 Goles", "prob": prob_over_25, "tipo": "O/U"},
+      {"mercado": "Under 2.5 Goles", "prob": prob_under_25, "tipo": "O/U"}
+  ]
+  jugadas_validas = [j for j in opciones_equipos if j["prob"] >= 70.0]
+  
+  nota_linea = "Línea Oficial Recomendada"
+  if momio_playdoit_1x2 <= 1.50:
+      nota_linea = "Alerta: Momio castigado. Evaluar Ajuste de Línea Alterna"
+      
   return {
-      "1X2_local": round(p_win_l * 100.0, 2), "1X2_empate": round(p_tie * 100.0, 2), "1X2_visita": round(p_win_v * 100.0, 2),
-      "over_pct": round(p_over * 100.0, 2), "under_pct": round((1.0 - p_over) * 100.0, 2),
-      "lambda_local": round(lam_l, 2), "lambda_visita": round(lam_v, 2)
+      "local": round(prob_local_win, 2),
+      "empate": round(prob_empate, 2),
+      "visita": round(prob_visitante_win, 2),
+      "over25": round(prob_over_25, 2),
+      "under25": round(prob_under_25, 2),
+      "jugadas_alta_prob": jugadas_validas,
+      "nota_linea": nota_linea
   }
 
 def motor_matematico_nhl(gf_local, ga_local, gf_visita, ga_visita, goalie_boost_local=False, goalie_boost_visita=False, linea_ou=5.5):
@@ -392,10 +417,10 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
+        "⚽ Módulo Pro Fútbol (Soccer)",
         "🥊 Sistema Pro UFC / MMA",
         "🏒 Hockey Pro (NHL)",
         "⚾ Béisbol Pro (MLB / LMP)",
-        "⚽ Módulo Pro Fútbol (Soccer)",
         "🎓 Sistema Pro NCAAF (Universitario)",
         "🛡️ Sistema Pro NFL",
         "🏀 Sistema Pro NBA",
@@ -410,9 +435,61 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NCAAF
+# 1. FÚTBOL SOCCER (CON MOTOR DE MATRIZ & FILTRO >70%)
 # =========================================================
-if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
+if modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
+  st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Motor de Poisson Bivariado con filtros estrictos de alta probabilidad (>70%) y generación de tickets para Playdoit.*")
+  
+  col_s1, col_s2 = st.columns(2)
+  with col_s1:
+    el = st.text_input("Equipo Local:", value="Club América", key="soc_el")
+    xg_l = st.number_input("xG / Goles Esperados Local:", value=2.45, step=0.05, key="soc_xgl")
+  with col_s2:
+    ev = st.text_input("Equipo Visitante:", value="Guadalajara", key="soc_ev")
+    xg_v = st.number_input("xG / Goles Esperados Visita:", value=0.85, step=0.05, key="soc_xgv")
+
+  momio_playdoit = st.number_input("Momio Decimal Playdoit (Referencia 1X2):", value=1.75, step=0.05, key="soc_mp")
+
+  if st.button("🚀 Ejecutar Análisis Matriz Bivariada Fútbol", use_container_width=True):
+    res_soc = analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit)
+    st.session_state["resultado_soccer_calculado"] = {
+        "partido": f"{ev} @ {el}",
+        "analisis": res_soc
+    }
+
+  if st.session_state["resultado_soccer_calculado"]:
+    r = st.session_state["resultado_soccer_calculado"]
+    res = r["analisis"]
+    st.success(f"🎯 Análisis Completado para: **{r['partido']}**")
+    
+    col_r1, col_r2, col_r3 = st.columns(3)
+    col_r1.metric(f"Gana {el}", f"{res['local']}%")
+    col_r2.metric("Empate", f"{res['empate']}%")
+    col_r3.metric(f"Gana {ev}", f"{res['visita']}%")
+
+    col_r4, col_r5 = st.columns(2)
+    col_r4.metric("Over 2.5 Goles", f"{res['over25']}%")
+    col_r5.metric("Under 2.5 Goles", f"{res['under25']}%")
+
+    st.markdown(f"ℹ️ **Estado de Línea:** `{res['nota_linea']}`")
+
+    if res["jugadas_alta_prob"]:
+      st.markdown("### 🔥 Jugadas Certificadas (>70% Probabilidad)")
+      for jugada in res["jugadas_alta_prob"]:
+        st.info(f"✅ **{jugada['mercado']}** | Probabilidad: `{jugada['prob']}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_soc_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "Soccer Élite", r["partido"], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("¡Apuesta guardada con éxito en la base de datos!")
+    else:
+      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este enfrentamiento.")
+
+
+# =========================================================
+# 2. SISTEMA PRO NCAAF
+# =========================================================
+elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo protegido y congelado.*")
   col1, col2 = st.columns(2)
@@ -452,7 +529,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 2. SISTEMA PRO NFL
+# 3. SISTEMA PRO NFL
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
@@ -492,7 +569,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
 
 # =========================================================
-# 3. SISTEMA PRO NBA
+# 4. SISTEMA PRO NBA
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
@@ -531,44 +608,6 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
     stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
     st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
     if st.button("📥 Guardar SQLite", key="db_nb"): registrar_apuesta_db(fecha_formato_str, "NBA", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
-
-
-# =========================================================
-# 4. FÚTBOL SOCCER
-# =========================================================
-elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
-  st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo protegido y congelado.*")
-  col1, col2 = st.columns(2)
-  with col1:
-    ev = st.text_input("Visitante:", value="Real Madrid", key="soc_ev")
-    gfv = st.number_input("GF Visita:", value=1.8, step=0.1, key="soc_gfv")
-    gcv = st.number_input("GC Visita:", value=1.0, step=0.1, key="soc_gcv")
-  with col2:
-    el = st.text_input("Local:", value="Barcelona", key="soc_el")
-    gfl = st.number_input("GF Local:", value=2.1, step=0.1, key="soc_gfl")
-    gcl = st.number_input("GC Local:", value=0.8, step=0.1, key="soc_gcl")
-  tm = st.selectbox("Mercado:", ["1X2", "Total Goles"], key="soc_tm")
-  if tm == "1X2":
-    sel = st.selectbox("Selección:", ["Local (1)", "Empate (X)", "Visitante (2)"], key="soc_sel")
-    mm = st.number_input("Momio:", value=110, step=5, key="soc_mm")
-    if st.button("🚀 Calcular Soccer", use_container_width=True):
-      mat = motor_matematico_soccer(gfl, gcl, gfv, gcv)
-      prob = mat["1X2_local"] if "Local" in sel else (mat["1X2_empate"] if "Empate" in sel else mat["1X2_visita"])
-      st.session_state["resultado_soccer_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"1X2: {sel}", "momio": int(mm), "prob": prob}
-  else:
-    lg = st.number_input("Línea Goles:", value=2.5, step=0.5, key="soc_lg")
-    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="soc_op")
-    mm = st.number_input("Momio:", value=-110, step=5, key="soc_mmo")
-    if st.button("🚀 Calcular Soccer", use_container_width=True):
-      mat = motor_matematico_soccer(gfl, gcl, gfv, gcv, lg)
-      st.session_state["resultado_soccer_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} {lg}", "momio": int(mm), "prob": mat["over_pct"] if "Over" in op else mat["under_pct"]}
-  if st.session_state["resultado_soccer_calculado"]:
-    r = st.session_state["resultado_soccer_calculado"]
-    _, eg = calcular_edge_real(r["momio"], r["prob"])
-    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
-    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
-    if st.button("📥 Guardar SQLite", key="db_so"): registrar_apuesta_db(fecha_formato_str, "Soccer", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
 
 
 # =========================================================
@@ -656,7 +695,7 @@ elif modulo_seleccionado == "⚾ Béisbol Pro (MLB / LMP)":
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
   st.title(f"🥊 **Sistema Pro UFC / MMA Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo avanzado de artes marciales mixtas basado en Power Ratings de golpeo, defensa de derribos y tasa de finalización.*")
+  st.markdown("--- \n *Módulo avanzado de artes marciales mixtas.*")
 
   col_ufc1, col_ufc2 = st.columns(2)
   with col_ufc1:
@@ -693,7 +732,7 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
     }
 
   st.markdown("---")
-  st.subheader("📌 Resultado del Análisis UFC (Fijo e Inalterable)")
+  st.subheader("📌 Resultado del Análisis UFC")
 
   if st.session_state["resultado_ufc_calculado"]:
     res_ufc = st.session_state["resultado_ufc_calculado"]
@@ -725,19 +764,15 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
 
 
 # =========================================================
-# MÓDULOS SECUNDARIOS DE SOPORTE
+# MÓDULOS SECUNDARIOS DE SOPORTE Y FINANCIEROS
 # =========================================================
 elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Multi-Deporte [{fecha_formato_str}]**")
   api_key = st.session_state["api_key_guardada"]
-  cartelera = obtener_partidos_y_momios_api("mixedmartialarts_mixed_martial_arts", api_key)
+  cartelera = obtener_partidos_y_momios_api("soccer_mexico_ligamx", api_key)
   for idx, p in enumerate(cartelera[:10], 1):
-    st.info(f"🥊 UFC #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
+    st.info(f"⚽ Liga MX #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
 
-
-# =========================================================
-# PANEL DE CONTROL FINANCIERO
-# =========================================================
 elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   st.title(f"📊 **Panel de Control, Métricas & Bankroll [{fecha_formato_str}]**")
   
@@ -797,10 +832,6 @@ elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   else:
     st.info("No hay apuestas registradas todavía.")
 
-
-# =========================================================
-# PARLAYS Y ARBITRAJE
-# =========================================================
 elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
   st.title(f"🚀 **Optimizador de Parlays Monte Carlo [{fecha_formato_str}]**")
   st.info("Módulo de simulación de parlay activo.")
@@ -816,7 +847,7 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
 
   bankroll_total_arb = st.number_input("Inversión Total para la Surebet (MXN):", value=5000.0, step=500.0)
 
-  if st.button("⚖️ Calcular Surebet y Enviar à Telegram", use_container_width=True):
+  if st.button("⚖️ Calcular Surebet y Enviar a Telegram", use_container_width=True):
     dec_a = (1.0 + (cuota_a / 100.0)) if cuota_a > 0 else (1.0 + (100.0 / abs(cuota_a)))
     dec_b = (1.0 + (cuota_b / 100.0)) if cuota_b > 0 else (1.0 + (100.0 / abs(cuota_b)))
 
@@ -832,14 +863,10 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
       
       msg = f"⚖️ *ALERTA DE ARBITRAJE (SUREBET)*\n📈 ROI: +{roi_arb:.2f}%\n💵 Ganancia: ${ganancia_garantizada:,.2f} MXN\n📌 Casa A ({cuota_a}): ${stake_a:,.2f}\n📌 Casa B ({cuota_b}): ${stake_b:,.2f}"
       ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
-      if ok: st.success("📤 ¡Alerta de Surebet enviada à Telegram con éxito!")
+      if ok: st.success("📤 ¡Alerta de Surebet enviada a Telegram con éxito!")
     else:
       st.error(f"❌ Sin arbitraje. La suma implícita es {implied_sum*100:.2f}% (superior al 100%).")
 
-
-# =========================================================
-# BACKTESTING & STEAM MOVES
-# =========================================================
 elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
   st.title(f"📈 **Simulador de Backtesting & Alertas Steam Moves [{fecha_formato_str}]**")
   st.markdown("Audita el rendimiento histórico de tus algoritmos aplicando pruebas de estrés sobre 500 partidos simulados de temporadas pasadas.")
@@ -876,10 +903,6 @@ elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
   st.subheader("🔥 Monitor de Steam Moves (Dinero Profesional)")
   st.info("💡 **Alerta de Mercado:** El sistema monitorea en tiempo real si las líneas de Las Vegas se mueven 2+ puntos en contra del público general. Cuando se detecta un *Steam Move* respaldado por tus Power Ratings, la oportunidad se marca como Alta Prioridad.")
 
-
-# =========================================================
-# GESTOR MULTI-BOOKMAKER (LINE SHOPPING)
-# =========================================================
 elif modulo_seleccionado == "⚖️ Gestor Multi-Bookmaker (Line Shopping)":
   st.title(f"⚖️ **Comparador de Cuotas & Line Shopping [{fecha_formato_str}]**")
   st.markdown("Nunca apuestes con cuotas bajas. Compara simultáneamente los momios de las principales casas para encontrar la mayor rentabilidad.")
