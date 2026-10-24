@@ -476,20 +476,33 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (CON MACHINE LEARNING + EMA + QB BUST)
+# 6. SISTEMA PRO NFL (CON PERSISTENCIA Y RESPALDO ROBUSTO)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
   import nfl_data_py as nfl
   years_train = [2022, 2023, 2024, 2025]
+  archivo_cache_pbp = "nfl_pbp_cache.csv"
+  archivo_cache_sched = "nfl_sched_cache.csv"
+  archivo_cache_weekly = "nfl_weekly_cache.csv"
+  
   try:
-    pbp = nfl.import_pbp_data(years_train)
-    schedule = nfl.import_schedules(years_train)
-    weekly_stats = nfl.import_weekly_data(years_train)
+    if os.path.exists(archivo_cache_pbp) and os.path.exists(archivo_cache_sched):
+      pbp = pd.read_csv(archivo_cache_pbp, low_memory=False)
+      schedule = pd.read_csv(archivo_cache_sched, low_memory=False)
+      weekly_stats = pd.read_csv(archivo_cache_weekly, low_memory=False) if os.path.exists(archivo_cache_weekly) else pd.DataFrame()
+    else:
+      pbp = nfl.import_pbp_data(years_train)
+      schedule = nfl.import_schedules(years_train)
+      weekly_stats = nfl.import_weekly_data(years_train)
+      
+      pbp.to_csv(archivo_cache_pbp, index=False)
+      schedule.to_csv(archivo_cache_sched, index=False)
+      if not weekly_stats.empty:
+        weekly_stats.to_csv(archivo_cache_weekly, index=False)
     
     pbp_clean = pbp[pbp['play_type'].isin(['pass', 'run'])].dropna(subset=['epa']).copy()
     
-    # Agrupación semana a semana para aplicar EMA (Ponderación por recencia)
     stats_semanales = pbp_clean.groupby(['season', 'week', 'posteam']).agg(
         off_epa=('epa', 'mean'),
         off_success=('success', 'mean')
@@ -502,19 +515,18 @@ def entrenar_modelo_nfl_ml_avanzado():
     metricas_tiempo_real = pd.merge(stats_semanales, def_semanales, on=['season', 'week', 'team'])
     metricas_tiempo_real = metricas_tiempo_real.sort_values(by=['season', 'team', 'week']).reset_index(drop=True)
     
-    # Aplicar EMA (Exponential Moving Average con alpha=0.3)
     metricas_tiempo_real['off_epa_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['off_epa'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
     metricas_tiempo_real['def_epa_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['def_epa'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
     metricas_tiempo_real['success_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['off_success'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
 
-    # Tomar la última semana disponible por equipo para el rendimiento actual
     team_metrics = metricas_tiempo_real.groupby(['season', 'team']).last().reset_index()
 
-    # Mapeo de QB Titular por intentos de pase
-    qb_stats = weekly_stats[weekly_stats['position'] == 'QB'].copy()
-    qb_totales = qb_stats.groupby(['season', 'recent_team', 'player_id'])['pass_attempts'].sum().reset_index()
-    qb_titulares = qb_totales.sort_values(by='pass_attempts', ascending=False).groupby(['season', 'recent_team']).first().reset_index()
-    dict_titulares = {(row['season'], row['recent_team']): row['player_id'] for _, row in qb_titulares.iterrows()}
+    dict_titulares = {}
+    if not weekly_stats.empty and 'position' in weekly_stats.columns:
+      qb_stats = weekly_stats[weekly_stats['position'] == 'QB'].copy()
+      qb_totales = qb_stats.groupby(['season', 'recent_team', 'player_id'])['pass_attempts'].sum().reset_index()
+      qb_titulares = qb_totales.sort_values(by='pass_attempts', ascending=False).groupby(['season', 'recent_team']).first().reset_index()
+      dict_titulares = {(row['season'], row['recent_team']): row['player_id'] for _, row in qb_titulares.iterrows()}
 
     games = schedule.dropna(subset=['home_score', 'away_score']).copy()
     games['target_spread'] = games['home_score'] - games['away_score']
@@ -541,6 +553,7 @@ def entrenar_modelo_nfl_ml_avanzado():
     
     return model_spread, model_total, team_metrics, dict_titulares, True
   except Exception as e:
+    print(f"Error en ML NFL: {e}")
     return None, None, pd.DataFrame(), {}, False
 
 
@@ -1152,7 +1165,6 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
         a_def = away_data['def_epa_ema'].values[0]
         a_suc = away_data['success_ema'].values[0]
         
-        # Aplicar penalización si hay QB suplente
         if qb_local_suplente:
           h_off *= 0.75
           h_suc *= 0.85
