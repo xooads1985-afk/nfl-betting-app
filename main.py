@@ -30,13 +30,13 @@ TELEGRAM_CHAT_ID_PREDEFINIDO = "1567134615"
 if "bankroll_global" not in st.session_state:
   st.session_state["bankroll_global"] = 15250.0
 
-if "api_key_guardada" not in st.session_state:
+if "api_key_guardada" not in st.session_state or not st.session_state["api_key_guardada"]:
   st.session_state["api_key_guardada"] = API_KEY_PREDEFINIDA
 
-if "telegram_token" not in st.session_state:
+if "telegram_token" not in st.session_state or not st.session_state["telegram_token"]:
   st.session_state["telegram_token"] = TELEGRAM_TOKEN_PREDEFINIDO
 
-if "telegram_chat_id" not in st.session_state:
+if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
 
@@ -294,7 +294,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ
+# SELECTOR GLOBAL DE FECHA Y MENÚ (CON INPUTS DE CREDENCIALES)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -304,6 +304,28 @@ fecha_seleccionada = st.sidebar.date_input(
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("🌐 Configuración de API Odds")
+st.session_state["api_key_guardada"] = st.sidebar.text_input(
+    "API Key (The Odds API):",
+    value=st.session_state["api_key_guardada"],
+    type="password",
+)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🤖 Configuración Bot Telegram")
+st.session_state["telegram_token"] = st.sidebar.text_input(
+    "Bot Token:", value=st.session_state["telegram_token"], type="password"
+)
+st.session_state["telegram_chat_id"] = st.sidebar.text_input(
+    "Chat ID:", value=st.session_state["telegram_chat_id"]
+)
+
+if st.sidebar.button("🔄 Actualizar y Sincronizar Datos", use_container_width=True):
+  st.cache_data.clear()
+  st.rerun()
+
+st.sidebar.markdown("---")
+
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo de análisis:",
     [
