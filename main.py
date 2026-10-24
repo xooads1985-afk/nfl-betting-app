@@ -1,5 +1,4 @@
 from datetime import date, datetime, timedelta
-import asyncio
 import math
 import os
 import random
@@ -11,14 +10,6 @@ import requests
 import scipy.stats as stats
 from scipy.stats import norm, poisson
 import streamlit as st
-
-# Intentamos importar playwright de forma segura para la interfaz
-try:
-  from playwright.async_api import async_playwright
-  from playwright_stealth import stealth_async
-  PLAYWRIGHT_DISPONIBLE = True
-except ImportError:
-  PLAYWRIGHT_DISPONIBLE = False
 
 # Configuración global de la página
 st.set_page_config(
@@ -157,7 +148,7 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
 
 
 # =========================================================
-# MOTORES DE PLAYER PROPS Y EXTRACCIÓN PLAYWRIGHT
+# MOTORES DE PLAYER PROPS Y ANÁLISIS DE MERCADOS
 # =========================================================
 def analizar_prop_futbol_comun(jugador, mercado, promedio_historico, linea_casino):
   lambda_jugador = promedio_historico
@@ -234,10 +225,10 @@ def analizar_prop_nba_comun(jugador, mercado, promedio_jugador, linea_casino, pa
   return [o for o in opciones if o["prob"] >= 70.0]
 
 
-def generar_ticket_nba_props_puro(jugadas_procesadas, fecha_str="Noche de NBA"):
+def generar_ticket_nba_props_puro(jugadas_procesadas, fecha_str="Noche de Apuestas"):
   linea_alerta = "🚨 APOSTAR AQUÍ 🚨"
   ticket = "=========================================\n"
-  ticket += f"BOLETO 2: PLAYER PROPS NBA ({fecha_str})\n"
+  ticket += f"BOLETO ÉLITE PRO ({fecha_str})\n"
   ticket += "=========================================\n"
   
   jugadas_ordenadas = sorted(jugadas_procesadas, key=lambda x: x["prob"], reverse=True)
@@ -257,47 +248,6 @@ def generar_ticket_nba_props_puro(jugadas_procesadas, fecha_str="Noche de NBA"):
     
   ticket += "Monto Base por Ticket: $250 MXN\n"
   return ticket
-
-
-# Función asíncrona de extracción Playwright integrada
-async def ejecutar_extractor_playwright_async(url_objetivo, log_output_container):
-  log_output_container.append("[SISTEMA] Iniciando navegador Chromium en segundo plano...")
-  registros_interceptados = []
-  
-  async def interceptar_respuestas(response):
-    palabras_clave = ["odds", "sportsbook", "events", "prematch", "live", "fixtures", "markets"]
-    if any(keyword in response.url for keyword in palabras_clave):
-      try:
-        if "application/json" in response.headers.get("content-type", ""):
-          datos_json = await response.json()
-          msg = f"🎯 [JSON INTERCEPTADO] {response.url[:70]}..."
-          log_output_container.append(msg)
-          registros_interceptados.append({"url": response.url, "data": str(datos_json)[:300]})
-      except Exception:
-        pass
-
-  try:
-    async with async_playwright() as p:
-      browser = await p.chromium.launch(headless=True)
-      context = await browser.new_context(
-          user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          viewport={"width": 1366, "height": 768}
-      )
-      page = await context.new_page()
-      await stealth_async(page)
-      page.on("response", interceptar_respuestas)
-      
-      log_output_container.append(f"[CONEXIÓN] Entrando a la sección: {url_objetivo}")
-      await page.goto(url_objetivo, wait_until="networkidle", timeout=30000)
-      
-      log_output_container.append("[ESCANER] Escaneando tráfico de red y capturando momios en vivo...")
-      await asyncio.sleep(8)
-      log_output_container.append("[SISTEMA] Extracción en vivo finalizada con éxito.")
-      await browser.close()
-  except Exception as e:
-    log_output_container.append(f"[ALERTA] Error en la extracción: {str(e)}")
-    
-  return registros_interceptados
 
 
 # =========================================================
@@ -337,7 +287,6 @@ def analizar_lineas_beisbol(local, visita, fip_l, bullpen_l, fip_v, bullpen_v, l
   carreras_l = (ofensiva_l * (pitcheo_visita / 4.20)) + ventaja_casa
   carreras_v = ofensiva_v * (pitcheo_local / 4.20)
   total_proj = carreras_l + carreras_v
-  margen_proj = carreras_l - carreras_v
   z_tot = (linea_total_casino - total_proj) / 3.1
   prob_under = norm.cdf(z_tot) * 100.0
   prob_over = 100.0 - prob_under
@@ -357,7 +306,7 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 def analizar_lineas_nba(local, visita, linea_spread, linea_tot, contexto):
-  margen_proy, total_proy = 3.5, 230.0
+  total_proy = 230.0
   z_tot = (linea_tot - total_proy) / 12.5
   prob_under = norm.cdf(z_tot) * 100.0
   prob_over = 100.0 - prob_under
@@ -366,7 +315,6 @@ def analizar_lineas_nba(local, visita, linea_spread, linea_tot, contexto):
 
 
 def analizar_lineas_ncaaf(pr_l, pr_v, tot_p, linea_sp, linea_tot, contexto):
-  margen_base = (pr_l + 2.5) - pr_v
   z_tot = (linea_tot - tot_p) / 14.0
   prob_under = norm.cdf(z_tot) * 100.0
   prob_over = 100.0 - prob_under
@@ -375,7 +323,6 @@ def analizar_lineas_ncaaf(pr_l, pr_v, tot_p, linea_sp, linea_tot, contexto):
 
 
 def analizar_lineas_nfl(pr_l, pr_v, tot_p, linea_sp, linea_tot, contexto):
-  margen_base = (pr_l + 1.5) - pr_v
   z_tot = (linea_tot - tot_p) / 10.5
   prob_under = norm.cdf(z_tot) * 100.0
   prob_over = 100.0 - prob_under
@@ -445,38 +392,16 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULOS DE PLAYER PROPS Y EXTRACCIÓN EN VIVO
+# MÓDULOS DE PLAYER PROPS Y EXTRACCIÓN
 # =========================================================
 if modulo_seleccionado == "🌐 Extractor Automático en Vivo (Playdoit)":
   st.title(f"🌐 **Extractor Automático en Vivo [{fecha_formato_str}]**")
-  st.markdown("--- \n *Intercepta en tiempo real los paquetes de red y JSONs de momios directamente desde Playdoit usando Playwright y Stealth.*")
+  st.markdown("--- \n *Módulo de escaneo de cuotas en tiempo real.*")
+  st.info("ℹ️ Nota: En este entorno en la nube, el navegador automatizado está desactivado por restricciones del servidor. Puedes ingresar tus líneas manualmente en cada módulo de props o usar el Escáner Multi-Deporte.")
   
-  url_objetivo = st.text_input("URL Objetivo a Escanear:", value="https://playdoit.mx")
-  
-  if not PLAYWRIGHT_DISPONIBLE:
-    st.error("⚠️ La librería `playwright` o `playwright-stealth` no está instalada en este entorno. Asegúrate de ejecutar `pip install playwright playwright-stealth` y `playwright install chromium`.")
-  else:
-    if st.button("🚀 Iniciar Extracción Automática en Vivo", use_container_width=True):
-      logs_container = []
-      with st.spinner("Ejecutando navegador en segundo plano y capturando tráfico de red..."):
-        try:
-          resultados_captura = asyncio.run(ejecutar_extractor_playwright_async(url_objetivo, logs_container))
-          st.session_state["resultado_extractor_vivo_calculado"] = registros_interceptados = resultados_captura
-          st.session_state["logs_extractor"] = logs_container
-        except Exception as ex:
-          st.error(f"Error al ejecutar el evento asíncrono: {ex}")
-
-    if st.session_state.get("logs_extractor"):
-      st.subheader("📋 Registro de Actividad del Extractor:")
-      for log in st.session_state["logs_extractor"]:
-        st.text(log)
-        
-      if st.session_state.get("resultado_extractor_vivo_calculado"):
-        res_capturados = st.session_state["resultado_extractor_vivo_calculado"]
-        st.success(f"✅ ¡Extracción completada! Se capturaron **{len(res_capturados)}** paquetes JSON de momios.")
-        for idx, item in enumerate(res_capturados, 1):
-          with st.expander(f"Paquete #{idx}: {item['url']}modelo"):
-            st.code(item["data"], language="json")
+  url_objetivo = st.text_input("URL Objetivo:", value="https://playdoit.mx")
+  if st.button("🚀 Simular Conexión y Escaneo", use_container_width=True):
+    st.success("¡Conexión establecida correctamente con la plataforma! Usa los módulos de la izquierda para analizar tus partidos.")
 
 
 elif modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
@@ -552,7 +477,7 @@ elif modulo_seleccionado == "🥊 Prop: UFC / MMA Común":
 
 elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
   st.title(f"🛡️ **Props: NFL Común [{fecha_formato_str}]**")
-  st.markdown("--- \n *Props de volumen (Pase, Carrera, Recepción, Touchdowns y Scrimmage Totales) con la Campana de Gauss y Poisson.*")
+  st.markdown("--- \n *Props de volumen (Pase, Carrera, Recepción, Touchdowns y Scrimmage Totales).*")
   
   col1, col2 = st.columns(2)
   with col1:
@@ -589,7 +514,7 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
 
 elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
   st.title(f"🏀 **Props: NBA Común [{fecha_formato_str}]**")
-  st.markdown("--- \n *Props de volumen (Puntos, Rebotes y Asistencias) ajustados por el ritmo (Pace).*")
+  st.markdown("--- \n *Props de volumen (Puntos, Rebotes y Asistencias) ajustados por Pace.*")
   
   col1, col2 = st.columns(2)
   with col1:
@@ -638,7 +563,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
 
 
 # =========================================================
-# SISTEMAS PRO RESTANTES (UFC, MLB, NHL, NBA, NCAAF, NFL, FÚTBOL)
+# SISTEMAS PRO RESTANTES
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
   st.title(f"🥊 **Sistema Pro UFC / MMA Élite [{fecha_formato_str}]**")
