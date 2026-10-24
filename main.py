@@ -1004,7 +1004,30 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
   ev_nhl = st.text_input("Equipo Visitante NHL:", value="Edmonton Oilers", key="nhl_ev")
 
   col_nhl1, col_nhl2 = st.columns(2)
-  with col_nhl1: goalie_l = st.checkbox("Portero Local Élite (Goalie Boost)", key="nhl_gl")
-  with col_nhl2: goalie_v = st.checkbox("Portero Visitante Élite (Goalie Boost)", key="nhl_gv")
+  with col_nhl1:
+    goalie_l = st.checkbox("Portero Local Élite (Goalie Boost)", key="nhl_gl")
+  with col_nhl2:
+    goalie_v = st.checkbox("Portero Visitante Élite (Goalie Boost)", key="nhl_gv")
 
-  linea_tot_nhl = st.number_input("Línea Total Goles O/U:", value=5.5, step=0.5, key="nh
+  linea_tot_nhl = st.number_input("Línea Total Goles O/U:", value=5.5, step=0.5, key="nhl_ltot")
+  contexto_nhl = {"local_goalie_elite": goalie_l, "visita_goalie_elite": goalie_v}
+
+  if st.button("🚀 Ejecutar Análisis NHL", use_container_width=True):
+    res_nhl = analizar_lineas_nhl(el_nhl, ev_nhl, linea_tot_nhl, contexto_nhl)
+    st.session_state["resultado_nhl_calculado"] = {"partido": f"{ev_nhl} @ {el_nhl}", "analisis": res_nhl}
+
+  if st.session_state["resultado_nhl_calculado"]:
+    r = st.session_state["resultado_nhl_calculado"]
+    res = r["analisis"]
+    st.success(f"🎯 Análisis NHL: **{r['partido']}**")
+    if res["validas"]:
+      for jugada in res["validas"]:
+        st.info(f"✅ **{jugada['mercado']}** | Prob: `{jugada['prob']:.2f}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar SQLite ({jugada['mercado']})", key=f"db_nhl_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "NHL Élite", r['partido'], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("Guardado.")
+    else:
+      st.warning("⚠️ Sin opciones sobre el 70%.")
+
+
