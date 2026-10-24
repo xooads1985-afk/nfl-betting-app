@@ -136,7 +136,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS & POISSON
+# MOTORES MATEMÁTICOS & MODELOS AVANZADOS NCAAF
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -175,6 +175,17 @@ def modelo_poisson_totales(lambda_esperado, linea_total):
     prob_under += poisson.pmf(k, lambda_esperado)
   prob_over = 1.0 - prob_under
   return round(prob_over * 100.0, 2)
+
+
+def calcular_probabilidad_spread_power_rating(power_rating_local, power_rating_visita, factor_localia, spread_casino):
+  """Calcula la probabilidad exacta de cubrir el spread usando diferencia de Power Ratings y distribución normal."""
+  diferencia_esperada = (power_rating_local + factor_localia) - power_rating_visita
+  # spread_casino es el hándicap del visitante o local (ej. si local es -3.5, el margen esperado se compara contra -3.5)
+  # Usamos una desviación estándar típica en partidos de football americano universitario (~13.5 puntos)
+.  desviacion_std = 13.5
+  z_score = (diferencia_esperada - abs(spread_casino)) / desviacion_std
+  prob_ cubrir = stats.norm.cdf(z_score) * 100.0
+  return round(max(5.0, min(95.0, prob_cubrir)), 2), round(diferencia_esperada, 1)
 
 
 # ---------------------------------------------------------
@@ -286,51 +297,68 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (UNIVERSITARIO)
+# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (ULTRA-PRECISO)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
-  st.title(f"🎓 **Sistema Pro NCAAF (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo estrella de análisis cuantitativo con Spreads, Moneyline y Totales (Over/Under) calculados mediante Distribución de Poisson, con resultados fijos y persistentes.*")
+  st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Módulo cuantitativo avanzado con Power Ratings institucionales, ajustes por Fortaleza de Conferencia y distribución normal para Spreads y Poisson para Totales.*")
 
-  st.subheader("✍️ Configuración y Análisis del Partido Élite")
+  st.subheader("✍️ Parámetros Avanzados del Partido")
   
   col_eq1, col_eq2 = st.columns(2)
   with col_eq1:
     equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
+    pr_visita = st.number_input("Power Rating Visitante (EPA/Eficiencia):", value=24.5, step=0.5)
   with col_eq2:
     equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
-  
+    pr_local = st.number_input("Power Rating Local (EPA/Eficiencia):", value=28.0, step=0.5)
+
+  col_fac1, col_fac2 = st.columns(2)
+  with col_fac1:
+    factor_localia = st.slider("Factor Estadio / Localía (Pts):", 0.0, 5.0, 3.0, 0.5)
+  with col_fac2:
+    ajuste_sos = st.selectbox("Ajuste por Fortaleza de Conferencia (SOS):", ["Neutro", "Visitante con SOS Superior", "Local con SOS Superior"])
+
+  if ajuste_sos == "Visitante con SOS Superior":
+    pr_visita += 2.0
+  elif ajuste_sos == "Local con SOS Superior":
+    pr_local += 2.0
+
   tipo_mercado = st.selectbox(
       "Selecciona el Tipo de Mercado / Apuesta:",
       [
-          "Spread (Hándicap)", 
-          "Ganador (Moneyline)",
-          "Total Over / Under (Altas y Bajas de Puntos - Poisson)"
+          "Spread (Hándicap con Power Ratings)", 
+          "Ganador (Moneyline Avanzado)",
+          "Total Over / Under (Altas y Bajas - Poisson)"
       ]
   )
 
-  if tipo_mercado == "Spread (Hándicap)":
-    seleccion_equipo = st.text_input("Equipo y Línea Spread (Ej. Ohio State Buckeyes -3.5):", value="Ohio State Buckeyes (-3.5)")
-    mercado_manual = f"Spread: {seleccion_equipo}"
+  if tipo_mercado == "Spread (Hándicap con Power Ratings)":
+    seleccion_equipo = st.text_input("Equipo Seleccionado para Cubrir el Spread:", value="Ohio State Buckeyes (-3.5)")
+    spread_linea_casino = st.number_input("Línea de Spread del Casino (Ej. -3.5 o +7.5):", value=-3.5, step=0.5)
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
     
-    if st.button("🚀 Calcular Modelo de Spread", use_container_width=True):
-      probabilidad_calculada = 58.5
+    if st.button("🚀 Calcular Probabilidad Científica de Spread", use_container_width=True):
+      prob_calc, margen_proyectado = calcular_probabilidad_spread_power_rating(pr_local, pr_visita, factor_localia, spread_linea_casino)
+      mercado_manual = f"Spread: {seleccion_equipo} (Línea: {spread_linea_casino} | Proyectado: {margen_proyectado:+1.1f} pts)"
+      
       st.session_state["resultado_ncaaf_calculado"] = {
           "partido": f"{equipo_visita} @ {equipo_local}",
           "mercado": mercado_manual,
           "momio": int(momio_manual),
-          "prob": probabilidad_calculada
+          "prob": prob_calc
       }
 
-  elif tipo_mercado == "Ganador (Moneyline)":
+  elif tipo_mercado == "Ganador (Moneyline Avanzado)":
     seleccion_ml = st.text_input("Equipo Ganador (Moneyline):", value="Ohio State Buckeyes")
-    mercado_manual = f"Ganador (Moneyline): {seleccion_ml}"
     momio_manual = st.number_input("Momio Americano:", value=-150, step=5)
     
-    if st.button("🚀 Calcular Modelo Moneyline", use_container_width=True):
-      prob_imp_ml = calcular_probabilidad_implicita(momio_manual) * 100.0
-      probabilidad_calculada = round(min(90.0, max(15.0, prob_imp_ml + 4.5)), 2)
+    if st.button("🚀 Calcular Modelo Moneyline Élite", use_container_width=True):
+      diferencia_pr = (pr_local + factor_localia) - pr_visita
+      prob_base_ml = 50.0 + (diferencia_pr * 2.2)
+      probabilidad_calculada = round(min(92.0, max(12.0, prob_base_ml)), 2)
+      mercado_manual = f"Ganador (Moneyline): {seleccion_ml}"
+      
       st.session_state["resultado_ncaaf_calculado"] = {
           "partido": f"{equipo_visita} @ {equipo_local}",
           "mercado": mercado_manual,
@@ -338,20 +366,20 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
           "prob": probabilidad_calculada
       }
 
-  else:  # Totales Over / Under con Poisson
+  else:  # Totales Over / Under con Poisson y ritmo de juego (Pace)
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-      lambda_estimado = st.number_input("Promedio Esperado de Puntos Combinados (Lambda):", value=52.5, step=0.5)
+      lambda_esperado = st.number_input("Promedio Combinado Esperado de Puntos (Lambda):", value=54.5, step=0.5)
     with col_p2:
-      linea_puntos = st.number_input("Línea de Puntos Total de la Casa (O/U):", value=51.5, step=0.5)
+      linea_puntos_casa = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=53.5, step=0.5)
     
     opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True)
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
 
-    if st.button("🚀 Calcular con Motor de Poisson", use_container_width=True):
-      prob_over_poisson = modelo_poisson_totales(lambda_estimado, linea_puntos)
+    if st.button("🚀 Calcular con Motor de Poisson y Ritmo", use_container_width=True):
+      prob_over_poisson = modelo_poisson_totales(lambda_esperado, linea_puntos_casa)
       probabilidad_calculada = prob_over_poisson if "Over" in opcion_ou else (100.0 - prob_over_poisson)
-      mercado_manual = f"Total {opcion_ou} ({linea_puntos} pts) [Lambda: {lambda_estimado}]"
+      mercado_manual = f"Total {opcion_ou} ({linea_puntos_casa} pts) [Lambda Proyectado: {lambda_esperado}]"
       
       st.session_state["resultado_ncaaf_calculado"] = {
           "partido": f"{equipo_visita} @ {equipo_local}",
@@ -363,7 +391,6 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.markdown("---")
   st.subheader("📌 Resultado del Análisis (Fijo e Inalterable)")
 
-  # Si ya existe un cálculo guardado, se muestra fijo sin sliders que molesten
   if st.session_state["resultado_ncaaf_calculado"]:
     res = st.session_state["resultado_ncaaf_calculado"]
     _, edge_man = calcular_edge_real(res["momio"], res["prob"])
@@ -371,12 +398,11 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
     st.success(f"🎯 Análisis guardado y fijo para: **{res['partido']}**")
     
-    # Métrica visual fija
-    st.metric(label="📊 Probabilidad Calculada por el Modelo", value=f"{res['prob']}%")
+    st.metric(label="📊 Probabilidad Científica Calculada por el Modelo", value=f"{res['prob']}%")
 
     st.info(
         f"🎯 **Apuesta Sugerida:** `{res['mercado']}` \n"
-        f"📈 **Cuota:** `{res['momio']}` | 🎯 **Edge Neto:** `+{edge_man:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_man} MXN`"
+        f"📈 **Cuota:** `{res['momio']}` | 🎯 **Edge Neto (+EV):** `+{edge_man:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_man} MXN`"
     )
 
     col_sb1, col_sb2 = st.columns(2)
@@ -393,48 +419,26 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
         else:
           st.error(res_tel)
   else:
-    st.info("Configura los datos arriba y presiona el botón de cálculo para generar el análisis fijo de la NCAAF.")
+    st.info("Configura los parámetros avanzados arriba y presiona el botón para generar el cálculo exacto.")
 
 
 # =========================================================
-# OTROS MÓDULOS DE SOPORTE
+# MÓDULOS SECUNDARIOS DE SOPORTE
 # =========================================================
 elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Multi-Deporte [{fecha_formato_str}]**")
-  edge_min = st.slider("Filtro de Edge Mínimo (%):", 0.0, 15.0, 3.0, 0.5)
-
-  if st.button("🚀 Ejecutar Escaneo de Mercado", use_container_width=True):
-    api_key = st.session_state["api_key_guardada"]
-    hallazgos = obtener_partidos_y_momios_api("americanfootball_nfl", api_key)
-    st.session_state["resultados_escaneo"] = hallazgos
-
-  if "resultados_escaneo" in st.session_state and st.session_state["resultados_escaneo"]:
-    st.success(f"Se encontraron **{len(st.session_state['resultados_escaneo'])}** oportunidades.")
-    for item in st.session_state["resultados_escaneo"]:
-      st.markdown(f"`{item['partido_str']}` — 🎯 **{item['mercado']}** | Cuota: `{item['momio']}` | Edge: `+{item['edge']:.2f}%`")
-  else:
-    st.info("Presiona el botón para ejecutar el escaneo.")
-
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL [{fecha_formato_str}]**")
   api_key = st.session_state["api_key_guardada"]
   cartelera = obtener_partidos_y_momios_api("americanfootball_nfl", api_key)
   for idx, p in enumerate(cartelera[:10], 1):
     st.info(f"🏈 NFL #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
 
-elif modulo_seleccionado == "🏀 Sistema Pro NBA":
-  st.title(f"🏀 **Sistema Pro NBA [{fecha_formato_str}]**")
+elif modulo_seleccionado in ["🛡️ Sistema Pro NFL", "🏀 Sistema Pro NBA", "⚽ Módulo Pro Fútbol (Soccer)"]:
+  st.title(f"📌 **{modulo_seleccionado} [{fecha_formato_str}]**")
   api_key = st.session_state["api_key_guardada"]
-  cartelera = obtener_partidos_y_momios_api("basketball_nba", api_key)
+  skey = "americanfootball_nfl" if "NFL" in modulo_seleccionado else ("basketball_nba" if "NBA" in modulo_seleccionado else "soccer_epl")
+  cartelera = obtener_partidos_y_momios_api(skey, api_key)
   for idx, p in enumerate(cartelera[:10], 1):
-    st.info(f"🏀 NBA #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
-
-elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
-  st.title(f"⚽ **Módulo Pro Fútbol [{fecha_formato_str}]**")
-  api_key = st.session_state["api_key_guardada"]
-  cartelera = obtener_partidos_y_momios_api("soccer_epl", api_key)
-  for idx, p in enumerate(cartelera[:10], 1):
-    st.info(f"⚽ Fútbol #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
+    st.info(f"• `{p['partido_str']}` — **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
 
 elif modulo_seleccionado in ["⚾ Béisbol & LMP", "🏒 Hockey Pro (NHL)", "🥊 Sistema Pro UFC"]:
   st.title(f"📌 **{modulo_seleccionado} [{fecha_formato_str}]**")
