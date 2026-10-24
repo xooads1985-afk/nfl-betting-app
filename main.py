@@ -40,7 +40,7 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc", "props_nfl", "props_nba"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl", "props_nba"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -163,10 +163,13 @@ def analizar_prop_futbol_comun(jugador, mercado, promedio_historico, linea_casin
   return [o for o in opciones if o["prob"] >= 70.0]
 
 
-def analizar_prop_ufc(combate, mercado, probabilidad_linea_casino):
+def analizar_prop_ufc_comun(combate, mercado, probabilidad_estimada_modelo):
+  prob_si = probabilidad_estimada_modelo
+  prob_no = 100.0 - prob_si
+  
   opciones = [
-      {"mercado": f"Combate termina por {mercado}", "prob": probabilidad_linea_casino},
-      {"mercado": f"Combate NO termina por {mercado}", "prob": 100.0 - probabilidad_linea_casino}
+      {"mercado": f"{combate} - Sí ({mercado})", "prob": prob_si},
+      {"mercado": f"{combate} - No ({mercado})", "prob": prob_no}
   ]
   return [o for o in opciones if o["prob"] >= 70.0]
 
@@ -216,6 +219,31 @@ def generar_ticket_futbol_props_puro(jugadas_procesadas, fecha_str="Cartelera de
       
   while cuenta <= 3:
     ticket += f"JUGADA {cuenta}: [Prop sin valor matemático suficiente en cartelera]\n"
+    ticket += "-----------------------------------------\n"
+    cuenta += 1
+    
+  ticket += "Monto Base por Ticket: $250 MXN\n"
+  return ticket
+
+
+def generar_ticket_ufc_props_puro(jugadas_procesadas, fecha_str="Sábado de UFC"):
+  linea_alerta = "🚨 APOSTAR AQUÍ 🚨"
+  ticket = "=========================================\n"
+  ticket += f"BOLETO 2: PLAYER PROPS UFC ({fecha_str})\n"
+  ticket += "=========================================\n"
+  
+  jugadas_ordenadas = sorted(jugadas_procesadas, key=lambda x: x["prob"], reverse=True)
+  cuenta = 1
+  for jugada in jugadas_ordenadas:
+    if cuenta <= 3:
+      ticket += f"JUGADA {cuenta}: {jugada['combate_nombre']}\n"
+      ticket += f"➔ Probabilidad de Éxito: {jugada['prob']:.2f}%\n"
+      ticket += f"➔ {linea_alerta}: {jugada['mercado']}\n"
+      ticket += "-----------------------------------------\n"
+      cuenta += 1
+      
+  while cuenta <= 3:
+    ticket += f"JUGADA {cuenta}: [Prop UFC sin valor estadístico suficiente en la cartelera]\n"
     ticket += "-----------------------------------------\n"
     cuenta += 1
     
@@ -637,7 +665,7 @@ modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
         "⚽ Prop: Fútbol Soccer Común (Playdoit)",
-        "🥊 Prop: UFC / MMA",
+        "🥊 Prop: UFC / MMA Común",
         "🛡️ Prop: NFL (Americano)",
         "🏀 Prop: NBA (Básquetbol)",
         "🔍 Escáner Automático Multi-Deporte (+EV)",
@@ -697,38 +725,40 @@ if modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
       st.warning("⚠️ Este prop se encuentra por debajo del filtro estricto del 70% de probabilidad.")
 
 
-elif modulo_seleccionado == "🥊 Prop: UFC / MMA":
-  st.title(f"🥊 **Props: UFC / MMA [{fecha_formato_str}]**")
-  st.markdown("--- \n *Props situacionales y método de victoria en combate.*")
+elif modulo_seleccionado == "🥊 Prop: UFC / MMA Común":
+  st.title(f"🥊 **Props: UFC / MMA Común [{fecha_formato_str}]**")
+  st.markdown("--- \n *Props situacionales, método de victoria, distancias y asaltos totales.*")
   
   col1, col2 = st.columns(2)
   with col1:
-    combate = st.text_input("Combate / Peleador:", value="Makhachev vs Poirier", key="pu_comb")
-    mercado_ufc = st.text_input("Mercado (Ej. KO o Sumisión):", value="KO o Sumisión", key="pu_merc")
+    combate = st.text_input("Combate / Evento:", value="Makhachev vs Poirier", key="pu_comb")
+    mercado_ufc = st.selectbox("Mercado Especial:", ["Termina por KO/TKO", "Va a la Distancia (Decisión)", "Over 1.5 Rounds", "Over 2.5 Rounds"], key="pu_merc")
+    cartelera_str = st.text_input("Nombre de Cartelera:", value="UFC Main Event", key="pu_cart")
   with col2:
-    prob_modelo = st.number_input("Probabilidad Asignada (%):", value=73.5, step=0.5, key="pu_prob")
+    prob_modelo = st.number_input("Probabilidad Asignada por el Modelo (%):", value=74.2, step=0.5, key="pu_prob")
 
   momio_prop = st.number_input("Momio Americano:", value=-120, step=5, key="pu_mom")
 
   if st.button("🚀 Evaluar Prop de UFC", use_container_width=True):
-    res = analizar_prop_ufc(combate, mercado_ufc, prob_modelo)
+    res = analizar_prop_ufc_comun(combate, mercado_ufc, prob_modelo)
     for r in res:
-      r["partido"] = combate
-    st.session_state["resultado_props_ufc_calculado"] = res
+      r["combate_nombre"] = cartelera_str
+    st.session_state["resultado_props_ufc_comun_calculado"] = res
 
-  if st.session_state.get("resultado_props_ufc_calculado"):
-    validadas = st.session_state["resultado_props_ufc_calculado"]
+  if st.session_state.get("resultado_props_ufc_comun_calculado"):
+    validadas = st.session_state["resultado_props_ufc_comun_calculado"]
     if validadas:
-      st.success("✅ ¡El prop superó el filtro del 70%!")
+      st.success("✅ ¡El prop superó el filtro estricto del 70% de éxito real!")
       for v in validadas:
-        st.info(f"Selección: **{v['mercado']}** | Prob: `{v['prob']:.2f}%`")
+        st.info(f"Selección: **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
         _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
         stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
-        if st.button("📥 Guardar en SQLite", key="save_pu"):
-          registrar_apuesta_db(fecha_formato_str, "Prop UFC", combate, v['mercado'], int(momio_prop), edge_p, stk)
-          st.success("Guardado en SQLite.")
+        if st.button("📥 Guardar Prop en SQLite", key="save_pu_comun"):
+          registrar_apuesta_db(fecha_formato_str, "Prop UFC Común", cartelera_str, v['mercado'], int(momio_prop), edge_p, stk)
+          st.success("¡Prop guardado con éxito en la base de datos!")
+      st.code(generar_ticket_ufc_props_puro(validadas, fecha_formato_str), language="text")
     else:
-      st.warning("⚠️ El prop está por debajo del 70% de probabilidad real.")
+      st.warning("⚠️ Este prop se encuentra por debajo del filtro estricto del 70% de probabilidad.")
 
 
 elif modulo_seleccionado == "🛡️ Prop: NFL (Americano)":
