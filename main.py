@@ -145,7 +145,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS & SINDICATO INDUSTRIAL
+# MOTORES MATEMÁTICOS & CONEXIÓN SEGURA CFBD API
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -177,8 +177,32 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
+@st.cache_data(ttl=600)
+def obtener_estadisticas_ncaaf_api(api_key):
+  """Consulta segura a la API de College Football Data para estadísticas de equipos."""
+  if not api_key:
+    return {}
+  url = "https://api.collegefootballdata.com/stats/season?year=2026"
+  headers = {"Authorization": f"Bearer {api_key.strip()}"}
+  try:
+    response = requests.get(url, headers=headers, timeout=4)
+    if response.status_code == 200:
+      data = response.json()
+      stats_dict = {}
+      for item in data:
+        t_name = item.get("team")
+        stat_name = item.get("statName")
+        stat_val = item.get("stat")
+        if t_name not in stats_dict:
+          stats_dict[t_name] = {}
+        stats_dict[t_name][stat_name] = float(stat_val) if stat_val else 0.0
+      return stats_dict
+  except Exception:
+    pass
+  return {}
+
+
 def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
-  """Calcula Power Ratings con ajustes por fatiga y penalización severa por baja de QB titular."""
   pr_local = ppg_local - (pap_local * 0.95)
   pr_visita = ppg_visita - (pap_visita * 0.95)
   
@@ -187,7 +211,7 @@ def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, 
   if fatiga_visita:
     pr_visita -= 2.5
   if lesion_qb_local:
-    pr_local -= 6.5 # Impacto masivo por baja del mariscal de campo
+    pr_local -= 6.5
   if lesion_qb_visita:
     pr_visita -= 6.5
     
@@ -203,7 +227,7 @@ def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita,
   if fatiga_local or fatiga_visita:
     lambda_esperado -= 3.0
   if lesion_qb_local or lesion_qb_visita:
-    lambda_esperado -= 5.0 # Lesión de mariscal de campo desploma la ofensiva y reduce puntos
+    lambda_esperado -= 5.0
   lambda_ajustado = round(max(15.0, lambda_esperado * 0.98), 1)
   
   prob_under = 0.0
@@ -215,7 +239,7 @@ def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita,
 
 
 # ---------------------------------------------------------
-# CONEXIÓN CON THE ODDS API
+# CONEXIÓN CON THE ODDS API (OTROS DEPORTES)
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_partidos_y_momios_api(sport_key, api_key):
@@ -288,7 +312,7 @@ fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API & Telegram")
 st.session_state["api_key_guardada"] = st.sidebar.text_input(
-    "API Key (The Odds API):",
+    "API Key (The Odds API / CFBD):",
     value=st.session_state["api_key_guardada"],
     type="password",
 )
@@ -325,27 +349,47 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (CON LESIONES Y FATIGA)
+# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (CON API HÍBRIDA)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo con matriz avanzada de lesiones de mariscales de campo (QB Impact), fatiga y simulación estocástica.*")
+  st.markdown("--- \n *Motor cuantitativo híbrido: sincronización automática en vivo con respaldo seguro offline contra errores de red.*")
 
-  st.subheader("✍️ Estadísticas, Fatiga & Impacto de Lesiones")
-  
-  col_eq1, col_eq2 = st.columns(2)
-  with col_eq1:
-    equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
-    ppg_visita = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5)
-    pap_visita = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5)
-    fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
-    lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
-  with col_eq2:
-    equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
-    ppg_local = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5)
-    pap_local = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5)
-    fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
-    lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
+  # Intentar sincronizar datos reales en vivo de la API
+  api_key_cfbd = st.session_state["api_key_guardada"]
+  stats_live = obtener_estadisticas_ncaaf_api(api_key_cfbd)
+
+  if stats_live:
+    st.success("🟢 Sincronizado en vivo con API de estadísticas CFBD.")
+    lista_equipos = sorted(list(stats_live.keys()))
+    col_eq1, col_eq2 = st.columns(2)
+    with col_eq1:
+      equipo_visita = st.selectbox("Equipo Visitante (API):", lista_equipos, index=0 if lista_equipos else 0)
+      def_visita_pts = stats_live.get(equipo_visita, {}).get("totalPointsAgainst", 17.0)
+      off_visita_pts = stats_live.get(equipo_visita, {}).get("totalPoints", 28.5)
+      fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
+      lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
+    with col_eq2:
+      equipo_local = st.selectbox("Equipo Local (API):", lista_equipos, index=min(1, len(lista_equipos)-1) if lista_equipos else 0)
+      def_local_pts = stats_live.get(equipo_local, {}).get("totalPointsAgainst", 12.5)
+      off_local_pts = stats_live.get(equipo_local, {}).get("totalPoints", 34.0)
+      fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
+      lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
+  else:
+    st.warning("⚠️ Modo Respaldo Activo (Sin conexión a API externa). Ingrese promedios manuales seguros:")
+    col_eq1, col_eq2 = st.columns(2)
+    with col_eq1:
+      equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
+      off_visita_pts = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5)
+      def_visita_pts = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5)
+      fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
+      lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
+    with col_eq2:
+      equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
+      off_local_pts = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5)
+      def_local_pts = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5)
+      fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
+      lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
 
   tipo_mercado = st.selectbox(
       "Selecciona el Mercado a Analizar:",
@@ -361,7 +405,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
     
     if st.button("🚀 Ejecutar Modelo Matemático Avanzado de Spread", use_container_width=True):
-      prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, 3.0, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
+      prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(off_local_pts, def_local_pts, off_visita_pts, def_visita_pts, spread_casino, 3.0, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
       mercado_manual = f"Spread: {seleccion_equipo} (Línea: {spread_casino} | Proyectado: {margen_proyectado:+1.1f} pts)"
       
       st.session_state["resultado_ncaaf_calculado"] = {
@@ -377,7 +421,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
 
     if st.button("🚀 Ejecutar Modelo Matemático Avanzado de Totales", use_container_width=True):
-      prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa_ou, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
+      prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(off_local_pts, def_local_pts, off_visita_pts, def_visita_pts, linea_casa_ou, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
       probabilidad_calculada = prob_over_calc if "Over" in opcion_ou else (100.0 - prob_over_calc)
       mercado_manual = f"Total {opcion_ou} ({linea_casa_ou} pts) [Modelo Lambda: {lambda_proyectado}]"
       
@@ -548,7 +592,7 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
 
 
 # =========================================================
-# NUEVO MÓDULO 1: BACKTESTING HISTÓRICO & STEAM MOVES
+# BACKTESTING & STEAM MOVES
 # =========================================================
 elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
   st.title(f"📈 **Simulador de Backtesting & Alertas Steam Moves [{fecha_formato_str}]**")
@@ -559,8 +603,7 @@ elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
   momio_promedio = st.number_input("Momio americano promedio de las apuestas:", value=-110, step=5)
 
   if st.button("🚀 Ejecutar Simulación de Backtesting Histórico", use_container_width=True):
-    # Simulación Monte Carlo histórica
-    total_apostado_sim = num_partidos_simulados * 500.0 # Stake fijo de $500 por partido
+    total_apostado_sim = num_partidos_simulados * 500.0
     aciertos = int(num_partidos_simulados * (win_rate_estimado / 100.0))
     fallos = num_partidos_simulados - aciertos
     
@@ -589,11 +632,11 @@ elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
 
 
 # =========================================================
-# NUEVO MÓDULO 2: GESTOR MULTI-BOOKMAKER (LINE SHOPPING)
+# GESTOR MULTI-BOOKMAKER (LINE SHOPPING)
 # =========================================================
 elif modulo_seleccionado == "⚖️ Gestor Multi-Bookmaker (Line Shopping)":
   st.title(f"⚖️ **Comparador de Cuotas & Line Shopping [{fecha_formato_str}]**")
-  st.markdown("Nunca apuestes con cuotas bajas. Compara simultáneamente los momios de las principales casas para encontrar la mejor rentabilidad.")
+  st.markdown("Nunca apuestes con cuotas bajas. Compara simultáneamente los momios de las principales casas para encontrar la mayor rentabilidad.")
 
   col_bk1, col_bk2, col_bk3 = st.columns(3)
   with col_bk1:
@@ -604,7 +647,6 @@ elif modulo_seleccionado == "⚖️ Gestor Multi-Bookmaker (Line Shopping)":
     book_pinnacle = st.number_input("Momio en Pinnacle (Sharp):", value=-102, step=5)
 
   if st.button("🔍 Encontrar la Mejor Cuota (Line Shopping)", use_container_width=True):
-    # Convertir momios americanos a decimales para comparar valor real
     def a_decimal(m):
       return (1.0 + (m / 100.0)) if m > 0 else (1.0 + (100.0 / abs(m)))
 
