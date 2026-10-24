@@ -40,7 +40,7 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc", "props_ufc", "props_nfl", "props_nba"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -148,7 +148,7 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
 
 
 # =========================================================
-# MOTORES DE PLAYER PROPS (Fútbol, UFC, NFL, NBA)
+# MOTORES DE PLAYER PROPS INDEPENDIENTES
 # =========================================================
 def analizar_prop_futbol(jugador, mercado, promedio_jugador, linea_casino):
   prob_acumulada = poisson.cdf(int(linea_casino), promedio_jugador)
@@ -196,28 +196,16 @@ def analizar_prop_nba(jugador, mercado, promedio_jugador, linea_casino, pace_par
   return [o for o in opciones if o["prob"] >= 70.0]
 
 
-def generar_ticket_props_puro(jugadas_validas_todas, fecha_str="Jornada de Props"):
+def generar_ticket_prop_individual(jugada, deporte_str, fecha_str="Jornada"):
   linea_alerta = "🚨 APOSTAR AQUÍ 🚨"
   ticket = "=========================================\n"
-  ticket += f"BOLETO 2: PLAYER PROPS CONSOLIDADOS ({fecha_str})\n"
+  ticket += f"BOLETO PROP ({deporte_str.upper()}) - [{fecha_str}]\n"
   ticket += "=========================================\n"
-  
-  jugadas_ordenadas = sorted(jugadas_validas_todas, key=lambda x: x["prob"], reverse=True)
-  cuenta = 1
-  for jugada in jugadas_ordenadas:
-    if cuenta <= 3:
-      ticket += f"JUGADA {cuenta}: {jugada['partido']}\n"
-      ticket += f"➔ Probabilidad de Éxito: {jugada['prob']:.2f}%\n"
-      ticket += f"➔ {linea_alerta}: {jugada['mercado']}\n"
-      ticket += "-----------------------------------------\n"
-      cuenta += 1
-      
-  while cuenta <= 3:
-    ticket += f"JUGADA {cuenta}: [Prop Pendiente de Filtro de Seguridad 70%]\n"
-    ticket += "-----------------------------------------\n"
-    cuenta += 1
-    
-  ticket += "Monto Base por Ticket: $250 MXN\n"
+  ticket += f"➔ Selección: {jugada['mercado']}\n"
+  ticket += f"➔ Probabilidad de Éxito: {jugada['prob']:.2f}%\n"
+  ticket += f"➔ {linea_alerta}\n"
+  ticket += "-----------------------------------------\n"
+  ticket += "Monto Asignado: $250 MXN\n"
   return ticket
 
 
@@ -634,7 +622,10 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
-        "🎯 Central de Player Props (Consolidado)",
+        "⚽ Prop: Fútbol Soccer",
+        "🥊 Prop: UFC / MMA",
+        "🛡️ Prop: NFL (Americano)",
+        "🏀 Prop: NBA (Básquetbol)",
         "🔍 Escáner Automático Multi-Deporte (+EV)",
         "🥊 Sistema Pro UFC / MMA",
         "⚾ Béisbol Pro (MLB / LMP)",
@@ -653,76 +644,147 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 0A. MÓDULO INTERACTIVO DE PLAYER PROPS
+# MÓDULOS DE PLAYER PROPS SEPARADOS
 # =========================================================
-if modulo_seleccionado == "🎯 Central de Player Props (Consolidado)":
-  st.title(f"🎯 **Central de Player Props Consolidados [{fecha_formato_str}]**")
-  st.markdown("--- \n *Analiza props de volumen y rendimiento cruzando métricas avanzadas y Poisson para generar tu boleto automático de $250 MXN.*")
-
-  tipo_prop = st.selectbox("Selecciona el Deporte del Prop:", ["Fútbol Soccer", "UFC / MMA", "NFL (Fútbol Americano)", "NBA (Básquetbol)"])
+if modulo_seleccionado == "⚽ Prop: Fútbol Soccer":
+  st.title(f"⚽ **Props: Fútbol Soccer [{fecha_formato_str}]**")
+  st.markdown("--- \n *Distribución de Poisson para rendimiento discreto (Remates a puerta, Asistencias).*")
   
-  col_p1, col_p2 = st.columns(2)
-  with col_p1:
-    nombre_jugador = st.text_input("Nombre del Jugador / Atleta / Evento:", value="Erling Haaland")
-    mercado_prop = st.text_input("Mercado (Ej. Remates a Puerta / Yardas Pase):", value="Remates a Puerta")
-  with col_p2:
-    promedio_val = st.number_input("Promedio o Proyección Base:", value=3.1, step=0.1)
-    linea_cas = st.number_input("Línea Establecida por Casino:", value=2.5, step=0.5)
+  col1, col2 = st.columns(2)
+  with col1:
+    jugador = st.text_input("Jugador:", value="Erling Haaland", key="ps_jug")
+    mercado = st.text_input("Mercado:", value="Remates a Puerta", key="ps_merc")
+  with col2:
+    promedio = st.number_input("Promedio o xG:", value=3.1, step=0.1, key="ps_prom")
+    linea = st.number_input("Línea Casino:", value=2.5, step=0.5, key="ps_lin")
 
-  extra_param = 0.0
-  if tipo_prop == "NFL (Fútbol Americano)":
-    extra_param = st.number_input("Defensa Rival Permitido (% sobre promedio):", value=112.0, step=1.0)
-  elif tipo_prop == "NBA (Básquetbol)":
-    extra_param = st.number_input("Pace Proyectado del Partido:", value=101.5, step=0.5)
+  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, key="ps_mom")
 
-  momio_prop = st.number_input("Momio Americano Prop:", value=-115, step=5)
+  if st.button("🚀 Evaluar Prop de Fútbol", use_container_width=True):
+    res = analizar_prop_futbol(jugador, mercado, promedio, linea)
+    st.session_state["resultado_props_soc_calculado"] = res
 
-  if st.button("🚀 Evaluar Prop y Agregar al Boleto", use_container_width=True):
-    lista_temporal = []
-    if tipo_prop == "Fútbol Soccer":
-      res = analizar_prop_futbol(nombre_jugador, mercado_prop, promedio_val, linea_cas)
-      for r in res:
-        r["partido"] = f"{nombre_jugador} Prop ({tipo_prop})"
-        lista_temporal.append(r)
-    elif tipo_prop == "UFC / MMA":
-      res = analizar_prop_ufc(nombre_jugador, mercado_prop, promedio_val)
-      for r in res:
-        r["partido"] = f"{nombre_jugador} ({tipo_prop})"
-        lista_temporal.append(r)
-    elif tipo_prop == "NFL (Fútbol Americano)":
-      res = analizar_prop_nfl(nombre_jugador, mercado_prop, promedio_val, linea_cas, extra_param)
-      for r in res:
-        r["partido"] = f"{nombre_jugador} ({tipo_prop})"
-        lista_temporal.append(r)
-    elif tipo_prop == "NBA (Básquetbol)":
-      res = analizar_prop_nba(nombre_jugador, mercado_prop, promedio_val, linea_cas, extra_param)
-      for r in res:
-        r["partido"] = f"{nombre_jugador} ({tipo_prop})"
-        lista_temporal.append(r)
-
-    st.session_state["resultado_props_calculado"] = lista_temporal
-
-  if "resultado_props_calculado" in st.session_state and st.session_state["resultado_props_calculado"]:
-    validadas = st.session_state["resultado_props_calculado"]
+  if st.session_state.get("resultado_props_soc_calculado"):
+    validadas = st.session_state["resultado_props_soc_calculado"]
     if validadas:
-      st.success("✅ ¡El Prop ha superado el filtro de rigor del 70%!")
+      st.success("✅ ¡El prop superó el filtro del 70%!")
       for v in validadas:
-        st.info(f"Selección: **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
+        st.info(f"Selección: **{v['mercado']}** | Prob: `{v['prob']:.2f}%`")
         _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
         stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
-        if st.button(f"📥 Guardar Prop en SQLite", key=f"save_prop_{v['mercado']}"):
-          registrar_apuesta_db(fecha_formato_str, f"Prop {tipo_prop}", nombre_jugador, v['mercado'], int(momio_prop), edge_p, stk)
-          st.success("Prop guardado con éxito en la base de datos.")
-          
-      st.markdown("### 📋 Vista Previa del Ticket Generado")
-      ticket_texto = generar_ticket_props_puro(validadas, fecha_formato_str)
-      st.code(ticket_texto, language="text")
+        if st.button("📥 Guardar en SQLite", key="save_ps"):
+          registrar_apuesta_db(fecha_formato_str, "Prop Soccer", jugador, v['mercado'], int(momio_prop), edge_p, stk)
+          st.success("Guardado en SQLite.")
+      st.code(generar_ticket_prop_individual(validadas[0], "Fútbol Soccer", fecha_formato_str), language="text")
     else:
-      st.warning("⚠️ Este prop se encuentra por debajo del filtro estricto del 70% de probabilidad real.")
+      st.warning("⚠️ El prop está por debajo del 70% de probabilidad real.")
+
+
+elif modulo_seleccionado == "🥊 Prop: UFC / MMA":
+  st.title(f"🥊 **Props: UFC / MMA [{fecha_formato_str}]**")
+  st.markdown("--- \n *Props situacionales y método de victoria en combate.*")
+  
+  col1, col2 = st.columns(2)
+  with col1:
+    combate = st.text_input("Combate / Peleador:", value="Makhachev vs Poirier", key="pu_comb")
+    mercado_ufc = st.text_input("Mercado (Ej. KO o Sumisión):", value="KO o Sumisión", key="pu_merc")
+  with col2:
+    prob_modelo = st.number_input("Probabilidad Asignada (%):", value=73.5, step=0.5, key="pu_prob")
+
+  momio_prop = st.number_input("Momio Americano:", value=-120, step=5, key="pu_mom")
+
+  if st.button("🚀 Evaluar Prop de UFC", use_container_width=True):
+    res = analizar_prop_ufc(combate, mercado_ufc, prob_modelo)
+    st.session_state["resultado_props_ufc_calculado"] = res
+
+  if st.session_state.get("resultado_props_ufc_calculado"):
+    validadas = st.session_state["resultado_props_ufc_calculado"]
+    if validadas:
+      st.success("✅ ¡El prop superó el filtro del 70%!")
+      for v in validadas:
+        st.info(f"Selección: **{v['mercado']}** | Prob: `{v['prob']:.2f}%`")
+        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        if st.button("📥 Guardar en SQLite", key="save_pu"):
+          registrar_apuesta_db(fecha_formato_str, "Prop UFC", combate, v['mercado'], int(momio_prop), edge_p, stk)
+          st.success("Guardado en SQLite.")
+      st.code(generar_ticket_prop_individual(validadas[0], "UFC", fecha_formato_str), language="text")
+    else:
+      st.warning("⚠️ El prop está por debajo del 70% de probabilidad real.")
+
+
+elif modulo_seleccionado == "🛡️ Prop: NFL (Americano)":
+  st.title(f"🛡️ **Props: NFL [{fecha_formato_str}]**")
+  st.markdown("--- \n *Props de volumen ajustados por huecos de la defensiva rival.*")
+  
+  col1, col2 = st.columns(2)
+  with col1:
+    jugador = st.text_input("Jugador:", value="Justin Jefferson", key="pn_jug")
+    mercado = st.text_input("Mercado:", value="Yardas Recepción", key="pn_merc")
+    def_rival = st.number_input("Defensa Rival Permitido (%):", value=112.0, step=1.0, key="pn_def")
+  with col2:
+    promedio = st.number_input("Promedio Base:", value=95.0, step=1.0, key="pn_prom")
+    linea = st.number_input("Línea Casino:", value=82.5, step=0.5, key="pn_lin")
+
+  momio_prop = st.number_input("Momio Americano:", value=-110, step=5, key="pn_mom")
+
+  if st.button("🚀 Evaluar Prop de NFL", use_container_width=True):
+    res = analizar_prop_nfl(jugador, mercado, promedio, linea, def_rival)
+    st.session_state["resultado_props_nfl_calculado"] = res
+
+  if st.session_state.get("resultado_props_nfl_calculado"):
+    validadas = st.session_state["resultado_props_nfl_calculado"]
+    if validadas:
+      st.success("✅ ¡El prop superó el filtro del 70%!")
+      for v in validadas:
+        st.info(f"Selección: **{v['mercado']}** | Prob: `{v['prob']:.2f}%`")
+        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        if st.button("📥 Guardar en SQLite", key="save_pn"):
+          registrar_apuesta_db(fecha_formato_str, "Prop NFL", jugador, v['mercado'], int(momio_prop), edge_p, stk)
+          st.success("Guardado en SQLite.")
+      st.code(generar_ticket_prop_individual(validadas[0], "NFL", fecha_formato_str), language="text")
+    else:
+      st.warning("⚠️ El prop está por debajo del 70% de probabilidad real.")
+
+
+elif modulo_seleccionado == "🏀 Prop: NBA (Básquetbol)":
+  st.title(f"🏀 **Props: NBA [{fecha_formato_str}]**")
+  st.markdown("--- \n *Props de volumen ajustados por el ritmo (Pace) del partido.*")
+  
+  col1, col2 = st.columns(2)
+  with col1:
+    jugador = st.text_input("Jugador:", value="Luka Doncic", key="pnb_jug")
+    mercado = st.text_input("Mercado:", value="Puntos + Rebotes + Asistencias", key="pnb_merc")
+    pace = st.number_input("Pace Proyectado del Partido:", value=102.0, step=0.5, key="pnb_pace")
+  with col2:
+    promedio = st.number_input("Promedio Base:", value=51.5, step=0.5, key="pnb_prom")
+    linea = st.number_input("Línea Casino:", value=48.5, step=0.5, key="pnb_lin")
+
+  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, key="pnb_mom")
+
+  if st.button("🚀 Evaluar Prop de NBA", use_container_width=True):
+    res = analizar_prop_nba(jugador, mercado, promedio, linea, pace)
+    st.session_state["resultado_props_nba_calculado"] = res
+
+  if st.session_state.get("resultado_props_nba_calculado"):
+    validadas = st.session_state["resultado_props_nba_calculado"]
+    if validadas:
+      st.success("✅ ¡El prop superó el filtro del 70%!")
+      for v in validadas:
+        st.info(f"Selección: **{v['mercado']}** | Prob: `{v['prob']:.2f}%`")
+        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        if st.button("📥 Guardar en SQLite", key="save_pnb"):
+          registrar_apuesta_db(fecha_formato_str, "Prop NBA", jugador, v['mercado'], int(momio_prop), edge_p, stk)
+          st.success("Guardado en SQLite.")
+      st.code(generar_ticket_prop_individual(validadas[0], "NBA", fecha_formato_str), language="text")
+    else:
+      st.warning("⚠️ El prop está por debajo del 70% de probabilidad real.")
 
 
 # =========================================================
-# 0B. ESCÁNER AUTOMÁTICO MULTI-DEPORTE (+EV)
+# ESCÁNER AUTOMÁTICO MULTI-DEPORTE (+EV)
 # =========================================================
 elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Automático Multi-Deporte (+EV) [{fecha_formato_str}]**")
