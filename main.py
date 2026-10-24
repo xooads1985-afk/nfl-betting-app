@@ -145,7 +145,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS & CONEXIÓN SEGURA CFBD API
+# MOTORES MATEMÁTICOS & SINDICATO INDUSTRIAL
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -175,31 +175,6 @@ def calcular_criterio_kelly(
     return 10.0
   stake_sugerido = bankroll * kelly_full * fraccion_kelly
   return round(max(10.0, stake_sugerido), 2)
-
-
-@st.cache_data(ttl=600)
-def obtener_estadisticas_ncaaf_api(api_key):
-  """Consulta segura a la API de College Football Data para estadísticas de equipos."""
-  if not api_key:
-    return {}
-  url = "https://api.collegefootballdata.com/stats/season?year=2026"
-  headers = {"Authorization": f"Bearer {api_key.strip()}"}
-  try:
-    response = requests.get(url, headers=headers, timeout=4)
-    if response.status_code == 200:
-      data = response.json()
-      stats_dict = {}
-      for item in data:
-        t_name = item.get("team")
-        stat_name = item.get("statName")
-        stat_val = item.get("stat")
-        if t_name not in stats_dict:
-          stats_dict[t_name] = {}
-        stats_dict[t_name][stat_name] = float(stat_val) if stat_val else 0.0
-      return stats_dict
-  except Exception:
-    pass
-  return {}
 
 
 def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
@@ -312,7 +287,7 @@ fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 st.sidebar.markdown("---")
 st.sidebar.subheader("🌐 Configuración de API & Telegram")
 st.session_state["api_key_guardada"] = st.sidebar.text_input(
-    "API Key (The Odds API / CFBD):",
+    "API Key (The Odds API):",
     value=st.session_state["api_key_guardada"],
     type="password",
 )
@@ -349,47 +324,27 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (CON API HÍBRIDA)
+# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (100% MANUAL Y FLUIDO)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor cuantitativo híbrido: sincronización automática en vivo con respaldo seguro offline contra errores de red.*")
+  st.markdown("--- \n *Motor cuantitativo optimizado: ingreso manual directo, Power Ratings, Distribución Normal, Poisson, Fatiga y Lesiones de QB.*")
 
-  # Intentar sincronizar datos reales en vivo de la API
-  api_key_cfbd = st.session_state["api_key_guardada"]
-  stats_live = obtener_estadisticas_ncaaf_api(api_key_cfbd)
-
-  if stats_live:
-    st.success("🟢 Sincronizado en vivo con API de estadísticas CFBD.")
-    lista_equipos = sorted(list(stats_live.keys()))
-    col_eq1, col_eq2 = st.columns(2)
-    with col_eq1:
-      equipo_visita = st.selectbox("Equipo Visitante (API):", lista_equipos, index=0 if lista_equipos else 0)
-      def_visita_pts = stats_live.get(equipo_visita, {}).get("totalPointsAgainst", 17.0)
-      off_visita_pts = stats_live.get(equipo_visita, {}).get("totalPoints", 28.5)
-      fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
-      lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
-    with col_eq2:
-      equipo_local = st.selectbox("Equipo Local (API):", lista_equipos, index=min(1, len(lista_equipos)-1) if lista_equipos else 0)
-      def_local_pts = stats_live.get(equipo_local, {}).get("totalPointsAgainst", 12.5)
-      off_local_pts = stats_live.get(equipo_local, {}).get("totalPoints", 34.0)
-      fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
-      lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
-  else:
-    st.warning("⚠️ Modo Respaldo Activo (Sin conexión a API externa). Ingrese promedios manuales seguros:")
-    col_eq1, col_eq2 = st.columns(2)
-    with col_eq1:
-      equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
-      off_visita_pts = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5)
-      def_visita_pts = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5)
-      fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
-      lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
-    with col_eq2:
-      equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
-      off_local_pts = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5)
-      def_local_pts = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5)
-      fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
-      lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
+  st.subheader("✍️ Estadísticas, Fatiga & Impacto de Lesiones")
+  
+  col_eq1, col_eq2 = st.columns(2)
+  with col_eq1:
+    equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
+    off_visita_pts = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5)
+    def_visita_pts = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5)
+    fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
+    lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
+  with col_eq2:
+    equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
+    off_local_pts = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5)
+    def_local_pts = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5)
+    fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
+    lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
 
   tipo_mercado = st.selectbox(
       "Selecciona el Mercado a Analizar:",
