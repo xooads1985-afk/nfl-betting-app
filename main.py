@@ -80,9 +80,7 @@ def inicializar_db():
 inicializar_db()
 
 
-def registrar_apuesta_db(
-    fecha, deporte, partido, mercado, momio, edge, stake
-):
+def registrar_apuesta_db(fecha, deporte, partido, mercado, momio, edge, stake):
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
   cursor.execute(
@@ -133,9 +131,7 @@ def calcular_edge_real(momio_casino, probabilidad_modelo):
   return prob_imp, probabilidad_modelo - prob_imp
 
 
-def calcular_criterio_kelly(
-    bankroll, prob_modelo_pct, momio_americano, fraccion_kelly=0.25
-):
+def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion_kelly=0.25):
   if bankroll is None or bankroll <= 0:
     bankroll = 15250.0
   p = prob_modelo_pct / 100.0
@@ -152,36 +148,44 @@ def calcular_criterio_kelly(
 
 
 # =========================================================
-# 1. MOTOR PRO UFC / MMA (ESTILÍSTICO & INSTINTO ASESINO)
+# 1. MOTOR PRO UFC / MMA (AVANZADO: EDAD & CAGE RUST)
 # =========================================================
-def calcular_probabilidad_ufc(striking_a, defense_a, takedown_def_a, finish_rate_a,
-                             striking_b, defense_b, takedown_def_b, finish_rate_b):
-  daño_proyectado_a = striking_a * (100 - defense_b) / 100.0
-  daño_proyectado_b = striking_b * (100 - defense_a) / 100.0
+def calcular_probabilidad_ufc_avanzada(metricas_a, metricas_b, contexto_combate):
+  striking_a, defense_a, td_def_a, finish_a = metricas_a["striking"], metricas_a["defense"], metricas_a["td_def"], metricas_a["finish"]
+  striking_b, defense_b, td_def_b, finish_b = metricas_b["striking"], metricas_b["defense"], metricas_b["td_def"], metricas_b["finish"]
   
-  ventaja_piso_a = max(0, (100 - takedown_def_b)) * 0.1
-  ventaja_piso_b = max(0, (100 - takedown_def_a)) * 0.1
+  daño_a = striking_a * (100 - defense_b) / 100.0
+  daño_b = striking_b * (100 - defense_a) / 100.0
   
-  score_a = daño_proyectado_a + ventaja_piso_a
-  score_b = daño_proyectado_b + ventaja_piso_b
+  ventaja_piso_a = max(0, (100 - td_def_b)) * 0.1
+  ventaja_piso_b = max(0, (100 - td_def_a)) * 0.1
   
-  score_a *= (1.0 + finish_rate_a)
-  score_b *= (1.0 + finish_rate_b)
+  score_a = daño_a + ventaja_piso_a
+  score_b = daño_b + ventaja_piso_b
+  
+  if contexto_combate.get("edad_a", 30) >= 35 and contexto_combate.get("edad_b", 30) < 35:
+    score_a *= 0.92
+  if contexto_combate.get("edad_b", 30) >= 35 and contexto_combate.get("edad_a", 30) < 35:
+    score_b *= 0.92
+      
+  if contexto_combate.get("meses_inactivo_a", 0) >= 12:
+    score_a *= 0.95
+  if contexto_combate.get("meses_inactivo_b", 0) >= 12:
+    score_b *= 0.95
+
+  score_a *= (1.0 + finish_a)
+  score_b *= (1.0 + finish_b)
   
   total_score = score_a + score_b
   if total_score == 0:
     return 50.0, 50.0
   prob_a = (score_a / total_score) * 100.0
   prob_b = (score_b / total_score) * 100.0
-  
   return round(prob_a, 2), round(prob_b, 2)
 
 
-def analizar_combate_ufc(peleador_a, peleador_b, metricas_a, metricas_b):
-  prob_a, prob_b = calcular_probabilidad_ufc(
-      metricas_a["striking"], metricas_a["defense"], metricas_a["td_def"], metricas_a["finish"],
-      metricas_b["striking"], metricas_b["defense"], metricas_b["td_def"], metricas_b["finish"]
-  )
+def analizar_combate_ufc(peleador_a, peleador_b, metricas_a, metricas_b, contexto_combate):
+  prob_a, prob_b = calcular_probabilidad_ufc_avanzada(metricas_a, metricas_b, contexto_combate)
   opciones = [
       {"mercado": f"Ganador: {peleador_a}", "prob": prob_a},
       {"mercado": f"Ganador: {peleador_b}", "prob": prob_b}
@@ -229,62 +233,6 @@ def analizar_lineas_beisbol(local, visita, fip_l, bullpen_l, fip_v, bullpen_v, l
   }
 
 
-# =========================================================
-# 3. RESTO DE MOTORES (NHL, NBA, NCAAF, NFL, SOCCER)
-# =========================================================
-ESTADISTICAS_NHL_BASE = {
-    "Florida Panthers": {"GF": 3.40, "GC": 2.70, "PP": 23.5},
-    "Edmonton Oilers": {"GF": 3.60, "GC": 2.85, "PP": 26.0},
-    "Dallas Stars": {"GF": 3.45, "GC": 2.45, "PP": 22.0},
-    "New York Rangers": {"GF": 3.35, "GC": 2.60, "PP": 24.5},
-    "Colorado Avalanche": {"GF": 3.70, "GC": 3.00, "PP": 25.0},
-    "Vegas Golden Knights": {"GF": 3.25, "GC": 2.75, "PP": 21.0},
-    "Toronto Maple Leafs": {"GF": 3.50, "GC": 2.90, "PP": 24.0},
-    "Vancouver Canucks": {"GF": 3.40, "GC": 2.65, "PP": 22.5}
-}
-
-def obtener_metricas_nhl(equipo):
-  for nombre_completo, metricas in ESTADISTICAS_NHL_BASE.items():
-    if equipo.lower() in nombre_completo.lower():
-      return metricas
-  return {"GF": 3.10, "GC": 3.10, "PP": 20.0}
-
-def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
-  m_local = obtener_metricas_nhl(local)
-  m_visita = obtener_metricas_nhl(visita)
-  ventaja_casa = 0.25
-  lambda_local = (m_local["GF"] + ventaja_casa + m_visita["GC"]) / 2.0
-  lambda_visita = (m_visita["GF"] + m_local["GC"]) / 2.0
-  if m_local["PP"] > 23.0: lambda_local += 0.15
-  if m_visita["PP"] > 23.0: lambda_visita += 0.15
-  if contexto.get("local_goalie_elite", False): lambda_visita -= 0.30
-  if contexto.get("visita_goalie_elite", False): lambda_local -= 0.30
-  
-  max_goles = 8
-  prob_l = [poisson.pmf(i, lambda_local) for i in range(max_goles + 1)]
-  prob_v = [poisson.pmf(j, lambda_visita) for j in range(max_goles + 1)]
-  matriz = np.outer(prob_l, prob_v)
-  matriz /= matriz.sum()
-  
-  prob_local_gana = float(np.sum(np.triu(matriz, 1).T)) * 100.0
-  prob_visita_gana = float(np.sum(np.tril(matriz, -1).T)) * 100.0
-  prob_empate_regular = float(np.diag(matriz).sum()) * 100.0
-  prob_local_ml = prob_local_gana + (prob_empate_regular * 0.5)
-  prob_visita_ml = prob_visita_gana + (prob_empate_regular * 0.5)
-  
-  total_goles_matriz = np.fromfunction(lambda i, j: i + j, matriz.shape, dtype=int)
-  prob_under = float(matriz[total_goles_matriz < linea_total_casino].sum()) * 100.0
-  prob_over = 100.0 - prob_under
-  
-  opciones = [
-      {"mercado": f"{local} Moneyline (Inc. Prórroga)", "prob": prob_local_ml},
-      {"mercado": f"{visita} Moneyline (Inc. Prórroga)", "prob": prob_visita_ml},
-      {"mercado": f"Over {linea_total_casino} Goles Totales", "prob": prob_over},
-      {"mercado": f"Under {linea_total_casino} Goles Totales", "prob": prob_under}
-  ]
-  validas = [o for o in opciones if o["prob"] >= 70.0]
-  return {"lambda_local": round(lambda_local, 2), "lambda_visita": round(lambda_visita, 2), "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2), "validas": validas}
-
 # ---------------------------------------------------------
 # SELECTOR GLOBAL DE FECHA Y MENÚ LATERAL
 # ---------------------------------------------------------
@@ -308,11 +256,6 @@ modulo_seleccionado = st.sidebar.radio(
     [
         "🥊 Sistema Pro UFC / MMA",
         "⚾ Béisbol Pro (MLB / LMP)",
-        "🏒 Hockey Pro (NHL)",
-        "🏀 Sistema Pro NBA",
-        "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL",
-        "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🧮 Calculadora de Arbitraje (Surebets)",
     ],
@@ -320,21 +263,25 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. INTERFAZ MÓDULO UFC / MMA
+# 1. INTERFAZ MÓDULO UFC / MMA AVANZADO
 # =========================================================
 if modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
   st.title(f"🥊 **Sistema Pro UFC / MMA Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis estilístico: Striking, Defensa, Lucha (Takedown Defense) e Instinto Asesino.*")
+  st.markdown("--- \n *Análisis estilístico avanzado: Power Ratings, Regla de Edad (35+ años) y Cage Rust (Inactividad 12+ meses).*")
 
   col_ufc1, col_ufc2 = st.columns(2)
   with col_ufc1:
     peleador_a = st.text_input("Peleador A (Esquina Roja):", value="Islam Makhachev", key="ufc_pa")
+    edad_a = st.number_input("Edad Peleador A:", value=32, step=1, key="ufc_eda")
+    inactivo_a = st.number_input("Meses Inactivo Peleador A:", value=6, step=1, key="ufc_ina")
     striking_a = st.slider("Precisión Striking P-A (%):", 0, 100, 60, key="ufc_sa")
     defense_a = st.slider("Defensa de Golpes P-A (%):", 0, 100, 65, key="ufc_da")
     td_def_a = st.slider("Defensa de Derribos P-A (%):", 0, 100, 90, key="ufc_tda")
     finish_a = st.number_input("Tasa Finalización P-A (Factor):", value=0.75, step=0.05, key="ufc_fa")
   with col_ufc2:
     peleador_b = st.text_input("Peleador B (Esquina Azul):", value="Dustin Poirier", key="ufc_pb")
+    edad_b = st.number_input("Edad Peleador B:", value=35, step=1, key="ufc_edb")
+    inactivo_b = st.number_input("Meses Inactivo Peleador B:", value=14, step=1, key="ufc_inb")
     striking_b = st.slider("Precisión Striking P-B (%):", 0, 100, 55, key="ufc_sb")
     defense_b = st.slider("Defensa de Golpes P-B (%):", 0, 100, 50, key="ufc_db")
     td_def_b = st.slider("Defensa de Derribos P-B (%):", 0, 100, 60, key="ufc_tdb")
@@ -344,9 +291,10 @@ if modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
 
   metricas_a = {"striking": striking_a, "defense": defense_a, "td_def": td_def_a, "finish": finish_a}
   metricas_b = {"striking": striking_b, "defense": defense_b, "td_def": td_def_b, "finish": finish_b}
+  contexto_ufc = {"edad_a": edad_a, "edad_b": edad_b, "meses_inactivo_a": inactivo_a, "meses_inactivo_b": inactivo_b}
 
-  if st.button("🚀 Ejecutar Análisis Estilístico UFC", use_container_width=True):
-    res_ufc = analizar_combate_ufc(peleador_a, peleador_b, metricas_a, metricas_b)
+  if st.button("🚀 Ejecutar Análisis Estilístico Avanzado UFC", use_container_width=True):
+    res_ufc = analizar_combate_ufc(peleador_a, peleador_b, metricas_a, metricas_b, contexto_ufc)
     st.session_state["resultado_ufc_calculado"] = {
         "partido": f"{peleador_b} vs {peleador_a}", "analisis": res_ufc, "peleador_a": peleador_a, "peleador_b": peleador_b
     }
@@ -354,7 +302,7 @@ if modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
   if st.session_state["resultado_ufc_calculado"]:
     r = st.session_state["resultado_ufc_calculado"]
     res = r["analisis"]
-    st.success(f"🎯 Análisis UFC Completado para: **{r['partido']}**")
+    st.success(f"🎯 Análisis UFC Avanzado Completado para: **{r['partido']}**")
 
     col_u1, col_u2 = st.columns(2)
     col_u1.metric(f"Prob. Victoria {r['peleador_a']}", f"{res['prob_a']}%")
