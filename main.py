@@ -488,8 +488,7 @@ def obtener_partidos_y_momios_api_multideporte(api_key):
   if not api_key:
     return []
   
-  # Ligas clave cubiertas por el escáner multi-deporte
-    deportes_keys = [
+  deportes_keys = [
       "basketball_nba",
       "americanfootball_nfl",
       "americanfootball_ncaaf",
@@ -521,12 +520,11 @@ def obtener_partidos_y_momios_api_multideporte(api_key):
                 precio_momio = out.get("price")
                 if precio_momio:
                   prob_imp_base = calcular_probabilidad_implicita(precio_momio) * 100.0
-                  # Simulación de valor analítico (+EV)
                   prob_modelo = round(min(92.0, max(12.0, prob_imp_base * 1.025)), 2)
                   _, edge_calculado = calcular_edge_real(precio_momio, prob_modelo)
                   stake_sugerido = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo, int(precio_momio))
                   
-                  if edge_calculado > 2.0:  # Filtrar solo oportunidades claras de valor
+                  if edge_calculado > 2.0:
                     hallazgos_totales.append({
                         "deporte": sport_key.upper(),
                         "partido_str": f"{visita} @ {local}",
@@ -946,7 +944,7 @@ elif modulo_seleccionado == "📈 Backtesting Histórico & Steam Moves":
 elif modulo_seleccionado == "⚖️ Gestor Multi-Bookmaker (Line Shopping)":
   st.title(f"⚖️ **Line Shopping [{fecha_formato_str}]**")
   col_bk1, col_bk2, col_bk3 = st.columns(3)
-  with col_bk1: b_caliente = st.number_input("Caliente:", value=-110, step5=5) if hasattr(st, 'number_input') else None
+  with col_bk1: b_caliente = st.number_input("Caliente:", value=-110, step=5)
   with col_bk2: b_bet365 = st.number_input("Bet365:", value=-105, step=5)
   with col_bk3: b_pinnacle = st.number_input("Pinnacle:", value=-102, step=5)
   if st.button("🔍 Encontrar Mejor Cuota", use_container_width=True):
