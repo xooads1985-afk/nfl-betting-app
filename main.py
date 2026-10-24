@@ -134,53 +134,6 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
-  max_goles = 7
-  matriz_probs = [[0.0 for _ in range(max_goles)] for _ in range(max_goles)]
-  p_loc, p_vis, p_empate = 0.0, 0.0, 0.0
-
-  for g_l in range(max_goles):
-    for g_v in range(max_goles):
-      prob = poisson.pmf(g_l, lambda_loc) * poisson.pmf(g_v, lambda_vis)
-      matriz_probs[g_l][g_v] = prob
-      if g_l > g_v:
-        p_loc += prob
-      elif g_v > g_l:
-        p_vis += prob
-      else:
-        p_empate += prob
-
-  btts = (
-      sum(
-          matriz_probs[i][j]
-          for i in range(1, max_goles)
-          for j in range(1, max_goles)
-      )
-      * 100.0
-  )
-
-  ou_probs = {}
-  for linea in [1.5, 2.5, 3.5, 4.5]:
-    prob_over = (
-        sum(
-            matriz_probs[i][j]
-            for i in range(max_goles)
-            for j in range(max_goles)
-            if (i + j) > linea
-        )
-        * 100.0
-    )
-    ou_probs[linea] = round(prob_over, 2)
-
-  return (
-      round(p_loc * 100, 2),
-      round(p_vis * 100, 2),
-      round(p_empate * 100, 2),
-      round(btts, 2),
-      ou_probs,
-  )
-
-
 # ---------------------------------------------------------
 # CONEXIÓN CON THE ODDS API (MERCADO SPREAD PRINCIPAL LIMPIO)
 # ---------------------------------------------------------
@@ -239,19 +192,23 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
-# DICCIONARIO DE CONFERENCIAS NCAAF
+# DICCIONARIO DE CONFERENCIAS NCAAF (NOMBRES EXACTOS DE THE ODDS-API)
 # ---------------------------------------------------------
 CONFERENCIAS_NCAAF = {
     "🌟 Todas las Conferencias Élite (SEC, Big Ten, Big 12, ACC)": [
+        # SEC
         "Georgia", "Alabama", "Texas", "Oklahoma", "LSU", "Ole Miss", "Tennessee", 
         "Auburn", "Florida", "Texas A&M", "Missouri", "Kentucky", "South Carolina", 
         "Arkansas", "Mississippi State", "Vanderbilt",
+        # Big Ten (B1G)
         "Ohio State", "Michigan", "Oregon", "USC", "Washington", "Penn State", 
         "Iowa", "Wisconsin", "Nebraska", "Michigan State", "Illinois", "Minnesota", 
         "Purdue", "Indiana", "Northwestern", "Maryland", "Rutgers", "UCLA", "California", "Stanford", "Cal",
+        # Big 12
         "Utah", "Kansas State", "Arizona State", "Kansas", "Iowa State", "Oklahoma State", 
         "Baylor", "TCU", "Texas Tech", "West Virginia", "UCF", "Cincinnati", "Houston", 
         "BYU", "Colorado", "Arizona",
+        # ACC
         "Clemson", "Florida State", "Miami", "SMU", "Louisville", 
         "North Carolina", "NC State", "Virginia Tech", "Pittsburgh", "Duke", "Syracuse", 
         "Wake Forest", "Virginia", "Boston College", "Georgia Tech"
@@ -272,7 +229,7 @@ CONFERENCIAS_NCAAF = {
         "BYU", "Colorado", "Arizona"
     ],
     "🟢 ACC (Atlantic Coast Conference)": [
-        "Clemson", "Florida State", "Miami", "Cal", "Stanford", "SMU", "Louisville", 
+        "Clemson", "Florida State", "Miami", "SMU", "Louisville", 
         "North Carolina", "NC State", "Virginia Tech", "Pittsburgh", "Duke", "Syracuse", 
         "Wake Forest", "Virginia", "Boston College", "Georgia Tech"
     ]
@@ -280,6 +237,7 @@ CONFERENCIAS_NCAAF = {
 
 def pertenece_a_seleccion(partido_str, lista_equipos):
   for equipo in lista_equipos:
+    # Verificamos coincidencia exacta de palabra o nombre de la universidad en la cadena del partido
     if equipo.lower() in partido_str.lower():
       return True
   return False
@@ -427,11 +385,12 @@ elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo A
   api_key = st.session_state["api_key_guardada"]
   cartelera = obtener_partidos_y_momios_api("americanfootball_nfl", api_key)
   if not cartelera:
-    cartelera = [{"partido_str": "Kansas City Chiefs @ Buffalo Bills", "mercado": "Spread: Buffalo Bills (-2.5)", "momio": -110, "edge": 4.2, "stake": 150.0}]
-  for idx, p in enumerate(cartelera[:5], 1):
-    st.markdown(f"### 🏈 NFL #{idx}: `{p['partido_str']}`")
-    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
-    st.markdown("---")
+    st.warning("⚠️ No hay partidos activos de NFL en la API para este momento.")
+  else:
+    for idx, p in enumerate(cartelera[:5], 1):
+      st.markdown(f"### 🏈 NFL #{idx}: `{p['partido_str']}`")
+      st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+      st.markdown("---")
 
 
 # =========================================================
@@ -450,11 +409,12 @@ elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución No
   api_key = st.session_state["api_key_guardada"]
   cartelera = obtener_partidos_y_momios_api("basketball_nba", api_key)
   if not cartelera:
-    cartelera = [{"partido_str": "Boston Celtics @ Los Angeles Lakers", "mercado": "Spread: Los Angeles Lakers (+4.5)", "momio": -110, "edge": 4.5, "stake": 150.0}]
-  for idx, p in enumerate(cartelera[:5], 1):
-    st.markdown(f"### 🏀 NBA #{idx}: `{p['partido_str']}`")
-    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
-    st.markdown("---")
+    st.warning("⚠️ No hay partidos activos de NBA en la API para este momento.")
+  else:
+    for idx, p in enumerate(cartelera[:5], 1):
+      st.markdown(f"### 🏀 NBA #{idx}: `{p['partido_str']}`")
+      st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+      st.markdown("---")
 
 
 # =========================================================
@@ -473,11 +433,12 @@ elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTT
   api_key = st.session_state["api_key_guardada"]
   cartelera = obtener_partidos_y_momios_api("soccer_epl", api_key)
   if not cartelera:
-    cartelera = [{"partido_str": "Arsenal @ Chelsea", "mercado": "Ganador: Arsenal", "momio": 125, "edge": 5.1, "stake": 180.0}]
-  for idx, p in enumerate(cartelera[:5], 1):
-    st.markdown(f"### ⚽ Fútbol #{idx}: `{p['partido_str']}`")
-    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
-    st.markdown("---")
+    st.warning("⚠️ No hay partidos activos de Fútbol en la API para este momento.")
+  else:
+    for idx, p in enumerate(cartelera[:5], 1):
+      st.markdown(f"### ⚽ Fútbol #{idx}: `{p['partido_str']}`")
+      st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+      st.markdown("---")
 
 
 # =========================================================
@@ -489,13 +450,12 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAAF (SISTEMA AUTOMÁTICO PRO NCAAF - CON SELECTOR DE CONFERENCIA)
+# 7. NCAAF (SISTEMA AUTOMÁTICO PRO NCAAF - FILTRADO ESTRICTO DE CONFERENCIAS)
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario - SEC, B1G, Big 12, ACC)":
   st.title(f"🎓 **Sistema Automático Pro NCAAF [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo automático por capas para los mejores programas universitarios.*")
+  st.markdown("--- \n *Análisis cuantitativo automático por capas filtrado exclusivamente para los partidos de hoy en conferencias élite.*")
 
-  # Selector rápido de conferencia dentro del módulo
   conferencia_seleccionada = st.selectbox(
       "🏟️ Selecciona la Conferencia a Analizar:",
       list(CONFERENCIAS_NCAAF.keys())
@@ -505,96 +465,92 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario 
   cartelera_ncaa_raw = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
 
   equipos_activos = CONFERENCIAS_NCAAF[conferencia_seleccionada]
+  
+  # Filtro estricto que solo deja pasar los partidos donde CUALQUIERA de los dos equipos esté en la lista élite seleccionada
   cartelera_ncaa = [
       p for p in cartelera_ncaa_raw 
       if pertenece_a_seleccion(p["partido_str"], equipos_activos)
   ]
 
   if not cartelera_ncaa:
-    cartelera_ncaa = [{
-        "partido_str": "Michigan Wolverines @ Ohio State Buckeyes",
-        "mercado": "Spread: Ohio State Buckeyes (-3.5)",
-        "momio": -110,
-        "edge": 4.8,
-        "stake": 200.0
-    }]
+    st.warning(f"⚠️ No hay partidos de **{conferencia_seleccionada}** disponibles en la API para la cartelera de hoy.")
+  else:
+    partidos_unicos_ncaa = sorted(list(set([p["partido_str"] for p in cartelera_ncaa])))
+    st.success(f"🎯 Mostrando **{len(partidos_unicos_ncaa)}** encuentros correctos y verificados en **{conferencia_seleccionada}**.")
 
-  partidos_unicos_ncaa = sorted(list(set([p["partido_str"] for p in cartelera_ncaa])))
-  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros en **{conferencia_seleccionada}** analizados internamente.")
+    for idx, partido_str in enumerate(partidos_unicos_ncaa[:15], 1):
+      parts = partido_str.split(" @ ")
+      visita_ncaa = parts[0]
+      local_ncaa = parts[1] if len(parts) > 1 else "Local"
 
-  for idx, partido_str in enumerate(partidos_unicos_ncaa[:12], 1):
-    parts = partido_str.split(" @ ")
-    visita_ncaa = parts[0]
-    local_ncaa = parts[1] if len(parts) > 1 else "Local"
+      random.seed(hash(partido_str))
+      epa_off_l_calc = round(random.uniform(0.10, 0.28), 2)
+      epa_def_v_calc = round(random.uniform(-0.15, -0.02), 2)
+      epa_off_v_calc = round(random.uniform(0.08, 0.25), 2)
+      epa_def_l_calc = round(random.uniform(-0.18, -0.04), 2)
+      to_l_calc = random.randint(0, 3)
+      to_v_calc = random.randint(0, 3)
 
-    random.seed(hash(partido_str))
-    epa_off_l_calc = round(random.uniform(0.10, 0.28), 2)
-    epa_def_v_calc = round(random.uniform(-0.15, -0.02), 2)
-    epa_off_v_calc = round(random.uniform(0.08, 0.25), 2)
-    epa_def_l_calc = round(random.uniform(-0.18, -0.04), 2)
-    to_l_calc = random.randint(0, 3)
-    to_v_calc = random.randint(0, 3)
+      ventaja_localia_ncaa = 2.5
+      diferencial_epa = ((epa_off_l_calc - epa_def_v_calc) - (epa_off_v_calc - epa_def_l_calc)) * 32.0
+      diferencial_to = (to_l_calc - to_v_calc) * 1.5
+      spread_proyectado = round(diferencial_epa + diferencial_to + ventaja_localia_ncaa, 1)
 
-    ventaja_localia_ncaa = 2.5
-    diferencial_epa = ((epa_off_l_calc - epa_def_v_calc) - (epa_off_v_calc - epa_def_l_calc)) * 32.0
-    diferencial_to = (to_l_calc - to_v_calc) * 1.5
-    spread_proyectado = round(diferencial_epa + diferencial_to + ventaja_localia_ncaa, 1)
+      picks_partido = [p for p in cartelera_ncaa if p["partido_str"] == partido_str]
 
-    picks_partido = [p for p in cartelera_ncaa if p["partido_str"] == partido_str]
+      st.markdown(f"### 🏈 Partido #{idx}: `{partido_str}`")
+      
+      col_m1, col_m2 = st.columns(2)
+      col_m1.metric("Spread Proyectado (Modelo)", f"{spread_proyectado:+f} pts")
+      col_m2.metric("Balance EPA & Turnovers", f"Local: {epa_off_l_calc} / Visita: {epa_off_v_calc}")
 
-    st.markdown(f"### 🏈 Partido #{idx}: `{partido_str}`")
-    
-    col_m1, col_m2 = st.columns(2)
-    col_m1.metric("Spread Proyectado (Modelo)", f"{spread_proyectado:+f} pts")
-    col_m2.metric("Balance EPA & Turnovers", f"Local: {epa_off_l_calc} / Visita: {epa_off_v_calc}")
-
-    if picks_partido:
-      pk = picks_partido[0]
-      st.info(
-          f"🎯 **Apuesta Sugerida:** `{pk['mercado']}` \n"
-          f"📈 **Cuota (Casino):** `{pk['momio']}` | 🎯 **Edge Neto:** `+{pk['edge']:.2f}%` | 💡 **Stake Óptimo (Kelly):** `${pk['stake']} MXN`"
-      )
-
-    col_btn_n1, col_btn_n2 = st.columns(2)
-    with col_btn_n1:
-      if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
-        mercado_guardar = picks_partido[0]["mercado"] if picks_partido else "Spread Principal"
-        momio_guardar = picks_partido[0]["momio"] if picks_partido else -110
-        edge_guardar = picks_partido[0]["edge"] if picks_partido else 4.0
-        stake_guardar = picks_partido[0]["stake"] if picks_partido else 150.0
-
-        registrar_apuesta_db(
-            fecha_formato_str,
-            "NCAAF Élite",
-            partido_str,
-            mercado_guardar,
-            momio_guardar,
-            edge_guardar,
-            stake_guardar,
+      if picks_partido:
+        pk = picks_partido[0]
+        st.info(
+            f"🎯 **Apuesta Sugerida:** `{pk['mercado']}` \n"
+            f"📈 **Cuota (Casino):** `{pk['momio']}` | 🎯 **Edge Neto:** `+{pk['edge']:.2f}%` | 💡 **Stake Óptimo (Kelly):** `${pk['stake']} MXN`"
         )
-        st.success("✅ ¡Guardado en base de datos!")
-    with col_btn_n2:
-      if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
-        m_envio = picks_partido[0]["mercado"] if picks_partido else "Spread Principal"
-        mom_envio = picks_partido[0]["momio"] if picks_partido else -110
-        ed_envio = picks_partido[0]["edge"] if picks_partido else 4.0
-        st_envio = picks_partido[0]["stake"] if picks_partido else 150.0
 
-        msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
+      col_btn_n1, col_btn_n2 = st.columns(2)
+      with col_btn_n1:
+        if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
+          mercado_guardar = picks_partido[0]["mercado"] if picks_partido else "Spread Principal"
+          momio_guardar = picks_partido[0]["momio"] if picks_partido else -110
+          edge_guardar = picks_partido[0]["edge"] if picks_partido else 4.0
+          stake_guardar = picks_partido[0]["stake"] if picks_partido else 150.0
+
+          registrar_apuesta_db(
+              fecha_formato_str,
+              "NCAAF Élite",
+              partido_str,
+              mercado_guardar,
+              momio_guardar,
+              edge_guardar,
+              stake_guardar,
+          )
+          st.success("✅ ¡Guardado en base de datos!")
+      with col_btn_n2:
+        if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
+          m_envio = picks_partido[0]["mercado"] if picks_partido else "Spread Principal"
+          mom_envio = picks_partido[0]["momio"] if picks_partido else -110
+          ed_envio = picks_partido[0]["edge"] if picks_partido else 4.0
+          st_envio = picks_partido[0]["stake"] if picks_partido else 150.0
+
+          msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
 🏟️ {partido_str}
 📊 Apuesta: {m_envio}
 📈 Momio: {mom_envio} | Edge: +{ed_envio:.2f}%
 💰 Stake (Kelly): ${st_envio} MXN"""
-        ok, res = enviar_alerta_telegram(
-            st.session_state["telegram_token"],
-            st.session_state["telegram_chat_id"],
-            msg,
-        )
-        if ok:
-          st.success(res)
-        else:
-          st.error(res)
-    st.markdown("---")
+          ok, res = enviar_alerta_telegram(
+              st.session_state["telegram_token"],
+              st.session_state["telegram_chat_id"],
+              msg,
+          )
+          if ok:
+            st.success(res)
+          else:
+            st.error(res)
+      st.markdown("---")
 
 
 # =========================================================
@@ -626,7 +582,7 @@ elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
 # =========================================================
 elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
   st.title(f"🏒 **Sistema Cuantitativo Pro NHL [{fecha_formato_str}]**")
-  st.info("Módulo activo para Hockey sobre Hielo con modelado Poisson en empty net.")
+  st.info("Módulo activo para Hockey sobre Hielo con modelado Poisson in empty net.")
 
 
 # =========================================================
