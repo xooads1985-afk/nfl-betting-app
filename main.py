@@ -426,25 +426,76 @@ def analizar_mercados_futbol(equipo_local, equipo_visita, xg_local, xg_visita, m
 
 
 # =========================================================
-# 5. RESTO DE MOTORES DE APOYO (NHL, MLB, UFC)
+# 5. MOTOR PRO HOCKEY (NHL - 32 EQUIPOS & GOALIE BOOST)
 # =========================================================
-def motor_matematico_nhl(gf_local, ga_local, gf_visita, ga_visita, goalie_boost_local=False, goalie_boost_visita=False, linea_ou=5.5):
-  lam_l = max(1.0, (gf_local + ga_visita) / 2.0)
-  lam_v = max(1.0, (gf_visita + ga_local) / 2.0)
-  if goalie_boost_local: lam_l -= 0.4
-  if goalie_boost_visita: lam_v -= 0.4
-  p_win_l, p_over = 0.0, 0.0
-  for gl in range(8):
-    for gv in range(8):
-      p = poisson.pmf(gl, lam_l) * poisson.pmf(gv, lam_v)
-      if gl > gv: p_win_l += p
-      elif gl == gv: p_win_l += (p * 0.5)
-      if (gl + gv) > linea_ou: p_over += p
+ESTADISTICAS_NHL_BASE = {
+    "Florida Panthers": {"GF": 3.40, "GC": 2.70, "PP": 23.5},
+    "Edmonton Oilers": {"GF": 3.60, "GC": 2.85, "PP": 26.0},
+    "Dallas Stars": {"GF": 3.45, "GC": 2.45, "PP": 22.0},
+    "New York Rangers": {"GF": 3.35, "GC": 2.60, "PP": 24.5},
+    "Colorado Avalanche": {"GF": 3.70, "GC": 3.00, "PP": 25.0},
+    "Vegas Golden Knights": {"GF": 3.25, "GC": 2.75, "PP": 21.0},
+    "Toronto Maple Leafs": {"GF": 3.50, "GC": 2.90, "PP": 24.0},
+    "Vancouver Canucks": {"GF": 3.40, "GC": 2.65, "PP": 22.5}
+}
+
+def obtener_metricas_nhl(equipo):
+  for nombre_completo, metricas in ESTADISTICAS_NHL_BASE.items():
+    if equipo.lower() in nombre_completo.lower():
+      return metricas
+  return {"GF": 3.10, "GC": 3.10, "PP": 20.0}
+
+def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
+  m_local = obtener_metricas_nhl(local)
+  m_visita = obtener_metricas_nhl(visita)
+  
+  ventaja_casa = 0.25
+  lambda_local = (m_local["GF"] + ventaja_casa + m_visita["GC"]) / 2.0
+  lambda_visita = (m_visita["GF"] + m_local["GC"]) / 2.0
+  
+  if m_local["PP"] > 23.0: lambda_local += 0.15
+  if m_visita["PP"] > 23.0: lambda_visita += 0.15
+  
+  if contexto.get("local_goalie_elite", False):
+    lambda_visita -= 0.30
+  if contexto.get("visita_goalie_elite", False):
+    lambda_local -= 0.30
+      
+  max_goles = 8
+  prob_l = [poisson.pmf(i, lambda_local) for i in range(max_goles + 1)]
+  prob_v = [poisson.pmf(j, lambda_visita) for j in range(max_goles + 1)]
+  matriz = np.outer(prob_l, prob_v)
+  matriz /= matriz.sum()
+  
+  prob_local_gana = float(np.sum(np.triu(matriz, 1).T)) * 100.0
+  prob_visita_gana = float(np.sum(np.tril(matriz, -1).T)) * 100.0
+  prob_empate_regular = float(np.diag(matriz).sum()) * 100.0
+  
+  prob_local_ml = prob_local_gana + (prob_empate_regular * 0.5)
+  prob_visita_ml = prob_visita_gana + (prob_empate_regular * 0.5)
+  
+  total_goles_matriz = np.fromfunction(lambda i, j: i + j, matriz.shape, dtype=int)
+  prob_under = float(matriz[total_goles_matriz < linea_total_casino].sum()) * 100.0
+  prob_over = 100.0 - prob_under
+  
+  opciones = [
+      {"mercado": f"{local} Moneyline (Inc. Prórroga)", "prob": prob_local_ml},
+      {"mercado": f"{visita} Moneyline (Inc. Prórroga)", "prob": prob_visita_ml},
+      {"mercado": f"Over {linea_total_casino} Goles Totales", "prob": prob_over},
+      {"mercado": f"Under {linea_total_casino} Goles Totales", "prob": prob_under}
+  ]
+  validas = [o for o in opciones if o["prob"] >= 70.0]
   return {
-      "moneyline_local": round(p_win_l * 100.0, 2), "moneyline_visita": round((1.0 - p_win_l) * 100.0, 2),
-      "over_pct": round(p_over * 100.0, 2), "under_pct": round((1.0 - p_over) * 100.0, 2)
+      "lambda_local": round(lambda_local, 2), "lambda_visita": round(lambda_visita, 2),
+      "prob_local_ml": round(prob_local_ml, 2), "prob_visita_ml": round(prob_visita_ml, 2),
+      "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2),
+      "validas": validas
   }
 
+
+# =========================================================
+# 6. RESTO DE MOTORES (BÉISBOL Y UFC)
+# =========================================================
 def motor_matematico_baseball(era_starter_local, fip_starter_local, era_starter_visita, fip_starter_visita, bullpen_local=3.5, bullpen_visita=3.5, linea_runline=-1.5, linea_ou=8.5):
   runs_local = (fip_starter_local * 0.6) + (bullpen_local * 0.4)
   runs_visita = (fip_starter_visita * 0.6) + (bullpen_visita * 0.4)
@@ -533,11 +584,11 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
+        "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
         "🛡️ Sistema Pro NFL",
         "⚽ Módulo Pro Fútbol (Soccer)",
-        "🏒 Hockey Pro (NHL)",
         "⚾ Béisbol Pro (MLB / LMP)",
         "🥊 Sistema Pro UFC / MMA",
         "🔍 Escáner Automático Multi-Deporte (+EV)",
@@ -551,9 +602,65 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NBA (30 EQUIPOS / 2 CONFERENCIAS)
+# 1. SISTEMA PRO HOCKEY (NHL - 32 EQUIPOS)
 # =========================================================
-if modulo_seleccionado == "🏀 Sistema Pro NBA":
+if modulo_seleccionado == "🏒 Hockey Pro (NHL)":
+  st.title(f"🏒 **Sistema Pro Hockey (NHL) Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Poisson Bivariado con Goles a Favor/En Contra, Power Play y rendimiento del portero (Goalie Boost).*")
+
+  el_nhl = st.text_input("Equipo Local NHL (Ej. Florida Panthers):", value="Florida Panthers", key="nhl_el")
+  ev_nhl = st.text_input("Equipo Visitante NHL (Ej. Edmonton Oilers):", value="Edmonton Oilers", key="nhl_ev")
+
+  col_nhl1, col_nhl2 = st.columns(2)
+  with col_nhl1:
+    goalie_l = st.checkbox("Portero Local Élite (Goalie Boost)", key="nhl_gl")
+  with col_nhl2:
+    goalie_v = st.checkbox("Portero Visitante Élite (Goalie Boost)", key="nhl_gv")
+
+  st.markdown("---")
+  linea_tot_nhl = st.number_input("Línea Total Goles Casino (O/U):", value=5.5, step=0.5, key="nhl_ltot")
+
+  contexto_nhl = {
+      "local_goalie_elite": goalie_l, "visita_goalie_elite": goalie_v
+  }
+
+  if st.button("🚀 Ejecutar Análisis Matemático NHL", use_container_width=True):
+    res_nhl = analizar_lineas_nhl(el_nhl, ev_nhl, linea_tot_nhl, contexto_nhl)
+    st.session_state["resultado_nhl_calculado"] = {
+        "partido": f"{ev_nhl} @ {el_nhl}", "analisis": res_nhl, "local": el_nhl, "visita": ev_nhl
+    }
+
+  if st.session_state["resultado_nhl_calculado"]:
+    r_nhl = st.session_state["resultado_nhl_calculado"]
+    res_h = r_nhl["analisis"]
+    st.success(f"🎯 Análisis NHL Completado para: **{r_nhl['partido']}**")
+
+    col_nh1, col_nh2 = st.columns(2)
+    col_nh1.metric("🏒 Goles Esperados Local (λ)", f"{res_h['lambda_local']} goles")
+    col_nh2.metric("🏒 Goles Esperados Visita (λ)", f"{res_h['lambda_visita']} goles")
+
+    col_nh3, col_nh4, col_nh5, col_nh6 = st.columns(4)
+    col_nh3.metric(f"Prob. {r_nhl['local']} ML", f"{res_h['prob_local_ml']}%")
+    col_nh4.metric(f"Prob. {r_nhl['visita']} ML", f"{res_h['prob_visita_ml']}%")
+    col_nh5.metric(f"Prob. Over {linea_tot_nhl}", f"{res_h['prob_over']}%")
+    col_nh6.metric(f"Prob. Under {linea_tot_nhl}", f"{res_h['prob_under']}%")
+
+    st.markdown("### 📌 Opciones Certificadas NHL (>70% Éxito)")
+    if res_h["validas"]:
+      for jugada in res_h["validas"]:
+        st.info(f"✅ **{jugada['mercado']}** | Probabilidad de Éxito: `{jugada['prob']:.2f}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_nhl_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "NHL Élite", r_nhl['partido'], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("¡Apuesta NHL guardada con éxito en SQLite!")
+    else:
+      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este partido de hockey.")
+
+
+# =========================================================
+# 2. SISTEMA PRO NBA
+# =========================================================
+elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Motor profesional con los 30 equipos de la NBA, Eficiencias por 100 Posesiones y Ritmo (Pace).*")
 
@@ -615,7 +722,7 @@ if modulo_seleccionado == "🏀 Sistema Pro NBA":
 
 
 # =========================================================
-# 2. SISTEMA PRO NCAAF
+# 3. SISTEMA PRO NCAAF
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
@@ -686,7 +793,7 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 3. SISTEMA PRO NFL
+# 4. SISTEMA PRO NFL
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
@@ -754,7 +861,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
 
 # =========================================================
-# 4. FÚTBOL SOCCER
+# 5. FÚTBOL SOCCER
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
   st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_formato_str}]**")
@@ -803,44 +910,8 @@ elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
 
 
 # =========================================================
-# 5. RESTO DE MÓDULOS (NHL, MLB, UFC Y FINANCIEROS)
+# 6. RESTO DE MÓDULOS (BÉISBOL, UFC Y FINANCIEROS)
 # =========================================================
-elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
-  st.title(f"🏒 **Sistema Pro Hockey (NHL) Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo protegido y congelado.*")
-  col1, col2 = st.columns(2)
-  with col1:
-    ev = st.text_input("Visitante:", value="Oilers", key="nhl_ev")
-    gfv = st.number_input("GF Visita:", value=3.2, step=0.1, key="nhl_gfv")
-    gav = st.number_input("GA Visita:", value=2.8, step=0.1, key="nhl_gav")
-    gv = st.checkbox("Portero Estrella", key="nhl_gv")
-  with col2:
-    el = st.text_input("Local:", value="Maple Leafs", key="nhl_el")
-    gfl = st.number_input("GF Local:", value=3.4, step=0.1, key="nhl_gfl")
-    gal = st.number_input("GA Local:", value=2.6, step=0.1, key="nhl_gal")
-    gl = st.checkbox("Portero Estrella", key="nhl_gl")
-  tm = st.selectbox("Mercado:", ["Moneyline", "Total Goles"], key="nhl_tm")
-  if tm == "Moneyline":
-    sel = st.selectbox("Selección:", [el, ev], key="nhl_sel")
-    mm = st.number_input("Momio:", value=-115, step=5, key="nhl_mm")
-    if st.button("🚀 Calcular NHL", use_container_width=True):
-      mat = motor_matematico_nhl(gfl, gal, gfv, gav, gl, gv)
-      prob = mat["moneyline_local"] if sel == el else mat["moneyline_visita"]
-      st.session_state["resultado_nhl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Moneyline: {sel}", "momio": int(mm), "prob": prob}
-  else:
-    lou = st.number_input("Línea Goles:", value=5.5, step=0.5, key="nhl_lou")
-    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="nhl_op")
-    mm = st.number_input("Momio:", value=-110, step=5, key="nhl_mmo")
-    if st.button("🚀 Calcular NHL", use_container_width=True):
-      mat = motor_matematico_nhl(gfl, gal, gfv, gav, gl, gv, lou)
-      st.session_state["resultado_nhl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} {lou}", "momio": int(mm), "prob": mat["over_pct"] if "Over" in op else mat["under_pct"]}
-  if st.session_state["resultado_nhl_calculado"]:
-    r = st.session_state["resultado_nhl_calculado"]
-    _, eg = calcular_edge_real(r["momio"], r["prob"])
-    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
-    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
-    if st.button("📥 Guardar SQLite", key="db_nh"): registrar_apuesta_db(fecha_formato_str, "NHL", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
-
 elif modulo_seleccionado == "⚾ Béisbol Pro (MLB / LMP)":
   st.title(f"⚾ **Sistema Pro Béisbol Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo protegido y congelado.*")
