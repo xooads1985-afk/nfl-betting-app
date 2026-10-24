@@ -39,7 +39,7 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -139,7 +139,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
   try:
     response = requests.post(url, json=payload, timeout=5)
     if response.status_code == 200:
-      return True, "¡Alerta enviada con éxito à Telegram!"
+      return True, "¡Alerta enviada con éxito a Telegram!"
     else:
       return False, f"Error de Telegram ({response.status_code})"
   except Exception as e:
@@ -257,21 +257,19 @@ def motor_matematico_soccer(goles_favor_local, goles_contra_local, goles_favor_v
   }
 
 
-# 5. Motor Hockey Pro (NHL) - Poisson de Goles & Power Play
+# 5. Motor Hockey Pro (NHL) - Congelado
 def motor_matematico_nhl(gf_local, ga_local, gf_visita, ga_visita, goalie_boost_local=False, goalie_boost_visita=False, linea_ou=5.5):
   lam_l = max(1.0, (gf_local + ga_visita) / 2.0)
   lam_v = max(1.0, (gf_visita + ga_local) / 2.0)
-  if goalie_boost_local: lam_l -= 0.4 # Portero estelar reduce goles esperados rivales/propios
+  if goalie_boost_local: lam_l -= 0.4
   if goalie_boost_visita: lam_v -= 0.4
-  
   p_win_l, p_over = 0.0, 0.0
   for gl in range(8):
     for gv in range(8):
       p = poisson.pmf(gl, lam_l) * poisson.pmf(gv, lam_v)
       if gl > gv: p_win_l += p
-      elif gl == gv: p_win_l += (p * 0.5) # Simulación de prórroga 50/50 en empate
+      elif gl == gv: p_win_l += (p * 0.5)
       if (gl + gv) > linea_ou: p_over += p
-      
   return {
       "moneyline_local": round(p_win_l * 100.0, 2),
       "moneyline_visita": round((1.0 - p_win_l) * 100.0, 2),
@@ -281,24 +279,38 @@ def motor_matematico_nhl(gf_local, ga_local, gf_visita, ga_visita, goalie_boost_
   }
 
 
-# 6. Motor Béisbol Pro (MLB / LMP) - FIP & Sabermetrics
+# 6. Motor Béisbol Pro (MLB / LMP) - Congelado
 def motor_matematico_baseball(era_starter_local, fip_starter_local, era_starter_visita, fip_starter_visita, bullpen_rating_local=3.5, bullpen_rating_visita=3.5, linea_runline=-1.5, linea_ou=8.5):
-  # Estimador de carreras permitidas basado en FIP y bullpen
   runs_local = (fip_starter_local * 0.6) + (bullpen_rating_local * 0.4)
   runs_visita = (fip_starter_visita * 0.6) + (bullpen_rating_visita * 0.4)
-  
-  margen_carreras = runs_visita - runs_local # Positivo favorece local
-  z_score = (margen_carreras - abs(linea_runline)) / 3.2 # Desviación estándar típica en béisbol
+  margen_carreras = runs_visita - runs_local
+  z_score = (margen_carreras - abs(linea_runline)) / 3.2
   prob_runline = stats.norm.cdf(z_score) * 100.0
-  
   total_carreras = runs_local + runs_visita
   prob_under_ou = sum([poisson.pmf(k, total_carreras) for k in range(int(math.floor(linea_ou)) + 1)])
-  
   return {
       "runline_prob": round(max(5.0, min(95.0, prob_runline)), 2),
       "over_pct": round((1.0 - prob_under_ou) * 100.0, 2),
       "under_pct": round(prob_under_ou * 100.0, 2),
       "proyeccion_carreras": round(total_carreras, 2)
+  }
+
+
+# 7. Motor UFC / Artes Marciales Mixtas (Nuevo - Power Ratings & Striking Differential)
+def motor_matematico_ufc(striking_acc_f1, takedown_def_f1, finish_rate_f1, striking_acc_f2, takedown_def_f2, finish_rate_f2):
+  # Power Rating basado en precisión de golpeo, defensa de derribos y tasa de finalización
+  rating_f1 = (striking_acc_f1 * 0.4) + (takedown_def_f1 * 0.3) + (finish_rate_f1 * 0.3)
+  rating_f2 = (striking_acc_f2 * 0.4) + (takedown_def_f2 * 0.3) + (finish_rate_f2 * 0.3)
+  
+  diferencial = rating_f1 - rating_f2
+  z_score = diferencial / 15.0 # Desviación estándar para peleas UFC
+  prob_f1 = stats.norm.cdf(z_score) * 100.0
+  
+  return {
+      "prob_f1": round(max(5.0, min(95.0, prob_f1)), 2),
+      "prob_f2": round(max(5.0, min(95.0, 100.0 - prob_f1)), 2),
+      "rating_f1": round(rating_f1, 1),
+      "rating_f2": round(rating_f2, 1)
   }
 
 
@@ -395,6 +407,7 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
+        "🥊 Sistema Pro UFC / MMA",
         "🏒 Hockey Pro (NHL)",
         "⚾ Béisbol Pro (MLB / LMP)",
         "⚽ Módulo Pro Fútbol (Soccer)",
@@ -402,7 +415,6 @@ modulo_seleccionado = st.sidebar.radio(
         "🛡️ Sistema Pro NFL",
         "🏀 Sistema Pro NBA",
         "🔍 Escáner Automático Multi-Deporte (+EV)",
-        "🥊 Sistema Pro UFC",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
         "🧮 Calculadora de Arbitraje (Surebets)",
@@ -415,17 +427,17 @@ modulo_seleccionado = st.sidebar.radio(
 # =========================================================
 # 1. SISTEMA PRO NCAAF (CONGELADO Y SEGURO)
 # =========================================================
-if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
+elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo protegido y congelado.*")
-  col_eq1, col_eq2 = st.columns(2)
-  with col_eq1:
+  col1, col2 = st.columns(2)
+  with col1:
     ev = st.text_input("Visitante:", value="Michigan", key="ncaaf_ev")
     ov = st.number_input("Anotados Visita:", value=28.5, step=0.5, key="ncaaf_ov")
     dv = st.number_input("Permitidos Visita:", value=17.0, step=0.5, key="ncaaf_dv")
     fv = st.checkbox("Bye Week Ausente", key="ncaaf_fv")
     lqbv = st.checkbox("QB Lesionado", key="ncaaf_lqbv")
-  with col_eq2:
+  with col2:
     el = st.text_input("Local:", value="Ohio State", key="ncaaf_el")
     ol = st.number_input("Anotados Local:", value=34.0, step=0.5, key="ncaaf_ol")
     dl = st.number_input("Permitidos Local:", value=12.5, step=0.5, key="ncaaf_dl")
@@ -575,209 +587,156 @@ elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
 
 
 # =========================================================
-# 5. NUEVO MÓDULO: HOCKEY PRO (NHL)
+# 5. HOCKEY PRO (NHL) (CONGELADO Y SEGURO)
 # =========================================================
 elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
   st.title(f"🏒 **Sistema Pro Hockey (NHL) Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo avanzado de la NHL basado en Poisson de goles, estadísticas de Power Play y factor de rendimiento del portero titular (Goalie Boost).*")
-
-  col_nhl1, col_nhl2 = st.columns(2)
-  with col_nhl1:
-    equipo_visita_nhl = st.text_input("Equipo Visitante (NHL):", value="Edmonton Oilers", key="nhl_ev")
-    gf_visita_nhl = st.number_input("Goles a Favor Promedio (Visita):", value=3.2, step=0.1, key="nhl_gfv")
-    ga_visita_nhl = st.number_input("Goles en Contra Promedio (Visita):", value=2.8, step=0.1, key="nhl_gav")
-    goalie_visita = st.checkbox("🛡️ Portero Estrella / Enrachado (Visita)", key="nhl_gv")
-  with col_nhl2:
-    equipo_local_nhl = st.text_input("Equipo Local (NHL):", value="Toronto Maple Leafs", key="nhl_el")
-    gf_local_nhl = st.number_input("Goles a Favor Promedio (Local):", value=3.4, step=0.1, key="nhl_gfl")
-    ga_local_nhl = st.number_input("Goles en Contra Promedio (Local):", value=2.6, step=0.1, key="nhl_gal")
-    goalie_local = st.checkbox("🛡️ Portero Estrella / Enrachado (Local)", key="nhl_gl")
-
-  tipo_mercado_nhl = st.selectbox(
-      "Selecciona el Mercado a Analizar (NHL):",
-      [
-          "Moneyline (Ganador del Partido incl. Prórroga)", 
-          "Total Over / Under (Goles Totales NHL)"
-      ]
-  )
-
-  if tipo_mercado_nhl == "Moneyline (Ganador del Partido incl. Prórroga)":
-    seleccion_nhl = st.selectbox("Selección Moneyline:", [equipo_local_nhl, equipo_visita_nhl], key="nhl_ssel")
-    momio_manual_nhl = st.number_input("Momio Americano (NHL):", value=-115, step=5, key="nhl_mm")
-    
-    if st.button("🚀 Ejecutar Modelo Matemático NHL (Moneyline)", use_container_width=True):
-      matriz_nhl = motor_matematico_nhl(gf_local_nhl, ga_local_nhl, gf_visita_nhl, ga_visita_nhl, goalie_local, goalie_visita)
-      
-      if seleccion_nhl == equipo_local_nhl:
-        prob_nhl = matriz_nhl["moneyline_local"]
-        mercado_txt = f"NHL Moneyline: {equipo_local_nhl}"
-      else:
-        prob_nhl = matriz_nhl["moneyline_visita"]
-        mercado_txt = f"NHL Moneyline: {equipo_visita_nhl}"
-
-      st.session_state["resultado_nhl_calculado"] = {
-          "partido": f"{equipo_visita_nhl} @ {equipo_local_nhl}",
-          "mercado": mercado_txt,
-          "momio": int(momio_manual_nhl),
-          "prob": prob_nhl,
-          "lam_l": matriz_nhl["lam_l"],
-          "lam_v": matriz_nhl["lam_v"]
-      }
-
-  else:  
-    linea_nhl_ou = st.number_input("Línea Total de Goles (O/U NHL):", value=5.5, step=0.5, key="nhl_lou")
-    opcion_nhl_ou = st.radio("Selección Totales NHL:", ["Over (Más de)", "Under (Menos de)"], horizontal=True, key="nhl_oop")
-    momio_manual_nhl = st.number_input("Momio Americano (NHL):", value=-110, step=5, key="nhl_mmo")
-
-    if st.button("🚀 Ejecutar Modelo Matemático NHL (Totales)", use_container_width=True):
-      matriz_nhl = motor_matematico_nhl(gf_local_nhl, ga_local_nhl, gf_visita_nhl, ga_visita_nhl, goalie_local, goalie_visita, linea_nhl_ou)
-      
-      if "Over" in opcion_nhl_ou:
-        prob_nhl = matriz_nhl["over_pct"]
-        mercado_txt = f"NHL Total: Over {linea_nhl_ou} goles"
-      else:
-        prob_nhl = matriz_nhl["under_pct"]
-        mercado_txt = f"NHL Total: Under {linea_nhl_ou} goles"
-
-      st.session_state["resultado_nhl_calculado"] = {
-          "partido": f"{equipo_visita_nhl} @ {equipo_local_nhl}",
-          "mercado": mercado_txt,
-          "momio": int(momio_manual_nhl),
-          "prob": prob_nhl,
-          "lam_l": matriz_nhl["lam_l"],
-          "lam_v": matriz_nhl["lam_v"]
-      }
-
-  st.markdown("---")
-  st.subheader("📌 Resultado del Análisis NHL (Fijo e Inalterable)")
-
-  if st.session_state["resultado_nhl_calculado"]:
-    res_nhl = st.session_state["resultado_nhl_calculado"]
-    _, edge_nhl = calcular_edge_real(res_nhl["momio"], res_nhl["prob"])
-    stake_nhl = calcular_criterio_kelly(st.session_state["bankroll_global"], res_nhl["prob"], res_nhl["momio"])
-
-    st.success(f"🎯 Análisis NHL guardado y fijo para: **{res_nhl['partido']}**")
-    st.metric(label="📊 Probabilidad Científica Calculada por Poisson NHL", value=f"{res_nhl['prob']}%")
-    st.info(f"🏒 **Goles Proyectados:** Local `{res_nhl['lam_l']}` | Visitante `{res_nhl['lam_v']}`")
-
-    st.info(
-        f"🎯 **Apuesta Sugerida:** `{res_nhl['mercado']}` \n"
-        f"📈 **Cuota:** `{res_nhl['momio']}` | 🎯 **Edge Neto (+EV):** `+{edge_nhl:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_nhl} MXN`"
-    )
-
-    col_nhlb1, col_nhlb2 = st.columns(2)
-    with col_nhlb1:
-      if st.button("📥 Guardar en Base de Datos SQLite (NHL)", key="guardar_sqlite_nhl"):
-        registrar_apuesta_db(fecha_formato_str, "NHL Élite", res_nhl["partido"], res_nhl["mercado"], res_nhl["momio"], edge_nhl, stake_nhl)
-        st.success("✅ ¡Apuesta NHL guardada con éxito en SQLite!")
-    with col_nhlb2:
-      if st.button("📤 Enviar Alerta a Telegram (NHL)", key="enviar_telegram_nhl"):
-        msg = f"🏒 *ALERTA NHL ÉLITE*\n🏟️ {res_nhl['partido']}\n📊 {res_nhl['mercado']}\n📈 Momio: {res_nhl['momio']} | Edge: +{edge_nhl:.2f}%\n💰 Stake: ${stake_nhl} MXN"
-        ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
-        if ok: st.success(res_tel)
-        else: st.error(res_tel)
+  st.markdown("--- \n *Módulo protegido y congelado.*")
+  col1, col2 = st.columns(2)
+  with col1:
+    ev = st.text_input("Visitante:", value="Oilers", key="nhl_ev")
+    gfv = st.number_input("GF Visita:", value=3.2, step=0.1, key="nhl_gfv")
+    gav = st.number_input("GA Visita:", value=2.8, step=0.1, key="nhl_gav")
+    gv = st.checkbox("Portero Estrella", key="nhl_gv")
+  with col2:
+    el = st.text_input("Local:", value="Maple Leafs", key="nhl_el")
+    gfl = st.number_input("GF Local:", value=3.4, step=0.1, key="nhl_gfl")
+    gal = st.number_input("GA Local:", value=2.6, step=0.1, key="nhl_gal")
+    gl = st.checkbox("Portero Estrella", key="nhl_gl")
+  tm = st.selectbox("Mercado:", ["Moneyline", "Total Goles"], key="nhl_tm")
+  if tm == "Moneyline":
+    sel = st.selectbox("Selección:", [el, ev], key="nhl_sel")
+    mm = st.number_input("Momio:", value=-115, step=5, key="nhl_mm")
+    if st.button("🚀 Calcular NHL", use_container_width=True):
+      mat = motor_matematico_nhl(gfl, gal, gfv, gav, gl, gv)
+      prob = mat["moneyline_local"] if sel == el else mat["moneyline_visita"]
+      st.session_state["resultado_nhl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Moneyline: {sel}", "momio": int(mm), "prob": prob}
   else:
-    st.info("Ingresa los datos arriba y presiona el botón para generar el análisis definitivo de Hockey NHL.")
+    lou = st.number_input("Línea Goles:", value=5.5, step=0.5, key="nhl_lou")
+    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="nhl_op")
+    mm = st.number_input("Momio:", value=-110, step=5, key="nhl_mmo")
+    if st.button("🚀 Calcular NHL", use_container_width=True):
+      mat = motor_matematico_nhl(gfl, gal, gfv, gav, gl, gv, lou)
+      st.session_state["resultado_nhl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} {lou}", "momio": int(mm), "prob": mat["over_pct"] if "Over" in op else mat["under_pct"]}
+  if st.session_state["resultado_nhl_calculado"]:
+    r = st.session_state["resultado_nhl_calculado"]
+    _, eg = calcular_edge_real(r["momio"], r["prob"])
+    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
+    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
+    if st.button("📥 Guardar SQLite", key="db_nh"): registrar_apuesta_db(fecha_formato_str, "NHL", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
 
 
 # =========================================================
-# 6. NUEVO MÓDULO: BÉISBOL PRO (MLB / LMP)
+# 6. BÉISBOL PRO (MLB / LMP) (CONGELADO Y SEGURO)
 # =========================================================
 elif modulo_seleccionado == "⚾ Béisbol Pro (MLB / LMP)":
-  st.title(f"⚾ **Sistema Pro Béisbol (MLB / LMP) Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo avanzado de béisbol con métricas sabermétricas de lanzadores abridores (ERA vs FIP), rendimiento del Bullpen y distribución normal para Run Lines.*")
+  st.title(f"⚾ **Sistema Pro Béisbol Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Módulo protegido y congelado.*")
+  col1, col2 = st.columns(2)
+  with col1:
+    ev = st.text_input("Visitante:", value="Yankees", key="bs_ev")
+    erav = st.number_input("ERA Visita:", value=3.50, step=0.05, key="bs_erav")
+    fipv = st.number_input("FIP Visita:", value=3.35, step=0.05, key="bs_fipv")
+    bpv = st.number_input("Bullpen Visita (1-5):", value=3.2, step=0.1, key="bs_bpv")
+  with col2:
+    el = st.text_input("Local:", value="Red Sox", key="bs_el")
+    eral = st.number_input("ERA Local:", value=3.80, step=0.05, key="bs_eral")
+    fipl = st.number_input("FIP Local:", value=3.95, step=0.05, key="bs_fipl")
+    bpl = st.number_input("Bullpen Local (1-5):", value=3.6, step=0.1, key="bs_bpl")
+  tm = st.selectbox("Mercado:", ["Run Line", "Total Carreras"], key="bs_tm")
+  if tm == "Run Line":
+    seq = st.text_input("Selección:", value="Yankees (-1.5)", key="bs_seq")
+    srl = st.number_input("Línea Run Line:", value=-1.5, step=0.5, key="bs_srl")
+    mm = st.number_input("Momio:", value=130, step=5, key="bs_mm")
+    if st.button("🚀 Calcular Béisbol", use_container_width=True):
+      mat = motor_matematico_baseball(eral, fipl, erav, fipv, bpl, bpv, srl, 8.5)
+      st.session_state["resultado_baseball_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Run Line: {seq} ({srl})", "momio": int(mm), "prob": mat["runline_prob"]}
+  else:
+    lou = st.number_input("Línea Carreras O/U:", value=8.5, step=0.5, key="bs_lou")
+    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="bs_op")
+    mm = st.number_input("Momio:", value=-110, step=5, key="bs_mmo")
+    if st.button("🚀 Calcular Béisbol", use_container_width=True):
+      mat = motor_matematico_baseball(eral, fipl, erav, fipv, bpl, bpv, -1.5, lou)
+      st.session_state["resultado_baseball_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} {lou}", "momio": int(mm), "prob": mat["over_pct"] if "Over" in op else mat["under_pct"]}
+  if st.session_state["resultado_baseball_calculado"]:
+    r = st.session_state["resultado_baseball_calculado"]
+    _, eg = calcular_edge_real(r["momio"], r["prob"])
+    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
+    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
+    if st.button("📥 Guardar SQLite", key="db_bs"): registrar_apuesta_db(fecha_formato_str, "Béisbol", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
 
-  col_bs1, col_bs2 = st.columns(2)
-  with col_bs1:
-    equipo_visita_bs = st.text_input("Equipo Visitante (Béisbol):", value="New York Yankees", key="bs_ev")
-    era_v = st.number_input("ERA Lanzador Visitante:", value=3.50, step=0.05, key="bs_erav")
-    fip_v = st.number_input("FIP (Indep. de Fielder) Visita:", value=3.35, step=0.05, key="bs_fipv")
-    bullpen_v = st.number_input("Rating Bullpen Visita (1 al 5):", value=3.2, step=0.1, key="bs_bpv")
-  with col_bs2:
-    equipo_local_bs = st.text_input("Equipo Local (Béisbol):", value="Boston Red Sox", key="bs_el")
-    era_l = st.number_input("ERA Lanzador Local:", value=3.80, step=0.05, key="bs_eral")
-    fip_l = st.number_input("FIP (Indep. de Fielder) Local:", value=3.95, step=0.05, key="bs_fipl")
-    bullpen_l = st.number_input("Rating Bullpen Local (1 al 5):", value=3.6, step=0.1, key="bs_bpl")
 
-  tipo_mercado_bs = st.selectbox(
-      "Selecciona el Mercado a Analizar (Béisbol):",
-      [
-          "Run Line (Hándicap -1.5 / +1.5 Carreras)", 
-          "Total Over / Under Carreras (Poisson Sabermétrico)"
-      ]
-  )
+# =========================================================
+# 7. NUEVO MÓDULO: SISTEMA PRO UFC / MMA
+# =========================================================
+elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
+  st.title(f"🥊 **Sistema Pro UFC / MMA Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Módulo avanzado de artes marciales mixtas basado en Power Ratings de golpeo, defensa de derribos y tasa de finalización.*")
 
-  if tipo_mercado_bs == "Run Line (Hándicap -1.5 / +1.5 Carreras)":
-    seleccion_bs = st.text_input("Selección Run Line:", value="New York Yankees (-1.5)", key="bs_ssel")
-    linea_runline = st.number_input("Línea de Run Line (Ej. -1.5 o +1.5):", value=-1.5, step=0.5, key="bs_srl")
-    momio_manual_bs = st.number_input("Momio Americano (Béisbol):", value=130, step=5, key="bs_mm")
+  col_ufc1, col_ufc2 = st.columns(2)
+  with col_ufc1:
+    peleador_1 = st.text_input("Peleador 1 (Rojo/Esquina A):", value="Islam Makhachev", key="ufc_p1")
+    acc_f1 = st.slider("Precisión de Golpeo (%) Peleador 1:", 30.0, 70.0, 58.0, 1.0, key="ufc_acc1")
+    tdd_f1 = st.slider("Defensa de Derribos (%) Peleador 1:", 40.0, 100.0, 90.0, 1.0, key="ufc_tdd1")
+    fin_f1 = st.slider("Tasa de Finalización (%) Peleador 1:", 20.0, 100.0, 75.0, 1.0, key="ufc_fin1")
+  with col_ufc2:
+    peleador_2 = st.text_input("Peleador 2 (Azul/Esquina B):", value="Arman Tsarukyan", key="ufc_p2")
+    acc_f2 = st.slider("Precisión de Golpeo (%) Peleador 2:", 30.0, 70.0, 48.0, 1.0, key="ufc_acc2")
+    tdd_f2 = st.slider("Defensa de Derribos (%) Peleador 2:", 40.0, 100.0, 78.0, 1.0, key="ufc_tdd2")
+    fin_f2 = st.slider("Tasa de Finalización (%) Peleador 2:", 20.0, 100.0, 60.0, 1.0, key="ufc_fin2")
+
+  seleccion_ufc = st.selectbox("Selecciona al Peleador a Apoyar (Moneyline):", [peleador_1, peleador_2], key="ufc_sel")
+  momio_manual_ufc = st.number_input("Momio Americano (UFC):", value=-250, step=5, key="ufc_mm")
+
+  if st.button("🚀 Ejecutar Modelo Matemático UFC (Moneyline)", use_container_width=True):
+    matriz_ufc = motor_matematico_ufc(acc_f1, tdd_f1, fin_f1, acc_f2, tdd_f2, fin_f2)
     
-    if st.button("🚀 Ejecutar Modelo Sabermétrico (Run Line)", use_container_width=True):
-      matriz_bs = motor_matematico_baseball(era_l, fip_l, era_v, fip_v, bullpen_l, bullpen_v, linea_runline, 8.5)
-      prob_bs = matriz_bs["runline_prob"]
-      mercado_txt = f"Béisbol Run Line: {seleccion_bs} ({linea_runline})"
+    if seleccion_ufc == peleador_1:
+      prob_ufc = matriz_ufc["prob_f1"]
+      mercado_txt = f"UFC Moneyline: {peleador_1}"
+    else:
+      prob_ufc = matriz_ufc["prob_f2"]
+      mercado_txt = f"UFC Moneyline: {peleador_2}"
 
-      st.session_state["resultado_baseball_calculado"] = {
-          "partido": f"{equipo_visita_bs} @ {equipo_local_bs}",
-          "mercado": mercado_txt,
-          "momio": int(momio_manual_bs),
-          "prob": prob_bs,
-          "proy": matriz_bs["proyeccion_carreras"]
-      }
-
-  else:  
-    linea_ou_bs = st.number_input("Línea Total de Carreras (O/U Béisbol):", value=8.5, step=0.5, key="bs_lou")
-    opcion_ou_bs = st.radio("Selección Totales Béisbol:", ["Over (Más Carreras)", "Under (Menos Carreras)"], horizontal=True, key="bs_sopp")
-    momio_manual_bs = st.number_input("Momio Americano (Béisbol):", value=-110, step=5, key="nfl_mmo")
-
-    if st.button("🚀 Ejecutar Modelo Sabermétrico (Totales)", use_container_width=True):
-      matriz_bs = motor_matematico_baseball(era_l, fip_l, era_v, fip_v, bullpen_l, bullpen_v, -1.5, linea_ou_bs)
-      
-      if "Over" in opcion_ou_bs:
-        prob_bs = matriz_bs["over_pct"]
-        mercado_txt = f"Béisbol Total: Over {linea_ou_bs} carreras"
-      else:
-        prob_bs = matriz_bs["under_pct"]
-        mercado_txt = f"Béisbol Total: Under {linea_ou_bs} carreras"
-
-      st.session_state["resultado_baseball_calculado"] = {
-          "partido": f"{equipo_visita_bs} @ {equipo_local_bs}",
-          "mercado": mercado_txt,
-          "momio": int(momio_manual_bs),
-          "prob": prob_bs,
-          "proy": matriz_bs["proyeccion_carreras"]
-      }
+    st.session_state["resultado_ufc_calculado"] = {
+        "partido": f"{peleador_2} vs {peleador_1}",
+        "mercado": mercado_txt,
+        "momio": int(momio_manual_ufc),
+        "prob": prob_ufc,
+        "rat1": matriz_ufc["rating_f1"],
+        "rat2": matriz_ufc["rating_f2"]
+    }
 
   st.markdown("---")
-  st.subheader("📌 Resultado del Análisis Béisbol (Fijo e Inalterable)")
+  st.subheader("📌 Resultado del Análisis UFC (Fijo e Inalterable)")
 
-  if st.session_state["resultado_baseball_calculado"]:
-    res_bs = st.session_state["resultado_baseball_calculado"]
-    _, edge_bs = calcular_edge_real(res_bs["momio"], res_bs["prob"])
-    stake_bs = calcular_criterio_kelly(st.session_state["bankroll_global"], res_bs["prob"], res_bs["momio"])
+  if st.session_state["resultado_ufc_calculado"]:
+    res_ufc = st.session_state["resultado_ufc_calculado"]
+    _, edge_ufc = calcular_edge_real(res_ufc["momio"], res_ufc["prob"])
+    stake_ufc = calcular_criterio_kelly(st.session_state["bankroll_global"], res_ufc["prob"], res_ufc["momio"])
 
-    st.success(f"🎯 Análisis Béisbol guardado y fijo para: **{res_bs['partido']}**")
-    st.metric(label="📊 Probabilidad Científica Calculada por Sabermetrics", value=f"{res_bs['prob']}%")
-    st.info(f"⚾ **Carreras Totales Proyectadas:** `{res_bs['proy']}` carreras")
+    st.success(f"🎯 Análisis UFC guardado y fijo para: **{res_ufc['partido']}**")
+    st.metric(label="📊 Probabilidad Científica Calculada para la Pelea", value=f"{res_ufc['prob']}%")
+    st.info(f"🥊 **Power Ratings:** {peleador_1}: `{res_ufc['rat1']}` pts | {peleador_2}: `{res_ufc['rat2']}` pts")
 
     st.info(
-        f"🎯 **Apuesta Sugerida:** `{res_bs['mercado']}` \n"
-        f"📈 **Cuota:** `{res_bs['momio']}` | 🎯 **Edge Neto (+EV):** `+{edge_bs:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_bs} MXN`"
+        f"🎯 **Apuesta Sugerida:** `{res_ufc['mercado']}` \n"
+        f"📈 **Cuota:** `{res_ufc['momio']}` | 🎯 **Edge Neto (+EV):** `+{edge_ufc:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_ufc} MXN`"
     )
 
-    col_bsb1, col_bsb2 = st.columns(2)
-    with col_bsb1:
-      if st.button("📥 Guardar en Base de Datos SQLite (Béisbol)", key="guardar_sqlite_bs"):
-        registrar_apuesta_db(fecha_formato_str, "Béisbol Élite", res_bs["partido"], res_bs["mercado"], res_bs["momio"], edge_bs, stake_bs)
-        st.success("✅ ¡Apuesta Béisbol guardada con éxito en SQLite!")
-    with col_bsb2:
-      if st.button("📤 Enviar Alerta a Telegram (Béisbol)", key="enviar_telegram_bs"):
-        msg = f"⚾ *ALERTA BÉISBOL ÉLITE*\n🏟️ {res_bs['partido']}\n📊 {res_bs['mercado']}\n📈 Momio: {res_bs['momio']} | Edge: +{edge_bs:.2f}%\n💰 Stake: ${stake_bs} MXN"
+    col_ufcb1, col_ufcb2 = st.columns(2)
+    with col_ufcb1:
+      if st.button("📥 Guardar en Base de Datos SQLite (UFC)", key="guardar_sqlite_ufc"):
+        registrar_apuesta_db(fecha_formato_str, "UFC Élite", res_ufc["partido"], res_ufc["mercado"], res_ufc["momio"], edge_ufc, stake_ufc)
+        st.success("✅ ¡Apuesta UFC guardada con éxito en SQLite!")
+    with col_ufcb2:
+      if st.button("📤 Enviar Alerta a Telegram (UFC)", key="enviar_telegram_ufc"):
+        msg = f"🥊 *ALERTA UFC ÉLITE*\n🏟️ {res_ufc['partido']}\n📊 {res_ufc['mercado']}\n📈 Momio: {res_ufc['momio']} | Edge: +{edge_ufc:.2f}%\n💰 Stake: ${stake_ufc} MXN"
         ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
         if ok: st.success(res_tel)
         else: st.error(res_tel)
   else:
-    st.info("Ingresa los datos arriba y presiona el botón para generar el análisis definitivo de Béisbol.")
+    st.info("Ingresa los datos arriba y presiona el botón para generar el análisis definitivo de UFC.")
 
 
 # =========================================================
@@ -786,13 +745,9 @@ elif modulo_seleccionado == "⚾ Béisbol Pro (MLB / LMP)":
 elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
   st.title(f"🔍 **Escáner Multi-Deporte [{fecha_formato_str}]**")
   api_key = st.session_state["api_key_guardada"]
-  cartelera = obtener_partidos_y_momios_api("icehockey_nhl", api_key)
+  cartelera = obtener_partidos_y_momios_api("mixedmartialarts_mixed_martial_arts", api_key)
   for idx, p in enumerate(cartelera[:10], 1):
-    st.info(f"🏒 NHL #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
-
-elif modulo_seleccionado == "🥊 Sistema Pro UFC":
-  st.title(f"📌 **{modulo_seleccionado} [{fecha_formato_str}]**")
-  st.info("Módulo de artes marciales mixtas activo.")
+    st.info(f"🥊 UFC #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
 
 
 # =========================================================
