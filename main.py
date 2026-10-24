@@ -136,7 +136,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS & MODELOS AVANZADOS NCAAF
+# MOTORES MATEMÁTICOS AUTOMATIZADOS (BACKEND PURISTA)
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -168,22 +168,30 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-def modelo_poisson_totales(lambda_esperado, linea_total):
-  prob_under = 0.0
-  limite = int(math.floor(linea_total))
-  for k in range(limite + 1):
-    prob_under += poisson.pmf(k, lambda_esperado)
-  prob_over = 1.0 - prob_under
-  return round(prob_over * 100.0, 2)
-
-
-def calcular_probabilidad_spread_power_rating(power_rating_local, power_rating_visita, factor_localia, spread_casino):
-  """Calcula la probabilidad exacta de cubrir el spread usando diferencia de Power Ratings y distribución normal."""
-  diferencia_esperada = (power_rating_local + factor_localia) - power_rating_visita
+def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0):
+  """Calcula de forma 100% automatizada el Power Rating y la probabilidad del Spread por distribución normal."""
+  # Cálculo interno de eficiencia ofensiva y defensiva promedio
+  pr_local = ppg_local - (pap_local * 0.95)
+  pr_visita = ppg_visita - (pap_visita * 0.95)
+  
+  margen_proyectado = (pr_local + factor_localia) - pr_visita
   desviacion_std = 13.5
-  z_score = (diferencia_esperada - abs(spread_casino)) / desviacion_std
+  z_score = (margen_proyectado - abs(spread_casino)) / desviacion_std
   prob_cubrir = stats.norm.cdf(z_score) * 100.0
-  return round(max(5.0, min(95.0, prob_cubrir)), 2), round(diferencia_esperada, 1)
+  return round(max(5.0, min(95.0, prob_cubrir)), 2), round(margen_proyectado, 1)
+
+
+def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa):
+  """Calcula de forma 100% automatizada el total combinado esperado mediante Poisson."""
+  lambda_esperado = (ppg_local + ppg_visita + pap_local + pap_visita) / 2.0
+  lambda_ajustado = round(lambda_esperado * 0.98, 1) # Factor de calibración colegial
+  
+  prob_under = 0.0
+  limite = int(math.floor(linea_casa))
+  for k in range(limite + 1):
+    prob_under += poisson.pmf(k, lambda_ajustado)
+  prob_over = (1.0 - prob_under) * 100.0
+  return round(prob_over, 2), lambda_ajustado
 
 
 # ---------------------------------------------------------
@@ -295,50 +303,41 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (ULTRA-PRECISO)
+# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (MATEMÁTICA EN BACKEND)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo cuantitativo avanzado con Power Ratings institucionales, ajustes por Fortaleza de Conferencia y distribución normal para Spreads y Poisson para Totales.*")
+  st.markdown("--- \n *Motor cuantitativo automatizado: ingresa estadísticas base y el código procesa de forma invisible los Power Ratings, Distribución Normal y Poisson para entregarte el resultado exacto.*")
 
-  st.subheader("✍️ Parámetros Avanzados del Partido")
+  st.subheader("✍️ Estadísticas Promedio de la Temporada")
   
   col_eq1, col_eq2 = st.columns(2)
   with col_eq1:
     equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
-    pr_visita = st.number_input("Power Rating Visitante (EPA/Eficiencia):", value=24.5, step=0.5)
+    ppg_visita = st.number_input("Puntos Anotados por Partido (Visita):", value=28.5, step=0.5)
+    pap_visita = st.number_input("Puntos Permitidos por Partido (Visita):", value=17.0, step=0.5)
   with col_eq2:
     equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
-    pr_local = st.number_input("Power Rating Local (EPA/Eficiencia):", value=28.0, step=0.5)
-
-  col_fac1, col_fac2 = st.columns(2)
-  with col_fac1:
-    factor_localia = st.slider("Factor Estadio / Localía (Pts):", 0.0, 5.0, 3.0, 0.5)
-  with col_fac2:
-    ajuste_sos = st.selectbox("Ajuste por Fortaleza de Conferencia (SOS):", ["Neutro", "Visitante con SOS Superior", "Local con SOS Superior"])
-
-  if ajuste_sos == "Visitante con SOS Superior":
-    pr_visita += 2.0
-  elif ajuste_sos == "Local con SOS Superior":
-    pr_local += 2.0
+    ppg_local = st.number_input("Puntos Anotados por Partido (Local):", value=34.0, step=0.5)
+    pap_local = st.number_input("Puntos Permitidos por Partido (Local):", value=12.5, step=0.5)
 
   tipo_mercado = st.selectbox(
-      "Selecciona el Tipo de Mercado / Apuesta:",
+      "Selecciona el Mercado a Analizar:",
       [
-          "Spread (Hándicap con Power Ratings)", 
-          "Ganador (Moneyline Avanzado)",
-          "Total Over / Under (Altas y Bajas - Poisson)"
+          "Spread (Hándicap Automático)", 
+          "Total Over / Under (Altas y Bajas Automáticas - Poisson)"
       ]
   )
 
-  if tipo_mercado == "Spread (Hándicap con Power Ratings)":
-    seleccion_equipo = st.text_input("Equipo Seleccionado para Cubrir el Spread:", value="Ohio State Buckeyes (-3.5)")
-    spread_linea_casino = st.number_input("Línea de Spread del Casino (Ej. -3.5 o +7.5):", value=-3.5, step=0.5)
+  if tipo_mercado == "Spread (Hándicap Automático)":
+    seleccion_equipo = st.text_input("Equipo Seleccionado para el Spread:", value="Ohio State Buckeyes (-3.5)")
+    spread_casino = st.number_input("Línea de Spread del Casino (Ej. -3.5):", value=-3.5, step=0.5)
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
     
-    if st.button("🚀 Calcular Probabilidad Científica de Spread", use_container_width=True):
-      prob_calc, margen_proyectado = calcular_probabilidad_spread_power_rating(pr_local, pr_visita, factor_localia, spread_linea_casino)
-      mercado_manual = f"Spread: {seleccion_equipo} (Línea: {spread_linea_casino} | Proyectado: {margen_proyectado:+1.1f} pts)"
+    if st.button("🚀 Ejecutar Modelo Matemático de Spread", use_container_width=True):
+      # Matemática oculta en código
+      prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino)
+      mercado_manual = f"Spread: {seleccion_equipo} (Línea: {spread_casino} | Proyectado: {margen_proyectado:+1.1f} pts)"
       
       st.session_state["resultado_ncaaf_calculado"] = {
           "partido": f"{equipo_visita} @ {equipo_local}",
@@ -347,37 +346,16 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
           "prob": prob_calc
       }
 
-  elif tipo_mercado == "Ganador (Moneyline Avanzado)":
-    seleccion_ml = st.text_input("Equipo Ganador (Moneyline):", value="Ohio State Buckeyes")
-    momio_manual = st.number_input("Momio Americano:", value=-150, step=5)
-    
-    if st.button("🚀 Calcular Modelo Moneyline Élite", use_container_width=True):
-      diferencia_pr = (pr_local + factor_localia) - pr_visita
-      prob_base_ml = 50.0 + (diferencia_pr * 2.2)
-      probabilidad_calculada = round(min(92.0, max(12.0, prob_base_ml)), 2)
-      mercado_manual = f"Ganador (Moneyline): {seleccion_ml}"
-      
-      st.session_state["resultado_ncaaf_calculado"] = {
-          "partido": f"{equipo_visita} @ {equipo_local}",
-          "mercado": mercado_manual,
-          "momio": int(momio_manual),
-          "prob": probabilidad_calculada
-      }
-
-  else:  # Totales Over / Under con Poisson y ritmo de juego (Pace)
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-      lambda_esperado = st.number_input("Promedio Combinado Esperado de Puntos (Lambda):", value=54.5, step=0.5)
-    with col_p2:
-      linea_puntos_casa = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=53.5, step=0.5)
-    
+  else:  # Totales Automáticos con Poisson en código
+    linea_casa_ou = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=51.5, step=0.5)
     opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True)
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
 
-    if st.button("🚀 Calcular con Motor de Poisson y Ritmo", use_container_width=True):
-      prob_over_poisson = modelo_poisson_totales(lambda_esperado, linea_puntos_casa)
-      probabilidad_calculada = prob_over_poisson if "Over" in opcion_ou else (100.0 - prob_over_poisson)
-      mercado_manual = f"Total {opcion_ou} ({linea_puntos_casa} pts) [Lambda Proyectado: {lambda_esperado}]"
+    if st.button("🚀 Ejecutar Modelo Matemático de Totales", use_container_width=True):
+      # Matemática oculta en código
+      prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa_ou)
+      probabilidad_calculada = prob_over_calc if "Over" in opcion_ou else (100.0 - prob_over_calc)
+      mercado_manual = f"Total {opcion_ou} ({linea_casa_ou} pts) [Modelo Lambda: {lambda_proyectado}]"
       
       st.session_state["resultado_ncaaf_calculado"] = {
           "partido": f"{equipo_visita} @ {equipo_local}",
@@ -396,7 +374,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
     st.success(f"🎯 Análisis guardado y fijo para: **{res['partido']}**")
     
-    st.metric(label="📊 Probabilidad Científica Calculada por el Modelo", value=f"{res['prob']}%")
+    st.metric(label="📊 Probabilidad Científica Calculada por el Código", value=f"{res['prob']}%")
 
     st.info(
         f"🎯 **Apuesta Sugerida:** `{res['mercado']}` \n"
@@ -417,7 +395,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
         else:
           st.error(res_tel)
   else:
-    st.info("Configura los parámetros avanzados arriba y presiona el botón para generar el cálculo exacto.")
+    st.info("Ingresa los promedios arriba y presiona el botón para que el código calcule el análisis definitivo.")
 
 
 # =========================================================
