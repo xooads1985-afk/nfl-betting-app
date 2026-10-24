@@ -18,19 +18,26 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
+# CREDENCIALES FIJAS (PERSISTENCIA DIRECTA EN CÓDIGO)
+# ---------------------------------------------------------
+API_KEY_PREDEFINIDA = "9b6f790aa41c52a7907627574d246155"
+TELEGRAM_TOKEN_PREDEFINIDO = "8688686395:AAG8x26_IfQsghS28hSmB6dQEE1qSsCe68w"
+TELEGRAM_CHAT_ID_PREDEFINIDO = "1567134615"
+
+# ---------------------------------------------------------
 # INICIALIZACIÓN Y PERSISTENCIA DE SESSION_STATE
 # ---------------------------------------------------------
 if "bankroll_global" not in st.session_state:
   st.session_state["bankroll_global"] = 15250.0
 
 if "api_key_guardada" not in st.session_state:
-  st.session_state["api_key_guardada"] = ""
+  st.session_state["api_key_guardada"] = API_KEY_PREDEFINIDA
 
 if "telegram_token" not in st.session_state:
-  st.session_state["telegram_token"] = ""
+  st.session_state["telegram_token"] = TELEGRAM_TOKEN_PREDEFINIDO
 
 if "telegram_chat_id" not in st.session_state:
-  st.session_state["telegram_chat_id"] = ""
+  st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
 
 # ---------------------------------------------------------
@@ -1010,8 +1017,8 @@ elif (
 elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
   st.title(f"🎓 **Robot Universitario NCAA — Élite [{fecha_formato_str}]**")
   st.markdown(
-      "--- \n *Filtro inteligente de cartelera universitaria conectado a The"
-      " Odds API.*"
+      "--- \n *Filtro inteligente de cartelera universitaria conectado al sistema"
+      " central.*"
   )
 
   tipo_ncaa = st.selectbox(
@@ -1035,7 +1042,6 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
         f"🎯 Se encontraron **{len(cartelera_ncaa)}** selecciones en la"
         " cartelera NCAA de hoy."
     )
-    # Filtramos para mostrar solo los mejores juegos ordenados por mayor Edge
     cartelera_ordenada = sorted(
         cartelera_ncaa, key=lambda x: x["edge"], reverse=True
     )
