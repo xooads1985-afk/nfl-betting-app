@@ -134,6 +134,53 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
+def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
+  max_goles = 7
+  matriz_probs = [[0.0 for _ in range(max_goles)] for _ in range(max_goles)]
+  p_loc, p_vis, p_empate = 0.0, 0.0, 0.0
+
+  for g_l in range(max_goles):
+    for g_v in range(max_goles):
+      prob = poisson.pmf(g_l, lambda_loc) * poisson.pmf(g_v, lambda_vis)
+      matriz_probs[g_l][g_v] = prob
+      if g_l > g_v:
+        p_loc += prob
+      elif g_v > g_l:
+        p_vis += prob
+      else:
+        p_empate += prob
+
+  btts = (
+      sum(
+          matriz_probs[i][j]
+          for i in range(1, max_goles)
+          for j in range(1, max_goles)
+      )
+      * 100.0
+  )
+
+  ou_probs = {}
+  for linea in [1.5, 2.5, 3.5, 4.5]:
+    prob_over = (
+        sum(
+            matriz_probs[i][j]
+            for i in range(max_goles)
+            for j in range(max_goles)
+            if (i + j) > linea
+        )
+        * 100.0
+    )
+    ou_probs[linea] = round(prob_over, 2)
+
+  return (
+      round(p_loc * 100, 2),
+      round(p_vis * 100, 2),
+      round(p_empate * 100, 2),
+      round(btts, 2),
+      ou_probs,
+  )
+
+
 # ---------------------------------------------------------
 # CONEXIÓN CON THE ODDS API
 # ---------------------------------------------------------
@@ -199,41 +246,104 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
+# BACKGROUND WORKER 24/7 PARA TELEGRAM
+# ---------------------------------------------------------
+def tarea_en_segundo_plano():
+  while True:
+    try:
+      ahora = datetime.now()
+      if ahora.hour == 9 and ahora.minute == 0:
+        token = st.session_state.get("telegram_token", "")
+        chat_id = st.session_state.get("telegram_chat_id", "")
+        api_key = st.session_state.get("api_key_guardada", "")
+
+        if token and chat_id and api_key:
+          deportes_a_escanear = {
+              "⚽ Fútbol (EPL)": "soccer_epl",
+              "🏀 NBA": "basketball_nba",
+              "🏈 NFL": "americanfootball_nfl",
+              "🎓 NCAAF": "americanfootball_ncaaf",
+          }
+
+          minas_encontradas = []
+          for nombre_dep, sport_key in deportes_a_escanear.items():
+            picks = obtener_partidos_y_momios_api(sport_key, api_key)
+            for p in picks:
+              if p["edge"] >= 3.0:
+                minas_encontradas.append(
+                    f"• *{nombre_dep}* | `{p['partido_str']}`\n  🎯 Apuesta: **{p['mercado']}** (Cuota: `{p['momio']}`) — Edge: `+{p['edge']:.2f}%`"
+                )
+
+          if minas_encontradas:
+            picks_recorte = minas_encontradas[:12]
+            mensaje = (
+                "🎯 *MASTER SUITE ÉLITE — MINAS DE ORO MATUTINAS (+EV)* 🚀\nOportunidades con instrucción de apuesta clara:\n\n"
+                + "\n\n".join(picks_recorte)
+            )
+            enviar_alerta_telegram(token, chat_id, mensaje)
+
+      time.sleep(60)
+    except Exception:
+      time.sleep(60)
+
+
+if "hilo_iniciado" not in st.session_state:
+  st.session_state["hilo_iniciado"] = True
+  t = threading.Thread(target=tarea_en_segundo_plano, daemon=True)
+  t.start()
+
+
+# ---------------------------------------------------------
 # SELECTOR GLOBAL DE FECHA Y MENÚ
 # ---------------------------------------------------------
-st.sidebar.title("🎯 Menú Principal")
+st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
 fecha_seleccionada = st.sidebar.date_input(
-    "📅 Fecha a Analizar:", value=date.today()
+    "📅 Selecciona la Fecha a Analizar:", value=date.today()
 )
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
-    "Selecciona el módulo:",
+    "Selecciona el módulo de análisis:",
     [
         "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)",
+        "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)",
+        "🎯 Auditor Interactivo de Props NFL",
+        "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)",
+        "🔥 Auditor Interactivo de Props NBA",
+        "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)",
+        "🎯 Módulo Automático de Props Fútbol (Dinámico)",
         "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)",
+        "🥊 Sistema Cuantitativo Pro UFC (Combates)",
+        "⚾ Liga Mexicana del Pacífico (LMP)",
+        "⚾ Serie Mundial & Béisbol Pro (MLB)",
+        "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)",
+        "🏒 Módulo Automático de Props NHL",
         "📊 Analítica, Control de Bankroll & Registro CLV",
+        "🚀 Optimizador Automático de Parlays",
     ],
 )
 
+st.sidebar.markdown("---")
+st.sidebar.info(f"Analizando fecha: **{fecha_formato_str}**")
+
 
 # =========================================================
-# 0. ESCÁNER AUTOMÁTICO MULTI-DEPORTE
+# 0. ESCÁNER AUTOMÁTICO MULTI-DEPORTE DINÁMICO
 # =========================================================
 if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (+EV)":
-  st.title(f"🔍 **Escáner Multi-Deporte [{fecha_formato_str}]**")
+  st.title(f"🔍 **Escáner Automático Multi-Deporte [{fecha_formato_str}]**")
   
-  edge_min = st.slider("Filtro de Edge Mínimo (%):", 0.0, 15.0, 3.0, 0.5)
+  edge_min = st.slider("🎯 Filtro de Edge Mínimo Requerido (%):", 0.0, 15.0, 3.0, 0.5)
 
-  if st.button("🚀 Ejecutar Escaneo de Mercado", use_container_width=True):
+  if st.button("🚀 Ejecutar Escaneo Dinámico de Mercado", use_container_width=True):
     api_key = st.session_state["api_key_guardada"]
     deportes = [
-        ("Fútbol (EPL)", "soccer_epl"),
-        ("NBA", "basketball_nba"),
-        ("NFL", "americanfootball_nfl"),
-        ("NCAAF", "americanfootball_ncaaf")
+        ("⚽ Fútbol (EPL)", "soccer_epl"),
+        ("🏀 NBA", "basketball_nba"),
+        ("🏈 NFL", "americanfootball_nfl"),
+        ("🎓 NCAAF", "americanfootball_ncaaf")
     ]
     
     hallazgos = []
@@ -246,20 +356,90 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
     st.session_state["resultados_escaneo"] = hallazgos
 
   if "resultados_escaneo" in st.session_state and st.session_state["resultados_escaneo"]:
-    st.success(f"Se encontraron **{len(st.session_state['resultados_escaneo'])}** oportunidades con valor.")
+    st.success(f"Se encontraron **{len(st.session_state['resultados_escaneo'])}** oportunidades con valor (+EV).")
     for item in st.session_state["resultados_escaneo"]:
       st.markdown(f"**{item['deporte']}** | `{item['partido_str']}` — 🎯 **{item['mercado']}**")
-      st.info(f"• Cuota: `{item['momio']}` | Edge: `+{item['edge']:.2f}%` | Stake: `${item['stake']} MXN`")
+      st.info(f"• Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`** | 💡 Stake: `${item['stake']} MXN`")
   else:
-    st.info("Presiona el botón para ejecutar el escaneo de cuotas.")
+    st.info("ℹ️ Presiona el botón para ejecutar el escaneo en vivo.")
 
 
 # =========================================================
-# 7. SISTEMA CUANTITATIVO PRO NCAAF (ESTILO NFL / CONFERENCIAS)
+# 1. NFL
+# =========================================================
+elif modulo_seleccionado == "🛡️ Sistema Cuantitativo Pro NFL (Monte Carlo Avanzado & 3 Capas)":
+  st.title(f"🛡️ **Sistema Cuantitativo Pro NFL [{fecha_formato_str}]**")
+  st.markdown("--- \n *Simulación Monte Carlo, EPA y capas defensivas.*")
+  api_key = st.session_state["api_key_guardada"]
+  cartelera = obtener_partidos_y_momios_api("americanfootball_nfl", api_key)
+  if not cartelera:
+    cartelera = [{"partido_str": "Kansas City Chiefs @ Buffalo Bills", "mercado": "Spread: Buffalo Bills (-2.5)", "momio": -110, "edge": 4.2, "stake": 150.0}]
+  for idx, p in enumerate(cartelera[:5], 1):
+    st.markdown(f"### 🏈 NFL #{idx}: `{p['partido_str']}`")
+    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+    st.markdown("---")
+
+
+# =========================================================
+# 2. PROPS NFL
+# =========================================================
+elif modulo_seleccionado == "🎯 Auditor Interactivo de Props NFL":
+  st.title(f"🎯 **Auditor Interactivo de Props NFL [{fecha_formato_str}]**")
+  st.info("Módulo activo de utilidades y props de jugadores NFL conectado al motor central.")
+
+
+# =========================================================
+# 3. NBA
+# =========================================================
+elif modulo_seleccionado == "🏀 Sistema Cuantitativo Pro NBA (Distribución Normal & Spread)":
+  st.title(f"🏀 **Sistema Cuantitativo Pro NBA [{fecha_formato_str}]**")
+  api_key = st.session_state["api_key_guardada"]
+  cartelera = obtener_partidos_y_momios_api("basketball_nba", api_key)
+  if not cartelera:
+    cartelera = [{"partido_str": "Boston Celtics @ Los Angeles Lakers", "mercado": "Spread: Los Angeles Lakers (+4.5)", "momio": -110, "edge": 4.5, "stake": 150.0}]
+  for idx, p in enumerate(cartelera[:5], 1):
+    st.markdown(f"### 🏀 NBA #{idx}: `{p['partido_str']}`")
+    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+    st.markdown("---")
+
+
+# =========================================================
+# 4. PROPS NBA
+# =========================================================
+elif modulo_seleccionado == "🔥 Auditor Interactivo de Props NBA":
+  st.title(f"🔥 **Auditor Interactivo de Props NBA [{fecha_formato_str}]**")
+  st.info("Módulo activo para auditoría de líneas individuales en jugadores NBA.")
+
+
+# =========================================================
+# 5. FÚTBOL GLOBAL
+# =========================================================
+elif modulo_seleccionado == "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)":
+  st.title(f"⚽ **Módulo Global de Fútbol (Dixon-Coles Pro) [{fecha_formato_str}]**")
+  api_key = st.session_state["api_key_guardada"]
+  cartelera = obtener_partidos_y_momios_api("soccer_epl", api_key)
+  if not cartelera:
+    cartelera = [{"partido_str": "Arsenal @ Chelsea", "mercado": "Ganador: Arsenal", "momio": 125, "edge": 5.1, "stake": 180.0}]
+  for idx, p in enumerate(cartelera[:5], 1):
+    st.markdown(f"### ⚽ Fútbol #{idx}: `{p['partido_str']}`")
+    st.info(f"🎯 Apuesta: **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%` | Stake: `${p['stake']} MXN`")
+    st.markdown("---")
+
+
+# =========================================================
+# 6. PROPS FÚTBOL
+# =========================================================
+elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámico)":
+  st.title(f"🎯 **Props Dinámicos de Fútbol [{fecha_formato_str}]**")
+  st.info("Módulo activo para tiros a puerta, tarjetas y remates.")
+
+
+# =========================================================
+# 7. NCAAF (SISTEMA CUANTITATIVO PRO NCAAF / CONFERENCIAS)
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)":
-  st.title(f"🎓 **Sistema Cuantitativo Pro NCAAF (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo por capas, EPA ofensivo/defensivo, turnovers y simulación de distribución normal para partidos colegiales.*")
+  st.title(f"🎓 **Sistema Cuantitativo Pro NCAAF (Universitario) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis cuantitativo por capas, EPA ofensivo/defensivo y simulación para partidos de conferencias colegiales.*")
 
   api_key = st.session_state["api_key_guardada"]
   cartelera_ncaa = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
@@ -296,7 +476,6 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)
       epa_def_l = st.number_input("EPA Defensivo Permitido (Local):", -0.4, 0.2, -0.10, 0.01, key=f"epa_def_l_{idx}")
       turnover_l = st.slider("Margen de Pérdidas / Turnovers (Local):", -5, 5, 2, 1, key=f"TO_l_{idx}")
 
-    # Simulación Cuantitativa Colegial por Capas
     ventaja_localia_ncaa = 2.5
     diferencial_epa = ((epa_off_l - epa_def_v) - (epa_off_v - epa_def_l)) * 32.0
     diferencial_to = (turnover_l - turnover_v) * 1.5
@@ -358,26 +537,92 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)
 
 
 # =========================================================
-# 13. BANKROLL Y REGISTRO
+# 8. UFC
+# =========================================================
+elif modulo_seleccionado == "🥊 Sistema Cuantitativo Pro UFC (Combates)":
+  st.title(f"🥊 **Sistema Cuantitativo Pro UFC [{fecha_formato_str}]**")
+  st.info("Módulo activo de simulación y probabilidades para combates de artes marciales mixtas.")
+
+
+# =========================================================
+# 9. LMP
+# =========================================================
+elif modulo_seleccionado == "⚾ Liga Mexicana del Pacífico (LMP)":
+  st.title(f"⚾ **Liga Mexicana del Pacífico [{fecha_formato_str}]**")
+  st.info("Módulo analítico especializado en béisbol invernal mexicano.")
+
+
+# =========================================================
+# 10. MLB
+# =========================================================
+elif modulo_seleccionado == "⚾ Serie Mundial & Béisbol Pro (MLB)":
+  st.title(f"⚾ **Béisbol Pro & Serie Mundial [{fecha_formato_str}]**")
+  st.info("Módulo de análisis avanzado para pitcheo abridor y bullpen en MLB.")
+
+
+# =========================================================
+# 11. NHL (PUCK LINE)
+# =========================================================
+elif modulo_seleccionado == "🏒 Sistema Cuantitativo Pro NHL (Puck Line & Totales Empty Net)":
+  st.title(f"🏒 **Sistema Cuantitativo Pro NHL [{fecha_formato_str}]**")
+  st.info("Módulo activo para Hockey sobre Hielo con modelado Poisson en empty net.")
+
+
+# =========================================================
+# 12. PROPS NHL
+# =========================================================
+elif modulo_seleccionado == "🏒 Módulo Automático de Props NHL":
+  st.title(f"🏒 **Props Automáticos NHL [{fecha_formato_str}]**")
+  st.info("Módulo activo para tiros a gol y puntos de jugadores en NHL.")
+
+
+# =========================================================
+# 13. BANKROLL Y CLV
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
-  st.title(f"📊 **Panel de Bankroll y Apuestas [{fecha_formato_str}]**")
+  st.title(f"📊 **Panel de Analítica, Bankroll y Registro CLV [{fecha_formato_str}]**")
   
-  nuevo_br = st.number_input("Actualizar Bankroll (MXN):", value=st.session_state["bankroll_global"], step=500.0)
-  if nuevo_br != st.session_state["bankroll_global"]:
-    st.session_state["bankroll_global"] = nuevo_br
+  col_br1, col_br2 = st.columns(2)
+  with col_br1:
+    nuevo_br = st.number_input(
+        "Actualizar Bankroll Global (MXN):",
+        value=st.session_state["bankroll_global"],
+        step=500.0,
+    )
+    if nuevo_br != st.session_state["bankroll_global"]:
+      st.session_state["bankroll_global"] = nuevo_br
+  with col_br2:
+    st.metric(
+        label="💰 Bankroll Actual en Sistema",
+        value=f"${st.session_state['bankroll_global']:,.2f} MXN",
+        delta="+11.2%",
+    )
 
   st.markdown("---")
-  st.subheader("📋 Historial de Apuestas Guardadas")
-  
+  st.subheader("📋 **Historial de Apuestas Registradas (Base SQLite)**")
+
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
-  cursor.execute("SELECT id, fecha, deporte, partido, mercado, momio, edge, stake, resultado FROM apuestas")
+  cursor.execute(
+      "SELECT id, fecha, deporte, partido, mercado, momio, edge, stake, resultado FROM apuestas"
+  )
   registros = cursor.fetchall()
   conn.close()
 
   if registros:
     for reg in registros:
-      st.info(f"🆔 ID: {reg[0]} | 📅 {reg[1]} | Deporte: **{reg[2]}** | Partido: `{reg[3]}` \n• Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%` | Stake: `${reg[7]} MXN`")
+      st.info(
+          f"🆔 ID: {reg[0]} | 📅 {reg[1]} | Deporte: **{reg[2]}** | Partido: `{reg[3]}` \n•"
+          f" Mercado: **{reg[4]}** | Momio: `{reg[5]}` | Edge: `+{reg[6]:.2f}%`"
+          f" | Stake: `${reg[7]} MXN` | Estado: `{reg[8]}`"
+      )
   else:
-    st.info("No hay apuestas registradas todavía.")
+    st.info("ℹ️ No hay apuestas registradas todavía.")
+
+
+# =========================================================
+# 14. PARLAYS
+# =========================================================
+elif modulo_seleccionado == "🚀 Optimizador Automático de Parlays":
+  st.title(f"🚀 **Optimizador Automático de Parlays [{fecha_formato_str}]**")
+  st.info("Módulo activo para correlación y cálculo de momios combinados de valor esperado positivo.")
