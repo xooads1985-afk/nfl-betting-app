@@ -44,7 +44,7 @@ if "resultado_ncaaf_calculado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE ROBUSTA)
+# CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE AVANZADA)
 # ---------------------------------------------------------
 def inicializar_db():
   conn = sqlite3.connect("master_suite_elite.db")
@@ -59,13 +59,18 @@ def inicializar_db():
             momio INTEGER,
             edge REAL,
             stake REAL,
-            resultado TEXT
+            resultado TEXT,
+            ganancia_neta REAL DEFAULT 0.0,
+            clv_cuota INTEGER DEFAULT 0,
+            bankroll_historico REAL DEFAULT 0.0
         )
     """)
-  try:
-    cursor.execute("ALTER TABLE apuestas ADD COLUMN ganancia_neta REAL DEFAULT 0.0")
-  except sqlite3.OperationalError:
-    pass
+  # Migración segura para bases de datos anteriores
+  for col, tipo in [("ganancia_neta", "REAL DEFAULT 0.0"), ("clv_cuota", "INTEGER DEFAULT 0"), ("bankroll_historico", "REAL DEFAULT 0.0")]:
+    try:
+      cursor.execute(f"ALTER TABLE apuestas ADD COLUMN {col} {tipo}")
+    except sqlite3.OperationalError:
+      pass
   conn.commit()
   conn.close()
 
@@ -80,16 +85,16 @@ def registrar_apuesta_db(
   cursor = conn.cursor()
   cursor.execute(
       """
-        INSERT INTO apuestas (fecha, deporte, partido, mercado, momio, edge, stake, resultado, ganancia_neta)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente', 0.0)
+        INSERT INTO apuestas (fecha, deporte, partido, mercado, momio, edge, stake, resultado, ganancia_neta, clv_cuota, bankroll_historico)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente', 0.0, 0, ?)
     """,
-      (fecha, deporte, partido, mercado, momio, edge, stake),
+      (fecha, deporte, partido, mercado, momio, edge, stake, st.session_state["bankroll_global"]),
   )
   conn.commit()
   conn.close()
 
 
-def actualizar_estado_apuesta(apuesta_id, nuevo_estado, stake, momio):
+def actualizar_estado_y_clv(apuesta_id, nuevo_estado, stake, momio, clv_val):
   ganancia = 0.0
   if nuevo_estado == "Ganada":
     if momio > 0:
@@ -101,13 +106,19 @@ def actualizar_estado_apuesta(apuesta_id, nuevo_estado, stake, momio):
   else:
     ganancia = 0.0
 
+  # Calcular nuevo bankroll acumulado para el histórico gráfico
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
+  cursor.execute("SELECT bankroll_historico FROM apuestas WHERE id = ?", (apuesta_id,))
+  row = cursor.fetchone()
+  br_base = row[0] if row and row[0] > 0 else st.session_state["bankroll_global"]
+  nuevo_br_hist = br_base + ganancia
+
   cursor.execute(
       """
-        UPDATE apuestas SET resultado = ?, ganancia_neta = ? WHERE id = ?
+        UPDATE apuestas SET resultado = ?, ganancia_neta = ?, clv_cuota = ?, bankroll_historico = ? WHERE id = ?
     """,
-      (nuevo_estado, ganancia, apuesta_id),
+      (nuevo_estado, ganancia, int(clv_val), nuevo_br_hist, apuesta_id),
   )
   conn.commit()
   conn.close()
@@ -136,7 +147,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS AUTOMATIZADOS (BACKEND PURISTA)
+# MOTORES MATEMÁTICOS & FATIGA DE CALENDARIO NCAAF
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -168,12 +179,16 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0):
-  """Calcula de forma 100% automatizada el Power Rating y la probabilidad del Spread por distribución normal."""
-  # Cálculo interno de eficiencia ofensiva y defensiva promedio
+def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False):
+  """Calcula Power Ratings con ajuste automático por fatiga y descanso (Bye Week)."""
   pr_local = ppg_local - (pap_local * 0.95)
   pr_visita = ppg_visita - (pap_visita * 0.95)
   
+  if fatiga_local:
+    pr_local -= 2.5 # Penalización por desgaste físico
+  if fatiga_visita:
+    pr_visita -= 2.5
+    
   margen_proyectado = (pr_local + factor_localia) - pr_visita
   desviacion_std = 13.5
   z_score = (margen_proyectado - abs(spread_casino)) / desviacion_std
@@ -181,10 +196,11 @@ def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, 
   return round(max(5.0, min(95.0, prob_cubrir)), 2), round(margen_proyectado, 1)
 
 
-def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa):
-  """Calcula de forma 100% automatizada el total combinado esperado mediante Poisson."""
+def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa, fatiga_visita=False, fatiga_local=False):
   lambda_esperado = (ppg_local + ppg_visita + pap_local + pap_visita) / 2.0
-  lambda_ajustado = round(lambda_esperado * 0.98, 1) # Factor de calibración colegial
+  if fatiga_local or fatiga_visita:
+    lambda_esperado -= 3.0 # Menor ritmo de anotación por cansancio
+  lambda_ajustado = round(lambda_esperado * 0.98, 1)
   
   prob_under = 0.0
   limite = int(math.floor(linea_casa))
@@ -303,23 +319,25 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (MATEMÁTICA EN BACKEND)
+# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor cuantitativo automatizado: ingresa estadísticas base y el código procesa de forma invisible los Power Ratings, Distribución Normal y Poisson para entregarte el resultado exacto.*")
+  st.markdown("--- \n *Motor cuantitativo automatizado con Power Ratings, Distribución Normal, Poisson y ajuste automático por Fatiga / Bye Week.*")
 
-  st.subheader("✍️ Estadísticas Promedio de la Temporada")
+  st.subheader("✍️ Estadísticas Promedio & Factores de Calendario")
   
   col_eq1, col_eq2 = st.columns(2)
   with col_eq1:
     equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
     ppg_visita = st.number_input("Puntos Anotados por Partido (Visita):", value=28.5, step=0.5)
     pap_visita = st.number_input("Puntos Permitidos por Partido (Visita):", value=17.0, step=0.5)
+    fatiga_visita = st.checkbox("⚠️ Visitante en condición de desgaste (Sin descanso / Viaje largo)")
   with col_eq2:
     equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
     ppg_local = st.number_input("Puntos Anotados por Partido (Local):", value=34.0, step=0.5)
     pap_local = st.number_input("Puntos Permitidos por Partido (Local):", value=12.5, step=0.5)
+    fatiga_local = st.checkbox("⚠️ Local en condición de desgaste (Sin descanso / B2B)")
 
   tipo_mercado = st.selectbox(
       "Selecciona el Mercado a Analizar:",
@@ -335,8 +353,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
     
     if st.button("🚀 Ejecutar Modelo Matemático de Spread", use_container_width=True):
-      # Matemática oculta en código
-      prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino)
+      prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, 3.0, fatiga_visita, fatiga_local)
       mercado_manual = f"Spread: {seleccion_equipo} (Línea: {spread_casino} | Proyectado: {margen_proyectado:+1.1f} pts)"
       
       st.session_state["resultado_ncaaf_calculado"] = {
@@ -346,14 +363,13 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
           "prob": prob_calc
       }
 
-  else:  # Totales Automáticos con Poisson en código
+  else:  # Totales Automáticos con Poisson y Fatiga
     linea_casa_ou = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=51.5, step=0.5)
     opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True)
     momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
 
     if st.button("🚀 Ejecutar Modelo Matemático de Totales", use_container_width=True):
-      # Matemática oculta en código
-      prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa_ou)
+      prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa_ou, fatiga_visita, fatiga_local)
       probabilidad_calculada = prob_over_calc if "Over" in opcion_ou else (100.0 - prob_over_calc)
       mercado_manual = f"Total {opcion_ou} ({linea_casa_ou} pts) [Modelo Lambda: {lambda_proyectado}]"
       
@@ -373,7 +389,6 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
     stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], res["prob"], res["momio"])
 
     st.success(f"🎯 Análisis guardado y fijo para: **{res['partido']}**")
-    
     st.metric(label="📊 Probabilidad Científica Calculada por el Código", value=f"{res['prob']}%")
 
     st.info(
@@ -395,7 +410,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
         else:
           st.error(res_tel)
   else:
-    st.info("Ingresa los promedios arriba y presiona el botón para que el código calcule el análisis definitivo.")
+    st.info("Ingresa los promedios arriba y presiona el botón para generar el análisis definitivo.")
 
 
 # =========================================================
@@ -420,11 +435,16 @@ elif modulo_seleccionado in ["⚾ Béisbol & LMP", "🏒 Hockey Pro (NHL)", "�
   st.title(f"📌 **{modulo_seleccionado} [{fecha_formato_str}]**")
   st.info("Módulo activo y preparado para análisis.")
 
+
+# =========================================================
+# PANEL DE CONTROL FINANCIERO (CON GRÁFICA Y CLV)
+# =========================================================
 elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   st.title(f"📊 **Panel de Control, Métricas & Bankroll [{fecha_formato_str}]**")
+  
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
-  cursor.execute("SELECT id, fecha, deporte, partido, mercado, momio, edge, stake, resultado, ganancia_neta FROM apuestas")
+  cursor.execute("SELECT id, fecha, deporte, partido, mercado, momio, edge, stake, resultado, ganancia_neta, clv_cuota, bankroll_historico FROM apuestas")
   registros = cursor.fetchall()
   conn.close()
 
@@ -442,32 +462,80 @@ elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   col_m3.metric("📈 ROI Neto", f"{roi:.2f}%")
   col_m4.metric("💵 Ganancia Neta", f"${ganancia_total_neta:+,.2f} MXN")
 
+  # GRÁFICA DE EVOLUCIÓN DEL BANKROLL EN EL TIEMPO
+  if registros:
+    st.markdown("---")
+    st.subheader("📈 Evolución Histórica del Bankroll")
+    historial_br = [r[11] for r in registros if r[11] > 0]
+    if historial_br:
+      st.line_chart(historial_br)
+
   st.markdown("---")
+  st.subheader("📋 Auditoría, CLV & Gestión de Apuestas")
+
   if registros:
     for reg in registros:
-      apuesta_id, fecha, deporte, partido, mercado, momio, edge, stake, estado, ganancia = reg
-      col_info, col_b1, col_b2, col_b3 = st.columns([5, 1, 1, 1])
+      apuesta_id, fecha, deporte, partido, mercado, momio, edge, stake, estado, ganancia, clv, _ = reg
+      
+      col_info, col_clv, col_b1, col_b2, col_b3 = st.columns([4, 1.5, 1, 1, 1])
       with col_info:
-        st.info(f"🆔 {apuesta_id} | 📅 {fecha} | **{deporte}** | `{partido}` \n• **{mercado}** | Cuota: `{momio}` | Stake: `${stake} MXN` | Estado: **{estado}** (${ganancia:+,.2f})")
+        st.info(f"🆔 {apuesta_id} | 📅 {fecha} | **{deporte}** | `{partido}` \n• **{mercado}** | Cuota: `{momio}` | Stake: `${stake} MXN` | Estado: **{estado}** (${ganancia:+,.2f}) | CLV: `{clv}`")
+      
+      with col_clv:
+        clv_input = st.number_input("Cuota Cierre (CLV):", value=int(momio), key=f"clv_val_{apuesta_id}", step=5)
+        
       with col_b1:
-        if st.button("✅", key=f"win_{apuesta_id}"):
-          actualizar_estado_apuesta(apuesta_id, "Ganada", stake, momio)
+        if st.button("✅ Ganada", key=f"win_{apuesta_id}"):
+          actualizar_estado_y_clv(apuesta_id, "Ganada", stake, momio, clv_input)
           st.rerun()
       with col_b2:
-        if st.button("❌", key=f"loss_{apuesta_id}"):
-          actualizar_estado_apuesta(apuesta_id, "Perdida", stake, momio)
+        if st.button("❌ Perdida", key=f"loss_{apuesta_id}"):
+          actualizar_estado_y_clv(apuesta_id, "Perdida", stake, momio, clv_input)
           st.rerun()
       with col_b3:
-        if st.button("🤝", key=f"push_{apuesta_id}"):
-          actualizar_estado_apuesta(apuesta_id, "Push", stake, momio)
+        if st.button("🤝 Push", key=f"push_{apuesta_id}"):
+          actualizar_estado_y_clv(apuesta_id, "Push", stake, momio, clv_input)
           st.rerun()
   else:
     st.info("No hay apuestas registradas todavía.")
 
+
+# =========================================================
+# PARLAYS & ARBITRAJE (CON ALERTA TELEGRAM)
+# =========================================================
 elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
   st.title(f"🚀 **Optimizador de Parlays Monte Carlo [{fecha_formato_str}]**")
   st.info("Módulo de simulación de parlay activo.")
 
 elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
-  st.title(f"🧮 **Calculadora de Arbitraje [{fecha_formato_str}]**")
-  st.info("Calculadora de surebets activa.")
+  st.title(f"🧮 **Calculadora de Arbitraje & Alertas Telegram [{fecha_formato_str}]**")
+  
+  col_a1, col_a2 = st.columns(2)
+  with col_a1:
+    cuota_a = st.number_input("Cuota Casa A (Ej. +130):", value=130)
+  with col_a2:
+    cuota_b = st.number_input("Cuota Casa B (Ej. -120):", value=-120)
+
+  bankroll_total_arb = st.number_input("Inversión Total para la Surebet (MXN):", value=5000.0, step=500.0)
+
+  if st.button("⚖️ Calcular Surebet y Enviar a Telegram", use_container_width=True):
+    dec_a = (1.0 + (cuota_a / 100.0)) if cuota_a > 0 else (1.0 + (100.0 / abs(cuota_a)))
+    dec_b = (1.0 + (cuota_b / 100.0)) if cuota_b > 0 else (1.0 + (100.0 / abs(cuota_b)))
+
+    implied_sum = (1.0 / dec_a) + (1.0 / dec_b)
+
+    if implied_sum < 1.0:
+      roi_arb = (1.0 - implied_sum) * 100.0
+      stake_a = bankroll_total_arb * ((1.0 / dec_a) / implied_sum)
+      stake_b = bankroll_total_arb * ((1.0 / dec_b) / implied_sum)
+      ganancia_garantizada = (stake_a * dec_a) - bankroll_total_arb
+
+      st.success(f"🚨 ¡Oportunidad de Arbitraje Detectada! ROI: **+{roi_arb:.2f}%** | Ganancia: **${ganancia_garantizada:,.2f} MXN**")
+      
+      # Despacho automático a Telegram
+      msg = f"⚖️ *ALERTA DE ARBITRAJE (SUREBET)*\n📈 ROI: +{roi_arb:.2f}%\n💵 Ganancia: ${ganancia_garantizada:,.2f} MXN\n📌 Casa A ({cuota_a}): ${stake_a:,.2f}\n📌 Casa B ({cuota_b}): ${stake_b:,.2f}"
+      ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
+      if ok:
+        st.success("📤 ¡Alerta de Surebet enviada a Telegram con éxito!")
+    else:
+      st.error(f"❌ Sin arbitraje. La suma implícita es {implied_sum*100:.2f}% (superior al 100%).")
