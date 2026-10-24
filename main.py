@@ -394,7 +394,7 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 # =========================================================
-# 4. MOTOR PRO NBA
+# 4. MOTOR PRO NBA (CON CAMPOS COMPLETOS B2B Y ESTRELLAS)
 # =========================================================
 ESTADISTICAS_NBA_BASE = {
     "Boston Celtics": {"Ort": 122.0, "Drt": 110.5, "Pace": 97.5},
@@ -1002,7 +1002,7 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
 
 
 # =========================================================
-# 4. SISTEMA PRO NBA
+# 4. SISTEMA PRO NBA (CON CAMPOS COMPLETOS B2B Y ESTRELLAS)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
@@ -1030,7 +1030,7 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   if st.session_state["resultado_nba_calculado"]:
     r = st.session_state["resultado_nba_calculado"]
     res = r["analisis"]
-    st.success(f"🎯 Análisis NBA: **{r['partido']}**")
+    st.success(f"🎯 Análisis NBA: **{r['partido']}** | Margen Proyectado: `{res['margen_proyectado']}` | Total Proyectado: `{res['total_proyectado']}`")
     if res["validas"]:
       for jugada in res["validas"]:
         st.info(f"✅ **{jugada['mercado']}** | Prob: `{jugada['prob']:.2f}%`")
