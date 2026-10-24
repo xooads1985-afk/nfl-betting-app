@@ -181,9 +181,9 @@ def calcular_criterio_kelly(
 
 
 # =========================================================
-# BASE DE DATOS Y MOTOR NCAAF (CONFERENCIAS DE ÉLITE)
+# 1. BASE DE DATOS Y MOTOR NCAAF (CONFERENCIAS DE ÉLITE)
 # =========================================================
-POWER_RATINGS_BASE = {
+POWER_RATINGS_BASE_NCAAF = {
     "Georgia Bulldogs": 96.0, "Texas Longhorns": 95.0, "Alabama Crimson Tide": 93.5,
     "LSU Tigers": 89.0, "Ole Miss Rebels": 90.5, "Tennessee Volunteers": 91.0,
     "Ohio State Buckeyes": 95.5, "Oregon Ducks": 94.0, "Penn State Nittany Lions": 89.5,
@@ -193,8 +193,8 @@ POWER_RATINGS_BASE = {
     "Florida State Seminoles": 81.0
 }
 
-def obtener_power_rating(equipo):
-  return POWER_RATINGS_BASE.get(equipo, 78.0)
+def obtener_power_rating_ncaaf(equipo):
+  return POWER_RATINGS_BASE_NCAAF.get(equipo, 78.0)
 
 def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_casino, linea_total_casino, contexto):
   ventaja_casa = 2.5
@@ -242,7 +242,68 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
   }
 
 
-# 2. Motor Pro Fútbol (Soccer - Matriz Poisson Bivariada)
+# =========================================================
+# 2. BASE DE DATOS Y MOTOR PRO NFL (32 EQUIPOS / 8 DIVISIONES)
+# =========================================================
+POWER_RATINGS_NFL = {
+    "Buffalo Bills": 89.0, "Miami Dolphins": 83.5, "New York Jets": 81.0, "New England Patriots": 74.5,
+    "Baltimore Ravens": 91.5, "Cincinnati Bengals": 84.5, "Pittsburgh Steelers": 85.0, "Cleveland Browns": 78.0,
+    "Houston Texans": 86.5, "Indianapolis Colts": 80.5, "Jacksonville Jaguars": 77.0, "Tennessee Titans": 75.0,
+    "Kansas City Chiefs": 93.0, "Los Angeles Chargers": 84.0, "Denver Broncos": 81.5, "Las Vegas Raiders": 76.0,
+    "Philadelphia Eagles": 89.5, "Washington Commanders": 85.5, "Dallas Cowboys": 82.0, "New York Giants": 76.5,
+    "Detroit Lions": 92.5, "Green Bay Packers": 87.5, "Minnesota Vikings": 86.0, "Chicago Bears": 80.0,
+    "Tampa Bay Buccaneers": 83.0, "Atlanta Falcons": 82.5, "New Orleans Saints": 79.5, "Carolina Panthers": 72.0,
+    "San Francisco 49ers": 88.5, "Los Angeles Rams": 83.0, "Seattle Seahawks": 82.0, "Arizona Cardinals": 81.0
+}
+
+def obtener_pr_nfl(equipo):
+  for nombre_completo, rating in POWER_RATINGS_NFL.items():
+    if equipo.lower() in nombre_completo.lower():
+      return rating
+  return 80.0
+
+def analizar_lineas_nfl(pr_local, pr_visita, total_proyectado, linea_spread_casino, linea_total_casino, contexto):
+  ventaja_casa_nfl = 1.5
+  margen_base = (pr_local + ventaja_casa_nfl) - pr_visita
+  
+  if contexto.get("local_qb_baja", False):
+    margen_base -= contexto.get("puntos_impacto_qb_local", 6.0)
+    total_proyectado -= 3.5
+      
+  if contexto.get("visita_qb_baja", False):
+    margen_base += contexto.get("puntos_impacto_qb_visita", 6.0)
+    total_proyectado -= 3.5
+
+  desv_spread_nfl = 11.8
+  desv_totales_nfl = 10.5
+  
+  z_spread = (linea_spread_casino - margen_base) / desv_spread_nfl
+  prob_local_handicap = norm.cdf(z_spread) * 100.0
+  prob_visita_handicap = 100.0 - prob_local_handicap
+  
+  z_totales = (linea_total_casino - total_proyectado) / desv_totales_nfl
+  prob_under = norm.cdf(z_totales) * 100.0
+  prob_over = 100.0 - prob_under
+  
+  opciones = [
+      {"mercado": f"Hándicap Local ({linea_spread_casino:+.1f})", "prob": prob_local_handicap},
+      {"mercado": f"Hándicap Visita ({-linea_spread_casino:+.1f})", "prob": prob_visita_handicap},
+      {"mercado": f"Over {linea_total_casino:.1f}", "prob": prob_over},
+      {"mercado": f"Under {linea_total_casino:.1f}", "prob": prob_under}
+  ]
+  validas = [o for o in opciones if o["prob"] >= 70.0]
+  return {
+      "margen_proyectado": round(margen_base, 2),
+      "total_proyectado": round(total_proyectado, 2),
+      "validas": validas,
+      "prob_local": round(prob_local_handicap, 2),
+      "prob_visita": round(prob_visita_handicap, 2),
+      "prob_over": round(prob_over, 2),
+      "prob_under": round(prob_under, 2)
+  }
+
+
+# 3. Motor Pro Fútbol (Soccer - Matriz Poisson Bivariada)
 def calcular_matriz_probabilidades(avg_goles_local, avg_goles_visitante, max_goles=6):
   prob_local = [poisson.pmf(i, avg_goles_local) for i in range(max_goles + 1)]
   prob_visitante = [poisson.pmf(j, avg_goles_visitante) for j in range(max_goles + 1)]
@@ -278,23 +339,7 @@ def analizar_mercados_futbol(equipo_local, equipo_visita, xg_local, xg_visita, m
   }
 
 
-# 3. Otros Motores de Apoyo
-def motor_matematico_nfl_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, lesion_qb_local=False, lesion_qb_visita=False):
-  pr_local = ppg_local - (pap_local * 0.98)
-  pr_visita = ppg_visita - (pap_visita * 0.98)
-  if lesion_qb_local: pr_local -= 5.5
-  if lesion_qb_visita: pr_visita -= 5.5
-  margen_proyectado = (pr_local + 2.5) - pr_visita
-  z_score = (margen_proyectado - abs(spread_casino)) / 11.5
-  return round(max(5.0, min(95.0, stats.norm.cdf(z_score) * 100.0)), 2), round(margen_proyectado, 1)
-
-def motor_matematico_nfl_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa, lesion_qb_local=False, lesion_qb_visita=False):
-  lam = (ppg_local + ppg_visita + pap_local + pap_visita) / 2.0
-  if lesion_qb_local or lesion_qb_visita: lam -= 4.0
-  lam_adj = round(max(10.0, lam * 0.97), 1)
-  prob_under = sum([poisson.pmf(k, lam_adj) for k in range(int(math.floor(linea_casa)) + 1)])
-  return round((1.0 - prob_under) * 100.0, 2), lam_adj
-
+# 4. Otros Motores de Apoyo
 def motor_matematico_nba_spread(off_local, def_local, off_visita, def_visita, spread_casino, b2b_local=False, b2b_visita=False, lesion_star_local=False, lesion_star_visita=False):
   rl = off_local - (def_visita * 0.96)
   rv = off_visita - (def_local * 0.96)
@@ -419,8 +464,8 @@ modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "⚽ Módulo Pro Fútbol (Soccer)",
         "🛡️ Sistema Pro NFL",
+        "⚽ Módulo Pro Fútbol (Soccer)",
         "🏀 Sistema Pro NBA",
         "🏒 Hockey Pro (NHL)",
         "⚾ Béisbol Pro (MLB / LMP)",
@@ -436,20 +481,17 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NCAAF (CON PARSER PLAYDOIT & CONFERENCIAS ÉLITE)
+# 1. SISTEMA PRO NCAAF
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis por Conferencia de Élite, Power Ratings predefinidos y Parser Automático estilo Playdoit.*")
+  st.markdown("--- \n *Análisis por Conferencia de Élite, Power Ratings predefinidos y Distribución Normal.*")
 
-  # Opción de entrada: Manual por selectores o Carga Rápida de Líneas estilo Playdoit
-    
   el = st.text_input("Equipo Local (Ej. Georgia Bulldogs):", value="Georgia Bulldogs", key="ncaaf_el")
   ev = st.text_input("Equipo Visitante (Ej. Clemson Tigers):", value="Clemson Tigers", key="ncaaf_ev")
 
-  # Enlace automático de Power Ratings de élite
-  pr_l = obtener_power_rating(el)
-  pr_v = obtener_power_rating(ev)
+  pr_l = obtener_power_rating_ncaaf(el)
+  pr_v = obtener_power_rating_ncaaf(ev)
 
   st.info(f"📊 Power Ratings asignados automáticamente: **{el} (`{pr_l}`)** vs **{ev} (`{pr_v}`)**")
 
@@ -479,9 +521,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   if st.button("🚀 Ejecutar Análisis Matemático NCAAF", use_container_width=True):
     res_ncaaf = analizar_lineas_ncaaf(pr_l, pr_v, tot_proy, linea_sp, linea_tot, contexto_ncaaf)
     st.session_state["resultado_ncaaf_calculado"] = {
-        "partido": f"{ev} @ {el}",
-        "analisis": res_ncaaf,
-        "local": el, "visita": ev
+        "partido": f"{ev} @ {el}", "analisis": res_ncaaf, "local": el, "visita": ev
     }
 
   if st.session_state["resultado_ncaaf_calculado"]:
@@ -512,7 +552,75 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 2. FÚTBOL SOCCER
+# 2. SISTEMA PRO NFL (32 EQUIPOS / 8 DIVISIONES)
+# =========================================================
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
+  st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Motor profesional con los 32 equipos de la NFL distribuidos en sus 8 divisiones y Distribución Normal.*")
+
+  el_nfl = st.text_input("Equipo Local NFL (Ej. Kansas City Chiefs):", value="Kansas City Chiefs", key="nfl_el")
+  ev_nfl = st.text_input("Equipo Visitante NFL (Ej. Baltimore Ravens):", value="Baltimore Ravens", key="nfl_ev")
+
+  pr_l_nfl = obtener_pr_nfl(el_nfl)
+  pr_v_nfl = obtener_pr_nfl(ev_nfl)
+
+  st.info(f"📊 Power Ratings NFL asignados: **{el_nfl} (`{pr_l_nfl}`)** vs **{ev_nfl} (`{pr_v_nfl}`)**")
+
+  col_nfl1, col_nfl2 = st.columns(2)
+  with col_nfl1:
+    qb_l_nfl = st.checkbox("QB Titular Local Lesionado (-6 pts)", key="nfl_qbl")
+  with col_nfl2:
+    qb_v_nfl = st.checkbox("QB Titular Visitante Lesionado (+6 pts)", key="nfl_qbv")
+
+  st.markdown("---")
+  col_nfl3, col_nfl4, col_nfl5 = st.columns(3)
+  with col_nfl3:
+    tot_proy_nfl = st.number_input("Total Puntos Proyectado NFL:", value=48.5, step=0.5, key="nfl_tot")
+  with col_nfl4:
+    linea_sp_nfl = st.number_input("Línea Spread Casino (Local NFL):", value=-3.0, step=0.5, key="nfl_lsp")
+  with col_nfl5:
+    linea_tot_nfl = st.number_input("Línea Total Casino O/U (NFL):", value=47.5, step=0.5, key="nfl_ltot")
+
+  contexto_nfl = {
+      "local_qb_baja": qb_l_nfl, "visita_qb_baja": qb_v_nfl,
+      "puntos_impacto_qb_local": 6.0, "puntos_impacto_qb_visita": 6.0
+  }
+
+  if st.button("🚀 Ejecutar Análisis Matemático NFL", use_container_width=True):
+    res_nfl = analizar_lineas_nfl(pr_l_nfl, pr_v_nfl, tot_proy_nfl, linea_sp_nfl, linea_tot_nfl, contexto_nfl)
+    st.session_state["resultado_nfl_calculado"] = {
+        "partido": f"{ev_nfl} @ {el_nfl}", "analisis": res_nfl, "local": el_nfl, "visita": ev_nfl
+    }
+
+  if st.session_state["resultado_nfl_calculado"]:
+    r_nfl = st.session_state["resultado_nfl_calculado"]
+    res_n = r_nfl["analisis"]
+    st.success(f"🎯 Análisis NFL Completado para: **{r_nfl['partido']}**")
+
+    col_nf1, col_nf2 = st.columns(2)
+    col_nf1.metric("🏟️ Margen Proyectado Ajustado NFL", f"{res_n['margen_proyectado']:+.1f} pts")
+    col_nf2.metric("📊 Total Puntos Proyectado NFL", f"{res_n['total_proyectado']} pts")
+
+    col_nf3, col_nf4, col_nf5, col_nf6 = st.columns(4)
+    col_nf3.metric(f"Prob. {r_nfl['local']} Cubre ({linea_sp_nfl})", f"{res_n['prob_local']}%")
+    col_nf4.metric(f"Prob. {r_nfl['visita']} Cubre ({-linea_sp_nfl})", f"{res_n['prob_visita']}%")
+    col_nf5.metric(f"Prob. Over {linea_tot_nfl}", f"{res_n['prob_over']}%")
+    col_nf6.metric(f"Prob. Under {linea_tot_nfl}", f"{res_n['prob_under']}%")
+
+    st.markdown("### 📌 Opciones Certificadas NFL (>70% Éxito)")
+    if res_n["validas"]:
+      for jugada in res_n["validas"]:
+        st.info(f"✅ **{jugada['mercado']}** | Probabilidad de Éxito: `{jugada['prob']:.2f}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_nfl_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "NFL Élite", r_nfl['partido'], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("¡Apuesta NFL guardada con éxito en SQLite!")
+    else:
+      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este partido de la NFL.")
+
+
+# =========================================================
+# 3. FÚTBOL SOCCER
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
   st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_formato_str}]**")
@@ -561,44 +669,8 @@ elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
 
 
 # =========================================================
-# 3. NFL, NBA, NHL, MLB, UFC Y SOPORTE FINANCIERO
+# 4. RESTO DE MÓDULOS (NBA, NHL, MLB, UFC Y FINANCIEROS)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo protegido y congelado.*")
-  col1, col2 = st.columns(2)
-  with col1:
-    ev = st.text_input("Visitante:", value="Chiefs", key="nfl_ev")
-    ov = st.number_input("Anotados Visita:", value=26.0, step=0.5, key="nfl_ov")
-    dv = st.number_input("Permitidos Visita:", value=19.5, step=0.5, key="nfl_dv")
-    qbv = st.checkbox("QB Lesionado", key="nfl_qbv")
-  with col2:
-    el = st.text_input("Local:", value="Bills", key="nfl_el")
-    ol = st.number_input("Anotados Local:", value=27.5, step=0.5, key="nfl_ol")
-    dl = st.number_input("Permitidos Local:", value=18.0, step=0.5, key="nfl_dl")
-    qbl = st.checkbox("QB Lesionado", key="nfl_qbl")
-  tm = st.selectbox("Mercado:", ["Spread", "Total"], key="nfl_tm")
-  if tm == "Spread":
-    seq = st.text_input("Selección:", value="Bills (-2.5)", key="nfl_seq")
-    sp = st.number_input("Spread:", value=-2.5, step=0.5, key="nfl_sp")
-    mm = st.number_input("Momio:", value=-110, step=5, key="nfl_mm")
-    if st.button("🚀 Calcular NFL", use_container_width=True):
-      pr, _ = motor_matematico_nfl_spread(ol, dl, ov, dv, sp, qbl, qbv)
-      st.session_state["resultado_nfl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Spread: {seq} ({sp})", "momio": int(mm), "prob": pr}
-  else:
-    lc = st.number_input("Línea O/U:", value=48.5, step=0.5, key="nfl_lc")
-    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="nfl_op")
-    mm = st.number_input("Momio:", value=-110, step=5, key="nfl_mmo")
-    if st.button("🚀 Calcular NFL", use_container_width=True):
-      pov, _ = motor_matematico_nfl_totales(ol, dl, ov, dv, lc, qbl, qbv)
-      st.session_state["resultado_nfl_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} ({lc})", "momio": int(mm), "prob": pov if "Over" in op else 100.0-pov}
-  if st.session_state["resultado_nfl_calculado"]:
-    r = st.session_state["resultado_nfl_calculado"]
-    _, eg = calcular_edge_real(r["momio"], r["prob"])
-    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
-    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
-    if st.button("📥 Guardar SQLite", key="db_nf"): registrar_apuesta_db(fecha_formato_str, "NFL", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
-
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo protegido y congelado.*")
