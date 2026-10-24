@@ -246,6 +246,38 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
 
 
 # ---------------------------------------------------------
+# FILTRO DE EQUIPOS DE LAS 4 CONFERENCIAS PRINCIPALES (SEC, B1G, Big 12, ACC)[span_5](start_span)[span_5](end_span)
+# ---------------------------------------------------------
+EQUIPOS_CONFERENCIAS_PRINCIPALES = [
+    # SEC (Southeastern Conference)[span_6](start_span)[span_6](end_span)
+    "Georgia", "Alabama", "Texas", "Oklahoma", "LSU", "Ole Miss", "Tennessee", 
+    "Auburn", "Florida", "Texas A&M", "Missouri", "Kentucky", "South Carolina", 
+    "Arkansas", "Mississippi State", "Vanderbilt",
+    
+    # Big Ten Conference (B1G)[span_7](start_span)[span_7](end_span)
+    "Ohio State", "Michigan", "Oregon", "USC", "Washington", "Penn State", 
+    "Iowa", "Wisconsin", "Nebraska", "Michigan State", "Illinois", "Minnesota", 
+    "Purdue", "Indiana", "Northwestern", "Maryland", "Rutgers", "UCLA", "California", "Stanford" -> "Cal", # (O variantes comunes)
+    
+    # Big 12 Conference[span_8](start_span)[span_8](end_span)
+    "Utah", "Kansas State", "Arizona State", "Kansas", "Iowa State", "Oklahoma State", 
+    "Baylor", "TCU", "Texas Tech", "West Virginia", "UCF", "Cincinnati", "Houston", 
+    "BYU", "Colorado", "Arizona",
+    
+    # Atlantic Coast Conference (ACC)[span_9](start_span)[span_9](end_span)
+    "Clemson", "Florida State", "Miami", "Cal", "Stanford", "SMU", "Louisville", 
+    "North Carolina", "NC State", "Virginia Tech", "Pittsburgh", "Duke", "Syracuse", 
+    "Wake Forest", "Virginia", "Boston College", "Georgia Tech"
+]
+
+def es_partido_conferencias_principales(partido_str):
+  for equipo in EQUIPOS_CONFERENCIAS_PRINCIPALES:
+    if equipo.lower() in partido_str.lower():
+      return True
+  return False
+
+
+# ---------------------------------------------------------
 # BACKGROUND WORKER 24/7 PARA TELEGRAM
 # ---------------------------------------------------------
 def tarea_en_segundo_plano():
@@ -294,7 +326,7 @@ if "hilo_iniciado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# SELECTOR GLOBAL DE FECHA Y MENÚ (CON INPUTS DE CREDENCIALES)
+# SELECTOR GLOBAL DE FECHA Y MENÚ (CON CREDENCIALES PREDEFINIDAS)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Menú de la Master Suite Élite")
 
@@ -336,7 +368,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🔥 Auditor Interactivo de Props NBA",
         "⚽ Módulo Global de Fútbol (Dixon-Coles Pro, BTTS & Hándicap Asiático)",
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
-        "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)",
+        "🎓 Sistema Cuantitativo Pro NCAAF (Universitario - SEC, B1G, Big 12, ACC)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
         "⚾ Liga Mexicana del Pacífico (LMP)",
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
@@ -373,6 +405,8 @@ if modulo_seleccionado == "🔍 Escáner Automático Inteligente Multi-Deporte (
       picks = obtener_partidos_y_momios_api(skey, api_key)
       for p in picks:
         if p["edge"] >= edge_min:
+          if skey == "americanfootball_ncaaf" and not es_partido_conferencias_principales(p["partido_str"]):
+            continue
           hallazgos.append({"deporte": nombre_dep, **p})
 
     st.session_state["resultados_escaneo"] = hallazgos
@@ -457,14 +491,20 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAAF (SISTEMA CUANTITATIVO PRO NCAAF / CONFERENCIAS)
+# 7. NCAAF (SISTEMA CUANTITATIVO PRO NCAAF - FILTRADO POR SEC, B1G, Big 12, ACC)
 # =========================================================
-elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)":
-  st.title(f"🎓 **Sistema Cuantitativo Pro NCAAF (Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo por capas, EPA ofensivo/defensivo y simulación para partidos de conferencias colegiales.*")
+elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario - SEC, B1G, Big 12, ACC)":
+  st.title(f"🎓 **Sistema Cuantitativo Pro NCAAF (Conferencias Principales) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis cuantitativo por capas filtrado exclusivamente para los mejores programas de la SEC, Big Ten, Big 12 y ACC.*[span_10](start_span)[span_10](end_span)")
 
   api_key = st.session_state["api_key_guardada"]
-  cartelera_ncaa = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
+  cartelera_ncaa_raw = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
+
+  # Filtrar únicamente partidos de las 4 conferencias principales de la imagen
+  cartelera_ncaa = [
+      p for p in cartelera_ncaa_raw 
+      if es_partido_conferencias_principales(p["partido_str"])
+  ]
 
   if not cartelera_ncaa:
     cartelera_ncaa = [{
@@ -476,14 +516,14 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)
     }]
 
   partidos_unicos_ncaa = sorted(list(set([p["partido_str"] for p in cartelera_ncaa])))
-  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros principales en la cartelera colegial.")
+  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros de élite (SEC, B1G, Big 12, ACC)[span_11](start_span)[span_11](end_span) para analizar.")
 
-  for idx, partido_str in enumerate(partidos_unicos_ncaa[:8], 1):
+  for idx, partido_str in enumerate(partidos_unicos_ncaa[:10], 1):
     parts = partido_str.split(" @ ")
     visita_ncaa = parts[0]
     local_ncaa = parts[1] if len(parts) > 1 else "Local"
 
-    st.markdown(f"### 🏈 Encuentro Colegial #{idx}: `{visita_ncaa} @ {local_ncaa}`")
+    st.markdown(f"### 🏈 Partido Colegial Elite #{idx}: `{visita_ncaa} @ {local_ncaa}`")
 
     col_v_ncaa, col_l_ncaa = st.columns(2)
     with col_v_ncaa:
@@ -527,10 +567,10 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)
 
     col_btn_n1, col_btn_n2 = st.columns(2)
     with col_btn_n1:
-      if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
+      if st.button(f"📥 Guardar en SQLite (NCAAF Elite #{idx})", key=f"db_ncaa_{idx}"):
         registrar_apuesta_db(
             fecha_formato_str,
-            "NCAAF",
+            "NCAAF Elite",
             f"{visita_ncaa} @ {local_ncaa}",
             f"Spread {local_ncaa} ({spread_casino_ncaa})",
             momio_ncaa_int,
@@ -539,8 +579,8 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario)
         )
         st.success("✅ ¡Guardado en base de datos!")
     with col_btn_n2:
-      if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
-        msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
+      if st.button(f"📤 Enviar a Telegram (NCAAF Elite #{idx})", key=f"tg_ncaa_{idx}"):
+        msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF (ELITE)*
 🏟️ {visita_ncaa} @ {local_ncaa}
 📊 Spread: {local_ncaa} ({spread_casino_ncaa})
 📈 Momio: {momio_ncaa_int} | Prob: {prob_cobertura_ncaa}%
