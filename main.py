@@ -181,7 +181,7 @@ def calcular_criterio_kelly(
 
 
 # =========================================================
-# 1. BASE DE DATOS Y MOTOR NCAAF (CONFERENCIAS DE ÉLITE)
+# 1. MOTOR NCAAF (CONFERENCIAS DE ÉLITE)
 # =========================================================
 POWER_RATINGS_BASE_NCAAF = {
     "Georgia Bulldogs": 96.0, "Texas Longhorns": 95.0, "Alabama Crimson Tide": 93.5,
@@ -232,18 +232,14 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
   ]
   validas = [o for o in opciones if o["prob"] >= 70.0]
   return {
-      "margen_proyectado": round(margen_base, 2),
-      "total_proyectado": round(total_proyectado, 2),
-      "validas": validas,
-      "prob_local": round(prob_local_handicap, 2),
-      "prob_visita": round(prob_visita_handicap, 2),
-      "prob_over": round(prob_over, 2),
-      "prob_under": round(prob_under, 2)
+      "margen_proyectado": round(margen_base, 2), "total_proyectado": round(total_proyectado, 2),
+      "validas": validas, "prob_local": round(prob_local_handicap, 2), "prob_visita": round(prob_visita_handicap, 2),
+      "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2)
   }
 
 
 # =========================================================
-# 2. BASE DE DATOS Y MOTOR PRO NFL (32 EQUIPOS / 8 DIVISIONES)
+# 2. MOTOR PRO NFL (32 EQUIPOS / 8 DIVISIONES)
 # =========================================================
 POWER_RATINGS_NFL = {
     "Buffalo Bills": 89.0, "Miami Dolphins": 83.5, "New York Jets": 81.0, "New England Patriots": 74.5,
@@ -293,17 +289,107 @@ def analizar_lineas_nfl(pr_local, pr_visita, total_proyectado, linea_spread_casi
   ]
   validas = [o for o in opciones if o["prob"] >= 70.0]
   return {
-      "margen_proyectado": round(margen_base, 2),
-      "total_proyectado": round(total_proyectado, 2),
-      "validas": validas,
-      "prob_local": round(prob_local_handicap, 2),
-      "prob_visita": round(prob_visita_handicap, 2),
-      "prob_over": round(prob_over, 2),
-      "prob_under": round(prob_under, 2)
+      "margen_proyectado": round(margen_base, 2), "total_proyectado": round(total_proyectado, 2),
+      "validas": validas, "prob_local": round(prob_local_handicap, 2), "prob_visita": round(prob_visita_handicap, 2),
+      "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2)
   }
 
 
-# 3. Motor Pro Fútbol (Soccer - Matriz Poisson Bivariada)
+# =========================================================
+# 3. MOTOR PRO NBA (30 EQUIPOS / EFICIENCIAS & POSESIONES)
+# =========================================================
+ESTADISTICAS_NBA_BASE = {
+    "Boston Celtics": {"Ort": 122.0, "Drt": 110.5, "Pace": 97.5},
+    "Milwaukee Bucks": {"Ort": 117.5, "Drt": 115.0, "Pace": 100.2},
+    "Philadelphia 76ers": {"Ort": 116.2, "Drt": 113.0, "Pace": 98.0},
+    "Cleveland Cavaliers": {"Ort": 114.7, "Drt": 112.1, "Pace": 97.3},
+    "New York Knicks": {"Ort": 117.3, "Drt": 112.4, "Pace": 95.8},
+    "Indiana Pacers": {"Ort": 120.5, "Drt": 118.0, "Pace": 102.1},
+    "Miami Heat": {"Ort": 113.3, "Drt": 111.5, "Pace": 96.0},
+    "Orlando Magic": {"Ort": 112.9, "Drt": 110.8, "Pace": 96.8},
+    "Chicago Bulls": {"Ort": 114.0, "Drt": 115.5, "Pace": 96.5},
+    "Atlanta Hawks": {"Ort": 116.4, "Drt": 118.4, "Pace": 101.3},
+    "Brooklyn Nets": {"Ort": 112.5, "Drt": 115.0, "Pace": 97.1},
+    "Toronto Raptors": {"Ort": 111.8, "Drt": 116.2, "Pace": 98.8},
+    "Charlotte Hornets": {"Ort": 110.0, "Drt": 119.2, "Pace": 98.2},
+    "Washington Wizards": {"Ort": 110.5, "Drt": 119.6, "Pace": 102.4},
+    "Detroit Pistons": {"Ort": 109.0, "Drt": 117.8, "Pace": 98.5},
+    "Oklahoma City Thunder": {"Ort": 118.5, "Drt": 109.0, "Pace": 99.8},
+    "Minnesota Timberwolves": {"Ort": 114.6, "Drt": 108.4, "Pace": 97.2},
+    "Denver Nuggets": {"Ort": 117.8, "Drt": 111.5, "Pace": 96.2},
+    "Dallas Mavericks": {"Ort": 117.0, "Drt": 112.1, "Pace": 100.2},
+    "Phoenix Suns": {"Ort": 116.8, "Drt": 113.7, "Pace": 98.4},
+    "Los Angeles Lakers": {"Ort": 115.4, "Drt": 114.8, "Pace": 101.1},
+    "Golden State Warriors": {"Ort": 115.8, "Drt": 114.2, "Pace": 99.5},
+    "Sacramento Kings": {"Ort": 116.2, "Drt": 114.4, "Pace": 99.1},
+    "New Orleans Pelicans": {"Ort": 116.5, "Drt": 111.9, "Pace": 98.0},
+    "Houston Rockets": {"Ort": 113.7, "Drt": 112.2, "Pace": 99.3},
+    "Los Angeles Clippers": {"Ort": 116.0, "Drt": 113.4, "Pace": 97.0},
+    "Memphis Grizzlies": {"Ort": 108.5, "Drt": 112.7, "Pace": 98.7},
+    "Utah Jazz": {"Ort": 114.5, "Drt": 119.3, "Pace": 100.5},
+    "San Antonio Spurs": {"Ort": 110.2, "Drt": 115.6, "Pace": 101.2},
+    "Portland Trail Blazers": {"Ort": 107.5, "Drt": 116.8, "Pace": 97.6}
+}
+
+def obtener_metricas_nba(equipo):
+  for nombre_completo, metricas in ESTADISTICAS_NBA_BASE.items():
+    if equipo.lower() in nombre_completo.lower():
+      return metricas
+  return {"Ort": 115.0, "Drt": 115.0, "Pace": 98.5}
+
+def analizar_lineas_nba(local, visita, linea_spread_casino, linea_total_casino, contexto):
+  m_local = obtener_metricas_nba(local)
+  m_visita = obtener_metricas_nba(visita)
+  
+  pace_proyectado = (m_local["Pace"] + m_visita["Pace"]) / 2.0
+  ventaja_localia_ort = 2.5
+  eficiencia_ofensiva_local = (m_local["Ort"] + ventaja_localia_ort + m_visita["Drt"]) / 2.0
+  eficiencia_ofensiva_visita = (m_visita["Ort"] + m_local["Drt"]) / 2.0
+  
+  if contexto.get("local_b2b", False):
+    eficiencia_ofensiva_local -= 2.0
+  if contexto.get("visita_b2b", False):
+    eficiencia_ofensiva_visita -= 2.0
+      
+  if contexto.get("local_estrella_baja", False):
+    eficiencia_ofensiva_local -= contexto.get("impacto_puntos_local", 4.5)
+  if contexto.get("visita_estrella_baja", False):
+    eficiencia_ofensiva_visita -= contexto.get("impacto_puntos_visita", 4.5)
+      
+  puntos_proyectados_local = (eficiencia_ofensiva_local / 100.0) * pace_proyectado
+  puntos_proyectados_visita = (eficiencia_ofensiva_visita / 100.0) * pace_proyectado
+  
+  margen_proyectado = puntos_proyectados_local - puntos_proyectados_visita
+  total_proyectado = puntos_proyectados_local + puntos_proyectados_visita
+  
+  desv_spread = 11.0
+  desv_totales = 12.5
+  
+  z_spread = (linea_spread_casino - margen_proyectado) / desv_spread
+  prob_local_handicap = norm.cdf(z_spread) * 100.0
+  prob_visita_handicap = 100.0 - prob_local_handicap
+  
+  z_totales = (linea_total_casino - total_proyectado) / desv_totales
+  prob_under = norm.cdf(z_totales) * 100.0
+  prob_over = 100.0 - prob_under
+  
+  opciones = [
+      {"mercado": f"Hándicap {local} ({linea_spread_casino:+.1f})", "prob": prob_local_handicap},
+      {"mercado": f"Hándicap {visita} ({-linea_spread_casino:+.1f})", "prob": prob_visita_handicap},
+      {"mercado": f"Over {linea_total_casino:.1f}", "prob": prob_over},
+      {"mercado": f"Under {linea_total_casino:.1f}", "prob": prob_under}
+  ]
+  validas = [o for o in opciones if o["prob"] >= 70.0]
+  return {
+      "margen_proyectado": round(margen_proyectado, 2), "total_proyectado": round(total_proyectado, 2),
+      "validas": validas, "prob_local": round(prob_local_handicap, 2), "prob_visita": round(prob_visita_handicap, 2),
+      "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2)
+  }
+
+
+# =========================================================
+# 4. MOTOR PRO FÚTBOL (SOCCER - POISSON BIVARIADO)
+# =========================================================
 def calcular_matriz_probabilidades(avg_goles_local, avg_goles_visitante, max_goles=6):
   prob_local = [poisson.pmf(i, avg_goles_local) for i in range(max_goles + 1)]
   prob_visitante = [poisson.pmf(j, avg_goles_visitante) for j in range(max_goles + 1)]
@@ -339,25 +425,9 @@ def analizar_mercados_futbol(equipo_local, equipo_visita, xg_local, xg_visita, m
   }
 
 
-# 4. Otros Motores de Apoyo
-def motor_matematico_nba_spread(off_local, def_local, off_visita, def_visita, spread_casino, b2b_local=False, b2b_visita=False, lesion_star_local=False, lesion_star_visita=False):
-  rl = off_local - (def_visita * 0.96)
-  rv = off_visita - (def_local * 0.96)
-  if b2b_local: rl -= 3.0
-  if b2b_visita: rv -= 3.0
-  if lesion_star_local: rl -= 4.5
-  if lesion_star_visita: rv -= 4.5
-  margen_proyectado = (rl + 3.0) - rv
-  z_score = (margen_proyectado - abs(spread_casino)) / 12.0
-  return round(max(5.0, min(95.0, stats.norm.cdf(z_score) * 100.0)), 2), round(margen_proyectado, 1)
-
-def motor_matematico_nba_totales(off_local, def_local, off_visita, def_visita, linea_casa, b2b_local=False, b2b_visita=False):
-  tot = (off_local + off_visita + def_local + def_visita) / 2.0
-  if b2b_local or b2b_visita: tot -= 4.5
-  lam_adj = round(max(80.0, tot * 0.99), 1)
-  prob_under = sum([poisson.pmf(k, lam_adj / 2.5) for k in range(int(math.floor(linea_casa)) + 1)])
-  return round(max(5.0, min(95.0, (1.0 - prob_under) * 100.0)), 2), lam_adj
-
+# =========================================================
+# 5. RESTO DE MOTORES DE APOYO (NHL, MLB, UFC)
+# =========================================================
 def motor_matematico_nhl(gf_local, ga_local, gf_visita, ga_visita, goalie_boost_local=False, goalie_boost_visita=False, linea_ou=5.5):
   lam_l = max(1.0, (gf_local + ga_visita) / 2.0)
   lam_v = max(1.0, (gf_visita + ga_local) / 2.0)
@@ -463,10 +533,10 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
+        "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
         "🛡️ Sistema Pro NFL",
         "⚽ Módulo Pro Fútbol (Soccer)",
-        "🏀 Sistema Pro NBA",
         "🏒 Hockey Pro (NHL)",
         "⚾ Béisbol Pro (MLB / LMP)",
         "🥊 Sistema Pro UFC / MMA",
@@ -481,9 +551,73 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NCAAF
+# 1. SISTEMA PRO NBA (30 EQUIPOS / 2 CONFERENCIAS)
 # =========================================================
-if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
+if modulo_seleccionado == "🏀 Sistema Pro NBA":
+  st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Motor profesional con los 30 equipos de la NBA, Eficiencias por 100 Posesiones y Ritmo (Pace).*")
+
+  el_nba = st.text_input("Equipo Local NBA (Ej. Boston Celtics):", value="Boston Celtics", key="nba_el")
+  ev_nba = st.text_input("Equipo Visitante NBA (Ej. Milwaukee Bucks):", value="Milwaukee Bucks", key="nba_ev")
+
+  col_nba1, col_nba2 = st.columns(2)
+  with col_nba1:
+    b2b_l_nba = st.checkbox("Local en Back-to-Back (B2B)", key="nba_b2bl")
+    estrella_l_nba = st.checkbox("Estrella Local Fuera (-4.5 pts)", key="nba_starl")
+  with col_nba2:
+    b2b_v_nba = st.checkbox("Visitante en Back-to-Back (B2B)", key="nba_b2bv")
+    estrella_v_nba = st.checkbox("Estrella Visitante Fuera (-4.5 pts)", key="nba_starv")
+
+  st.markdown("---")
+  col_nba3, col_nba4 = st.columns(2)
+  with col_nba3:
+    linea_sp_nba = st.number_input("Línea Spread Casino (Local NBA):", value=-4.5, step=0.5, key="nba_lsp")
+  with col_nba4:
+    linea_tot_nba = st.number_input("Línea Total Casino O/U (NBA):", value=228.5, step=0.5, key="nba_ltot")
+
+  contexto_nba = {
+      "local_b2b": b2b_l_nba, "visita_b2b": b2b_v_nba,
+      "local_estrella_baja": estrella_l_nba, "visita_estrella_baja": estrella_v_nba,
+      "impacto_puntos_local": 4.5, "impacto_puntos_visita": 4.5
+  }
+
+  if st.button("🚀 Ejecutar Análisis Matemático NBA", use_container_width=True):
+    res_nba = analizar_lineas_nba(el_nba, ev_nba, linea_sp_nba, linea_tot_nba, contexto_nba)
+    st.session_state["resultado_nba_calculado"] = {
+        "partido": f"{ev_nba} @ {el_nba}", "analisis": res_nba, "local": el_nba, "visita": ev_nba
+    }
+
+  if st.session_state["resultado_nba_calculado"]:
+    r_nba = st.session_state["resultado_nba_calculado"]
+    res_b = r_nba["analisis"]
+    st.success(f"🎯 Análisis NBA Completado para: **{r_nba['partido']}**")
+
+    col_nb1, col_nb2 = st.columns(2)
+    col_nb1.metric("🏟️ Margen Proyectado Ajustado NBA", f"{res_b['margen_proyectado']:+.1f} pts")
+    col_nb2.metric("📊 Total Puntos Proyectado NBA", f"{res_b['total_proyectado']} pts")
+
+    col_nb3, col_nb4, col_nb5, col_nb6 = st.columns(4)
+    col_nb3.metric(f"Prob. {r_nba['local']} Cubre ({linea_sp_nba})", f"{res_b['prob_local']}%")
+    col_nb4.metric(f"Prob. {r_nba['visita']} Cubre ({-linea_sp_nba})", f"{res_b['prob_visita']}%")
+    col_nb5.metric(f"Prob. Over {linea_tot_nba}", f"{res_b['prob_over']}%")
+    col_nb6.metric(f"Prob. Under {linea_tot_nba}", f"{res_b['prob_under']}%")
+
+    st.markdown("### 📌 Opciones Certificadas NBA (>70% Éxito)")
+    if res_b["validas"]:
+      for jugada in res_b["validas"]:
+        st.info(f"✅ **{jugada['mercado']}** | Probabilidad de Éxito: `{jugada['prob']:.2f}%`")
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
+        if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_nba_{jugada['mercado']}"):
+          registrar_apuesta_db(fecha_formato_str, "NBA Élite", r_nba['partido'], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
+          st.success("¡Apuesta NBA guardada con éxito en SQLite!")
+    else:
+      st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este partido de la NBA.")
+
+
+# =========================================================
+# 2. SISTEMA PRO NCAAF
+# =========================================================
+elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Análisis por Conferencia de Élite, Power Ratings predefinidos y Distribución Normal.*")
 
@@ -552,11 +686,11 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 2. SISTEMA PRO NFL (32 EQUIPOS / 8 DIVISIONES)
+# 3. SISTEMA PRO NFL
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor profesional con los 32 equipos de la NFL distribuidos en sus 8 divisiones y Distribución Normal.*")
+  st.markdown("--- \n *Motor profesional con los 32 equipos de la NFL distribuidos en sus 8 divisiones.*")
 
   el_nfl = st.text_input("Equipo Local NFL (Ej. Kansas City Chiefs):", value="Kansas City Chiefs", key="nfl_el")
   ev_nfl = st.text_input("Equipo Visitante NFL (Ej. Baltimore Ravens):", value="Baltimore Ravens", key="nfl_ev")
@@ -620,7 +754,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
 
 # =========================================================
-# 3. FÚTBOL SOCCER
+# 4. FÚTBOL SOCCER
 # =========================================================
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
   st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_formato_str}]**")
@@ -669,46 +803,8 @@ elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
 
 
 # =========================================================
-# 4. RESTO DE MÓDULOS (NBA, NHL, MLB, UFC Y FINANCIEROS)
+# 5. RESTO DE MÓDULOS (NHL, MLB, UFC Y FINANCIEROS)
 # =========================================================
-elif modulo_seleccionado == "🏀 Sistema Pro NBA":
-  st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo protegido y congelado.*")
-  col1, col2 = st.columns(2)
-  with col1:
-    ev = st.text_input("Visitante:", value="Celtics", key="nba_ev")
-    ov = st.number_input("Off Rating Visita:", value=118.5, step=0.5, key="nba_ov")
-    dv = st.number_input("Def Rating Visita:", value=110.0, step=0.5, key="nba_dv")
-    b2bv = st.checkbox("B2B", key="nba_b2bv")
-    starv = st.checkbox("Estrella Fuera", key="nba_starv")
-  with col2:
-    el = st.text_input("Local:", value="Lakers", key="nba_el")
-    ol = st.number_input("Off Rating Local:", value=115.0, step=0.5, key="nba_ol")
-    dl = st.number_input("Def Rating Local:", value=112.5, step=0.5, key="nba_dl")
-    b2bl = st.checkbox("B2B", key="nba_b2bl")
-    starl = st.checkbox("Estrella Fuera", key="nba_starl")
-  tm = st.selectbox("Mercado:", ["Spread", "Total"], key="nba_tm")
-  if tm == "Spread":
-    seq = st.text_input("Selección:", value="Lakers (+4.5)", key="nba_seq")
-    sp = st.number_input("Spread:", value=4.5, step=0.5, key="nba_sp")
-    mm = st.number_input("Momio:", value=-110, step=5, key="nba_mm")
-    if st.button("🚀 Calcular NBA", use_container_width=True):
-      pr, _ = motor_matematico_nba_spread(ol, dl, ov, dv, sp, b2bl, b2bv, starl, starv)
-      st.session_state["resultado_nba_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Spread: {seq} ({sp})", "momio": int(mm), "prob": pr}
-  else:
-    lc = st.number_input("Línea O/U:", value=228.5, step=0.5, key="nba_lc")
-    op = st.radio("Sel:", ["Over", "Under"], horizontal=True, key="nba_op")
-    mm = st.number_input("Momio:", value=-110, step=5, key="nba_mmo")
-    if st.button("🚀 Calcular NBA", use_container_width=True):
-      pov, _ = motor_matematico_nba_totales(ol, dl, ov, dv, lc, b2bl, b2bv)
-      st.session_state["resultado_nba_calculado"] = {"partido": f"{ev} @ {el}", "mercado": f"Total {op} ({lc})", "momio": int(mm), "prob": pov if "Over" in op else 100.0-pov}
-  if st.session_state["resultado_nba_calculado"]:
-    r = st.session_state["resultado_nba_calculado"]
-    _, eg = calcular_edge_real(r["momio"], r["prob"])
-    stk = calcular_criterio_kelly(st.session_state["bankroll_global"], r["prob"], r["momio"])
-    st.success(f"🎯 **{r['partido']}** | Prob: `{r['prob']}%` | Edge: `+{eg:.2f}%` | Stake: `${stk} MXN`")
-    if st.button("📥 Guardar SQLite", key="db_nb"): registrar_apuesta_db(fecha_formato_str, "NBA", r["partido"], r["mercado"], r["momio"], eg, stk); st.success("Guardado.")
-
 elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
   st.title(f"🏒 **Sistema Pro Hockey (NHL) Élite [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo protegido y congelado.*")
