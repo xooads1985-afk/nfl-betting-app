@@ -6,9 +6,13 @@ import sqlite3
 import threading
 import time
 import numpy as np
+import pandas as pd
 import requests
 import scipy.stats as stats
 from scipy.stats import norm, poisson
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
 import streamlit as st
 
 # Configuración global de la página
@@ -394,17 +398,13 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 # =========================================================
-# 4. MOTOR PRO NBA (CON ESTADÍSTICAS CLAVE PERSONALIZADAS)
+# 4. MOTOR PRO NBA (FIJO E INTOCABLE)
 # =========================================================
 def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino, linea_total_casino, contexto):
-  # stats_local y stats_visita contienen: ppg, opp_ppg, apg, tov, fg_pct, three_p_pct, rpg
   pace_estimado = 99.0
-  
-  # Combinar producción ofensiva y defensiva real ingresada por el usuario
-  eficiencia_ofensiva_local = (stats_local["ppg"] + stats_visita["opp_ppg"]) / 2.0 + 2.5 # Ajuste localía
+  eficiencia_ofensiva_local = (stats_local["ppg"] + stats_visita["opp_ppg"]) / 2.0 + 2.5
   eficiencia_ofensiva_visita = (stats_visita["ppg"] + stats_local["opp_ppg"]) / 2.0
   
-  # Aplicar penalizaciones por B2B o bajas de estrellas
   if contexto.get("local_b2b", False): eficiencia_ofensiva_local -= 2.5
   if contexto.get("visita_b2b", False): eficiencia_ofensiva_visita -= 2.5
   if contexto.get("local_estrella_baja", False): eficiencia_ofensiva_local -= 4.5
@@ -476,47 +476,54 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. MOTOR PRO NFL
+# 6. MOTOR PRO NFL (CON MACHINE LEARNING GRADIENT BOOSTING)
 # =========================================================
-POWER_RATINGS_NFL = {
-    "Buffalo Bills": 89.0, "Miami Dolphins": 83.5, "New York Jets": 81.0, "New England Patriots": 74.5,
-    "Baltimore Ravens": 91.5, "Cincinnati Bengals": 84.5, "Pittsburgh Steelers": 85.0, "Cleveland Browns": 78.0,
-    "Houston Texans": 86.5, "Indianapolis Colts": 80.5, "Jacksonville Jaguars": 77.0, "Tennessee Titans": 75.0,
-    "Kansas City Chiefs": 93.0, "Los Angeles Chargers": 84.0, "Denver Broncos": 81.5, "Las Vegas Raiders": 76.0,
-    "Philadelphia Eagles": 89.5, "Washington Commanders": 85.5, "Dallas Cowboys": 82.0, "New York Giants": 76.5,
-    "Detroit Lions": 92.5, "Green Bay Packers": 87.5, "Minnesota Vikings": 86.0, "Chicago Bears": 80.0,
-    "Tampa Bay Buccaneers": 83.0, "Atlanta Falcons": 82.5, "New Orleans Saints": 79.5, "Carolina Panthers": 72.0,
-    "San Francisco 49ers": 88.5, "Los Angeles Rams": 83.0, "Seattle Seahawks": 82.0, "Arizona Cardinals": 81.0
-}
-
-def obtener_pr_nfl(equipo):
-  for nombre_completo, rating in POWER_RATINGS_NFL.items():
-    if equipo.lower() in nombre_completo.lower():
-      return rating
-  return 80.0
-
-def analizar_lineas_nfl(pr_local, pr_visita, total_proyectado, linea_spread_casino, linea_total_casino, contexto):
-  ventaja_casa_nfl = 1.5
-  margen_base = (pr_local + ventaja_casa_nfl) - pr_visita
-  if contexto.get("local_qb_baja", False): margen_base -= 6.0; total_proyectado -= 3.5
-  if contexto.get("visita_qb_baja", False): margen_base += 6.0; total_proyectado -= 3.5
-
-  z_spread = (linea_spread_casino - margen_base) / 11.8
-  prob_local_handicap = norm.cdf(z_spread) * 100.0
-  prob_visita_handicap = 100.0 - prob_local_handicap
-  
-  z_totales = (linea_total_casino - total_proyectado) / 10.5
-  prob_under = norm.cdf(z_totales) * 100.0
-  prob_over = 100.0 - prob_under
-  
-  opciones = [
-      {"mercado": f"Hándicap Local ({linea_spread_casino:+.1f})", "prob": prob_local_handicap},
-      {"mercado": f"Hándicap Visita ({-linea_spread_casino:+.1f})", "prob": prob_visita_handicap},
-      {"mercado": f"Over {linea_total_casino:.1f}", "prob": prob_over},
-      {"mercado": f"Under {linea_total_casino:.1f}", "prob": prob_under}
-  ]
-  validas = [o for o in opciones if o["prob"] >= 70.0]
-  return {"margen_proyectado": round(margen_base, 2), "total_proyectado": round(total_proyectado, 2), "prob_local": round(prob_local_handicap, 2), "prob_visita": round(prob_visita_handicap, 2), "prob_over": round(prob_over, 2), "prob_under": round(prob_under, 2), "validas": validas}
+@st.cache_resource
+def entrenar_modelo_nfl_ml():
+  import nfl_data_py as nfl
+  years_train = [2022, 2023, 2024, 2025]
+  try:
+    pbp = nfl.import_pbp_data(years_train)
+    schedule = nfl.import_schedules(years_train)
+    
+    pbp_clean = pbp[pbp['play_type'].isin(['pass', 'run'])].dropna(subset=['epa']).copy()
+    team_stats = pbp_clean.groupby(['season', 'posteam']).agg(
+        off_epa=('epa', 'mean'),
+        off_success_rate=('success', 'mean')
+    ).reset_index().rename(columns={'posteam': 'team'})
+    
+    def_stats = pbp_clean.groupby(['season', 'defteam']).agg(
+        def_epa=('epa', 'mean')
+    ).reset_index().rename(columns={'defteam': 'team'})
+    
+    team_metrics = pd.merge(team_stats, def_stats, on=['season', 'team'])
+    games = schedule.dropna(subset=['home_score', 'away_score']).copy()
+    
+    games['target_spread'] = games['home_score'] - games['away_score']
+    games['target_total'] = games['home_score'] + games['away_score']
+    
+    games = pd.merge(games, team_metrics, left_on=['season', 'home_team'], right_on=['season', 'team']).rename(
+        columns={'off_epa': 'home_off_epa', 'def_epa': 'home_def_epa', 'off_success_rate': 'home_success_rate'}).drop(columns=['team'])
+        
+    games = pd.merge(games, team_metrics, left_on=['season', 'away_team'], right_on=['season', 'team']).rename(
+        columns={'off_epa': 'away_off_epa', 'def_epa': 'away_def_epa', 'off_success_rate': 'away_success_rate'}).drop(columns=['team'])
+    
+    games['wind'] = np.where(games['roof'].isin(['dome', 'closed']), 0, games['wind'].fillna(0))
+    
+    features = ['home_off_epa', 'home_def_epa', 'home_success_rate', 'away_off_epa', 'away_def_epa', 'away_success_rate', 'wind']
+    X = games[features]
+    y_spread = games['target_spread']
+    y_total = games['target_total']
+    
+    model_spread = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=4, random_state=42)
+    model_spread.fit(X, y_spread)
+    
+    model_total = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=4, random_state=42)
+    model_total.fit(X, y_total)
+    
+    return model_spread, model_total, team_metrics, True
+  except Exception as e:
+    return None, None, pd.DataFrame(), False
 
 
 # =========================================================
@@ -966,7 +973,7 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
 
 
 # =========================================================
-# 4. SISTEMA PRO NBA (CON ESTADÍSTICAS DETALLADAS)
+# 4. SISTEMA PRO NBA (FIJO E INTOCABLE)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
@@ -1074,43 +1081,86 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL
+# 6. SISTEMA PRO NFL (MACHINE LEARNING GRADIENT BOOSTING INTEGRADO)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor profesional de 32 equipos.*")
+  st.title(f"🛡️ **Sistema Pro NFL con Machine Learning (EPA & Gradient Boosting) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo inteligente entrenado con datos PBP históricos de la NFL.*")
 
-  el_nfl = st.text_input("Equipo Local NFL:", value="Kansas City Chiefs", key="nfl_el")
-  ev_nfl = st.text_input("Equipo Visitante NFL:", value="Baltimore Ravens", key="nfl_ev")
-  pr_l_nfl = obtener_pr_nfl(el_nfl)
-  pr_v_nfl = obtener_pr_nfl(ev_nfl)
+  with st.spinner("Cargando y entrenando modelos de Machine Learning para la NFL... (Esto puede tomar unos segundos)"):
+    m_spread, m_total, df_metricas, modelo_ok = entrenar_modelo_nfl_ml()
+
+  if not modelo_ok:
+    st.error("⚠️ No se pudieron descargar los datos históricos de nfl_data_py (requiere conexión a internet). Se usarán estimaciones estándar.")
+  else:
+    st.success("✅ Modelos de Gradient Boosting entrenados con éxito.")
 
   col_nfl1, col_nfl2 = st.columns(2)
-  with col_nfl1: qb_l_nfl = st.checkbox("QB Local Lesionado", key="nfl_qbl")
-  with col_nfl2: qb_v_nfl = st.checkbox("QB Visita Lesionado", key="nfl_qbv")
+  with col_nfl1:
+    home_team = st.text_input("Equipo Local (Abreviatura ej. KC, SF, PHI):", value="KC", key="nfl_ml_home")
+  with col_nfl2:
+    away_team = st.text_input("Equipo Visitante (Abreviatura ej. BUF, SEA, DAL):", value="BUF", key="nfl_ml_away")
 
-  tot_proy_nfl = st.number_input("Total Proyectado NFL:", value=48.5, step=0.5, key="nfl_tot")
-  linea_sp_nfl = st.number_input("Spread Casino NFL:", value=-3.0, step=0.5, key="nfl_lsp")
-  linea_tot_nfl = st.number_input("Total Casino O/U NFL:", value=47.5, step=0.5, key="nfl_ltot")
-  contexto_nfl = {"local_qb_baja": qb_l_nfl, "visita_qb_baja": qb_v_nfl}
+  col_nfl3, col_nfl4 = st.columns(2)
+  with col_nfl3:
+    bookie_spread = st.number_input("Spread de la Casa (para el Local):", value=-3.5, step=0.5, key="nfl_ml_bsp")
+  with col_nfl4:
+    bookie_total = st.number_input("Total de Puntos de la Casa (O/U):", value=47.5, step=0.5, key="nfl_ml_btot")
 
-  if st.button("🚀 Ejecutar Análisis NFL", use_container_width=True):
-    res_nfl = analizar_lineas_nfl(pr_l_nfl, pr_v_nfl, tot_proy_nfl, linea_sp_nfl, linea_tot_nfl, contexto_nfl)
-    st.session_state["resultado_nfl_calculado"] = {"partido": f"{ev_nfl} @ {el_nfl}", "analisis": res_nfl}
+  wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
-  if st.session_state["resultado_nfl_calculado"]:
-    r = st.session_state["resultado_nfl_calculado"]
-    res = r["analisis"]
-    st.success(f"🎯 Análisis NFL: **{r['partido']}**")
-    if res["validas"]:
-      for jugada in res["validas"]:
-        st.info(f"✅ **{jugada['mercado']}** | Prob: `{jugada['prob']:.2f}%`")
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], -110)
-        if st.button(f"📥 Guardar SQLite ({jugada['mercado']})", key=f"db_nfl_{jugada['mercado']}"):
-          registrar_apuesta_db(fecha_formato_str, "NFL Élite", r['partido'], jugada['mercado'], -110, jugada['prob'] - 52.38, stk)
-          st.success("Guardado.")
+  if st.button("🚀 Ejecutar Predicción Inteligente NFL", use_container_width=True):
+    if modelo_ok and not df_metricas.empty:
+      ultima_temporada = df_metricas['season'].max()
+      stats_actuales = df_metricas[df_metricas['season'] == ultima_temporada]
+      
+      home_data = stats_actuales[stats_actuales['team'] == home_team.upper()]
+      away_data = stats_actuales[stats_actuales['team'] == away_team.upper()]
+      
+      if home_data.empty or away_data.empty:
+        st.error(f"⚠️ No se encontraron estadísticas para '{home_team}' o '{away_team}'. Usa abreviaturas oficiales de la NFL (ej. KC, BUF, SF).")
+      else:
+        input_data = pd.DataFrame([{
+            'home_off_epa': home_data['off_epa'].values[0],
+            'home_def_epa': home_data['def_epa'].values[0],
+            'home_success_rate': home_data['off_success_rate'].values[0],
+            'away_off_epa': away_data['off_epa'].values[0],
+            'away_def_epa': away_data['def_epa'].values[0],
+            'away_success_rate': away_data['off_success_rate'].values[0],
+            'wind': wind_forecast
+        }])
+        
+        pred_spread = m_spread.predict(input_data)[0]
+        pred_total = m_total.predict(input_data)[0]
+        
+        ventaja_spread = pred_spread - bookie_spread
+        ventaja_total = pred_total - bookie_total
+        
+        st.markdown("### 📊 Resultados de la Proyección Inteligente")
+        col_res1, col_res2 = st.columns(2)
+        col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}", delta=f"{ventaja_spread:+.1f} vs Casa")
+        col_res2.metric("Total Proyectado", f"{pred_total:.1f} pts", delta=f"{ventaja_total:+.1f} vs Casa")
+        
+        rec_spread = "SIN APUESTA DE VALOR"
+        if ventaja_spread > 2.0:
+            rec_spread = f"🎯 APOSTAR LOCAL ({home_team.upper()})"
+        elif ventaja_spread < -2.0:
+            rec_spread = f"🎯 APOSTAR VISITANTE ({away_team.upper()})"
+            
+        rec_total = "SIN APUESTA DE VALOR"
+        if ventaja_total > 2.5:
+            rec_total = "🎯 ALTAS (OVER)"
+        elif ventaja_total < -2.5:
+            rec_total = "🎯 BAJAS (UNDER)"
+            
+        st.info(f"**Recomendación Spread:** {rec_spread}")
+        st.info(f"**Recomendación Total:** {rec_total}")
+        
+        if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
+          registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"Spread Proy: {pred_spread:.1f}", -110, abs(ventaja_spread), 250.0)
+          st.success("¡Apuesta NFL guardada con éxito en SQLite!")
     else:
-      st.warning("⚠️ Sin opciones sobre el 70%.")
+      st.warning("⚠️ El modelo de Machine Learning no está disponible sin conexión. Verifica tu entorno.")
 
 
 # =========================================================
