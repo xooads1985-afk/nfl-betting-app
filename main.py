@@ -42,6 +42,9 @@ if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_
 if "resultado_ncaaf_calculado" not in st.session_state:
   st.session_state["resultado_ncaaf_calculado"] = None
 
+if "resultado_nfl_calculado" not in st.session_state:
+  st.session_state["resultado_nfl_calculado"] = None
+
 
 # ---------------------------------------------------------
 # CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE AVANZADA)
@@ -145,7 +148,7 @@ def enviar_alerta_telegram(token, chat_id, mensaje):
 
 
 # ---------------------------------------------------------
-# MOTORES MATEMÁTICOS & SINDICATO INDUSTRIAL
+# MOTORES MATEMÁTICOS & SINDICATO INDUSTRIAL (NCAAF & NFL)
 # ---------------------------------------------------------
 def calcular_probabilidad_implicita(momio_americano):
   if momio_americano > 0:
@@ -177,19 +180,14 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
+# Motor NCAAF
 def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
   pr_local = ppg_local - (pap_local * 0.95)
   pr_visita = ppg_visita - (pap_visita * 0.95)
-  
-  if fatiga_local:
-    pr_local -= 2.5
-  if fatiga_visita:
-    pr_visita -= 2.5
-  if lesion_qb_local:
-    pr_local -= 6.5
-  if lesion_qb_visita:
-    pr_visita -= 6.5
-    
+  if fatiga_local: pr_local -= 2.5
+  if fatiga_visita: pr_visita -= 2.5
+  if lesion_qb_local: pr_local -= 6.5
+  if lesion_qb_visita: pr_visita -= 6.5
   margen_proyectado = (pr_local + factor_localia) - pr_visita
   desviacion_std = 13.5
   z_score = (margen_proyectado - abs(spread_casino)) / desviacion_std
@@ -199,11 +197,37 @@ def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, 
 
 def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
   lambda_esperado = (ppg_local + ppg_visita + pap_local + pap_visita) / 2.0
-  if fatiga_local or fatiga_visita:
-    lambda_esperado -= 3.0
-  if lesion_qb_local or lesion_qb_visita:
-    lambda_esperado -= 5.0
+  if fatiga_local or fatiga_visita: lambda_esperado -= 3.0
+  if lesion_qb_local or lesion_qb_visita: lambda_esperado -= 5.0
   lambda_ajustado = round(max(15.0, lambda_esperado * 0.98), 1)
+  prob_under = 0.0
+  limite = int(math.floor(linea_casa))
+  for k in range(limite + 1):
+    prob_under += poisson.pmf(k, lambda_ajustado)
+  prob_over = (1.0 - prob_under) * 100.0
+  return round(prob_over, 2), lambda_ajustado
+
+
+# Motor NFL (Profesional - Desviación estándar ajustada a 11.5 y factor localía de 2.5)
+def motor_matematico_nfl_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, lesion_qb_local=False, lesion_qb_visita=False):
+  pr_local = ppg_local - (pap_local * 0.98)
+  pr_visita = ppg_visita - (pap_visita * 0.98)
+  
+  if lesion_qb_local: pr_local -= 5.5 # En NFL la baja de un QB pesa entre 5 y 6 puntos
+  if lesion_qb_visita: pr_visita -= 5.5
+  
+  # Factor localía estándar NFL (aprox 2.5 puntos)
+  margen_proyectado = (pr_local + 2.5) - pr_visita
+  desviacion_std = 11.5 # Desviación típica profesional en NFL
+  z_score = (margen_proyectado - abs(spread_casino)) / desviacion_std
+  prob_cubrir = stats.norm.cdf(z_score) * 100.0
+  return round(max(5.0, min(95.0, prob_cubrir)), 2), round(margen_proyectado, 1)
+
+
+def motor_matematico_nfl_totales(ppg_local, pap_local, ppg_visita, pap_visita, linea_casa, lesion_qb_local=False, lesion_qb_visita=False):
+  lambda_esperado = (ppg_local + ppg_visita + pap_local + pap_visita) / 2.0
+  if lesion_qb_local or lesion_qb_visita: lambda_esperado -= 4.0
+  lambda_ajustado = round(max(10.0, lambda_esperado * 0.97), 1)
   
   prob_under = 0.0
   limite = int(math.floor(linea_casa))
@@ -307,8 +331,8 @@ modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🔍 Escáner Automático Multi-Deporte (+EV)",
         "🛡️ Sistema Pro NFL",
+        "🔍 Escáner Automático Multi-Deporte (+EV)",
         "🏀 Sistema Pro NBA",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "⚾ Béisbol & LMP",
@@ -324,7 +348,7 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULO PRINCIPAL: SISTEMA PRO NCAAF (100% MANUAL Y FLUIDO)
+# 1. SISTEMA PRO NCAAF (100% MANUAL Y FLUIDO)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
@@ -335,19 +359,19 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   col_eq1, col_eq2 = st.columns(2)
   with col_eq1:
     equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
-    off_visita_pts = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5)
-    def_visita_pts = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5)
-    fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)")
-    lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado")
+    off_visita_pts = st.number_input("Puntos Anotados (Visita):", value=28.5, step=0.5, key="ncaaf_ov")
+    def_visita_pts = st.number_input("Puntos Permitidos (Visita):", value=17.0, step=0.5, key="ncaaf_dv")
+    fatiga_visita = st.checkbox("⚠️ Visitante sin descanso (Bye Week ausente)", key="ncaaf_fv")
+    lesion_qb_visita = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado", key="ncaaf_lqbv")
   with col_eq2:
     equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
-    off_local_pts = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5)
-    def_local_pts = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5)
-    fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)")
-    lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado")
+    off_local_pts = st.number_input("Puntos Anotados (Local):", value=34.0, step=0.5, key="ncaaf_ol")
+    def_local_pts = st.number_input("Puntos Permitidos (Local):", value=12.5, step=0.5, key="ncaaf_dl")
+    fatiga_local = st.checkbox("⚠️ Local sin descanso (Bye Week ausente)", key="ncaaf_fl")
+    lesion_qb_local = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado", key="ncaaf_lqbl")
 
   tipo_mercado = st.selectbox(
-      "Selecciona el Mercado a Analizar:",
+      "Selecciona el Mercado a Analizar (NCAAF):",
       [
           "Spread (Hándicap con Lesiones y Fatiga)", 
           "Total Over / Under (Altas y Bajas Avanzadas - Poisson)"
@@ -356,8 +380,8 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
   if tipo_mercado == "Spread (Hándicap con Lesiones y Fatiga)":
     seleccion_equipo = st.text_input("Equipo Seleccionado para el Spread:", value="Ohio State Buckeyes (-3.5)")
-    spread_casino = st.number_input("Línea de Spread del Casino (Ej. -3.5):", value=-3.5, step=0.5)
-    momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
+    spread_casino = st.number_input("Línea de Spread del Casino (Ej. -3.5):", value=-3.5, step=0.5, key="ncaaf_sc")
+    momio_manual = st.number_input("Momio Americano:", value=-110, step=5, key="ncaaf_mm")
     
     if st.button("🚀 Ejecutar Modelo Matemático Avanzado de Spread", use_container_width=True):
       prob_calc, margen_proyectado = motor_matematico_ncaaf_spread(off_local_pts, def_local_pts, off_visita_pts, def_visita_pts, spread_casino, 3.0, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
@@ -370,10 +394,10 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
           "prob": prob_calc
       }
 
-  else:  # Totales con Poisson y Lesiones de QB
-    linea_casa_ou = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=51.5, step=0.5)
-    opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True)
-    momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
+  else:  
+    linea_casa_ou = st.number_input("Línea Total de Puntos de la Casa (O/U):", value=51.5, step=0.5, key="ncaaf_lco")
+    opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True, key="ncaaf_oou")
+    momio_manual = st.number_input("Momio Americano:", value=-110, step=5, key="ncaaf_mmo")
 
     if st.button("🚀 Ejecutar Modelo Matemático Avanzado de Totales", use_container_width=True):
       prob_over_calc, lambda_proyectado = motor_matematico_ncaaf_totales(off_local_pts, def_local_pts, off_visita_pts, def_visita_pts, linea_casa_ou, fatiga_visita, fatiga_local, lesion_qb_local, lesion_qb_visita)
@@ -412,12 +436,103 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
       if st.button("📤 Enviar Alerta a Telegram", key="enviar_telegram_ncaaf"):
         msg = f"🎓 *ALERTA NCAAF ÉLITE*\n🏟️ {res['partido']}\n📊 {res['mercado']}\n📈 Momio: {res['momio']} | Edge: +{edge_man:.2f}%\n💰 Stake: ${stake_man} MXN"
         ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
-        if ok:
-          st.success(res_tel)
-        else:
-          st.error(res_tel)
+        if ok: st.success(res_tel)
+        else: st.error(res_tel)
   else:
     st.info("Ingresa los datos arriba y presiona el botón para generar el análisis definitivo.")
+
+
+# =========================================================
+# 2. SISTEMA PRO NFL (NUEVO MÓDULO PROFESIONAL BLINDADO)
+# =========================================================
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
+  st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
+  st.markdown("--- \n *Módulo profesional de la NFL con Power Ratings calibrados para la liga, distribución normal, modelo de Poisson y matriz de impacto por lesión de mariscal de campo.*")
+
+  st.subheader("✍️ Estadísticas Promedio & Reporte de Lesiones NFL")
+  
+  col_nfl1, col_nfl2 = st.columns(2)
+  with col_nfl1:
+    equipo_visita_nfl = st.text_input("Equipo Visitante (NFL):", value="Kansas City Chiefs")
+    off_visita_nfl = st.number_input("Puntos Anotados (Visita NFL):", value=26.0, step=0.5, key="nfl_ov")
+    def_visita_nfl = st.number_input("Puntos Permitidos (Visita NFL):", value=19.5, step=0.5, key="nfl_dv")
+    lesion_qb_visita_nfl = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Visitante Lesionado", key="nfl_lqbv")
+  with col_nfl2:
+    equipo_local_nfl = st.text_input("Equipo Local (NFL):", value="Buffalo Bills")
+    off_local_nfl = st.number_input("Puntos Anotados (Local NFL):", value=27.5, step=0.5, key="nfl_ol")
+    def_local_nfl = st.number_input("Puntos Permitidos (Local NFL):", value=18.0, step=0.5, key="nfl_dl")
+    lesion_qb_local_nfl = st.checkbox("🚨 BAJA CRÍTICA: QB Titular Local Lesionado", key="nfl_lqbl")
+
+  tipo_mercado_nfl = st.selectbox(
+      "Selecciona el Mercado a Analizar (NFL):",
+      [
+          "Spread (Hándicap Profesional NFL)", 
+          "Total Over / Under (Altas y Bajas NFL - Poisson)"
+      ]
+  )
+
+  if tipo_mercado_nfl == "Spread (Hándicap Profesional NFL)":
+    seleccion_equipo_nfl = st.text_input("Equipo Seleccionado para el Spread NFL:", value="Buffalo Bills (-2.5)")
+    spread_casino_nfl = st.number_input("Línea de Spread del Casino (Ej. -2.5):", value=-2.5, step=0.5, key="nfl_sc")
+    momio_manual_nfl = st.number_input("Momio Americano (NFL):", value=-110, step=5, key="nfl_mm")
+    
+    if st.button("🚀 Ejecutar Modelo Matemático Profesional NFL (Spread)", use_container_width=True):
+      prob_calc_nfl, margen_proyectado_nfl = motor_matematico_nfl_spread(off_local_nfl, def_local_nfl, off_visita_nfl, def_visita_nfl, spread_casino_nfl, lesion_qb_local_nfl, lesion_qb_visita_nfl)
+      mercado_manual_nfl = f"Spread NFL: {seleccion_equipo_nfl} (Línea: {spread_casino_nfl} | Proyectado: {margen_proyectado_nfl:+1.1f} pts)"
+      
+      st.session_state["resultado_nfl_calculado"] = {
+          "partido": f"{equipo_visita_nfl} @ {equipo_local_nfl}",
+          "mercado": mercado_manual_nfl,
+          "momio": int(momio_manual_nfl),
+          "prob": prob_calc_nfl
+      }
+
+  else:  
+    linea_casa_ou_nfl = st.number_input("Línea Total de Puntos de la Casa (O/U NFL):", value=48.5, step=0.5, key="nfl_lco")
+    opcion_ou_nfl = st.radio("Selección Totales NFL:", ["Over (Altas)", "Under (Bajas)"], horizontal=True, key="nfl_oou")
+    momio_manual_nfl = st.number_input("Momio Americano (NFL):", value=-110, step=5, key="nfl_mmo")
+
+    if st.button("🚀 Ejecutar Modelo Matemático Profesional NFL (Totales)", use_container_width=True):
+      prob_over_calc_nfl, lambda_proyectado_nfl = motor_matematico_nfl_totales(off_local_nfl, def_local_nfl, off_visita_nfl, def_visita_nfl, linea_casa_ou_nfl, lesion_qb_local_nfl, lesion_qb_visita_nfl)
+      probabilidad_calculada_nfl = prob_over_calc_nfl if "Over" in opcion_ou_nfl else (100.0 - prob_over_calc_nfl)
+      mercado_manual_nfl = f"Total {opcion_ou_nfl} ({linea_casa_ou_nfl} pts) [Modelo Lambda NFL: {lambda_proyectado_nfl}]"
+      
+      st.session_state["resultado_nfl_calculado"] = {
+          "partido": f"{equipo_visita_nfl} @ {equipo_local_nfl}",
+          "mercado": mercado_manual_nfl,
+          "momio": int(momio_manual_nfl),
+          "prob": round(probabilidad_calculada_nfl, 2)
+      }
+
+  st.markdown("---")
+  st.subheader("📌 Resultado del Análisis NFL (Fijo e Inalterable)")
+
+  if st.session_state["resultado_nfl_calculado"]:
+    res_nfl = st.session_state["resultado_nfl_calculado"]
+    _, edge_man_nfl = calcular_edge_real(res_nfl["momio"], res_nfl["prob"])
+    stake_man_nfl = calcular_criterio_kelly(st.session_state["bankroll_global"], res_nfl["prob"], res_nfl["momio"])
+
+    st.success(f"🎯 Análisis NFL guardado y fijo para: **{res_nfl['partido']}**")
+    st.metric(label="📊 Probabilidad Científica Calculada por el Modelo NFL", value=f"{res_nfl['prob']}%")
+
+    st.info(
+        f"🎯 **Apuesta Sugerida:** `{res_nfl['mercado']}` \n"
+        f"📈 **Cuota:** `{res_nfl['momio']}` | 🎯 **Edge Neto (+EV):** `+{edge_man_nfl:.2f}%` | 💡 **Stake Óptimo (Kelly 25%):** `${stake_man_nfl} MXN`"
+    )
+
+    col_sbn1, col_sbn2 = st.columns(2)
+    with col_sbn1:
+      if st.button("📥 Guardar en Base de Datos SQLite (NFL)", key="guardar_sqlite_nfl"):
+        registrar_apuesta_db(fecha_formato_str, "NFL Élite", res_nfl["partido"], res_nfl["mercado"], res_nfl["momio"], edge_man_nfl, stake_man_nfl)
+        st.success("✅ ¡Apuesta NFL guardada con éxito en SQLite!")
+    with col_sbn2:
+      if st.button("📤 Enviar Alerta a Telegram (NFL)", key="enviar_telegram_nfl"):
+        msg = f"🛡️ *ALERTA NFL ÉLITE*\n🏟️ {res_nfl['partido']}\n📊 {res_nfl['mercado']}\n📈 Momio: {res_nfl['momio']} | Edge: +{edge_man_nfl:.2f}%\n💰 Stake: ${stake_man_nfl} MXN"
+        ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
+        if ok: st.success(res_tel)
+        else: st.error(res_tel)
+  else:
+    st.info("Ingresa los datos arriba y presiona el botón para generar el análisis definitivo de la NFL.")
 
 
 # =========================================================
@@ -430,10 +545,10 @@ elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
   for idx, p in enumerate(cartelera[:10], 1):
     st.info(f"🏈 NFL #{idx}: `{p['partido_str']}` | **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
 
-elif modulo_seleccionado in ["🛡️ Sistema Pro NFL", "🏀 Sistema Pro NBA", "⚽ Módulo Pro Fútbol (Soccer)"]:
+elif modulo_seleccionado in ["🏀 Sistema Pro NBA", "⚽ Módulo Pro Fútbol (Soccer)"]:
   st.title(f"📌 **{modulo_seleccionado} [{fecha_formato_str}]**")
   api_key = st.session_state["api_key_guardada"]
-  skey = "americanfootball_nfl" if "NFL" in modulo_seleccionado else ("basketball_nba" if "NBA" in modulo_seleccionado else "soccer_epl")
+  skey = "basketball_nba" if "NBA" in modulo_seleccionado else "soccer_epl"
   cartelera = obtener_partidos_y_momios_api(skey, api_key)
   for idx, p in enumerate(cartelera[:10], 1):
     st.info(f"• `{p['partido_str']}` — **{p['mercado']}** | Cuota: `{p['momio']}` | Edge: `+{p['edge']:.2f}%`")
@@ -540,8 +655,7 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
       
       msg = f"⚖️ *ALERTA DE ARBITRAJE (SUREBET)*\n📈 ROI: +{roi_arb:.2f}%\n💵 Ganancia: ${ganancia_garantizada:,.2f} MXN\n📌 Casa A ({cuota_a}): ${stake_a:,.2f}\n📌 Casa B ({cuota_b}): ${stake_b:,.2f}"
       ok, res_tel = enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], msg)
-      if ok:
-        st.success("📤 ¡Alerta de Surebet enviada a Telegram con éxito!")
+      if ok: st.success("📤 ¡Alerta de Surebet enviada a Telegram con éxito!")
     else:
       st.error(f"❌ Sin arbitraje. La suma implícita es {implied_sum*100:.2f}% (superior al 100%).")
 
