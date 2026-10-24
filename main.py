@@ -1005,6 +1005,89 @@ elif (
 
 
 # =========================================================
+# 7. NCAA (ROBOT UNIVERSITARIO CON FILTRO INTELIGENTE)
+# =========================================================
+elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
+  st.title(f"🎓 **Robot Universitario NCAA — Élite [{fecha_formato_str}]**")
+  st.markdown(
+      "--- \n *Filtro inteligente de cartelera universitaria conectado a The"
+      " Odds API.*"
+  )
+
+  tipo_ncaa = st.selectbox(
+      "📚 Selecciona la categoría NCAA:",
+      [
+          "🏈 Fútbol Americano Universitario (NCAAF)",
+          "🏀 Básquetbol Universitario (NCAAB)",
+      ],
+  )
+  sport_key_ncaa = (
+      "americanfootball_ncaaf"
+      if "Fútbol" in tipo_ncaa
+      else "basketball_ncaab"
+  )
+  api_key = st.session_state["api_key_guardada"]
+
+  cartelera_ncaa = obtener_partidos_y_momios_api(sport_key_ncaa, api_key)
+
+  if cartelera_ncaa:
+    st.success(
+        f"🎯 Se encontraron **{len(cartelera_ncaa)}** selecciones en la"
+        " cartelera NCAA de hoy."
+    )
+    # Filtramos para mostrar solo los mejores juegos ordenados por mayor Edge
+    cartelera_ordenada = sorted(
+        cartelera_ncaa, key=lambda x: x["edge"], reverse=True
+    )
+    
+    for idx, item in enumerate(cartelera_ordenada[:10], 1):
+      st.markdown(
+          f"### 🎓 Partido #{idx}: `{item['partido_str']}`\n• 🎯 Apuesta"
+          f" Recomendada: **{item['mercado']}**"
+      )
+      st.info(
+          f"📈 Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**"
+          f" | 💡 **Stake (Kelly): `${item['stake']} MXN`**"
+      )
+      
+      col_n1, col_n2 = st.columns(2)
+      with col_n1:
+        if st.button(f"📥 Guardar en SQLite (NCAA #{idx})", key=f"db_ncaa_{idx}"):
+          registrar_apuesta_db(
+              fecha_formato_str,
+              "NCAA",
+              item["partido_str"],
+              item["mercado"],
+              item["momio"],
+              item["edge"],
+              item["stake"],
+          )
+          st.success("✅ ¡Guardado en base de datos!")
+      with col_n2:
+        if st.button(f"📤 Enviar a Telegram (NCAA #{idx})", key=f"tg_ncaa_{idx}"):
+          msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAA*
+🏟️ {item['partido_str']}
+📊 Apuesta: {item['mercado']}
+📈 Cuota: {item['momio']} | Edge: +{item['edge']:.2f}%
+💰 Stake (Kelly): ${item['stake']} MXN"""
+          ok, res = enviar_alerta_telegram(
+              st.session_state["telegram_token"],
+              st.session_state["telegram_chat_id"],
+              msg,
+          )
+          if ok:
+            st.success(res)
+          else:
+            st.error(res)
+      st.markdown("---")
+  else:
+    st.warning(
+        "⚠️ No hay cartelera activa en este momento para la categoría"
+        " seleccionada o falta configurar tu API Key en la barra lateral."
+    )
+
+
+# =========================================================
 # 13. BANKROLL Y CLV
 # =========================================================
 elif modulo_seleccionado == "📊 Analítica, Control de Bankroll & Registro CLV":
