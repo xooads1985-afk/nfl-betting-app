@@ -1,6 +1,7 @@
 streamlit
 pandas
-requests
+numpy
 scipy
-playwright
-playwright-stealth
+scikit-learn
+nfl-data-py
+requests
