@@ -40,7 +40,7 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun", "extractor_vivo"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -251,7 +251,7 @@ def generar_ticket_nba_props_puro(jugadas_procesadas, fecha_str="Noche de Apuest
 
 
 # =========================================================
-# MOTORES PRO Y DEPORTIVOS RESTANTES
+# MOTORES PRO Y DEPORTIVOS
 # =========================================================
 def calcular_probabilidad_ufc_avanzada(metricas_a, metricas_b, contexto_combate):
   striking_a, defense_a, td_def_a, finish_a = metricas_a["striking"], metricas_a["defense"], metricas_a["td_def"], metricas_a["finish"]
@@ -369,7 +369,6 @@ st.sidebar.markdown("---")
 modulo_seleccionado = st.sidebar.radio(
     "Selecciona el módulo:",
     [
-        "🌐 Extractor Automático en Vivo (Playdoit)",
         "⚽ Prop: Fútbol Soccer Común (Playdoit)",
         "🥊 Prop: UFC / MMA Común",
         "🛡️ Prop: NFL Común (Playdoit)",
@@ -392,19 +391,9 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# MÓDULOS DE PLAYER PROPS Y EXTRACCIÓN
+# MÓDULOS DE PLAYER PROPS
 # =========================================================
-if modulo_seleccionado == "🌐 Extractor Automático en Vivo (Playdoit)":
-  st.title(f"🌐 **Extractor Automático en Vivo [{fecha_formato_str}]**")
-  st.markdown("--- \n *Módulo de escaneo de cuotas en tiempo real.*")
-  st.info("ℹ️ Nota: En este entorno en la nube, el navegador automatizado está desactivado por restricciones del servidor. Puedes ingresar tus líneas manualmente en cada módulo de props o usar el Escáner Multi-Deporte.")
-  
-  url_objetivo = st.text_input("URL Objetivo:", value="https://playdoit.mx")
-  if st.button("🚀 Simular Conexión y Escaneo", use_container_width=True):
-    st.success("¡Conexión establecida correctamente con la plataforma! Usa los módulos de la izquierda para analizar tus partidos.")
-
-
-elif modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
+if modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
   st.title(f"⚽ **Props: Fútbol Soccer Común [{fecha_formato_str}]**")
   st.markdown("--- \n *Análisis de Goles, Remates a Puerta, Faltas y Tarjetas con Distribución de Poisson.*")
   
@@ -563,7 +552,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
 
 
 # =========================================================
-# SISTEMAS PRO RESTANTES
+# SISTEMAS PRO
 # =========================================================
 elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
   st.title(f"🥊 **Sistema Pro UFC / MMA Élite [{fecha_formato_str}]**")
