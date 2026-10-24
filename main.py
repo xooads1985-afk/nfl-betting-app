@@ -1012,12 +1012,16 @@ elif (
 
 
 # =========================================================
-# 7. NCAA (FÚTBOL AMERICANO UNIVERSITARIO EXCLUSIVO)
+# 7. NCAA (FÚTBOL AMERICANO UNIVERSITARIO - FILTRADO POR EDGE)
 # =========================================================
 elif modulo_seleccionado == "🎓 NCAA (Fútbol Americano Universitario & Hándicap)":
   st.title(f"🎓 **Robot NCAAF (Fútbol Americano Universitario) — Élite [{fecha_formato_str}]**")
   st.markdown(
-      "--- \n *Filtro inteligente de cartelera de fútbol americano colegial conectado a The Odds API.*"
+      "--- \n *Filtro inteligente de cartelera de fútbol americano colegial con Edge estricto e instrucción de apuesta clara.*"
+  )
+
+  edge_min_ncaa = st.slider(
+      "🎯 Filtro de Edge Mínimo Requerido para NCAAF (%):", 0.0, 15.0, 3.0, 0.5, key="slider_ncaa_edge"
   )
 
   sport_key_ncaa = "americanfootball_ncaaf"
@@ -1026,53 +1030,58 @@ elif modulo_seleccionado == "🎓 NCAA (Fútbol Americano Universitario & Hándi
   cartelera_ncaa = obtener_partidos_y_momios_api(sport_key_ncaa, api_key)
 
   if cartelera_ncaa:
-    st.success(
-        f"🎯 Se encontraron **{len(cartelera_ncaa)}** selecciones con valor en la cartelera de NCAAF de hoy."
-    )
-    cartelera_ordenada = sorted(
-        cartelera_ncaa, key=lambda x: x["edge"], reverse=True
-    )
-    
-    for idx, item in enumerate(cartelera_ordenada[:12], 1):
-      st.markdown(
-          f"### 🎓 Partido #{idx}: `{item['partido_str']}`\n• 🎯 Apuesta"
-          f" Recomendada: **{item['mercado']}**"
-      )
-      st.info(
-          f"📈 Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**"
-          f" | 💡 **Stake (Kelly): `${item['stake']} MXN`**"
+    # Filtrar estrictamente por el Edge mínimo seleccionado
+    picks_filtrados_ncaa = [p for p in cartelera_ncaa if p["edge"] >= edge_min_ncaa]
+    picks_ordenados_ncaa = sorted(picks_filtrados_ncaa, key=lambda x: x["edge"], reverse=True)
+
+    if picks_ordenados_ncaa:
+      st.success(
+          f"🎯 Se encontraron **{len(picks_ordenados_ncaa)}** selecciones con valor real (Edge >= {edge_min_ncaa}%) en NCAAF."
       )
       
-      col_n1, col_n2 = st.columns(2)
-      with col_n1:
-        if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
-          registrar_apuesta_db(
-              fecha_formato_str,
-              "NCAAF",
-              item["partido_str"],
-              item["mercado"],
-              item["momio"],
-              item["edge"],
-              item["stake"],
-          )
-          st.success("✅ ¡Guardado en base de datos!")
-      with col_n2:
-        if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
-          msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
+      for idx, item in enumerate(picks_ordenados_ncaa[:12], 1):
+        st.markdown(
+            f"### 🎓 Pick Recomendado #{idx}: `{item['partido_str']}`\n• 🎯 **Apuesta Exacta:** `{item['mercado']}`"
+        )
+        st.info(
+            f"📈 Cuota: `{item['momio']}` | 🎯 **Edge Neto: `+{item['edge']:.2f}%`**"
+            f" | 💡 **Stake (Kelly): `${item['stake']} MXN`**"
+        )
+        
+        col_n1, col_n2 = st.columns(2)
+        with col_n1:
+          if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
+            registrar_apuesta_db(
+                fecha_formato_str,
+                "NCAAF",
+                item["partido_str"],
+                item["mercado"],
+                item["momio"],
+                item["edge"],
+                item["stake"],
+            )
+            st.success("✅ ¡Guardado en base de datos!")
+        with col_n2:
+          if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
+            msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
 🏟️ {item['partido_str']}
 📊 Apuesta: {item['mercado']}
 📈 Cuota: {item['momio']} | Edge: +{item['edge']:.2f}%
 💰 Stake (Kelly): ${item['stake']} MXN"""
-          ok, res = enviar_alerta_telegram(
-              st.session_state["telegram_token"],
-              st.session_state["telegram_chat_id"],
-              msg,
-          )
-          if ok:
-            st.success(res)
-          else:
-            st.error(res)
-      st.markdown("---")
+            ok, res = enviar_alerta_telegram(
+                st.session_state["telegram_token"],
+                st.session_state["telegram_chat_id"],
+                msg,
+            )
+            if ok:
+              st.success(res)
+            else:
+              st.error(res)
+        st.markdown("---")
+    else:
+      st.warning(
+          f"⚠️ No hay partidos en NCAAF que superen el filtro actual de Edge ({edge_min_ncaa}%). Baja el slider para ver más opciones."
+      )
   else:
     st.warning(
         "⚠️ No hay cartelera activa de Fútbol Americano Universitario (NCAAF) en este momento."
