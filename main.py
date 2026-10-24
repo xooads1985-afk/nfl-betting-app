@@ -1072,11 +1072,11 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + EMA + QB BUST)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + EXPORTACIÓN EXCEL)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado (EMA & QB Status) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con ponderación exponencial por recencia y alta velocidad operativa.*")
+  st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo inteligente con ponderación exponencial, alertas de valor y exportación a Excel.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
@@ -1156,9 +1156,45 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     st.info(f"**Recomendación Spread:** {rec_spread}")
     st.info(f"**Recomendación Total:** {rec_total}")
     
+    # Guardar en session_state para exportación limpia
+    st.session_state["ultimo_resultado_nfl"] = [{
+        'Fecha': fecha_formato_str,
+        'Partido': f"{away_team.upper()} @ {home_team.upper()}",
+        'Spread Proyectado': round(pred_spread, 1),
+        'Spread Casa': bookie_spread,
+        'Total Proyectado': round(pred_total, 1),
+        'Total Casa': bookie_total,
+        'Recomendación Spread': rec_spread,
+        'Recomendación Total': rec_total,
+    }]
+
     if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
       registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"Spread Proy: {pred_spread:.1f}", -110, abs(ventaja_spread), 250.0)
       st.success("¡Apuesta NFL guardada con éxito en SQLite!")
+
+  # ── SECCIÓN DE EXPORTACIÓN A EXCEL ──────────────────────────
+  if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
+    st.markdown("---")
+    st.subheader("📊 Reporte y Exportación a Excel")
+    if st.button("📊 Generar Archivo Excel (.xlsx)", key="btn_gen_excel"):
+      df_export = pd.DataFrame(st.session_state["ultimo_resultado_nfl"])
+      df_export['Alerta_Valor'] = np.where(
+          (df_export['Recomendación Spread'] != 'SIN APUESTA DE VALOR') | 
+          (df_export['Recomendación Total'] != 'SIN APUESTA DE VALOR'), 
+          '¡SÍ (+EV)!', 'No'
+      )
+      
+      file_name = f"proyecciones_nfl_{fecha_formato_str}.xlsx"
+      df_export.to_excel(file_name, index=False, sheet_name='Semana Actual')
+      
+      with open(file_name, "rb") as f:
+        st.download_button(
+            label="📥 Descargar Reporte Excel",
+            data=f,
+            file_name=file_name,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+      st.success("¡El archivo Excel está listo para descargarse!")
 
 
 # =========================================================
