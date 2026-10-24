@@ -435,7 +435,7 @@ def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino
 
 
 # =========================================================
-# 5. MOTOR PRO NCAAF
+# 5. SISTEMA PRO NCAAF
 # =========================================================
 POWER_RATINGS_BASE_NCAAF = {
     "Georgia Bulldogs": 96.0, "Texas Longhorns": 95.0, "Alabama Crimson Tide": 93.5,
@@ -476,44 +476,62 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. MOTOR PRO NFL (CON MACHINE LEARNING GRADIENT BOOSTING)
+# 6. SISTEMA PRO NFL (CON MACHINE LEARNING + EMA + QB BUST)
 # =========================================================
 @st.cache_resource
-def entrenar_modelo_nfl_ml():
+def entrenar_modelo_nfl_ml_avanzado():
   import nfl_data_py as nfl
   years_train = [2022, 2023, 2024, 2025]
   try:
     pbp = nfl.import_pbp_data(years_train)
     schedule = nfl.import_schedules(years_train)
+    weekly_stats = nfl.import_weekly_data(years_train)
     
     pbp_clean = pbp[pbp['play_type'].isin(['pass', 'run'])].dropna(subset=['epa']).copy()
-    team_stats = pbp_clean.groupby(['season', 'posteam']).agg(
+    
+    # Agrupación semana a semana para aplicar EMA (Ponderación por recencia)
+    stats_semanales = pbp_clean.groupby(['season', 'week', 'posteam']).agg(
         off_epa=('epa', 'mean'),
-        off_success_rate=('success', 'mean')
+        off_success=('success', 'mean')
     ).reset_index().rename(columns={'posteam': 'team'})
     
-    def_stats = pbp_clean.groupby(['season', 'defteam']).agg(
+    def_semanales = pbp_clean.groupby(['season', 'week', 'defteam']).agg(
         def_epa=('epa', 'mean')
     ).reset_index().rename(columns={'defteam': 'team'})
     
-    team_metrics = pd.merge(team_stats, def_stats, on=['season', 'team'])
-    games = schedule.dropna(subset=['home_score', 'away_score']).copy()
+    metricas_tiempo_real = pd.merge(stats_semanales, def_semanales, on=['season', 'week', 'team'])
+    metricas_tiempo_real = metricas_tiempo_real.sort_values(by=['season', 'team', 'week']).reset_index(drop=True)
     
+    # Aplicar EMA (Exponential Moving Average con alpha=0.3)
+    metricas_tiempo_real['off_epa_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['off_epa'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
+    metricas_tiempo_real['def_epa_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['def_epa'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
+    metricas_tiempo_real['success_ema'] = metricas_tiempo_real.groupby(['season', 'team'])['off_success'].transform(lambda x: x.ewm(alpha=0.3, adjust=False).mean())
+
+    # Tomar la última semana disponible por equipo para el rendimiento actual
+    team_metrics = metricas_tiempo_real.groupby(['season', 'team']).last().reset_index()
+
+    # Mapeo de QB Titular por intentos de pase
+    qb_stats = weekly_stats[weekly_stats['position'] == 'QB'].copy()
+    qb_totales = qb_stats.groupby(['season', 'recent_team', 'player_id'])['pass_attempts'].sum().reset_index()
+    qb_titulares = qb_totales.sort_values(by='pass_attempts', ascending=False).groupby(['season', 'recent_team']).first().reset_index()
+    dict_titulares = {(row['season'], row['recent_team']): row['player_id'] for _, row in qb_titulares.iterrows()}
+
+    games = schedule.dropna(subset=['home_score', 'away_score']).copy()
     games['target_spread'] = games['home_score'] - games['away_score']
     games['target_total'] = games['home_score'] + games['away_score']
     
-    games = pd.merge(games, team_metrics, left_on=['season', 'home_team'], right_on=['season', 'team']).rename(
-        columns={'off_epa': 'home_off_epa', 'def_epa': 'home_def_epa', 'off_success_rate': 'home_success_rate'}).drop(columns=['team'])
+    games = pd.merge(games, team_metrics[['season', 'team', 'off_epa_ema', 'def_epa_ema', 'success_ema']], left_on=['season', 'home_team'], right_on=['season', 'team']).rename(
+        columns={'off_epa_ema': 'home_off_epa', 'def_epa_ema': 'home_def_epa', 'success_ema': 'home_success_rate'}).drop(columns=['team'])
         
-    games = pd.merge(games, team_metrics, left_on=['season', 'away_team'], right_on=['season', 'team']).rename(
-        columns={'off_epa': 'away_off_epa', 'def_epa': 'away_def_epa', 'off_success_rate': 'away_success_rate'}).drop(columns=['team'])
+    games = pd.merge(games, team_metrics[['season', 'team', 'off_epa_ema', 'def_epa_ema', 'success_ema']], left_on=['season', 'away_team'], right_on=['season', 'team']).rename(
+        columns={'off_epa_ema': 'away_off_epa', 'def_epa_ema': 'away_def_epa', 'success_ema': 'away_success_rate'}).drop(columns=['team'])
     
     games['wind'] = np.where(games['roof'].isin(['dome', 'closed']), 0, games['wind'].fillna(0))
     
     features = ['home_off_epa', 'home_def_epa', 'home_success_rate', 'away_off_epa', 'away_def_epa', 'away_success_rate', 'wind']
-    X = games[features]
-    y_spread = games['target_spread']
-    y_total = games['target_total']
+    X = games[features].dropna()
+    y_spread = games.loc[X.index, 'target_spread']
+    y_total = games.loc[X.index, 'target_total']
     
     model_spread = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=4, random_state=42)
     model_spread.fit(X, y_spread)
@@ -521,9 +539,9 @@ def entrenar_modelo_nfl_ml():
     model_total = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=4, random_state=42)
     model_total.fit(X, y_total)
     
-    return model_spread, model_total, team_metrics, True
+    return model_spread, model_total, team_metrics, dict_titulares, True
   except Exception as e:
-    return None, None, pd.DataFrame(), False
+    return None, None, pd.DataFrame(), {}, False
 
 
 # =========================================================
@@ -1081,35 +1099,41 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING GRADIENT BOOSTING INTEGRADO)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + EMA + QB BUST)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL con Machine Learning (EPA & Gradient Boosting) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente entrenado con datos PBP históricos de la NFL.*")
+  st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado (EMA & QB Status) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo inteligente con ponderación exponencial por recencia y ajuste automático por lesión de mariscal de campo.*")
 
-  with st.spinner("Cargando y entrenando modelos de Machine Learning para la NFL... (Esto puede tomar unos segundos)"):
-    m_spread, m_total, df_metricas, modelo_ok = entrenar_modelo_nfl_ml()
+  with st.spinner("Cargando datos PBP, entrenando modelos y calculando medias móviles (EMA)..."):
+    m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
 
   if not modelo_ok:
-    st.error("⚠️ No se pudieron descargar los datos históricos de nfl_data_py (requiere conexión a internet). Se usarán estimaciones estándar.")
+    st.error("⚠️ No se pudieron descargar los datos históricos de nfl_data_py. Verifica tu conexión a internet.")
   else:
-    st.success("✅ Modelos de Gradient Boosting entrenados con éxito.")
+    st.success("✅ Modelos de Gradient Boosting y optimizaciones EMA cargados con éxito.")
 
   col_nfl1, col_nfl2 = st.columns(2)
   with col_nfl1:
-    home_team = st.text_input("Equipo Local (Abreviatura ej. KC, SF, PHI):", value="KC", key="nfl_ml_home")
+    home_team = st.text_input("Equipo Local (Ej. KC, SF, PHI):", value="KC", key="nfl_ml_home")
   with col_nfl2:
-    away_team = st.text_input("Equipo Visitante (Abreviatura ej. BUF, SEA, DAL):", value="BUF", key="nfl_ml_away")
+    away_team = st.text_input("Equipo Visitante (Ej. BUF, SEA, DAL):", value="BUF", key="nfl_ml_away")
 
   col_nfl3, col_nfl4 = st.columns(2)
   with col_nfl3:
-    bookie_spread = st.number_input("Spread de la Casa (para el Local):", value=-3.5, step=0.5, key="nfl_ml_bsp")
+    qb_local_suplente = st.checkbox("⚠️ ¿QB Titular Local Lesionado / Suplente?", key="nfl_qb_loc_sup")
   with col_nfl4:
+    qb_visita_suplente = st.checkbox("⚠️ ¿QB Titular Visitante Lesionado / Suplente?", key="nfl_qb_vis_sup")
+
+  col_nfl5, col_nfl6 = st.columns(2)
+  with col_nfl5:
+    bookie_spread = st.number_input("Spread de la Casa (para el Local):", value=-3.5, step=0.5, key="nfl_ml_bsp")
+  with col_nfl6:
     bookie_total = st.number_input("Total de Puntos de la Casa (O/U):", value=47.5, step=0.5, key="nfl_ml_btot")
 
   wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
-  if st.button("🚀 Ejecutar Predicción Inteligente NFL", use_container_width=True):
+  if st.button("🚀 Ejecutar Predicción NFL Optimizada", use_container_width=True):
     if modelo_ok and not df_metricas.empty:
       ultima_temporada = df_metricas['season'].max()
       stats_actuales = df_metricas[df_metricas['season'] == ultima_temporada]
@@ -1118,15 +1142,31 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
       away_data = stats_actuales[stats_actuales['team'] == away_team.upper()]
       
       if home_data.empty or away_data.empty:
-        st.error(f"⚠️ No se encontraron estadísticas para '{home_team}' o '{away_team}'. Usa abreviaturas oficiales de la NFL (ej. KC, BUF, SF).")
+        st.error(f"⚠️ No se encontraron estadísticas para '{home_team}' o '{away_team}'. Usa abreviaturas oficiales.")
       else:
+        h_off = home_data['off_epa_ema'].values[0]
+        h_def = home_data['def_epa_ema'].values[0]
+        h_suc = home_data['success_ema'].values[0]
+        
+        a_off = away_data['off_epa_ema'].values[0]
+        a_def = away_data['def_epa_ema'].values[0]
+        a_suc = away_data['success_ema'].values[0]
+        
+        # Aplicar penalización si hay QB suplente
+        if qb_local_suplente:
+          h_off *= 0.75
+          h_suc *= 0.85
+        if qb_visita_suplente:
+          a_off *= 0.75
+          a_suc *= 0.85
+
         input_data = pd.DataFrame([{
-            'home_off_epa': home_data['off_epa'].values[0],
-            'home_def_epa': home_data['def_epa'].values[0],
-            'home_success_rate': home_data['off_success_rate'].values[0],
-            'away_off_epa': away_data['off_epa'].values[0],
-            'away_def_epa': away_data['def_epa'].values[0],
-            'away_success_rate': away_data['off_success_rate'].values[0],
+            'home_off_epa': h_off,
+            'home_def_epa': h_def,
+            'home_success_rate': h_suc,
+            'away_off_epa': a_off,
+            'away_def_epa': a_def,
+            'away_success_rate': a_suc,
             'wind': wind_forecast
         }])
         
@@ -1136,7 +1176,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
         ventaja_spread = pred_spread - bookie_spread
         ventaja_total = pred_total - bookie_total
         
-        st.markdown("### 📊 Resultados de la Proyección Inteligente")
+        st.markdown("### 📊 Resultados de la Proyección Inteligente Optimiza")
         col_res1, col_res2 = st.columns(2)
         col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}", delta=f"{ventaja_spread:+.1f} vs Casa")
         col_res2.metric("Total Proyectado", f"{pred_total:.1f} pts", delta=f"{ventaja_total:+.1f} vs Casa")
@@ -1160,7 +1200,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
           registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"Spread Proy: {pred_spread:.1f}", -110, abs(ventaja_spread), 250.0)
           st.success("¡Apuesta NFL guardada con éxito en SQLite!")
     else:
-      st.warning("⚠️ El modelo de Machine Learning no está disponible sin conexión. Verifica tu entorno.")
+      st.warning("⚠️ El modelo de Machine Learning no está disponible sin conexión.")
 
 
 # =========================================================
