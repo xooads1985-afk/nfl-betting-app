@@ -183,7 +183,7 @@ def calcular_criterio_kelly(
   return round(max(10.0, stake_sugerido), 2)
 
 
-# Motor NCAAF (Congelado y Protegido)
+# Motor NCAAF
 def motor_matematico_ncaaf_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, factor_localia=3.0, fatiga_visita=False, fatiga_local=False, lesion_qb_local=False, lesion_qb_visita=False):
   pr_local = ppg_local - (pap_local * 0.95)
   pr_visita = ppg_visita - (pap_visita * 0.95)
@@ -211,7 +211,7 @@ def motor_matematico_ncaaf_totales(ppg_local, pap_local, ppg_visita, pap_visita,
   return round(prob_over, 2), lambda_ajustado
 
 
-# Motor NFL (Congelado y Protegido)
+# Motor NFL
 def motor_matematico_nfl_spread(ppg_local, pap_local, ppg_visita, pap_visita, spread_casino, lesion_qb_local=False, lesion_qb_visita=False):
   pr_local = ppg_local - (pap_local * 0.98)
   pr_visita = ppg_visita - (pap_visita * 0.98)
@@ -236,18 +236,15 @@ def motor_matematico_nfl_totales(ppg_local, pap_local, ppg_visita, pap_visita, l
   return round(prob_over, 2), lambda_ajustado
 
 
-# Motor NBA (Nuevo - Basado en Ritmo, Eficiencia y Desviación de 12.0 puntos)
+# Motor NBA
 def motor_matematico_nba_spread(off_local, def_local, off_visita, def_visita, spread_casino, b2b_local=False, b2b_visita=False, lesion_star_local=False, lesion_star_visita=False):
-  # Eficiencia neta estimada para la duela
   rating_local = off_local - (def_visita * 0.96)
   rating_visita = off_visita - (def_local * 0.96)
-  
-  if b2b_local: rating_local -= 3.0  # Fatiga Back-to-Back en NBA
+  if b2b_local: rating_local -= 3.0
   if b2b_visita: rating_visita -= 3.0
-  if lesion_star_local: rating_local -= 4.5  # Baja de estrella estelar (ej. Jokic, Doncic, etc.)
+  if lesion_star_local: rating_local -= 4.5
   if lesion_star_visita: rating_visita -= 4.5
-  
-  margen_proyectado = (rating_local + 3.0) - rating_visita  # 3.0 pts de ventaja de localía en NBA
+  margen_proyectado = (rating_local + 3.0) - rating_visita
   desviacion_std_nba = 12.0
   z_score = (margen_proyectado - abs(spread_casino)) / desviacion_std_nba
   prob_cubrir = stats.norm.cdf(z_score) * 100.0
@@ -255,15 +252,13 @@ def motor_matematico_nba_spread(off_local, def_local, off_visita, def_visita, sp
 
 
 def motor_matematico_nba_totales(off_local, def_local, off_visita, def_visita, linea_casa, b2b_local=False, b2b_visita=False):
-  # Puntos proyectados combinados basados en ritmo de anotación de la NBA
   total_esperado = (off_local + off_visita + def_local + def_visita) / 2.0
-  if b2b_local or b2b_visita: total_esperado -= 4.5  # Menos acierto de tiro por cansancio en B2B
-  
+  if b2b_local or b2b_visita: total_esperado -= 4.5
   lambda_ajustado = round(max(80.0, total_esperado * 0.99), 1)
   prob_under = 0.0
   limite = int(math.floor(linea_casa))
   for k in range(limite + 1):
-    prob_under += poisson.pmf(k, lambda_ajustado / 2.5) # Escalado de Poisson para volumen de puntos NBA
+    prob_under += poisson.pmf(k, lambda_ajustado / 2.5)
   prob_over = (1.0 - prob_under) * 100.0
   return round(max(5.0, min(95.0, prob_over)), 2), lambda_ajustado
 
@@ -379,11 +374,11 @@ modulo_seleccionado = st.sidebar.radio(
 
 
 # =========================================================
-# 1. SISTEMA PRO NCAAF (CONGELADO Y SEGURO)
+# 1. SISTEMA PRO NCAAF (100% LIBRE Y MANUAL)
 # =========================================================
 if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF Élite (Fútbol Americano Universitario) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Motor cuantitativo optimizado: ingreso manual directo, Power Ratings, Distribución Normal, Poisson, Fatiga y Lesiones de QB.*")
+  st.markdown("--- \n *Motor cuantitativo optimizado: ingreso manual libre, Power Ratings, Distribución Normal, Poisson, Fatiga y Lesiones de QB.*")
 
   st.subheader("✍️ Estadísticas, Fatiga & Impacto de Lesiones")
   
@@ -474,7 +469,7 @@ if modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 2. SISTEMA PRO NFL (CONGELADO Y SEGURO)
+# 2. SISTEMA PRO NFL (100% LIBRE Y MANUAL)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL Élite [{fecha_formato_str}]**")
@@ -567,7 +562,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
 
 # =========================================================
-# 3. SISTEMA PRO NBA (NUEVO MÓDULO PROFESIONAL BLINDADO)
+# 3. SISTEMA PRO NBA (100% LIBRE Y MANUAL)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
