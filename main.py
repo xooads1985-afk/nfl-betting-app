@@ -180,11 +180,9 @@ def modelo_poisson_totales(lambda_esperado, linea_total):
 def calcular_probabilidad_spread_power_rating(power_rating_local, power_rating_visita, factor_localia, spread_casino):
   """Calcula la probabilidad exacta de cubrir el spread usando diferencia de Power Ratings y distribución normal."""
   diferencia_esperada = (power_rating_local + factor_localia) - power_rating_visita
-  # spread_casino es el hándicap del visitante o local (ej. si local es -3.5, el margen esperado se compara contra -3.5)
-  # Usamos una desviación estándar típica en partidos de football americano universitario (~13.5 puntos)
-.  desviacion_std = 13.5
+  desviacion_std = 13.5
   z_score = (diferencia_esperada - abs(spread_casino)) / desviacion_std
-  prob_ cubrir = stats.norm.cdf(z_score) * 100.0
+  prob_cubrir = stats.norm.cdf(z_score) * 100.0
   return round(max(5.0, min(95.0, prob_cubrir)), 2), round(diferencia_esperada, 1)
 
 
