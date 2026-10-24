@@ -44,6 +44,9 @@ if "telegram_token" not in st.session_state or not st.session_state["telegram_to
 if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
   st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
 
+if "apuestas_manuales_ev" not in st.session_state:
+  st.session_state["apuestas_manuales_ev"] = []
+
 for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
@@ -627,7 +630,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🥊 Prop: UFC / MMA Común",
         "🛡️ Prop: NFL Común (Playdoit)",
         "🏀 Prop: NBA Común (Playdoit)",
-        "🔍 Escáner Automático Multi-Deporte (+EV)",
+        "🔍 Escáner Automático & Manual (+EV)",
         "🥊 Sistema Pro UFC / MMA",
         "⚾ Béisbol Pro (MLB / LMP)",
         "🏒 Hockey Pro (NHL)",
@@ -797,35 +800,67 @@ elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
 
 
 # =========================================================
-# ESCÁNER AUTOMÁTICO MULTI-DEPORTE (+EV)
+# ESCÁNER AUTOMÁTICO & MANUAL (+EV)
 # =========================================================
-elif modulo_seleccionado == "🔍 Escáner Automático Multi-Deporte (+EV)":
-  st.title(f"🔍 **Escáner Automático Multi-Deporte (+EV) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Barrido masivo en tiempo real de cuotas en NBA, NFL, NCAAF, NHL, MLB, Fútbol y UFC para detectar valor matemático positivo.*")
+elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
+  st.title(f"🔍 **Escáner de Valor (+EV) Automático & Manual [{fecha_formato_str}]**")
+  st.markdown("--- \n *Detecta oportunidades de valor positivo conectándote a la API o ingresando tus propios análisis manuales.*")
 
-  api_key = st.session_state["api_key_guardada"]
-  if st.button("🚀 Ejecutar Barrido Global de Oportunidades (+EV)", use_container_width=True):
-    with st.spinner("Conectando con The Odds API y escaneando mercados globales..."):
-      cartelera_global = obtener_partidos_y_momios_api_multideporte(api_key)
-      st.session_state["cartelera_escaner"] = cartelera_global
+  tab_auto, tab_manual = st.tabs(["🌐 Escáner Automático (API)", "✍️ Ingreso Manual (+EV)"])
 
-  if "cartelera_escaner" in st.session_state and st.session_state["cartelera_escaner"]:
-    resultados = st.session_state["cartelera_escaner"]
-    st.success(f"🎯 ¡Se encontraron **{len(resultados)} oportunidades con valor (+EV)** en las ligas activas!")
-    
-    for idx, p in enumerate(resultados, 1):
-      col_esc1, col_esc2, col_esc3 = st.columns([3, 2, 1])
-      with col_esc1:
-        st.markdown(f"**#{idx} [{p['deporte']}]** `{p['partido_str']}`\n*Mercado:* **{p['mercado']}**")
-      with col_esc2:
-        st.markdown(f"Cuota: `{p['momio']}` | Edge: **+{p['edge']:.2f}%**\nStake Sugerido: `${p['stake']} MXN`")
-      with col_esc3:
-        if st.button("📥 Guardar SQLite", key=f"btn_scan_{idx}"):
-          registrar_apuesta_db(fecha_formato_str, p['deporte'], p['partido_str'], p['mercado'], p['momio'], p['edge'], p['stake'])
-          st.success("¡Guardado!")
-      st.markdown("---")
-  else:
-    st.info("Haz clic en el botón superior para iniciar el escaneo masivo de valor en todos los deportes.")
+  with tab_auto:
+    api_key = st.session_state["api_key_guardada"]
+    if st.button("🚀 Ejecutar Barrido Global Automático", use_container_width=True):
+      with st.spinner("Conectando con The Odds API y escaneando mercados globales..."):
+        cartelera_global = obtener_partidos_y_momios_api_multideporte(api_key)
+        st.session_state["cartelera_escaner"] = cartelera_global
+
+    if "cartelera_escaner" in st.session_state and st.session_state["cartelera_escaner"]:
+      resultados = st.session_state["cartelera_escaner"]
+      st.success(f"🎯 ¡Se encontraron **{len(resultados)} oportunidades con valor (+EV)** automáticas!")
+      
+      for idx, p in enumerate(resultados, 1):
+        col_esc1, col_esc2, col_esc3 = st.columns([3, 2, 1])
+        with col_esc1:
+          st.markdown(f"**#{idx} [{p['deporte']}]** `{p['partido_str']}`\n*Mercado:* **{p['mercado']}**")
+        with col_esc2:
+          st.markdown(f"Cuota: `{p['momio']}` | Edge: **+{p['edge']:.2f}%**\nStake Sugerido: `${p['stake']} MXN`")
+        with col_esc3:
+          if st.button("📥 Guardar SQLite", key=f"btn_scan_{idx}"):
+            registrar_apuesta_db(fecha_formato_str, p['deporte'], p['partido_str'], p['mercado'], p['momio'], p['edge'], p['stake'])
+            st.success("¡Guardado!")
+        st.markdown("---")
+    else:
+      st.info("Haz clic en el botón superior para barrer cuotas automáticamente con la API.")
+
+  with tab_manual:
+    st.markdown("### ✍️ Registrar Oportunidad Manualmente")
+    col_m1, col_m2 = st.columns(2)
+    with col_m1:
+      deporte_man = st.selectbox("Deporte:", ["NBA", "NFL", "NCAAF", "NHL", "MLB", "SOCCER", "UFC"], key="man_dep")
+      partido_man = st.text_input("Partido (Ej. Lakers vs Warriors):", value="Lakers vs Warriors", key="man_part")
+      mercado_man = st.text_input("Mercado (Ej. Lakers Spread -3.5):", value="Lakers Spread -3.5", key="man_merc")
+    with col_m2:
+      momio_man = st.number_input("Momio Americano (Ej. -110 o +130):", value=-110, step=5, key="man_mom")
+      prob_real_man = st.number_input("Probabilidad Real Calculada por tu Modelo (%):", value=58.0, step=0.5, key="man_prob")
+
+    if st.button("🔍 Calcular Edge y Evaluar Valor", use_container_width=True):
+      prob_imp, edge_man = calcular_edge_real(int(momio_man), prob_real_man)
+      stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_real_man, int(momio_man))
+      
+      st.markdown("### 📊 Resultado del Análisis Manual")
+      col_res_m1, col_res_m2, col_res_m3 = st.columns(3)
+      col_res_m1.metric("Probabilidad Implícita", f"{prob_imp:.2f}%")
+      col_res_m2.metric("Edge Matemático", f"{edge_man:+.2f}%", delta="Valor Positivo (+EV)" if edge_man > 0 else "Sin Valor")
+      col_res_m3.metric("Stake Sugerido (Kelly)", f"${stake_man} MXN")
+
+      if edge_man > 2.0:
+        st.success("🎯 ¡Excelente oportunidad! Supera el umbral del 2% de Edge positivo.")
+        if st.button("📥 Guardar Apuesta Manual en SQLite", key="save_manual_ev"):
+          registrar_apuesta_db(fecha_formato_str, deporte_man, partido_man, mercado_man, int(momio_man), edge_man, stake_man)
+          st.success("¡Apuesta manual guardada con éxito en tu base de datos!")
+      else:
+        st.warning("⚠️ Esta apuesta tiene un Edge bajo o negativo. No se recomienda arriesgar capital.")
 
 
 # =========================================================
@@ -1156,7 +1191,6 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     st.info(f"**Recomendación Spread:** {rec_spread}")
     st.info(f"**Recomendación Total:** {rec_total}")
     
-    # Guardar en session_state para exportación limpia
     st.session_state["ultimo_resultado_nfl"] = [{
         'Fecha': fecha_formato_str,
         'Partido': f"{away_team.upper()} @ {home_team.upper()}",
@@ -1172,7 +1206,6 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
       registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"Spread Proy: {pred_spread:.1f}", -110, abs(ventaja_spread), 250.0)
       st.success("¡Apuesta NFL guardada con éxito en SQLite!")
 
-  # ── SECCIÓN DE EXPORTACIÓN A EXCEL ──────────────────────────
   if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
     st.subheader("📊 Reporte y Exportación a Excel")
