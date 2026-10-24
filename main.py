@@ -355,7 +355,7 @@ modulo_seleccionado = st.sidebar.radio(
             " Asiático)"
         ),
         "🎯 Módulo Automático de Props Fútbol (Dinámico)",
-        "🎓 NCAA (Robot Universitario & Hándicap)",
+        "🎓 NCAA (Fútbol Americano Universitario & Hándicap)",
         "🥊 Sistema Cuantitativo Pro UFC (Combates)",
         "⚾ Liga Mexicana del Pacífico (LMP)",
         "⚾ Serie Mundial & Béisbol Pro (MLB)",
@@ -1012,41 +1012,28 @@ elif (
 
 
 # =========================================================
-# 7. NCAA (ROBOT UNIVERSITARIO CON FILTRO INTELIGENTE)
+# 7. NCAA (FÚTBOL AMERICANO UNIVERSITARIO EXCLUSIVO)
 # =========================================================
-elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
-  st.title(f"🎓 **Robot Universitario NCAA — Élite [{fecha_formato_str}]**")
+elif modulo_seleccionado == "🎓 NCAA (Fútbol Americano Universitario & Hándicap)":
+  st.title(f"🎓 **Robot NCAAF (Fútbol Americano Universitario) — Élite [{fecha_formato_str}]**")
   st.markdown(
-      "--- \n *Filtro inteligente de cartelera universitaria conectado al sistema"
-      " central.*"
+      "--- \n *Filtro inteligente de cartelera de fútbol americano colegial conectado a The Odds API.*"
   )
 
-  tipo_ncaa = st.selectbox(
-      "📚 Selecciona la categoría NCAA:",
-      [
-          "🏈 Fútbol Americano Universitario (NCAAF)",
-          "🏀 Básquetbol Universitario (NCAAB)",
-      ],
-  )
-  sport_key_ncaa = (
-      "americanfootball_ncaaf"
-      if "Fútbol" in tipo_ncaa
-      else "basketball_ncaab"
-  )
+  sport_key_ncaa = "americanfootball_ncaaf"
   api_key = st.session_state["api_key_guardada"]
 
   cartelera_ncaa = obtener_partidos_y_momios_api(sport_key_ncaa, api_key)
 
   if cartelera_ncaa:
     st.success(
-        f"🎯 Se encontraron **{len(cartelera_ncaa)}** selecciones en la"
-        " cartelera NCAA de hoy."
+        f"🎯 Se encontraron **{len(cartelera_ncaa)}** selecciones con valor en la cartelera de NCAAF de hoy."
     )
     cartelera_ordenada = sorted(
         cartelera_ncaa, key=lambda x: x["edge"], reverse=True
     )
     
-    for idx, item in enumerate(cartelera_ordenada[:10], 1):
+    for idx, item in enumerate(cartelera_ordenada[:12], 1):
       st.markdown(
           f"### 🎓 Partido #{idx}: `{item['partido_str']}`\n• 🎯 Apuesta"
           f" Recomendada: **{item['mercado']}**"
@@ -1058,10 +1045,10 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
       
       col_n1, col_n2 = st.columns(2)
       with col_n1:
-        if st.button(f"📥 Guardar en SQLite (NCAA #{idx})", key=f"db_ncaa_{idx}"):
+        if st.button(f"📥 Guardar en SQLite (NCAAF #{idx})", key=f"db_ncaa_{idx}"):
           registrar_apuesta_db(
               fecha_formato_str,
-              "NCAA",
+              "NCAAF",
               item["partido_str"],
               item["mercado"],
               item["momio"],
@@ -1070,8 +1057,8 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
           )
           st.success("✅ ¡Guardado en base de datos!")
       with col_n2:
-        if st.button(f"📤 Enviar a Telegram (NCAA #{idx})", key=f"tg_ncaa_{idx}"):
-          msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAA*
+        if st.button(f"📤 Enviar a Telegram (NCAAF #{idx})", key=f"tg_ncaa_{idx}"):
+          msg = f"""🎓 *MASTER SUITE ÉLITE — ALERTA NCAAF*
 🏟️ {item['partido_str']}
 📊 Apuesta: {item['mercado']}
 📈 Cuota: {item['momio']} | Edge: +{item['edge']:.2f}%
@@ -1088,8 +1075,7 @@ elif modulo_seleccionado == "🎓 NCAA (Robot Universitario & Hándicap)":
       st.markdown("---")
   else:
     st.warning(
-        "⚠️ No hay cartelera activa en este momento para la categoría"
-        " seleccionada o falta configurar tu API Key en la barra lateral."
+        "⚠️ No hay cartelera activa de Fútbol Americano Universitario (NCAAF) en este momento."
     )
 
 
