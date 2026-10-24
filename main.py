@@ -44,11 +44,12 @@ if "resultado_ncaaf_calculado" not in st.session_state:
 
 
 # ---------------------------------------------------------
-# CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE AVANZADA)
+# CONFIGURACIÓN DE BASE DE DATOS LOCAL (SQLITE ROBUSTA)
 # ---------------------------------------------------------
 def inicializar_db():
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
+  # Crear tabla base si no existe
   cursor.execute("""
         CREATE TABLE IF NOT EXISTS apuestas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,10 +60,14 @@ def inicializar_db():
             momio INTEGER,
             edge REAL,
             stake REAL,
-            resultado TEXT,
-            ganancia_neta REAL
+            resultado TEXT
         )
     """)
+  # Asegurar que la columna ganancia_neta exista en bases de datos anteriores
+  try:
+    cursor.execute("ALTER TABLE apuestas ADD COLUMN ganancia_neta REAL DEFAULT 0.0")
+  except sqlite3.OperationalError:
+    pass # La columna ya existe
   conn.commit()
   conn.close()
 
@@ -143,7 +148,6 @@ def calcular_probabilidad_implicita(momio_americano):
 
 
 def calcular_fair_odds_novig(momio_1, momio_2):
-  """Calcula la probabilidad real sin comisión (No-Vig) para un mercado de 2 vías."""
   p1 = calcular_probabilidad_implicita(momio_1)
   p2 = calcular_probabilidad_implicita(momio_2)
   total = p1 + p2
@@ -174,7 +178,6 @@ def calcular_criterio_kelly(
 
 
 def modelo_poisson_totales(lambda_esperado, linea_total):
-  """Calcula la probabilidad de Over usando la distribución de Poisson."""
   prob_under = 0.0
   limite = int(math.floor(linea_total))
   for k in range(limite + 1):
@@ -355,7 +358,7 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
 
 
 # =========================================================
-# 3. NCAAF (UNIVERSITARIO - CON POISSON Y CÁLCULO ESTABLE)
+# 3. NCAAF
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF (Fútbol Americano Universitario) [{fecha_formato_str}]**")
@@ -476,19 +479,17 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC":
 
 
 # =========================================================
-# 8. BANKROLL Y SQLITE (CON MÉTRICAS AVANZADAS Y GESTIÓN DINÁMICA)
+# 8. BANKROLL Y SQLITE
 # =========================================================
 elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   st.title(f"📊 **Panel de Control, Métricas & Bankroll [{fecha_formato_str}]**")
 
-  # Consultar historial para métricas
   conn = sqlite3.connect("master_suite_elite.db")
   cursor = conn.cursor()
   cursor.execute("SELECT id, fecha, deporte, partido, mercado, momio, edge, stake, resultado, ganancia_neta FROM apuestas")
   registros = cursor.fetchall()
   conn.close()
 
-  # Calcular estadísticas avanzadas
   total_apuestas = len(registros)
   resueltas = [r for r in registros if r[8] in ["Ganada", "Perdida"]]
   ganadas = [r for r in registros if r[8] == "Ganada"]
@@ -499,9 +500,7 @@ elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
   ganancia_total_neta = sum([r[9] for r in resueltas])
   
   roi = (ganancia_total_neta / total_apostado * 100.0) if total_apostado > 0 else 0.0
-  yield_pct = roi  # Rendimiento sobre capital apostado
 
-  # Actualizar Bankroll Global sumando/restando las ganancias netas de las apuestas resueltas
   bankroll_base = st.session_state["bankroll_global"]
   bankroll_actualizado = bankroll_base + ganancia_total_neta
 
@@ -539,7 +538,7 @@ elif modulo_seleccionado == "📊 Control de Bankroll & Historial SQLite":
 
 
 # =========================================================
-# 9. OPTIMIZADOR DE PARLAYS (CON MONTE CARLO)
+# 9. OPTIMIZADOR DE PARLAYS
 # =========================================================
 elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
   st.title(f"🚀 **Optimizador de Parlays por Simulación Monte Carlo [{fecha_formato_str}]**")
@@ -574,7 +573,6 @@ elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
         
     prob_monte_carlo = (exitos / iteraciones) * 100.0
     
-    # Calcular cuota combinada decimal y americana aproximada
     cuota_decimal_total = 1.0
     for m in momios_legs:
       if m > 0:
@@ -586,7 +584,7 @@ elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
     
     prob_implicita_parlay = calcular_probabilidad_implicita(momio_combinado_americano) * 100.0
     edge_parlay = prob_monte_carlo - prob_implicita_parlay
-    stake_parlay = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_monte_carlo, momio_combinado_americano, 0.15) # Fracción menor para parlays
+    stake_parlay = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_monte_carlo, momio_combinado_americano, 0.15)
 
     st.success(f"📊 **Resultados de la Simulación Monte Carlo:**")
     st.metric(label="Probabilidad Real Combinada", value=f"{prob_monte_carlo:.2f}%")
@@ -598,7 +596,7 @@ elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
 
 
 # =========================================================
-# 10. CALCULADORA DE ARBITRAJE (SUREBETS)
+# 10. CALCULADORA DE ARBITRAJE
 # =========================================================
 elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
   st.title(f"🧮 **Calculadora de Arbitraje Matemático [{fecha_formato_str}]**")
@@ -613,7 +611,6 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
   bankroll_total_arb = st.number_input("Inversión Total para la Surebet (MXN):", value=5000.0, step=500.0)
 
   if st.button("⚖️ Calcular Distribución de Arbitraje", use_container_width=True):
-    # Convertir a decimales
     dec_a = (1.0 + (cuota_a / 100.0)) if cuota_a > 0 else (1.0 + (100.0 / abs(cuota_a)))
     dec_b = (1.0 + (cuota_b / 100.0)) if cuota_b > 0 else (1.0 + (100.0 / abs(cuota_b)))
 
