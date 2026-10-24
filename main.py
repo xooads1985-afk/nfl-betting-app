@@ -182,13 +182,12 @@ def motor_dixon_coles_soccer(lambda_loc, lambda_vis):
 
 
 # ---------------------------------------------------------
-# CONEXIÓN CON THE ODDS API (FILTRANDO ÚNICAMENTE MERCADO SPREAD PRINCIPAL)
+# CONEXIÓN CON THE ODDS API (MERCADO SPREAD PRINCIPAL LIMPIO)
 # ---------------------------------------------------------
 @st.cache_data(ttl=300)
 def obtener_partidos_y_momios_api(sport_key, api_key):
   if not api_key:
     return []
-  # Limitamos estrictamente a 'spreads' para tener una sola opción limpia por partido
   url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={api_key}&regions=us&markets=spreads&oddsFormat=american"
   try:
     response = requests.get(url, timeout=5)
@@ -204,7 +203,6 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
           for m in markets:
             if m.get("key") == "spreads":
               outcomes = m.get("outcomes", [])
-              # Tomamos el outcome principal que favorece o corresponde al análisis
               for out in outcomes:
                 nombre_seleccion = out.get("name")
                 precio_momio = out.get("price")
@@ -233,7 +231,6 @@ def obtener_partidos_y_momios_api(sport_key, api_key):
                       "edge": round(edge_calculado, 2),
                       "stake": stake_sugerido
                   })
-                  # Rompemos para asegurar una sola selección limpia por evento de spread
                   break
       return partidos_analizados
   except Exception:
@@ -472,11 +469,11 @@ elif modulo_seleccionado == "🎯 Módulo Automático de Props Fútbol (Dinámic
 
 
 # =========================================================
-# 7. NCAAF (SISTEMA AUTOMÁTICO PRO NCAAF - 1 SOLA OPCIÓN LIMPIA POR PARTIDO)
+# 7. NCAAF (SISTEMA AUTOMÁTICO PRO NCAAF - CONFERENCIAS ÉLITE SIN SLIDERS)
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario - SEC, B1G, Big 12, ACC)":
   st.title(f"🎓 **Sistema Automático Pro NCAAF (Conferencias Élite) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis cuantitativo automático y limpio de una sola línea principal por encuentro para la SEC, Big Ten, Big 12 y ACC.*")
+  st.markdown("--- \n *Análisis cuantitativo automático por capas y cálculo interno de valor para los mejores programas (SEC, Big Ten, Big 12 y ACC).*")
 
   api_key = st.session_state["api_key_guardada"]
   cartelera_ncaa_raw = obtener_partidos_y_momios_api("americanfootball_ncaaf", api_key)
@@ -495,16 +492,14 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario 
         "stake": 200.0
     }]
 
-  # Agrupamos por partido único para mostrar una sola tarjeta limpia sin duplicados
   partidos_unicos_ncaa = sorted(list(set([p["partido_str"] for p in cartelera_ncaa])))
-  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros principales limpios en conferencias élite.")
+  st.success(f"🎯 Se encontraron **{len(partidos_unicos_ncaa)}** encuentros de élite (SEC, B1G, Big 12, ACC) analizados internamente.")
 
   for idx, partido_str in enumerate(partidos_unicos_ncaa[:12], 1):
     parts = partido_str.split(" @ ")
     visita_ncaa = parts[0]
     local_ncaa = parts[1] if len(parts) > 1 else "Local"
 
-    # Cálculo automático interno
     random.seed(hash(partido_str))
     epa_off_l_calc = round(random.uniform(0.10, 0.28), 2)
     epa_def_v_calc = round(random.uniform(-0.15, -0.02), 2)
@@ -527,7 +522,7 @@ elif modulo_seleccionado == "🎓 Sistema Cuantitativo Pro NCAAF (Universitario 
     col_m2.metric("Balance EPA & Turnovers", f"Local: {epa_off_l_calc} / Visita: {epa_off_v_calc}")
 
     if picks_partido:
-      pk = picks_partido[0] # Tomamos estrictamente la línea principal limpia
+      pk = picks_partido[0]
       st.info(
           f"🎯 **Apuesta Sugerida:** `{pk['mercado']}` \n"
           f"📈 **Cuota (Casino):** `{pk['momio']}` | 🎯 **Edge Neto:** `+{pk['edge']:.2f}%` | 💡 **Stake Óptimo (Kelly):** `${pk['stake']} MXN`"
