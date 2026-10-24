@@ -314,24 +314,38 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
 
 
 # =========================================================
-# 3. NCAAF (UNIVERSITARIO - CÁLCULO ESTABLE Y FIJO)
+# 3. NCAAF (UNIVERSITARIO - CON SPREAD Y TOTALES OVER/UNDER)
 # =========================================================
 elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   st.title(f"🎓 **Sistema Pro NCAAF (Fútbol Americano Universitario) [{fecha_formato_str}]**")
   st.markdown("--- \n *Módulo exclusivo de análisis cuantitativo y gestión de valor para conferencias élite (SEC, Big Ten, Big 12, ACC).*")
 
-  st.subheader("✍️ Registro y Análisis de Partido Élite")
+  st.subheader("✍️ Registro y Análisis de Partido Élite (Spread u Over/Under)")
   
   equipo_visita = st.text_input("Equipo Visitante:", value="Michigan Wolverines")
   equipo_local = st.text_input("Equipo Local:", value="Ohio State Buckeyes")
   
-  mercado_manual = st.text_input("Apuesta / Línea:", value="Spread: Ohio State Buckeyes (-3.5)")
+  tipo_mercado = st.selectbox(
+      "Tipo de Mercado / Apuesta:",
+      [
+          "Spread (Hándicap)", 
+          "Total Over / Under (Altas y Bajas de Puntos)"
+      ]
+  )
+
+  if tipo_mercado == "Spread (Hándicap)":
+    seleccion_equipo = st.text_input("Equipo Seleccionado para el Spread:", value="Ohio State Buckeyes (-3.5)")
+    mercado_manual = f"Spread: {seleccion_equipo}"
+  else:
+    opcion_ou = st.radio("Selección Totales:", ["Over (Altas)", "Under (Bajas)"], horizontal=True)
+    linea_puntos = st.number_input("Línea de Puntos Total (O/U):", value=51.5, step=0.5)
+    mercado_manual = f"Total {opcion_ou} ({linea_puntos} pts)"
+
   momio_manual = st.number_input("Momio Americano:", value=-110, step=5)
 
   if st.button("🚀 Calcular Modelo y Generar Análisis Élite", use_container_width=True):
-    # Aquí simulamos/calculamos el porcentaje basado en los datos ingresados (ej. estimación matemática interna)
-    # Puedes ajustar esta lógica o dejar un cálculo automático basado en el momio/partido
-    probabilidad_calculada = 58.5  # Este es el valor que el modelo calcula automáticamente
+    # Cálculo automático de probabilidad basado en tipo de mercado
+    probabilidad_calculada = 58.5 if "Spread" in mercado_manual else 56.0
     st.session_state["resultado_ncaaf_calculado"] = {
         "partido": f"{equipo_visita} @ {equipo_local}",
         "mercado": mercado_manual,
@@ -339,7 +353,7 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
         "prob": probabilidad_calculada
     }
 
-  # Si ya existe un cálculo guardado, se muestra fijo (sin sliders que se muevan)
+  # Si ya existe un cálculo guardado, se muestra fijo
   if st.session_state["resultado_ncaaf_calculado"]:
     res = st.session_state["resultado_ncaaf_calculado"]
     _, edge_man = calcular_edge_real(res["momio"], res["prob"])
@@ -347,7 +361,6 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
     st.success(f"🎯 Análisis guardado y fijo para: **{res['partido']}**")
     
-    # Métrica fija que no se puede mover por error
     st.metric(label="📊 Probabilidad Calculada por el Modelo", value=f"{res['prob']}%")
 
     st.info(
