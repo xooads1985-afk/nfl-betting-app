@@ -154,6 +154,22 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
   return round(max(10.0, stake_sugerido), 2)
 
 
+# Funciones auxiliares para parsear texto con signos (+ / -) de forma segura
+def limpiar_momio(texto_momio):
+  try:
+    limpio = texto_momio.strip().replace("+", "")
+    return int(limpio)
+  except:
+    return -110
+
+def limpiar_spread(texto_spread):
+  try:
+    limpio = texto_spread.strip().replace("+", "")
+    return float(limpio)
+  except:
+    return 0.0
+
+
 # =========================================================
 # MOTORES DE PLAYER PROPS ESPECÍFICOS
 # =========================================================
@@ -639,7 +655,8 @@ if modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
     promedio_hist = st.number_input("Promedio Histórico (Lambda):", value=2.8, step=0.05, key="psc_prom")
     linea_cas = st.number_input("Línea Casino:", value=1.5, step=0.5, key="psc_lin")
 
-  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, key="psc_mom")
+  momio_prop_str = st.text_input("Momio Americano (Ej. -115 o +130):", value="-115", key="psc_mom")
+  momio_prop = limpiar_momio(momio_prop_str)
 
   if st.button("🚀 Evaluar Prop de Fútbol", use_container_width=True):
     res = analizar_prop_futbol_comun(jugador, mercado, promedio_hist, linea_cas)
@@ -653,10 +670,10 @@ if modulo_seleccionado == "⚽ Prop: Fútbol Soccer Común (Playdoit)":
       st.success("✅ ¡El prop superó el filtro estricto del 70% de éxito real!")
       for v in validadas:
         st.info(f"Selección: **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
-        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        _, edge_p = calcular_edge_real(momio_prop, v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], momio_prop)
         if st.button("📥 Guardar Prop en SQLite", key="save_psc"):
-          registrar_apuesta_db(fecha_formato_str, "Prop Soccer Común", v['partido'], v['mercado'], int(momio_prop), edge_p, stk)
+          registrar_apuesta_db(fecha_formato_str, "Prop Soccer Común", v['partido'], v['mercado'], momio_prop, edge_p, stk)
           st.success("¡Prop guardado con éxito en la base de datos!")
       st.code(generar_ticket_nba_props_puro(validadas, fecha_formato_str), language="text")
     else:
@@ -675,7 +692,8 @@ elif modulo_seleccionado == "🥊 Prop: UFC / MMA Común":
   with col2:
     prob_modelo = st.number_input("Probabilidad Asignada por el Modelo (%):", value=74.2, step=0.5, key="pu_prob")
 
-  momio_prop = st.number_input("Momio Americano:", value=-120, step=5, key="pu_mom")
+  momio_prop_str = st.text_input("Momio Americano (Ej. -120 o +110):", value="-120", key="pu_mom")
+  momio_prop = limpiar_momio(momio_prop_str)
 
   if st.button("🚀 Evaluar Prop de UFC", use_container_width=True):
     res = analizar_prop_ufc_comun(combate, mercado_ufc, prob_modelo)
@@ -689,10 +707,10 @@ elif modulo_seleccionado == "🥊 Prop: UFC / MMA Común":
       st.success("✅ ¡El prop superó el filtro estricto del 70% de éxito real!")
       for v in validadas:
         st.info(f"Selección: **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
-        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        _, edge_p = calcular_edge_real(momio_prop, v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], momio_prop)
         if st.button("📥 Guardar Prop en SQLite", key="save_pu_comun"):
-          registrar_apuesta_db(fecha_formato_str, "Prop UFC Común", cartelera_str, v['mercado'], int(momio_prop), edge_p, stk)
+          registrar_apuesta_db(fecha_formato_str, "Prop UFC Común", cartelera_str, v['mercado'], momio_prop, edge_p, stk)
           st.success("¡Prop guardado con éxito en la base de datos!")
       st.code(generar_ticket_nba_props_puro(validadas, fecha_formato_str), language="text")
     else:
@@ -728,7 +746,8 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
       linea_cas = st.number_input("Línea Casino (O/U):", value=89.5, step=0.5, key="pnc_lin")
   with col4:
     yardas_o_defensa = st.number_input("Estadística de la Defensa Rival (Yardas permitidas / Factor TD):", value=230.0, step=0.5, key="pnc_def_yardas")
-    momio_prop = st.number_input("Momio Americano (Ej. -110 o +135):", value=-110, step=5, format="%+d", key="pnc_mom")
+    momio_prop_str = st.text_input("Momio Americano (Ej. -110 o +135):", value="-110", key="pnc_mom")
+    momio_prop = limpiar_momio(momio_prop_str)
 
   if st.button("🚀 Evaluar Prop Dinámica de NFL", use_container_width=True):
     if "Touchdown" in mercado:
@@ -773,8 +792,8 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
     
     st.markdown("### 📌 Resultados del Análisis de Probabilidad (+EV)")
     for v in res_data["opciones"]:
-      _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
-      stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+      _, edge_p = calcular_edge_real(momio_prop, v['prob'])
+      stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], momio_prop)
       
       if v['prob'] >= 52.0:
         st.success(f"✅ **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%` | Edge: `+{edge_p:.2f}%` | Stake: `${stk} MXN`")
@@ -782,7 +801,7 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
         st.warning(f"⚠️ **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
         
       if st.button(f"📥 Guardar en SQLite ({v['mercado']})", key=f"save_prop_{v['mercado']}"):
-        registrar_apuesta_db(fecha_formato_str, "Prop NFL Dinámico", res_data['partido'], v['mercado'], int(momio_prop), edge_p, stk)
+        registrar_apuesta_db(fecha_formato_str, "Prop NFL Dinámico", res_data['partido'], v['mercado'], momio_prop, edge_p, stk)
         st.success("¡Apuesta guardada con éxito en la base de datos!")
 
 
@@ -800,7 +819,8 @@ elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
     linea_cas = st.number_input("Línea Casino:", value=29.5, step=0.5, key="pnbc_lin")
 
   pace_partido = st.number_input("Pace Proyectado del Partido:", value=103.5, step=0.5, key="pnbc_pace")
-  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, format="%+d", key="pnbc_mom")
+  momio_prop_str = st.text_input("Momio Americano (Ej. -115 o +105):", value="-115", key="pnbc_mom")
+  momio_prop = limpiar_momio(momio_prop_str)
 
   if st.button("🚀 Evaluar Prop de NBA", use_container_width=True):
     res = analizar_prop_nba_comun(jugador, mercado, promedio_jug, linea_cas, pace_partido)
@@ -814,10 +834,10 @@ elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
       st.success("✅ ¡El prop superó el filtro estricto del 70% de éxito real!")
       for v in validadas:
         st.info(f"Selección: **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
-        _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
+        _, edge_p = calcular_edge_real(momio_prop, v['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], momio_prop)
         if st.button("📥 Guardar Prop en SQLite", key="save_pnbc"):
-          registrar_apuesta_db(fecha_formato_str, "Prop NBA Común", v['partido'], v['mercado'], int(momio_prop), edge_p, stk)
+          registrar_apuesta_db(fecha_formato_str, "Prop NBA Común", v['partido'], v['mercado'], momio_prop, edge_p, stk)
           st.success("¡Prop guardado con éxito en la base de datos!")
       st.code(generar_ticket_nba_props_puro(validadas, fecha_formato_str), language="text")
     else:
@@ -866,12 +886,13 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
       partido_man = st.text_input("Partido (Ej. Los Angeles Lakers vs Golden State Warriors):", value="Los Angeles Lakers vs Golden State Warriors", key="man_part")
       mercado_man = st.text_input("Mercado (Ej. Lakers Spread -3.5):", value="Lakers Spread -3.5", key="man_merc")
     with col_m2:
-      momio_man = st.number_input("Momio Americano (Ej. -110 o +130):", value=-110, step=5, format="%+d", key="man_mom")
+      momio_man_str = st.text_input("Momio Americano (Ej. -110 o +130):", value="-110", key="man_mom")
+      momio_man = limpiar_momio(momio_man_str)
       prob_real_man = st.number_input("Probabilidad Real Calculada por tu Modelo (%):", value=58.0, step=0.5, key="man_prob")
 
     if st.button("🔍 Calcular Edge y Evaluar Valor", use_container_width=True):
-      prob_imp, edge_man = calcular_edge_real(int(momio_man), prob_real_man)
-      stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_real_man, int(momio_man))
+      prob_imp, edge_man = calcular_edge_real(momio_man, prob_real_man)
+      stake_man = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_real_man, momio_man)
       
       st.markdown("### 📊 Resultado del Análisis Manual")
       col_res_m1, col_res_m2, col_res_m3 = st.columns(3)
@@ -882,7 +903,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
       if edge_man > 2.0:
         st.success("🎯 ¡Excelente oportunidad! Supera el umbral del 2% de Edge positivo.")
         if st.button("📥 Guardar Apuesta Manual en SQLite", key="save_manual_ev"):
-          registrar_apuesta_db(fecha_formato_str, deporte_man, partido_man, mercado_man, int(momio_man), edge_man, stake_man)
+          registrar_apuesta_db(fecha_formato_str, deporte_man, partido_man, mercado_man, momio_man, edge_man, stake_man)
           st.success("¡Apuesta manual guardada con éxito en tu base de datos!")
       else:
         st.warning("⚠️ Esta apuesta tiene un Edge bajo o negativo. No se recomienda arriesgar capital.")
@@ -913,7 +934,8 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
     td_def_b = st.slider("Defensa de Derribos P-B (%):", 0, 100, 60, key="ufc_tdb")
     finish_b = st.number_input("Tasa Finalización P-B (Factor):", value=0.80, step=0.05, key="ufc_fb")
 
-  momio_ufc = st.number_input("Momio Americano (Apuesta recomendada):", value=-250, step=5, format="%+d", key="ufc_mm")
+  momio_ufc_str = st.text_input("Momio Americano (Apuesta recomendada):", value="-250", key="ufc_mm")
+  momio_ufc = limpiar_momio(momio_ufc_str)
 
   metricas_a = {"striking": striking_a, "defense": defense_a, "td_def": td_def_a, "finish": finish_a}
   metricas_b = {"striking": striking_b, "defense": defense_b, "td_def": td_def_b, "finish": finish_b}
@@ -938,10 +960,10 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
     if res["validas"]:
       for jugada in res["validas"]:
         st.info(f"✅ **{jugada['mercado']}** | Probabilidad: `{jugada['prob']:.2f}%`")
-        _, edge_ufc = calcular_edge_real(int(momio_ufc), jugada['prob'])
-        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], int(momio_ufc))
+        _, edge_ufc = calcular_edge_real(momio_ufc, jugada['prob'])
+        stk = calcular_criterio_kelly(st.session_state["bankroll_global"], jugada['prob'], momio_ufc)
         if st.button(f"📥 Guardar en SQLite ({jugada['mercado']})", key=f"db_ufc_{jugada['mercado']}"):
-          registrar_apuesta_db(fecha_formato_str, "UFC Élite", r['partido'], jugada['mercado'], int(momio_ufc), edge_ufc, stk)
+          registrar_apuesta_db(fecha_formato_str, "UFC Élite", r['partido'], jugada['mercado'], momio_ufc, edge_ufc, stk)
           st.success("¡Apuesta UFC guardada con éxito en SQLite!")
     else:
       st.warning("⚠️ Ninguna opción supera el filtro estricto del 70% de probabilidad en este combate.")
@@ -1064,7 +1086,8 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.markdown("---")
   col_line1, col_line2 = st.columns(2)
   with col_line1:
-    linea_sp_nba = st.number_input("Línea Spread Casino:", value=-4.5, step=0.5, format="%+.1f", key="nba_lsp")
+    linea_sp_nba_str = st.text_input("Línea Spread Casino (Ej. -4.5 o +3.5):", value="-4.5", key="nba_lsp")
+    linea_sp_nba = limpiar_spread(linea_sp_nba_str)
   with col_line2:
     linea_tot_nba = st.number_input("Línea Total Casino O/U:", value=228.5, step=0.5, key="nba_ltot")
 
@@ -1108,7 +1131,8 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   with col_c2: bye_v = st.checkbox("Visita en Bye Week", key="ncaaf_byev"); qb_v = st.checkbox("QB Visita Lesionado", key="ncaaf_qbv")
 
   tot_proy = st.number_input("Total Proyectado:", value=52.0, step=0.5, key="ncaaf_tot")
-  linea_sp = st.number_input("Spread Casino:", value=-14.5, step=0.5, format="%+.1f", key="ncaaf_lsp")
+  linea_sp_str = st.text_input("Spread Casino (Ej. -14.5 o +7.5):", value="-14.5", key="ncaaf_lsp")
+  linea_sp = limpiar_spread(linea_sp_str)
   linea_tot = st.number_input("Línea Casino O/U:", value=46.5, step=0.5, key="ncaaf_ltot")
   contexto_ncaaf = {"local_viene_de_bye": bye_l, "visita_viene_de_bye": bye_v, "local_qb_baja": qb_l, "visita_qb_baja": qb_v}
 
@@ -1136,7 +1160,7 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con opciones para Spread, Totales O/U y Moneyline (Soporte para signos positivos y negativos).*")
+  st.markdown("--- \n *Modelo inteligente con opciones para Spread, Totales O/U y Moneyline (Soporte total para signos + y -).*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
@@ -1158,11 +1182,15 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   with col_l1:
     tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
   with col_l2:
-    bookie_spread = st.number_input("Hándicap / Spread (si aplica):", value=-3.0, step=0.5, format="%+.1f", key="nfl_ml_bsp")
+    # Campo de texto libre para escribir hándicaps con '+' o '-' (ej. +3.5 o -3.0)
+    bookie_spread_str = st.text_input("Hándicap / Spread (Ej. -3.0 o +3.5):", value="-3.0", key="nfl_ml_bsp")
+    bookie_spread = limpiar_spread(bookie_spread_str)
   with col_l3:
     bookie_total = st.number_input("Total de Puntos O/U (si aplica):", value=43.5, step=0.5, format="%.1f", key="nfl_ml_btot")
   with col_l4:
-    momio_casa_nfl = st.number_input("Momio Americano (Ej. -160 o +134):", value=-160, step=5, format="%+d", key="nfl_ml_momio")
+    # Campo de texto libre para escribir momios americanos con '+' o '-' (ej. +135 o -160)
+    momio_casa_nfl_str = st.text_input("Momio Americano (Ej. -160 o +134):", value="-160", key="nfl_ml_momio")
+    momio_casa_nfl = limpiar_momio(momio_casa_nfl_str)
 
   wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
