@@ -479,7 +479,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + NOMBRES COMPLETOS + MOMIO REAL)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + NOMBRES COMPLETOS + LÍNEAS SEPARADAS)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
@@ -1115,11 +1115,11 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + NOMBRES COMPLETOS + MOMIO REAL)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + LÍNEAS SEPARADAS)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con ponderación exponencial, nombres completos de equipos, momio real e exportación a Excel.*")
+  st.markdown("--- \n *Modelo inteligente con campos independientes para Hándicap Local/Visita, Totales O/U, Momio Real y Exportación a Excel.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
@@ -1136,13 +1136,16 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   with col_nfl4:
     qb_visita_suplente = st.checkbox("⚠️ ¿QB Titular Visitante Lesionado / Suplente?", key="nfl_qb_vis_sup")
 
-  col_nfl5, col_nfl6, col_nfl7 = st.columns(3)
-  with col_nfl5:
-    bookie_spread = st.number_input("Spread de la Casa (para el Local):", value=-3.0, step=0.5, key="nfl_ml_bsp")
-  with col_nfl6:
-    bookie_total = st.number_input("Total de Puntos de la Casa (O/U):", value=43.5, step=0.5, key="nfl_ml_btot")
-  with col_nfl7:
-    momio_casa_nfl = st.number_input("Momio Americano de la Casa (Ej. -160):", value=-160, step=5, key="nfl_ml_momio")
+  st.markdown("### ⚙️ Líneas del Casino y Tipo de Apuesta")
+  col_l1, col_l2, col_l3, col_l4 = st.columns(4)
+  with col_l1:
+    tipo_apuesta_nfl = st.selectbox("Selección a Analizar:", ["Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
+  with col_l2:
+    bookie_spread = st.number_input("Hándicap / Spread de la Línea:", value=-3.0, step=0.5, format="%.1f", key="nfl_ml_bsp")
+  with col_l3:
+    bookie_total = st.number_input("Total de Puntos (O/U):", value=43.5, step=0.5, format="%.1f", key="nfl_ml_btot")
+  with col_l4:
+    momio_casa_nfl = st.number_input("Momio Americano (Ej. -160 o +110):", value=-160, step=5, key="nfl_ml_momio")
 
   wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
@@ -1178,63 +1181,60 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     pred_spread = m_spread.predict(input_data)[0]
     pred_total = m_total.predict(input_data)[0]
     
-    ventaja_spread = pred_spread - bookie_spread
-    ventaja_total = pred_total - bookie_total
-    
+    if "Local" in tipo_apuesta_nfl:
+      ventaja_apuesta = pred_spread - bookie_spread
+    elif "Visitante" in tipo_apuesta_nfl:
+      ventaja_apuesta = (-pred_spread) - bookie_spread
+    elif "Altas" in tipo_apuesta_nfl:
+      ventaja_apuesta = pred_total - bookie_total
+    else:
+      ventaja_apuesta = bookie_total - pred_total
+
     prob_imp_casino = calcular_probabilidad_implicita(momio_casa_nfl) * 100.0
-    prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_spread * 4.0))), 2)
+    prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 4.0))), 2)
     _, edge_calculado_nfl = calcular_edge_real(momio_casa_nfl, prob_modelo_nfl)
     stake_recomendado_nfl = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_nfl, momio_casa_nfl)
     
     st.markdown("### 📊 Resultados de la Proyección Inteligente Optimizada")
     col_res1, col_res2, col_res3 = st.columns(3)
-    col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}", delta=f"{ventaja_spread:+.1f} vs Casa")
-    col_res2.metric("Total Proyectado", f"{pred_total:.1f} pts", delta=f"{ventaja_total:+.1f} vs Casa")
+    col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}")
+    col_res2.metric("Total Proyectado", f"{pred_total:.1f} pts")
     col_res3.metric("Edge Matemático (+EV)", f"{edge_calculado_nfl:+.2f}%", delta=f"Stake: ${stake_recomendado_nfl} MXN")
     
-    rec_spread = "SIN APUESTA DE VALOR"
-    if ventaja_spread > 2.0 and edge_calculado_nfl > 1.0:
-        rec_spread = f"🎯 APOSTAR LOCAL ({home_team}) [Momio {momio_casa_nfl}]"
-    elif ventaja_spread < -2.0 and edge_calculado_nfl > 1.0:
-        rec_spread = f"🎯 APOSTAR VISITANTE ({away_team}) [Momio {momio_casa_nfl}]"
+    recomendacion_final = "SIN APUESTA DE VALOR"
+    if edge_calculado_nfl > 1.0:
+      if "Local" in tipo_apuesta_nfl:
+        recomendacion_final = f"🎯 APOSTAR LOCAL ({home_team} {bookie_spread})"
+      elif "Visitante" in tipo_apuesta_nfl:
+        recomendacion_final = f"🎯 APOSTAR VISITANTE ({away_team} {bookie_spread})"
+      elif "Altas" in tipo_apuesta_nfl:
+        recomendacion_final = f"🎯 ALTAS OVER ({bookie_total})"
+      else:
+        recomendacion_final = f"🎯 BAJAS UNDER ({bookie_total})"
         
-    rec_total = "SIN APUESTA DE VALOR"
-    if ventaja_total > 2.5:
-        rec_total = "🎯 ALTAS (OVER)"
-    elif ventaja_total < -2.5:
-        rec_total = "🎯 BAJAS (UNDER)"
-        
-    st.info(f"**Recomendación Spread:** {rec_spread}")
-    st.info(f"**Recomendación Total:** {rec_total}")
+    st.info(f"**Recomendación del Módulo:** {recomendacion_final} [Momio: {momio_casa_nfl}]")
     
     st.session_state["ultimo_resultado_nfl"] = [{
         'Fecha': fecha_formato_str,
         'Partido': f"{away_team} @ {home_team}",
-        'Spread Proyectado': round(pred_spread, 1),
-        'Spread Casa': bookie_spread,
+        'Mercado Analizado': tipo_apuesta_nfl,
+        'Línea Casino': bookie_spread if 'Spread' in tipo_apuesta_nfl else bookie_total,
         'Momio Casa': momio_casa_nfl,
         'Edge (%)': round(edge_calculado_nfl, 2),
         'Stake (MXN)': stake_recomendado_nfl,
-        'Total Proyectado': round(pred_total, 1),
-        'Total Casa': bookie_total,
-        'Recomendación Spread': rec_spread,
-        'Recomendación Total': rec_total,
+        'Recomendación': recomendacion_final,
     }]
 
     if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
-      registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"Spread: {bookie_spread} (Momio {momio_casa_nfl})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
-      st.success("¡Apuesta NFL guardada con éxito en SQLite con su momio real!")
+      registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
+      st.success("¡Apuesta NFL guardada con éxito en SQLite con campos separados!")
 
   if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
     st.subheader("📊 Reporte y Exportación a Excel")
     if st.button("📊 Generar Archivo Excel (.xlsx)", key="btn_gen_excel"):
       df_export = pd.DataFrame(st.session_state["ultimo_resultado_nfl"])
-      df_export['Alerta_Valor'] = np.where(
-          (df_export['Recomendación Spread'] != 'SIN APUESTA DE VALOR') | 
-          (df_export['Recomendación Total'] != 'SIN APUESTA DE VALOR'), 
-          '¡SÍ (+EV)!', 'No'
-      )
+      df_export['Alerta_Valor'] = np.where(df_export['Recomendación'] != 'SIN APUESTA DE VALOR', '¡SÍ (+EV)!', 'No')
       
       file_name = f"proyecciones_nfl_{fecha_formato_str}.xlsx"
       df_export.to_excel(file_name, index=False, sheet_name='Semana Actual')
