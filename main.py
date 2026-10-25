@@ -47,7 +47,7 @@ if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_
 if "apuestas_manuales_ev" not in st.session_state:
   st.session_state["apuestas_manuales_ev"] = []
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun", "props_atd"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -605,7 +605,6 @@ modulo_seleccionado = st.sidebar.radio(
         "⚽ Prop: Fútbol Soccer Común (Playdoit)",
         "🥊 Prop: UFC / MMA Común",
         "🛡️ Prop: NFL Común (Playdoit)",
-        "🛡️ Prop: Anytime TD (Playdoit)",
         "🏀 Prop: NBA Común (Playdoit)",
         "🔍 Escáner Automático & Manual (+EV)",
         "🥊 Sistema Pro UFC / MMA",
@@ -701,106 +700,90 @@ elif modulo_seleccionado == "🥊 Prop: UFC / MMA Común":
 
 
 elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
-  st.title(f"🛡️ **Props: NFL Común [{fecha_formato_str}]**")
-  st.markdown("--- \n *Props de volumen basados en yardas reales por partido del jugador y de la defensa rival.*")
+  st.title(f"🛡️ **Props: NFL Común por Posición & Anytime TD [{fecha_formato_str}]**")
+  st.markdown("--- \n *Opciones de mercado adaptadas específicamente según la posición del jugador (QB, RB, WR, TE).*")
   
   col1, col2 = st.columns(2)
   with col1:
-    jugador = st.text_input("Jugador / Atleta:", value="DK Metcalf", key="pnc_jug")
-    mercado = st.selectbox("Mercado Playdoit:", ["Yardas Pase", "Yardas Carrera", "Yardas Recepcion", "Yardas Totales (Recepcion y Carrera)"], key="pnc_merc")
+    jugador = st.text_input("Jugador / Atleta:", value="Alvin Kamara", key="pnc_jug")
+    posicion_jugador = st.selectbox("Posición del Jugador:", ["Quarterback (QB)", "Running Back (RB)", "Wide Receiver (WR)", "Tight End (TE)"], key="pnc_pos")
     partido_str = st.text_input("Partido (Ej. Pittsburgh Steelers vs New Orleans Saints):", value="Pittsburgh Steelers vs New Orleans Saints", key="pnc_part")
   with col2:
-    promedio_jug = st.number_input("Promedio de Yardas del Jugador (por partido):", value=53.0, step=0.5, key="pnc_prom")
-    linea_cas = st.number_input("Línea Casino (O/U):", value=59.5, step=0.5, key="pnc_lin")
+    if "Quarterback" in posicion_jugador:
+      mercados_disponibles = ["Yardas de Pase", "Pases de Anotación (TD Pass)", "Intercepciones", "Yardas por Tierra del QB", "Touchdown en Cualquier Momento (Anytime TD)"]
+    elif "Running Back" in posicion_jugador:
+      mercados_disponibles = ["Yardas de Carrera", "Yardas de Recepción", "Yardas Combinadas (Carrera + Recepción)", "Touchdown en Cualquier Momento (Anytime TD)"]
+    else:
+      mercados_disponibles = ["Yardas de Recepción", "Recepciones Totales (Catches)", "Touchdown en Cualquier Momento (Anytime TD)"]
+      
+    mercado = st.selectbox("Mercado Específico Disponible:", mercados_disponibles, key="pnc_merc")
 
-  yardas_permitidas_defensa = st.number_input("Yardas Permitidas por la Defensa Rival (por partido):", value=220.0, step=0.5, key="pnc_def_yardas")
-  momio_prop = st.number_input("Momio Americano (Ej. -110):", value=-110, step=5, key="pnc_mom")
+  col3, col4 = st.columns(2)
+  with col3:
+    if "Touchdown" in mercado:
+      promedio_jug = st.number_input("Tasa Histórica de TDs por Partido (Ej. 0.65 = 65%):", value=0.60, step=0.05, key="pnc_prom_td")
+      linea_cas = 0.5
+    else:
+      promedio_jug = st.number_input("Promedio Base del Jugador en este Mercado:", value=85.5, step=0.5, key="pnc_prom")
+      linea_cas = st.number_input("Línea Casino (O/U):", value=89.5, step=0.5, key="pnc_lin")
+  with col4:
+    yardas_o_defensa = st.number_input("Estadística de la Defensa Rival (Yardas permitidas / Factor TD):", value=230.0, step=0.5, key="pnc_def_yardas")
+    momio_prop = st.number_input("Momio Americano (Ej. -110 o +135):", value=-110, step=5, key="pnc_mom")
 
-  if st.button("🚀 Evaluar Prop de NFL", use_container_width=True):
-    promedio_liga_base = {
-        "Yardas Pase": 230.0,
-        "Yardas Carrera": 70.0,
-        "Yardas Recepcion": 50.0,
-        "Yardas Totales (Recepcion y Carrera)": 75.0
-    }.get(mercado, 60.0)
+  if st.button("🚀 Evaluar Prop Dinámica de NFL", use_container_width=True):
+    if "Touchdown" in mercado:
+      factor_defensa_td = yardas_o_defensa if yardas_o_defensa < 2.0 else 1.10
+      prob_modelo_atd = min(85.0, max(15.0, (promedio_jug * factor_defensa_td) * 100.0))
+      
+      resultados_props = [
+          {"mercado": f"{jugador} - Sí Anota Touchdown (Anytime)", "prob": round(prob_modelo_atd, 2)},
+          {"mercado": f"{jugador} - No Anota Touchdown", "prob": round(100.0 - prob_modelo_atd, 2)}
+      ]
+      st.session_state["resultado_props_nfl_comun_calculado"] = {
+          "partido": partido_str, "opciones": resultados_props, "proyeccion": f"{prob_modelo_atd:.1f}% Prob. Anotar"
+      }
+    else:
+      if "Pase" in mercado:
+        promedio_liga_base, desv_estandar = 230.0, 45.0
+      elif "Carrera" in mercado:
+        promedio_liga_base, desv_estandar = 70.0, 18.0
+      elif "Combinadas" in mercado:
+        promedio_liga_base, desv_estandar = 110.0, 25.0
+      else:
+        promedio_liga_base, desv_estandar = 50.0, 22.0
 
-    desviaciones = {
-        "Yardas Pase": 45.0,
-        "Yardas Carrera": 18.0,
-        "Yardas Recepcion": 22.0,
-        "Yardas Totales (Recepcion y Carrera)": 28.0
-    }
-    desv_estandar = desviaciones.get(mercado, 20.0)
+      factor_defensa = yardas_o_defensa / promedio_liga_base if yardas_o_defensa > 10 else 1.1
+      proyeccion_ajustada = promedio_jug * factor_defensa
 
-    factor_defensa = yardas_permitidas_defensa / promedio_liga_base
-    proyeccion_ajustada = promedio_jug * factor_defensa
+      z_score = (linea_cas - proyeccion_ajustada) / desv_estandar
+      prob_under = norm.cdf(z_score) * 100.0
+      prob_over = 100.0 - prob_under
 
-    z_score = (linea_cas - proyeccion_ajustada) / desv_estandar
-    prob_under = norm.cdf(z_score) * 100.0
-    prob_over = 100.0 - prob_under
-
-    resultados_props = [
-        {"mercado": f"{jugador} Over {linea_cas} {mercado}", "prob": round(prob_over, 2)},
-        {"mercado": f"{jugador} Under {linea_cas} {mercado}", "prob": round(prob_under, 2)}
-    ]
-    
-    st.session_state["resultado_props_nfl_comun_calculado"] = {
-        "partido": partido_str, "opciones": resultados_props, "proyeccion": round(proyeccion_ajustada, 2)
-    }
+      resultados_props = [
+          {"mercado": f"{jugador} Over {linea_cas} {mercado}", "prob": round(prob_over, 2)},
+          {"mercado": f"{jugador} Under {linea_cas} {mercado}", "prob": round(prob_under, 2)}
+      ]
+      st.session_state["resultado_props_nfl_comun_calculado"] = {
+          "partido": partido_str, "opciones": resultados_props, "proyeccion": f"{proyeccion_ajustada:.1f} unidades"
+      }
 
   if st.session_state.get("resultado_props_nfl_comun_calculado"):
     res_data = st.session_state["resultado_props_nfl_comun_calculado"]
-    st.info(f"📊 **Proyección Ajustada del Modelo:** `{res_data['proyeccion']} yardas` para este partido.")
+    st.info(f"📊 **Proyección del Modelo para {jugador} ({posicion_jugador}):** `{res_data['proyeccion']}`")
     
-    st.markdown("### 📌 Resultados del Análisis de Probabilidad")
+    st.markdown("### 📌 Resultados del Análisis de Probabilidad (+EV)")
     for v in res_data["opciones"]:
       _, edge_p = calcular_edge_real(int(momio_prop), v['prob'])
       stk = calcular_criterio_kelly(st.session_state["bankroll_global"], v['prob'], int(momio_prop))
       
-      if v['prob'] >= 55.0:
+      if v['prob'] >= 52.0:
         st.success(f"✅ **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%` | Edge: `+{edge_p:.2f}%` | Stake: `${stk} MXN`")
       else:
-        st.warning(f"⚠️ **{v['mercado']}** | Probabilidad baja: `{v['prob']:.2f}%`")
+        st.warning(f"⚠️ **{v['mercado']}** | Probabilidad: `{v['prob']:.2f}%`")
         
       if st.button(f"📥 Guardar en SQLite ({v['mercado']})", key=f"save_prop_{v['mercado']}"):
-        registrar_apuesta_db(fecha_formato_str, "Prop NFL Común", res_data['partido'], v['mercado'], int(momio_prop), edge_p, stk)
-        st.success(f"¡Apuesta guardada con éxito en la base de datos!")
-
-
-elif modulo_seleccionado == "🛡️ Prop: Anytime TD (Playdoit)":
-  st.title(f"🏈 **Props: Anotador de Touchdown en Cualquier Momento [{fecha_formato_str}]**")
-  st.markdown("--- \n *Cálculo de probabilidad para Anytime TD basado en la tasa de anotación del jugador y la defensa rival.*")
-  
-  col1, col2 = st.columns(2)
-  with col1:
-    jugador_td = st.text_input("Jugador / Atleta:", value="DK Metcalf", key="atd_jug")
-    posicion_td = st.selectbox("Posición:", ["Running Back (RB)", "Wide Receiver (WR)", "Tight End (TE)", "Quarterback (QB)"], key="atd_pos")
-    partido_atd = st.text_input("Partido:", value="Pittsburgh Steelers vs New Orleans Saints", key="atd_part")
-  with col2:
-    tasa_td_partido = st.slider("Tasa Histórica de TDs por Partido (Ej. 0.65 = 65% de juegos anota):", 0.1, 1.5, 0.55, 0.05, key="atd_tasa")
-    defensa_factor_td = st.slider("Factor de Debilidad Defensiva (1.0 = Promedio, 1.3 = Permite 30% más TDs):", 0.7, 1.5, 1.10, 0.05, key="atd_def")
-
-  momio_atd = st.number_input("Momio Americano del Casino (Ej. +135):", value=135, step=5, key="atd_mom")
-
-  if st.button("🚀 Evaluar Probabilidad de Touchdown", use_container_width=True):
-    prob_modelo_atd = min(85.0, max(15.0, (tasa_td_partido * defensa_factor_td) * 100.0))
-    
-    _, edge_atd = calcular_edge_real(int(momio_atd), prob_modelo_atd)
-    stake_atd = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_atd, int(momio_atd))
-
-    st.markdown("### 📊 Resultado del Análisis Anytime TD")
-    col_r1, col_r2, col_r3 = st.columns(3)
-    col_r1.metric("Probabilidad Modelo", f"{prob_modelo_atd:.2f}%")
-    col_r2.metric("Edge Matemático", f"{edge_atd:+.2f}%", delta="Valor Positivo (+EV)" if edge_atd > 0 else "Sin Valor")
-    col_r3.metric("Stake Sugerido", f"${stake_atd} MXN")
-
-    if edge_atd > 1.5:
-      st.success(f"🎯 **¡Oportunidad detectada!** Apostar al Anytime Touchdown de **{jugador_td}** tiene valor positivo.")
-      if st.button("📥 Guardar Prop Anytime TD en SQLite", key="save_atd_db"):
-        registrar_apuesta_db(fecha_formato_str, "Anytime TD", partido_atd, f"{jugador_td} Anota TD (Anytime)", int(momio_atd), edge_atd, stake_atd)
+        registrar_apuesta_db(fecha_formato_str, "Prop NFL Dinámico", res_data['partido'], v['mercado'], int(momio_prop), edge_p, stk)
         st.success("¡Apuesta guardada con éxito en la base de datos!")
-    else:
-      st.warning("⚠️ La cuota del casino no ofrece suficiente margen de valor frente a la probabilidad calculada.")
 
 
 elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
