@@ -728,7 +728,7 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
       linea_cas = st.number_input("Línea Casino (O/U):", value=89.5, step=0.5, key="pnc_lin")
   with col4:
     yardas_o_defensa = st.number_input("Estadística de la Defensa Rival (Yardas permitidas / Factor TD):", value=230.0, step=0.5, key="pnc_def_yardas")
-    momio_prop = st.number_input("Momio Americano (Ej. -110 o +135):", value=-110, step=5, key="pnc_mom")
+    momio_prop = st.number_input("Momio Americano (Ej. -110 o +135):", value=-110, step=5, format="%+d", key="pnc_mom")
 
   if st.button("🚀 Evaluar Prop Dinámica de NFL", use_container_width=True):
     if "Touchdown" in mercado:
@@ -800,7 +800,7 @@ elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
     linea_cas = st.number_input("Línea Casino:", value=29.5, step=0.5, key="pnbc_lin")
 
   pace_partido = st.number_input("Pace Proyectado del Partido:", value=103.5, step=0.5, key="pnbc_pace")
-  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, key="pnbc_mom")
+  momio_prop = st.number_input("Momio Americano:", value=-115, step=5, format="%+d", key="pnbc_mom")
 
   if st.button("🚀 Evaluar Prop de NBA", use_container_width=True):
     res = analizar_prop_nba_comun(jugador, mercado, promedio_jug, linea_cas, pace_partido)
@@ -866,7 +866,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
       partido_man = st.text_input("Partido (Ej. Los Angeles Lakers vs Golden State Warriors):", value="Los Angeles Lakers vs Golden State Warriors", key="man_part")
       mercado_man = st.text_input("Mercado (Ej. Lakers Spread -3.5):", value="Lakers Spread -3.5", key="man_merc")
     with col_m2:
-      momio_man = st.number_input("Momio Americano (Ej. -110 o +130):", value=-110, step=5, key="man_mom")
+      momio_man = st.number_input("Momio Americano (Ej. -110 o +130):", value=-110, step=5, format="%+d", key="man_mom")
       prob_real_man = st.number_input("Probabilidad Real Calculada por tu Modelo (%):", value=58.0, step=0.5, key="man_prob")
 
     if st.button("🔍 Calcular Edge y Evaluar Valor", use_container_width=True):
@@ -913,7 +913,7 @@ elif modulo_seleccionado == "🥊 Sistema Pro UFC / MMA":
     td_def_b = st.slider("Defensa de Derribos P-B (%):", 0, 100, 60, key="ufc_tdb")
     finish_b = st.number_input("Tasa Finalización P-B (Factor):", value=0.80, step=0.05, key="ufc_fb")
 
-  momio_ufc = st.number_input("Momio Americano (Apuesta recomendada):", value=-250, step=5, key="ufc_mm")
+  momio_ufc = st.number_input("Momio Americano (Apuesta recomendada):", value=-250, step=5, format="%+d", key="ufc_mm")
 
   metricas_a = {"striking": striking_a, "defense": defense_a, "td_def": td_def_a, "finish": finish_a}
   metricas_b = {"striking": striking_b, "defense": defense_b, "td_def": td_def_b, "finish": finish_b}
@@ -1064,7 +1064,7 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.markdown("---")
   col_line1, col_line2 = st.columns(2)
   with col_line1:
-    linea_sp_nba = st.number_input("Línea Spread Casino:", value=-4.5, step=0.5, key="nba_lsp")
+    linea_sp_nba = st.number_input("Línea Spread Casino:", value=-4.5, step=0.5, format="%+.1f", key="nba_lsp")
   with col_line2:
     linea_tot_nba = st.number_input("Línea Total Casino O/U:", value=228.5, step=0.5, key="nba_ltot")
 
@@ -1108,8 +1108,8 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
   with col_c2: bye_v = st.checkbox("Visita en Bye Week", key="ncaaf_byev"); qb_v = st.checkbox("QB Visita Lesionado", key="ncaaf_qbv")
 
   tot_proy = st.number_input("Total Proyectado:", value=52.0, step=0.5, key="ncaaf_tot")
-  linea_sp = st.number_input("Spread Casino:", value=-14.5, step=0.5, key="ncaaf_lsp")
-  linea_tot = st.number_input("Total Casino O/U:", value=46.5, step=0.5, key="ncaaf_ltot")
+  linea_sp = st.number_input("Spread Casino:", value=-14.5, step=0.5, format="%+.1f", key="ncaaf_lsp")
+  linea_tot = st.number_input("Línea Casino O/U:", value=46.5, step=0.5, key="ncaaf_ltot")
   contexto_ncaaf = {"local_viene_de_bye": bye_l, "visita_viene_de_bye": bye_v, "local_qb_baja": qb_l, "visita_qb_baja": qb_v}
 
   if st.button("🚀 Ejecutar Análisis NCAAF", use_container_width=True):
@@ -1136,7 +1136,7 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con opciones para Spread, Totales O/U y Moneyline (Positivo/Negativo).*")
+  st.markdown("--- \n *Modelo inteligente con opciones para Spread, Totales O/U y Moneyline (Soporte para signos positivos y negativos).*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
@@ -1158,11 +1158,11 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   with col_l1:
     tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
   with col_l2:
-    bookie_spread = st.number_input("Hándicap / Spread (si aplica):", value=-3.0, step=0.5, format="%.1f", key="nfl_ml_bsp")
+    bookie_spread = st.number_input("Hándicap / Spread (si aplica):", value=-3.0, step=0.5, format="%+.1f", key="nfl_ml_bsp")
   with col_l3:
     bookie_total = st.number_input("Total de Puntos O/U (si aplica):", value=43.5, step=0.5, format="%.1f", key="nfl_ml_btot")
   with col_l4:
-    momio_casa_nfl = st.number_input("Momio Americano (Ej. -160 o +134):", value=-160, step=5, key="nfl_ml_momio")
+    momio_casa_nfl = st.number_input("Momio Americano (Ej. -160 o +134):", value=-160, step=5, format="%+d", key="nfl_ml_momio")
 
   wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
@@ -1228,11 +1228,11 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     if edge_calculado_nfl > 1.0:
       if "Moneyline" in tipo_apuesta_nfl:
         eq_ml = home_team if "Local" in tipo_apuesta_nfl else away_team
-        recomendacion_final = f"🎯 GANADOR MONEYLINE ({eq_ml}) [Momio {momio_casa_nfl}]"
+        recomendacion_final = f"🎯 GANADOR MONEYLINE ({eq_ml}) [Momio %+d]" % momio_casa_nfl
       elif "Local" in tipo_apuesta_nfl:
-        recomendacion_final = f"🎯 APOSTAR LOCAL ({home_team} {bookie_spread})"
+        recomendacion_final = f"🎯 APOSTAR LOCAL ({home_team} %+.1f)" % bookie_spread
       elif "Visitante" in tipo_apuesta_nfl:
-        recomendacion_final = f"🎯 APOSTAR VISITANTE ({away_team} {bookie_spread})"
+        recomendacion_final = f"🎯 APOSTAR VISITANTE ({away_team} %+.1f)" % bookie_spread
       elif "Altas" in tipo_apuesta_nfl:
         recomendacion_final = f"🎯 ALTAS OVER ({bookie_total})"
       else:
@@ -1252,8 +1252,8 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     }]
 
     if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
-      registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
-      st.success("¡Apuesta NFL guardada con éxito en SQLite con soporte para Moneyline!")
+      registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl:+d})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
+      st.success("¡Apuesta NFL guardada con éxito en SQLite con soporte para signos en momios y hándicaps!")
 
   if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
