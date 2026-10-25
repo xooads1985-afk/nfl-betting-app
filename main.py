@@ -47,7 +47,7 @@ if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_
 if "apuestas_manuales_ev" not in st.session_state:
   st.session_state["apuestas_manuales_ev"] = []
 
-for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun"]:
+for mod in ["ncaaf", "nfl", "nba", "soccer", "nhl", "baseball", "ufc", "props_soc_comun", "props_ufc_comun", "props_nfl_comun", "props_nba_comun", "props_atd"]:
   key_res = f"resultado_{mod}_calculado"
   if key_res not in st.session_state:
     st.session_state[key_res] = None
@@ -605,6 +605,7 @@ modulo_seleccionado = st.sidebar.radio(
         "⚽ Prop: Fútbol Soccer Común (Playdoit)",
         "🥊 Prop: UFC / MMA Común",
         "🛡️ Prop: NFL Común (Playdoit)",
+        "🛡️ Prop: Anytime TD (Playdoit)",
         "🏀 Prop: NBA Común (Playdoit)",
         "🔍 Escáner Automático & Manual (+EV)",
         "🥊 Sistema Pro UFC / MMA",
@@ -764,6 +765,42 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
       if st.button(f"📥 Guardar en SQLite ({v['mercado']})", key=f"save_prop_{v['mercado']}"):
         registrar_apuesta_db(fecha_formato_str, "Prop NFL Común", res_data['partido'], v['mercado'], int(momio_prop), edge_p, stk)
         st.success(f"¡Apuesta guardada con éxito en la base de datos!")
+
+
+elif modulo_seleccionado == "🛡️ Prop: Anytime TD (Playdoit)":
+  st.title(f"🏈 **Props: Anotador de Touchdown en Cualquier Momento [{fecha_formato_str}]**")
+  st.markdown("--- \n *Cálculo de probabilidad para Anytime TD basado en la tasa de anotación del jugador y la defensa rival.*")
+  
+  col1, col2 = st.columns(2)
+  with col1:
+    jugador_td = st.text_input("Jugador / Atleta:", value="DK Metcalf", key="atd_jug")
+    posicion_td = st.selectbox("Posición:", ["Running Back (RB)", "Wide Receiver (WR)", "Tight End (TE)", "Quarterback (QB)"], key="atd_pos")
+    partido_atd = st.text_input("Partido:", value="Pittsburgh Steelers vs New Orleans Saints", key="atd_part")
+  with col2:
+    tasa_td_partido = st.slider("Tasa Histórica de TDs por Partido (Ej. 0.65 = 65% de juegos anota):", 0.1, 1.5, 0.55, 0.05, key="atd_tasa")
+    defensa_factor_td = st.slider("Factor de Debilidad Defensiva (1.0 = Promedio, 1.3 = Permite 30% más TDs):", 0.7, 1.5, 1.10, 0.05, key="atd_def")
+
+  momio_atd = st.number_input("Momio Americano del Casino (Ej. +135):", value=135, step=5, key="atd_mom")
+
+  if st.button("🚀 Evaluar Probabilidad de Touchdown", use_container_width=True):
+    prob_modelo_atd = min(85.0, max(15.0, (tasa_td_partido * defensa_factor_td) * 100.0))
+    
+    _, edge_atd = calcular_edge_real(int(momio_atd), prob_modelo_atd)
+    stake_atd = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_atd, int(momio_atd))
+
+    st.markdown("### 📊 Resultado del Análisis Anytime TD")
+    col_r1, col_r2, col_r3 = st.columns(3)
+    col_r1.metric("Probabilidad Modelo", f"{prob_modelo_atd:.2f}%")
+    col_r2.metric("Edge Matemático", f"{edge_atd:+.2f}%", delta="Valor Positivo (+EV)" if edge_atd > 0 else "Sin Valor")
+    col_r3.metric("Stake Sugerido", f"${stake_atd} MXN")
+
+    if edge_atd > 1.5:
+      st.success(f"🎯 **¡Oportunidad detectada!** Apostar al Anytime Touchdown de **{jugador_td}** tiene valor positivo.")
+      if st.button("📥 Guardar Prop Anytime TD en SQLite", key="save_atd_db"):
+        registrar_apuesta_db(fecha_formato_str, "Anytime TD", partido_atd, f"{jugador_td} Anota TD (Anytime)", int(momio_atd), edge_atd, stake_atd)
+        st.success("¡Apuesta guardada con éxito en la base de datos!")
+    else:
+      st.warning("⚠️ La cuota del casino no ofrece suficiente margen de valor frente a la probabilidad calculada.")
 
 
 elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
