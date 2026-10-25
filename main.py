@@ -479,7 +479,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (BLINDADO Y ULTRARRÁPIDO)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + NOMBRES COMPLETOS)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
@@ -503,9 +503,18 @@ def entrenar_modelo_nfl_ml_avanzado():
   model_total = GradientBoostingRegressor(n_estimators=50, learning_rate=0.05, max_depth=3, random_state=42)
   model_total.fit(X_dummy, y_dummy_total)
   
-  equipos_nfl = ['KC', 'BUF', 'SF', 'PHI', 'BAL', 'DET', 'DAL', 'MIA', 'CIN', 'GB', 'LAR', 'HOU', 'CLE', 'PIT', 'TB', 'JAX', 'SEA', 'LAC', 'MIN', 'NYJ']
+  # Mapeo completo de nombres de franquicias de la NFL
+  equipos_nfl_completos = [
+      'Kansas City Chiefs', 'Buffalo Bills', 'San Francisco 49ers', 'Philadelphia Eagles', 
+      'Baltimore Ravens', 'Detroit Lions', 'Dallas Cowboys', 'Miami Dolphins', 
+      'Cincinnati Bengals', 'Green Bay Packers', 'Los Angeles Rams', 'Houston Texans', 
+      'Cleveland Browns', 'Pittsburgh Steelers', 'Tampa Bay Buccaneers', 'Jacksonville Jaguars', 
+      'Seattle Seahawks', 'Los Angeles Chargers', 'Minnesota Vikings', 'New York Jets',
+      'New England Patriots', 'Denver Broncos', 'Las Vegas Raiders', 'Chicago Bears'
+  ]
+  
   data_respaldo = []
-  for eq in equipos_nfl:
+  for eq in equipos_nfl_completos:
     data_respaldo.append({
         'season': 2025,
         'team': eq,
@@ -731,7 +740,7 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
   with col1:
     jugador = st.text_input("Jugador / Atleta:", value="Patrick Mahomes", key="pnc_jug")
     mercado = st.selectbox("Mercado Playdoit:", ["Yardas Pase", "Yardas Carrera", "Yardas Recepcion", "Yardas Totales (Recepcion y Carrera)", "Touchdown en Cualquier Momento"], key="pnc_merc")
-    partido_str = st.text_input("Partido (Ej. Chiefs vs Raiders):", value="Chiefs vs Raiders", key="pnc_part")
+    partido_str = st.text_input("Partido (Ej. Kansas City Chiefs vs Las Vegas Raiders):", value="Kansas City Chiefs vs Las Vegas Raiders", key="pnc_part")
   with col2:
     promedio_jug = st.number_input("Promedio del Jugador:", value=268.0, step=1.0, key="pnc_prom")
     linea_cas = st.number_input("Línea Casino:", value=255.5, step=0.5, key="pnc_lin")
@@ -838,7 +847,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
     col_m1, col_m2 = st.columns(2)
     with col_m1:
       deporte_man = st.selectbox("Deporte:", ["NBA", "NFL", "NCAAF", "NHL", "MLB", "SOCCER", "UFC"], key="man_dep")
-      partido_man = st.text_input("Partido (Ej. Lakers vs Warriors):", value="Lakers vs Warriors", key="man_part")
+      partido_man = st.text_input("Partido (Ej. Los Angeles Lakers vs Golden State Warriors):", value="Los Angeles Lakers vs Golden State Warriors", key="man_part")
       mercado_man = st.text_input("Mercado (Ej. Lakers Spread -3.5):", value="Lakers Spread -3.5", key="man_merc")
     with col_m2:
       momio_man = st.number_input("Momio Americano (Ej. -110 o +130):", value=-110, step=5, key="man_mom")
@@ -1107,20 +1116,20 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + EXPORTACIÓN EXCEL)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + NOMBRES COMPLETOS)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con ponderación exponencial, alertas de valor y exportación a Excel.*")
+  st.markdown("--- \n *Modelo inteligente con ponderación exponencial, nombres completos de equipos y exportación a Excel.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
 
   col_nfl1, col_nfl2 = st.columns(2)
   with col_nfl1:
-    home_team = st.text_input("Equipo Local (Ej. KC, SF, PHI):", value="KC", key="nfl_ml_home")
+    home_team = st.text_input("Equipo Local (Nombre Completo, Ej. Kansas City Chiefs):", value="Kansas City Chiefs", key="nfl_ml_home")
   with col_nfl2:
-    away_team = st.text_input("Equipo Visitante (Ej. BUF, SEA, DAL):", value="BUF", key="nfl_ml_away")
+    away_team = st.text_input("Equipo Visitante (Nombre Completo, Ej. Buffalo Bills):", value="Buffalo Bills", key="nfl_ml_away")
 
   col_nfl3, col_nfl4 = st.columns(2)
   with col_nfl3:
@@ -1137,8 +1146,8 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
   if st.button("🚀 Ejecutar Predicción NFL Optimizada", use_container_width=True):
-    home_data = df_metricas[df_metricas['team'] == home_team.upper()]
-    away_data = df_metricas[df_metricas['team'] == away_team.upper()]
+    home_data = df_metricas[df_metricas['team'].str.lower() == home_team.strip().lower()]
+    away_data = df_metricas[df_metricas['team'].str.lower() == away_team.strip().lower()]
     
     h_off = home_data['off_epa_ema'].values[0] if not home_data.empty else 0.08
     h_def = home_data['def_epa_ema'].values[0] if not home_data.empty else -0.04
@@ -1178,9 +1187,9 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     
     rec_spread = "SIN APUESTA DE VALOR"
     if ventaja_spread > 2.0:
-        rec_spread = f"🎯 APOSTAR LOCAL ({home_team.upper()})"
+        rec_spread = f"🎯 APOSTAR LOCAL ({home_team})"
     elif ventaja_spread < -2.0:
-        rec_spread = f"🎯 APOSTAR VISITANTE ({away_team.upper()})"
+        rec_spread = f"🎯 APOSTAR VISITANTE ({away_team})"
         
     rec_total = "SIN APUESTA DE VALOR"
     if ventaja_total > 2.5:
@@ -1193,7 +1202,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     
     st.session_state["ultimo_resultado_nfl"] = [{
         'Fecha': fecha_formato_str,
-        'Partido': f"{away_team.upper()} @ {home_team.upper()}",
+        'Partido': f"{away_team} @ {home_team}",
         'Spread Proyectado': round(pred_spread, 1),
         'Spread Casa': bookie_spread,
         'Total Proyectado': round(pred_total, 1),
