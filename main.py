@@ -390,7 +390,7 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 # =========================================================
-# 4. MOTOR PRO NBA (CON MATRIZ DE BAJAS & LOAD MANAGEMENT)
+# 4. MOTOR PRO NBA (CON MATRIZ DE BAJAS & MÉTRICAS DETALLADAS)
 # =========================================================
 MATRIZ_BAJAS_NBA = {
     "Boston Celtics": {"Jugador": "Jayson Tatum", "Impacto_Ort": 5.5, "Impacto_Pace": -1.2},
@@ -412,14 +412,16 @@ def aplicar_matriz_bajas_nba(equipo, ort_base, pace_base, esta_baja):
   return ort_ajustado, pace_ajustado
 
 def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino, linea_total_casino, contexto, equipo_local_nombre="Boston Celtics", equipo_visita_nombre="Milwaukee Bucks"):
-  ort_l_base = stats_local.get("ort", 115.0)
+  # Extraer eficiencias base y ajustar por estadísticas secundarias (Asistencias, Pérdidas, Tiros de campo, Triples)
+  ort_l_base = stats_local.get("ort", 115.0) + ((stats_local.get("apg", 25.0) - 25.0) * 0.2) - ((stats_local.get("tov", 13.0) - 13.0) * 0.3)
   drt_l_base = stats_local.get("drt", 115.0)
   pace_l_base = stats_local.get("pace", 98.5)
 
-  ort_v_base = stats_visita.get("ort", 115.0)
-  drt_v_base = stats_visita.get("drt", 115.0)
+  ort_v_base = stats_visita.get("ort", 114.0) + ((stats_visita.get("apg", 25.0) - 25.0) * 0.2) - ((stats_visita.get("tov", 13.0) - 13.0) * 0.3)
+  drt_v_base = stats_visita.get("drt", 111.0)
   pace_v_base = stats_visita.get("pace", 98.5)
 
+  # Aplicar Matriz de Bajas / Load Management
   ort_l_ajustada, pace_l_ajustado = aplicar_matriz_bajas_nba(equipo_local_nombre, ort_l_base, pace_l_base, contexto.get("local_estrella_baja", False))
   ort_v_ajustada, pace_v_ajustado = aplicar_matriz_bajas_nba(equipo_visita_nombre, ort_v_base, pace_v_base, contexto.get("visita_estrella_baja", False))
 
@@ -1104,19 +1106,24 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
 
 
 # =========================================================
-# 4. SISTEMA PRO NBA (CON MATRIZ DE BAJAS & LOAD MANAGEMENT)
+# 4. SISTEMA PRO NBA (MÉTRICAS COMPLETAS + MATRIZ DE BAJAS)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
-  st.title(f"🏀 **Sistema Pro NBA Élite con Matriz de Bajas & Load Management [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis avanzado de Eficiencia Ofensiva (ORT), Defensiva (DRT), Ritmo (Pace) y Reporte de Lesiones de Superestrellas.*")
+  st.title(f"🏀 **Sistema Pro NBA Élite con Métricas Detalladas & Matriz de Bajas [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis profundo: Eficiencias, Asistencias, Pérdidas, Porcentajes de Tiros/Triples, Rebotes y Load Management.*")
 
   col_nba_eq1, col_nba_eq2 = st.columns(2)
   with col_nba_eq1:
     el_nba = st.selectbox("Equipo Local NBA:", list(MATRIZ_BAJAS_NBA.keys()) + ["Los Angeles Lakers", "Golden State Warriors", "Denver Nuggets", "Phoenix Suns"], key="nba_el")
-    st.markdown("##### 📊 Métricas Avanzadas Local")
+    st.markdown("##### 📊 Estadísticas Detalladas Local")
     ort_l = st.number_input("Offensive Rating (ORT):", value=122.0, step=0.5, key="nba_ortl")
     drt_l = st.number_input("Defensive Rating (DRT):", value=110.5, step=0.5, key="nba_drtl")
     pace_l = st.number_input("Ritmo de Juego (Pace):", value=97.5, step=0.1, key="nba_pacel")
+    apg_l = st.number_input("Asistencias (APG):", value=26.5, step=0.5, key="nba_apgl")
+    tov_l = st.number_input("Pérdidas (TOV):", value=12.5, step=0.5, key="nba_tovl")
+    fg_l = st.number_input("% Tiros de Campo (FG%):", value=48.2, step=0.1, key="nba_fgl")
+    tp_l = st.number_input("% Triples (3P%):", value=37.5, step=0.1, key="nba_tpl")
+    rpg_l = st.number_input("Rebotes Totales (RPG):", value=44.0, step=0.5, key="nba_rpgl")
     
     st.markdown("##### 🚨 Situación Local")
     b2b_l_nba = st.checkbox("Local en B2B (Días consecutivos)", key="nba_b2bl")
@@ -1124,10 +1131,15 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
 
   with col_nba_eq2:
     ev_nba = st.selectbox("Equipo Visitante NBA:", list(MATRIZ_BAJAS_NBA.keys()) + ["Los Angeles Lakers", "Golden State Warriors", "Denver Nuggets", "Phoenix Suns"], index=1, key="nba_ev")
-    st.markdown("##### 📊 Métricas Avanzadas Visitante")
+    st.markdown("##### 📊 Estadísticas Detalladas Visitante")
     ort_v = st.number_input("Offensive Rating (ORT):", value=117.5, step=0.5, key="nba_ortv")
     drt_v = st.number_input("Defensive Rating (DRT):", value=115.0, step=0.5, key="nba_drtv")
     pace_v = st.number_input("Ritmo de Juego (Pace):", value=100.2, step=0.1, key="nba_pacev")
+    apg_v = st.number_input("Asistencias (APG):", value=25.8, step=0.5, key="nba_apgv")
+    tov_v = st.number_input("Pérdidas (TOV):", value=13.0, step=0.5, key="nba_tovv")
+    fg_v = st.number_input("% Tiros de Campo (FG%):", value=47.5, step=0.1, key="nba_fgv")
+    tp_v = st.number_input("% Triples (3P%):", value=36.8, step=0.1, key="nba_tpv")
+    rpg_v = st.number_input("Rebotes Totales (RPG):", value=42.5, step=0.5, key="nba_rpgv")
     
     st.markdown("##### 🚨 Situación Visitante")
     b2b_v_nba = st.checkbox("Visitante en B2B (Días consecutivos)", key="nba_b2bv")
@@ -1141,11 +1153,11 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   with col_line2:
     linea_tot_nba = st.number_input("Línea Total Casino O/U:", value=228.5, step=0.5, key="nba_ltot")
 
-  stats_local_dict = {"ort": ort_l, "drt": drt_l, "pace": pace_l}
-  stats_visita_dict = {"ort": ort_v, "drt": drt_v, "pace": pace_v}
+  stats_local_dict = {"ort": ort_l, "drt": drt_l, "pace": pace_l, "apg": apg_l, "tov": tov_l, "fg_pct": fg_l, "three_p_pct": tp_l, "rpg": rpg_l}
+  stats_visita_dict = {"ort": ort_v, "drt": drt_v, "pace": pace_v, "apg": apg_v, "tov": tov_v, "fg_pct": fg_v, "three_p_pct": tp_v, "rpg": rpg_v}
   contexto_nba = {"local_b2b": b2b_l_nba, "visita_b2b": b2b_v_nba, "local_estrella_baja": estrella_l_nba, "visita_estrella_baja": estrella_v_nba}
 
-  if st.button("🚀 Ejecutar Análisis NBA con Matriz de Bajas", use_container_width=True):
+  if st.button("🚀 Ejecutar Análisis NBA Completo (Métricas + Bajas)", use_container_width=True):
     res_nba = analizar_lineas_nba_detallado(stats_local_dict, stats_visita_dict, linea_sp_nba, linea_tot_nba, contexto_nba, el_nba, ev_nba)
     st.session_state["resultado_nba_calculado"] = {"partido": f"{ev_nba} @ {el_nba}", "analisis": res_nba}
 
