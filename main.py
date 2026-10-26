@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+import io
 import math
 import os
 import random
@@ -10,7 +11,7 @@ import pandas as pd
 import requests
 import scipy.stats as stats
 from scipy.stats import norm, poisson
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 import streamlit as st
@@ -476,76 +477,91 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + NFLVERSE)
 # =========================================================
-EQUIPOS_NFL_OFICIALES = [
-    'Arizona Cardinals', 'Atlanta Falcons', 'Baltimore Ravens', 'Buffalo Bills',
-    'Carolina Panthers', 'Chicago Bears', 'Cincinnati Bengals', 'Cleveland Browns',
-    'Dallas Cowboys', 'Denver Broncos', 'Detroit Lions', 'Green Bay Packers',
-    'Houston Texans', 'Indianapolis Colts', 'Jacksonville Jaguars', 'Kansas City Chiefs',
-    'Las Vegas Raiders', 'Los Angeles Chargers', 'Los Angeles Rams', 'Miami Dolphins',
-    'Minnesota Vikings', 'New England Patriots', 'New Orleans Saints', 'New York Giants',
-    'New York Jets', 'Philadelphia Eagles', 'Pittsburgh Steelers', 'San Francisco 49ers',
-    'Seattle Seahawks', 'Tampa Bay Buccaneers', 'Tennessee Titans', 'Washington Commanders'
-]
+YEARS_NFL = [2022, 2023, 2024, 2025, 2026]
+FEATURES_NFL = ["home_pf", "home_pa", "home_win", "away_pf", "away_pa", "away_win", "home_n", "away_n", "rest_home", "rest_away"]
 
-@st.cache_resource
-def entrenar_modelo_nfl_ml_avanzado():
-  np.random.seed(42)
-  X_dummy = pd.DataFrame({
-      'home_off_epa': np.random.uniform(0.02, 0.15, 100),
-      'home_def_epa': np.random.uniform(-0.10, -0.01, 100),
-      'home_success_rate': np.random.uniform(0.40, 0.50, 100),
-      'away_off_epa': np.random.uniform(0.01, 0.14, 100),
-      'away_def_epa': np.random.uniform(-0.09, -0.02, 100),
-      'away_success_rate': np.random.uniform(0.39, 0.49, 100),
-      'wind': np.random.uniform(0.0, 15.0, 100)
-  })
-  
-  y_dummy_spread = X_dummy['home_off_epa'] * 35 - X_dummy['away_off_epa'] * 35 + np.random.normal(0, 3, 100)
-  y_dummy_total = (X_dummy['home_off_epa'] + X_dummy['away_off_epa']) * 50 + 44 + np.random.normal(0, 4, 100)
-  
-  model_spread = GradientBoostingRegressor(n_estimators=50, learning_rate=0.05, max_depth=3, random_state=42)
-  model_spread.fit(X_dummy, y_dummy_spread)
-  
-  model_total = GradientBoostingRegressor(n_estimators=50, learning_rate=0.05, max_depth=3, random_state=42)
-  model_total.fit(X_dummy, y_dummy_total)
-  
-  data_respaldo = []
-  for eq in EQUIPOS_NFL_OFICIALES:
-    data_respaldo.append({
-        'season': 2026,
-        'team': eq,
-        'off_epa_ema': round(np.random.uniform(0.03, 0.12), 3),
-        'def_epa_ema': round(np.random.uniform(-0.08, -0.02), 3),
-        'success_ema': round(np.random.uniform(0.42, 0.48), 3)
-    })
-  team_metrics = pd.DataFrame(data_respaldo)
-  
-  return model_spread, model_total, team_metrics, {}, True
+@st.cache_data(ttl=86400, show_spinner=False)
+def cargar_partidos_nfl():
+    import nflreadpy as nfl
+    raw = nfl.load_schedules(YEARS_NFL).to_pandas()
+    needed = ["game_id", "season", "week", "gameday", "home_team", "away_team", "home_score", "away_score"]
+    missing = [c for c in needed if c not in raw.columns]
+    if missing:
+        raise ValueError(f"La fuente no contiene columnas requeridas: {', '.join(missing)}")
+    df = raw[needed].copy()
+    df["gameday"] = pd.to_datetime(df["gameday"], errors="coerce")
+    for c in ("season", "week", "home_score", "away_score"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    df = df.dropna(subset=["game_id", "season", "week", "gameday", "home_team", "away_team"])
+    df = df.drop_duplicates("game_id").sort_values(["gameday", "game_id"]).reset_index(drop=True)
+    if df.empty:
+        raise ValueError("NFLverse devolvió un calendario vacío")
+    return df
 
+def construir_variables_nfl(df):
+    history = {}
+    rows = []
+    for date, group in df.groupby("gameday", sort=True):
+        pending = []
+        for _, g in group.iterrows():
+            home, away = str(g.home_team), str(g.away_team)
+            def prior(team):
+                played = history.get(team, [])
+                last = played[-5:]
+                n = len(last)
+                if not n:
+                    return 21.0, 21.0, 0.5, 0, 7
+                rest = int((date - last[-1][0]).days)
+                return (float(np.mean([x[1] for x in last])),
+                        float(np.mean([x[2] for x in last])),
+                        float(np.mean([x[3] for x in last])), n,
+                        int(np.clip(rest, 0, 21)))
+            hpf, hpa, hw, hn, hr = prior(home)
+            apf, apa, aw, an, ar = prior(away)
+            row = {"game_id": g.game_id, "gameday": date, "season": int(g.season),
+                   "week": int(g.week), "home_team": home, "away_team": away,
+                   "home_pf": hpf, "home_pa": hpa, "home_win": hw,
+                   "away_pf": apf, "away_pa": apa, "away_win": aw,
+                   "home_n": hn, "away_n": an, "rest_home": hr, "rest_away": ar,
+                   "home_score": g.home_score, "away_score": g.away_score}
+            rows.append(row)
+            if pd.notna(g.home_score) and pd.notna(g.away_score):
+                hs, vs = float(g.home_score), float(g.away_score)
+                pending.append((home, away, hs, vs))
+        for home, away, hs, vs in pending:
+            history.setdefault(home, []).append((date, hs, vs, float(hs > vs) + 0.5 * float(hs == vs)))
+            history.setdefault(away, []).append((date, vs, hs, float(vs > hs) + 0.5 * float(vs == vs)))
+    return pd.DataFrame(rows)
 
-def calibrar_entorno_nfl_avanzado(total_base_proyectado, contexto_partido):
-  total_ajustado = total_base_proyectado
-  if contexto_partido.get("local_qb_baja", False):
-    total_ajustado -= 3.5
-  if contexto_partido.get("visita_qb_baja", False):
-    total_ajustado -= 3.5
-    
-  if contexto_partido.get("zona_roja_deficiente", False):
-    total_ajustado -= 3.0
-    
-  if contexto_partido.get("estadio_abierto", True):
-    viento = contexto_partido.get("viento_kmh", 0.0)
-    if viento >= 24.0:
-      total_ajustado -= 4.0
-    elif viento >= 16.0:
-      total_ajustado -= 2.0
-      
-    if contexto_partido.get("temperatura_f", 50) <= 20:
-      total_ajustado -= 2.5
-      
-  return max(30.0, total_ajustado)
+@st.cache_resource(show_spinner=False)
+def entrenar_modelo_nfl(data_version, train_csv):
+    df = pd.read_csv(io.StringIO(train_csv), parse_dates=["gameday"])
+    complete = df.dropna(subset=["home_score", "away_score"]).copy()
+    train = complete[complete.season.between(2022, 2024)]
+    test = complete[complete.season == 2025]
+    if len(train) < 300 or len(test) < 100:
+        raise ValueError("Faltan partidos suficientes de 2022-2025 para validar el modelo.")
+    for frame in (train, test):
+        if frame[FEATURES_NFL].isna().any().any():
+            raise ValueError("Hay variables faltantes en el historial")
+    targets = {"margen": lambda d: d.home_score - d.away_score,
+               "total": lambda d: d.home_score + d.away_score}
+    metrics, models = {}, {}
+    for name, target in targets.items():
+        model = HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12, learning_rate=0.045,
+                                              l2_regularization=8.0, random_state=42)
+        model.fit(train[FEATURES_NFL], target(train))
+        pred = model.predict(test[FEATURES_NFL])
+        base = np.repeat(float(target(train).mean()), len(test))
+        metrics[name] = {"MAE_modelo": float(mean_absolute_error(target(test), pred)),
+                         "MAE_referencia": float(mean_absolute_error(target(test), base))}
+        models[name] = model
+    full = complete[complete.season.between(2022, 2025)]
+    for name, target in targets.items():
+        models[name].fit(full[FEATURES_NFL], target(full))
+    return models, metrics, len(train), len(test)
 
 
 # =========================================================
@@ -1209,172 +1225,147 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL
+# 6. SISTEMA PRO NFL (ML + NFLVERSE CON MÉTRICAS Y APUESTAS +EV)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite con Equipos Oficiales, Machine Learning & Control Térmico [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo dual optimizado con selectores oficiales de franquicias, calibración de clima, viento, Zona Roja y tope disciplinado de $250 MXN.*")
+  st.title(f"🛡️ **Sistema Pro NFL Élite (Machine Learning & Apuestas +EV) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo predictivo basado en HistGradientBoostingRegressor con validación histórica y cálculo de valor (+EV).*")
+  
+  if st.button("🔄 Actualizar Fuente NFLverse", key="nfl_refresh"):
+    cargar_partidos_nfl.clear()
+    st.rerun()
 
-  m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
-  st.success("✅ Modelos de Machine Learning y motores térmicos listos para operar.")
+  try:
+    with st.spinner("Consultando NFLverse y construyendo historial de rendimiento..."):
+      games = cargar_partidos_nfl()
+      frame = construir_variables_nfl(games)
+      completed = frame.dropna(subset=["home_score", "away_score"])
+      if completed.empty:
+        st.error("La fuente no contiene resultados terminados.")
+        st.stop()
+      fingerprint = int(pd.util.hash_pandas_object(
+          completed[["game_id", "home_score", "away_score"]], index=False).sum())
+      models, metrics, ntrain, ntest = entrenar_modelo_nfl(
+          fingerprint, frame.to_csv(index=False))
+  except Exception as exc:
+    st.error("🔴 Modelo no disponible: no fue posible cargar o validar datos históricos.")
+    st.code(str(exc))
+    st.stop()
 
-  col_nfl1, col_nfl2 = st.columns(2)
-  with col_nfl1:
-    home_team = st.selectbox("Equipo Local NFL:", EQUIPOS_NFL_OFICIALES, index=26, key="nfl_ml_home")
-  with col_nfl2:
-    away_team = st.selectbox("Equipo Visitante NFL:", EQUIPOS_NFL_OFICIALES, index=22, key="nfl_ml_away")
+  st.success("🟢 Fuente real cargada y validación histórica completada con datos de NFLverse.")
+  st.write(f"**Partidos para entrenamiento inicial:** {ntrain} · **Partidos evaluados de 2025:** {ntest}")
+  st.caption(f"Último partido con resultado disponible en la fuente: {completed.gameday.max().date()}")
 
-  col_nfl3, col_nfl4 = st.columns(2)
-  with col_nfl3:
-    qb_local_suplente = st.checkbox("⚠️ ¿QB Titular Local Lesionado / Suplente?", key="nfl_qb_loc_sup")
-  with col_nfl4:
-    qb_visita_suplente = st.checkbox("⚠️ ¿QB Titular Visitante Lesionado / Suplente?", key="nfl_qb_vis_sup")
+  # VALIDACIÓN DEL MODELO (MÉTRICAS MAE)
+  report = pd.DataFrame(metrics).T.round(2)
+  st.subheader("📊 Validación del Modelo (Métricas MAE - Temporada 2025)")
+  st.dataframe(report, use_container_width=True)
+  
+  if any(v["MAE_modelo"] >= v["MAE_referencia"] for v in metrics.values()):
+    st.warning("🟡 Al menos una proyección no supera la referencia básica en 2025. Interprétala con cautela.")
+  else:
+    st.info("✅ La validación de 2025 mejora la referencia básica del error absoluto medio (MAE).")
 
-  st.markdown("### ⚙️ Factores Ambientales, de Zona Roja y de Entorno")
-  col_cl1, col_cl2, col_cl3, col_cl4 = st.columns(4)
-  with col_cl1:
-    estadio_abierto = st.checkbox("Estadio Abierto / Clima Descubierto", value=True, key="nfl_est_abierto")
-  with col_cl2:
-    wind_forecast = st.number_input("Velocidad de Viento (KM/H):", value=15.0, step=1.0, key="nfl_ml_wind_kmh")
-  with col_cl3:
-    temp_f = st.number_input("Temperatura (°F) [<= 20°F frío extremo]:", value=35.0, step=1.0, key="nfl_ml_temp")
-  with col_cl4:
-    zona_roja_deficiente = st.checkbox("⚠️ Equipos con baja eficiencia en Zona Roja (Más FGs)", key="nfl_rz_def_ui")
-
-  st.markdown("### 📊 Selección de Mercado y Momios de la Casa")
-  col_l1, col_l2, col_l3, col_l4 = st.columns(4)
-  with col_l1:
-    tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
-  with col_l2:
-    bookie_spread_str = st.text_input("Hándicap / Spread (Ej. -3.0 o +3.5):", value="-3.0", key="nfl_ml_bsp")
-    bookie_spread = limpiar_spread(bookie_spread_str)
-  with col_l3:
-    bookie_total = st.number_input("Total de Puntos O/U (si aplica):", value=43.5, step=0.5, format="%.1f", key="nfl_ml_btot")
-  with col_l4:
-    momio_casa_nfl_str = st.text_input("Momio Americano (Ej. -160 o +134):", value="-160", key="nfl_ml_momio")
-    momio_casa_nfl = limpiar_momio(momio_casa_nfl_str)
-
-  if st.button("🚀 Ejecutar Predicción NFL Optimizada", use_container_width=True):
-    home_data = df_metricas[df_metricas['team'].str.lower() == home_team.strip().lower()]
-    away_data = df_metricas[df_metricas['team'].str.lower() == away_team.strip().lower()]
+  st.markdown("---")
+  st.subheader("📅 Seleccionar Próximo Partido para Analizar y Apostar")
+  today = pd.Timestamp(datetime.now(timezone.utc).date())
+  future = frame[(frame.gameday >= today) & frame.home_score.isna() & frame.away_score.isna()].copy()
+  future = future.sort_values("gameday")
+  
+  if future.empty:
+    st.info("No hay partidos futuros publicados en los datos cargados actualmente.")
+  else:
+    options = {f"{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}": i
+               for i, r in future.iterrows()}
+    chosen = st.selectbox("Selecciona un enfrentamiento:", list(options), key="nfl_game_select")
+    row = future.loc[options[chosen]]
     
-    h_off = home_data['off_epa_ema'].values[0] if not home_data.empty else 0.08
-    h_def = home_data['def_epa_ema'].values[0] if not home_data.empty else -0.04
-    h_suc = home_data['success_ema'].values[0] if not home_data.empty else 0.44
-    
-    a_off = away_data['off_epa_ema'].values[0] if not away_data.empty else 0.07
-    a_def = away_data['def_epa_ema'].values[0] if not away_data.empty else -0.03
-    a_suc = away_data['success_ema'].values[0] if not away_data.empty else 0.43
-    
-    if qb_local_suplente:
-      h_off *= 0.75
-      h_suc *= 0.85
-    if qb_visita_suplente:
-      a_off *= 0.75
-      a_suc *= 0.85
+    x = pd.DataFrame([row[FEATURES_NFL].to_dict()])[FEATURES_NFL]
+    margin = float(models["margen"].predict(x)[0])
+    total = float(models["total"].predict(x)[0])
+    home_points, away_points = (total + margin) / 2, (total - margin) / 2
 
-    input_data = pd.DataFrame([{
-        'home_off_epa': h_off,
-        'home_def_epa': h_def,
-        'home_success_rate': h_suc,
-        'away_off_epa': a_off,
-        'away_def_epa': a_def,
-        'away_success_rate': a_suc,
-        'wind': wind_forecast / 1.60934
-    }])
-    
-    pred_spread = m_spread.predict(input_data)[0]
-    pred_total_base = m_total.predict(input_data)[0]
-    
-    contexto_partido = {
-        "local_qb_baja": qb_local_suplente,
-        "visita_qb_baja": qb_visita_suplente,
-        "estadio_abierto": estadio_abierto,
-        "viento_kmh": wind_forecast,
-        "temperatura_f": temp_f,
-        "zona_roja_deficiente": zona_roja_deficiente
-    }
-    pred_total = calibrar_entorno_nfl_avanzado(pred_total_base, contexto_partido)
+    st.markdown("### 📊 Proyecciones del Modelo")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Margen Local Estimado", f"{margin:+.1f}")
+    c2.metric("Total de Puntos Estimado", f"{total:.1f}")
+    c3.metric("Puntos (Local / Visita)", f"{home_points:.1f} / {away_points:.1f}")
 
-    if "Moneyline Local" in tipo_apuesta_nfl:
-      prob_modelo_nfl = round(min(92.0, max(10.0, 50.0 + (pred_spread * 6.5))), 2)
-    elif "Moneyline Visitante" in tipo_apuesta_nfl:
-      prob_modelo_nfl = round(min(92.0, max(10.0, 50.0 - (pred_spread * 6.5))), 2)
-    elif "Spread Local" in tipo_apuesta_nfl:
-      ventaja_apuesta = pred_spread - bookie_spread
-      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 4.0))), 2)
-    elif "Spread Visitante" in tipo_apuesta_nfl:
-      ventaja_apuesta = (-pred_spread) - bookie_spread
-      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 4.0))), 2)
-    elif "Altas" in tipo_apuesta_nfl:
-      ventaja_apuesta = pred_total - bookie_total
-      if ventaja_apuesta < 2.5:
-        prob_modelo_nfl = 45.0
-      else:
-        prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.5))), 2)
-    else:
-      ventaja_apuesta = bookie_total - pred_total
-      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.8))), 2)
+    if min(int(row.home_n), int(row.away_n)) < 3:
+      st.warning("⚠️ Algún equipo tiene menos de 3 partidos recientes en el historial; proyectar con precaución.")
 
-    _, edge_calculado_nfl = calcular_edge_real(momio_casa_nfl, prob_modelo_nfl)
-    stake_calculado_kelly = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_nfl, momio_casa_nfl)
-    stake_recomendado_nfl = min(250.0, stake_calculado_kelly)
-    
-    st.markdown("### 📊 Resultados de la Proyección Inteligente Optimizada")
-    col_res1, col_res2, col_res3 = st.columns(3)
-    col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}")
-    col_res2.metric("Total Proyectado Ajustado", f"{pred_total:.1f} pts")
-    col_res3.metric("Edge Matemático (+EV)", f"{edge_calculado_nfl:+.2f}%", delta=f"Stake (Tope $250): ${stake_recomendado_nfl} MXN")
-    
-    recomendacion_final = "SIN APUESTA DE VALOR"
-    if edge_calculado_nfl > 1.0:
-      if "Moneyline" in tipo_apuesta_nfl:
-        eq_ml = home_team if "Local" in tipo_apuesta_nfl else away_team
-        recomendacion_final = f"🎯 GANADOR MONEYLINE ({eq_ml}) [Momio %+d]" % momio_casa_nfl
-      elif "Local" in tipo_apuesta_nfl:
-        recomendacion_final = f"🎯 APOSTAR LOCAL ({home_team} %+.1f)" % bookie_spread
-      elif "Visitante" in tipo_apuesta_nfl:
-        recomendacion_final = f"🎯 APOSTAR VISITANTE ({away_team} %+.1f)" % bookie_spread
-      elif "Altas" in tipo_apuesta_nfl:
-        recomendacion_final = f"🎯 ALTAS OVER ({bookie_total})"
-      else:
-        recomendacion_final = f"🎯 BAJAS UNDER ({bookie_total})"
-        
-    st.info(f"**Recomendación del Módulo:** {recomendacion_final} (Prob. Modelo: `{prob_modelo_nfl}%`)")
-    
-    st.session_state["ultimo_resultado_nfl"] = [{
-        'Fecha': fecha_formato_str,
-        'Partido': f"{away_team} @ {home_team}",
-        'Mercado Analizado': tipo_apuesta_nfl,
-        'Momio Casa': momio_casa_nfl,
-        'Probabilidad Modelo (%)': prob_modelo_nfl,
-        'Edge (%)': round(edge_calculado_nfl, 2),
-        'Stake (MXN)': stake_recomendado_nfl,
-        'Recomendación': recomendacion_final,
-    }]
-
-    if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
-      registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl:+d})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
-      st.success("¡Apuesta NFL guardada con éxito en SQLite!")
-
-  if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
-    st.subheader("📊 Reporte y Exportación à Excel")
-    if st.button("📊 Generar Archivo Excel (.xlsx)", key="btn_gen_excel"):
-      df_export = pd.DataFrame(st.session_state["ultimo_resultado_nfl"])
-      df_export['Alerta_Valor'] = np.where(df_export['Recomendación'] != 'SIN APUESTA DE VALOR', '¡SÍ (+EV)!', 'No')
-      
-      file_name = f"proyecciones_nfl_{fecha_formato_str}.xlsx"
-      df_export.to_excel(file_name, index=False, sheet_name='Semana Actual')
-      
-      with open(file_name, "rb") as f:
-        st.download_button(
-            label="📥 Descargar Reporte Excel",
-            data=f,
-            file_name=file_name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-      st.success("¡El archivo Excel está listo para descargarse!")
+    st.subheader("🎯 Configuración de Apuesta & Evaluación de Valor (+EV)")
+    
+    col_l1, col_l2, col_l3 = st.columns(3)
+    with col_l1:
+      tipo_apuesta = st.selectbox("Mercado:", ["Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_ap_tipo")
+    with col_l2:
+      bookie_line = st.number_input("Línea de la Casa (Spread / Total O/U):", value=-3.0 if "Spread" in tipo_apuesta else 43.5, step=0.5, key="nfl_book_line")
+    with col_l3:
+      momio_casa_str = st.text_input("Momio Americano (Ej. -110 o +135):", value="-110", key="nfl_momio_input")
+      momio_casa = limpiar_momio(momio_casa_str)
+
+    # Cálculo de probabilidad del modelo basado en distribución normal
+    if "Spread Local" in tipo_apuesta:
+      ventaja = margin - bookie_line
+      prob_modelo = float(norm.cdf(ventaja / 13.5) * 100.0)
+    elif "Spread Visitante" in tipo_apuesta:
+      ventaja = (-margin) - bookie_line
+      prob_modelo = float(norm.cdf(ventaja / 13.5) * 100.0)
+    elif "Altas" in tipo_apuesta:
+      ventaja = total - bookie_line
+      prob_modelo = float(norm.cdf(ventaja / 14.0) * 100.0)
+    else:  # Bajas
+      ventaja = bookie_line - total
+      prob_modelo = float(norm.cdf(ventaja / 14.0) * 100.0)
+
+    prob_modelo = round(min(92.0, max(10.0, prob_modelo)), 2)
+
+    # Cálculo de probabilidad implícita y Edge
+    if momio_casa > 0:
+      prob_imp = 100.0 / (momio_casa + 100.0) * 100.0
+    else:
+      prob_imp = abs(momio_casa) / (abs(momio_casa) + 100.0) * 100.0
+
+    edge = round(prob_modelo - prob_imp, 2)
+
+    # Criterio de Kelly con tope de $250 MXN
+    bankroll = st.session_state.get("bankroll_global", 15250.0)
+    p = prob_modelo / 100.0
+    b = (momio_casa / 100.0) if momio_casa > 0 else (100.0 / abs(momio_casa))
+    q = 1.0 - p
+    kelly_full = (b * p - q) / b
+    stake_sugerido = round(max(10.0, bankroll * kelly_full * 0.25), 2)
+    stake_final = min(250.0, stake_sugerido)  # Tope disciplinado de $250 MXN
+
+    st.markdown("### 📈 Resultados del Análisis de Valor")
+    col_res1, col_res2, col_res3 = st.columns(3)
+    col_res1.metric("Probabilidad del Modelo", f"{prob_modelo:.2f}%")
+    col_res2.metric("Edge Matemático", f"{edge:+.2f}%", delta="Valor Positivo (+EV)" if edge > 0 else "Sin Valor")
+    col_res3.metric("Stake Recomendado (Tope $250)", f"${stake_final} MXN")
+
+    if edge > 1.5:
+      st.success(f"🎯 **¡Oportunidad detectada!** El modelo encuentra valor positivo (+EV) en **{row.away_team} @ {row.home_team}**.")
+      if st.button("📥 Guardar Apuesta en Base de Datos SQLite", key="save_nfl_bet"):
+        partido_str = f"{row.away_team} @ {row.home_team}"
+        mercado_str = f"{tipo_apuesta} ({bookie_line}) [Momio {momio_casa:+d}]"
+        try:
+          registrar_apuesta_db(fecha_formato_str, "NFL Élite ML", partido_str, mercado_str, momio_casa, edge, stake_final)
+          st.success("¡Apuesta guardada con éxito en la base de datos SQLite!")
+        except Exception as e:
+          st.error(f"Error al guardar: {e}")
+    else:
+      st.warning("⚠️ Esta línea no ofrece suficiente margen de valor (+EV) según las proyecciones del modelo.")
+
+    output = pd.DataFrame([{
+        "fecha": row.gameday.date(), "local": row.home_team,
+        "visitante": row.away_team, "margen_local": round(margin, 2),
+        "total": round(total, 2), "probabilidad_modelo": prob_modelo,
+        "edge": edge, "stake_sugerido": stake_final
+    }])
+    st.download_button("📥 Descargar Proyección y Análisis (.csv)", output.to_csv(index=False).encode("utf-8"),
+                       "nfl_analisis_apuesta.csv", "text/csv", key="nfl_projection_dl")
 
 
 # =========================================================
