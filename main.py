@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.5 (INTEGRADO)
+# SISTEMA PRO NFL v4.5.1 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -690,8 +690,6 @@ def auditar_integridad_nfl_v341(calendario, estadisticas):
             filas.append(dict(nivel=nivel, control=nombre, registros=int(cantidad), detalle=descripcion))
         except Exception as exc:
             filas.append(dict(nivel='NO EJECUTADO', control=nombre, registros=0, detalle=f'{type(exc).__name__}: {exc}'))
-    def serie_num(df, col):
-        return pd.to_numeric(df[col], errors='coerce')
     def contar(n, nivel='ERROR'):
         return (int(n), nivel if n else 'OK')
     agregar('IDs de partidos duplicados', lambda: contar(cal['game_id'].duplicated().sum()), 'Cada game_id debe ser único.')
@@ -1035,6 +1033,30 @@ def _panel_comparacion_v44(cal):
     grafica = pd.concat([da.assign(Equipo=a), db.assign(Equipo=b)], ignore_index=True)
     st.line_chart(grafica.pivot_table(index='Partido', columns='Equipo', values='PF', aggfunc='first'), use_container_width=True)
 
+def _agregar_pbp_v451(df):
+    cols = ['game_id', 'posteam', 'defteam', 'play_type', 'epa', 'success']
+    faltantes = [c for c in cols if c not in df.columns]
+    if faltantes:
+        raise ValueError('Columnas PBP faltantes: ' + ', '.join(faltantes))
+    d = df.loc[df['play_type'].isin(['pass', 'run']), cols].copy()
+    d['epa'] = pd.to_numeric(d['epa'], errors='coerce')
+    d['success'] = pd.to_numeric(d['success'], errors='coerce')
+    d = d.dropna(subset=['game_id', 'posteam', 'defteam'])
+    d = d[d['posteam'].ne(d['defteam'])]
+    d.loc[~d['success'].isin([0, 1]), 'success'] = float('nan')
+    def agregar(lado, prefijo):
+        if d.empty:
+            return pd.DataFrame(columns=['game_id', 'equipo', f'EPA {prefijo}', f'SR {prefijo}', f'Jugadas EPA {prefijo}', f'Jugadas SR {prefijo}'])
+        return (d.groupby(['game_id', lado], as_index=False)
+                .agg(**{f'EPA {prefijo}': ('epa', 'mean'),
+                        f'SR {prefijo}': ('success', 'mean'),
+                        f'Jugadas EPA {prefijo}': ('epa', 'count'),
+                        f'Jugadas SR {prefijo}': ('success', 'count')})
+                .rename(columns={lado: 'equipo'}))
+    ataque = agregar('posteam', 'ofensivo')
+    defensa = agregar('defteam', 'permitido')
+    return ataque.merge(defensa, on=['game_id', 'equipo'], how='outer', validate='one_to_one')
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def _cargar_pbp_comparacion_v45(temporada):
     import nflreadpy as nfl
@@ -1044,24 +1066,18 @@ def _cargar_pbp_comparacion_v45(temporada):
         df = raw.select(campos).to_pandas()
     else:
         df = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
-        _requerir(df, campos, 'PBP NFL 4.5')
-        df = df[campos].copy()
-    _requerir(df, campos, 'PBP NFL 4.5')
-    df = df[df['play_type'].isin(['pass', 'run'])].copy()
-    df['epa'] = pd.to_numeric(df['epa'], errors='coerce')
-    df['success'] = pd.to_numeric(df['success'], errors='coerce')
-    df = df.dropna(subset=['game_id', 'posteam', 'defteam', 'epa', 'success'])
-    if df.empty:
-        return pd.DataFrame(columns=['game_id', 'equipo', 'EPA ofensivo', 'SR ofensivo', 'EPA permitido', 'SR permitido', 'Jugadas'])
-    ataque = df.groupby(['game_id', 'posteam'], as_index=False).agg(
-        **{'EPA ofensivo': ('epa', 'mean'), 'SR ofensivo': ('success', 'mean'), 'Jugadas': ('epa', 'size')}).rename(columns={'posteam': 'equipo'})
-    defensa = df.groupby(['game_id', 'defteam'], as_index=False).agg(
-        **{'EPA permitido': ('epa', 'mean'), 'SR permitido': ('success', 'mean')}
-    ).rename(columns={'defteam': 'equipo'})
-    return ataque.merge(defensa, on=['game_id', 'equipo'], how='outer')
+    return _agregar_pbp_v451(df)
+
+def _media_ponderada_v451(datos, metrica, contador):
+    valores = pd.to_numeric(datos[metrica], errors='coerce')
+    pesos = pd.to_numeric(datos[contador], errors='coerce').fillna(0)
+    validos = valores.notna() & pesos.gt(0)
+    if not validos.any():
+        return None
+    return round(float((valores[validos] * pesos[validos]).sum() / pesos[validos].sum()), 4)
 
 def _panel_avanzado_v45(cal):
-    st.subheader('🧠 NFL 4.5 | Rendimiento avanzado')
+    st.subheader('🧠 NFL 4.5.1 | Rendimiento avanzado')
     temporadas = sorted(cal['season'].dropna().astype(int).unique().tolist(), reverse=True)
     if not temporadas:
         st.info('Sin temporadas disponibles.')
@@ -1111,14 +1127,16 @@ def _panel_avanzado_v45(cal):
         return
     filas = []
     for equipo, d in historiales.items():
-        x = pbp[pbp['equipo'].eq(equipo)].merge(d[['game_id']], on='game_id', how='inner')
-        n = pd.to_numeric(x['Jugadas'], errors='coerce').fillna(0)
-        total = n.sum()
-        fila = {'Equipo': equipo, 'Partidos con PBP': len(x), 'Jugadas': int(total)}
-        for col in ['EPA ofensivo', 'SR ofensivo', 'EPA permitido', 'SR permitido']:
-            vals = pd.to_numeric(x[col], errors='coerce')
-            ok = vals.notna() & n.gt(0)
-            fila[col] = round(float((vals[ok] * n[ok]).sum() / n[ok].sum()), 4) if ok.any() else None
+        ids = d[['game_id']].drop_duplicates()
+        x = pbp[pbp['equipo'].eq(equipo)].merge(ids, on='game_id', how='inner', validate='one_to_one')
+        cobertura = len(x)
+        fila = {'Equipo': equipo, 'Partidos con resultado': len(ids), 'Partidos con PBP': cobertura}
+        for prefijo in ('ofensivo', 'permitido'):
+            for metrica in ('EPA', 'SR'):
+                col = f'{metrica} {prefijo}'
+                contador = f'Jugadas {metrica} {prefijo}'
+                fila[col] = _media_ponderada_v451(x, col, contador)
+                fila[contador] = int(pd.to_numeric(x[contador], errors='coerce').fillna(0).sum())
         filas.append(fila)
     tabla = pd.DataFrame(filas)
     st.dataframe(tabla, hide_index=True, use_container_width=True)
@@ -1130,7 +1148,7 @@ def _panel_estado_v40(cal):
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.5 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.5.1 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1238,7 +1256,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.5 | Centro deportivo móvil",
+        "🏈 NFL 4.5.1 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1259,7 +1277,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.5 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.5.1 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
