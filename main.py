@@ -482,10 +482,10 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.6 (CON EPA, SR, AUDITORÍAS V3.2/3.3/3.4.1/3.6 Y REPORTE)
+# 6. SISTEMA PRO NFL v3.7 (CON MÓDULO INTEGRADO COMPLETO)
 # =========================================================
-TEMPORADAS_NFL_V36 = [2022, 2023, 2024, 2025, 2026]
-VARIABLES_NFL_V36 = [
+TEMPORADAS_NFL_V37 = [2022, 2023, 2024, 2025, 2026]
+VARIABLES_NFL_V37 = [
     'local_pf', 'local_pa', 'local_victorias', 'visitante_pf', 'visitante_pa',
     'visitante_victorias', 'local_epa_of', 'local_epa_def',
     'visitante_epa_of', 'visitante_epa_def', 'local_sr_of', 'local_sr_def',
@@ -494,17 +494,17 @@ VARIABLES_NFL_V36 = [
     'visitante_fuera_pf',
 ]
 
-def _requerir_nfl_v36(df, cols, fuente):
+def _requerir_nfl_v37(df, cols, fuente):
     faltan = sorted(set(cols) - set(df.columns))
     if faltan:
         raise ValueError(f'{fuente}: faltan columnas requeridas: {", ".join(faltan)}')
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cargar_datos_nfl_v36():
+def cargar_datos_nfl_v37():
     import nflreadpy as nfl
-    calendario = nfl.load_schedules(TEMPORADAS_NFL_V36).to_pandas()
+    calendario = nfl.load_schedules(TEMPORADAS_NFL_V37).to_pandas()
     cols = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
-    _requerir_nfl_v36(calendario, cols, 'Calendario')
+    _requerir_nfl_v37(calendario, cols, 'Calendario')
     calendario = calendario[cols].copy()
     calendario['gameday'] = pd.to_datetime(calendario['gameday'], errors='coerce').dt.normalize()
     for c in ['season', 'week', 'home_score', 'away_score']:
@@ -514,11 +514,11 @@ def cargar_datos_nfl_v36():
 
     partes = []
     errores = []
-    for temporada in TEMPORADAS_NFL_V36:
+    for temporada in TEMPORADAS_NFL_V37:
         try:
             pbp = nfl.load_pbp(temporada)
             requeridas = ['game_id', 'posteam', 'defteam', 'epa', 'success', 'play_type']
-            _requerir_nfl_v36(pbp, requeridas, f'PBP {temporada}')
+            _requerir_nfl_v37(pbp, requeridas, f'PBP {temporada}')
             pbp = pbp.select(requeridas).to_pandas()
             pbp = pbp[pbp['play_type'].isin(['pass', 'run'])].copy()
             pbp['epa'] = pd.to_numeric(pbp['epa'], errors='coerce')
@@ -537,7 +537,6 @@ def cargar_datos_nfl_v36():
             del pbp
         except Exception as exc:
             errores.append(f"{temporada}: {type(exc).__name__}: {exc}")
-            
     if not partes:
         raise ValueError('NFLverse no devolvió jugadas válidas para calcular EPA y Success Rate.')
     if errores:
@@ -545,7 +544,7 @@ def cargar_datos_nfl_v36():
     estadisticas = pd.concat(partes, ignore_index=True).drop_duplicates(['game_id', 'equipo'])
     return calendario, estadisticas
 
-def construir_historial_nfl_v36(calendario, estadisticas):
+def construir_historial_nfl_v37(calendario, estadisticas):
     stats = {(str(r.game_id), str(r.equipo)): r for r in estadisticas.itertuples(index=False)}
     historico = {}
     registros = []
@@ -648,12 +647,12 @@ def construir_historial_nfl_v36(calendario, estadisticas):
     return salida
 
 @st.cache_resource(show_spinner=False)
-def entrenar_modelo_nfl_v36(csv, huella):
+def entrenar_modelo_nfl_v37(csv, huella):
     df = pd.read_csv(io.StringIO(csv))
     df = df.dropna(subset=['home_score', 'away_score']).copy()
-    if df[VARIABLES_NFL_V36].isna().any().any():
+    if df[VARIABLES_NFL_V37].isna().any().any():
         raise ValueError('Existen variables faltantes; entrenamiento cancelado.')
-    if not np.isfinite(df[VARIABLES_NFL_V36].to_numpy(dtype=float)).all():
+    if not np.isfinite(df[VARIABLES_NFL_V37].to_numpy(dtype=float)).all():
         raise ValueError('Existen valores no finitos; entrenamiento cancelado.')
     objetivos = {
         'margen': lambda d: d.home_score - d.away_score,
@@ -671,12 +670,12 @@ def entrenar_modelo_nfl_v36(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-            modelo.fit(train[VARIABLES_NFL_V36], objetivo(train))
-            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V36])
+            modelo.fit(train[VARIABLES_NFL_V37], objetivo(train))
+            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V37])
             if nombre == 'total':
                 ridge = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
-                ridge.fit(train[VARIABLES_NFL_V36], objetivo(train))
-                estimado = ridge.predict(test[VARIABLES_NFL_V36])
+                ridge.fit(train[VARIABLES_NFL_V37], objetivo(train))
+                estimado = ridge.predict(test[VARIABLES_NFL_V37])
             else:
                 estimado = estimado_boosting
             base = np.full(len(test), float(objetivo(train).mean()))
@@ -713,7 +712,7 @@ def entrenar_modelo_nfl_v36(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-        modelo.fit(train_final[VARIABLES_NFL_V36], objetivo(train_final))
+        modelo.fit(train_final[VARIABLES_NFL_V37], objetivo(train_final))
         modelos[nombre] = modelo
     evaluacion_2026 = []
     detalles_2026 = []
@@ -721,7 +720,7 @@ def entrenar_modelo_nfl_v36(csv, huella):
     if not prueba_2026.empty:
         for nombre, objetivo in objetivos.items():
             real = objetivo(prueba_2026)
-            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V36])
+            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V37])
             base = np.full(len(prueba_2026), float(objetivo(train_final).mean()))
             for i, (_, juego) in enumerate(prueba_2026.iterrows()):
                 detalles_2026.append({
@@ -991,10 +990,70 @@ def mostrar_auditoria_nfl_v341(calendario, estadisticas):
                        'nfl_v341_integridad.csv', 'text/csv',
                        key='nfl341_integridad_csv')
 
+def crear_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla):
+    fecha_consulta = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    filas = []
 
-# =========================================================
-# FUNCIONES DE AUDITORÍA NFL 3.6 (NUEVO)
-# =========================================================
+    def fila(seccion, temporada, indicador, valor, estado, detalle):
+        filas.append({
+            'consulta_utc': fecha_consulta,
+            'seccion': seccion,
+            'temporada': temporada,
+            'indicador': indicador,
+            'valor': valor,
+            'estado': estado,
+            'detalle': detalle,
+        })
+
+    cobertura, pendientes, fechas = auditoria_calidad_nfl_v32(calendario, estadisticas, tabla)
+    for registro in cobertura.to_dict('records'):
+        temporada = registro.get('season')
+        for campo in ['calendario', 'finalizados', 'finalizados_con_pbp_completo', 'finalizados_sin_pbp_completo', 'cobertura_pct']:
+            fila('Cobertura NFL 3.2', temporada, campo, registro.get(campo), registro.get('estado', ''), 'Cobertura calculada sobre resultados finalizados disponibles.')
+
+    for campo in ['ultimo_resultado', 'ultima_fecha_con_pbp_completo']:
+        valor = fechas.get(campo)
+        fila('Fechas NFL 3.2', '', campo, '' if pd.isna(valor) else str(pd.Timestamp(valor).date()), 'INFORMATIVO', 'La fecha de consulta no prueba una publicación nueva.')
+
+    auditoria = auditar_integridad_nfl_v341(calendario, estadisticas)
+    for registro in auditoria.to_dict('records'):
+        fila('Integridad NFL 3.4.1', '', registro['control'], registro['registros'], registro['nivel'], registro['detalle'])
+
+    instantanea = _instantanea_nfl_v33(calendario, estadisticas)
+    for campo in ['partidos_finalizados', 'partidos_con_pbp', 'ultimo_resultado']:
+        fila('Actualización NFL 3.3', '', campo, instantanea.get(campo), 'INFORMATIVO', 'Instantánea correspondiente a esta consulta.')
+
+    historial = st.session_state.get('nfl33_historial', [])
+    fila('Actualización NFL 3.3', '', 'comparaciones_en_sesion', len(historial), 'INFORMATIVO', 'Historial temporal de Streamlit.')
+
+    return pd.DataFrame(filas)
+
+def mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla):
+    st.subheader('📋 NFL 3.5 | Reporte consolidado de auditorías')
+    st.caption('Un solo CSV reúne cobertura, fechas, vigilancia e integridad.')
+    try:
+        reporte = crear_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
+        sin_ejecutar = reporte['estado'].eq('NO EJECUTADO').sum()
+        errores = reporte['estado'].eq('ERROR').sum()
+        st.write(f'**Registros del informe:** {len(reporte)}')
+        if sin_ejecutar:
+            st.error(f'🔴 {sin_ejecutar} controles no pudieron ejecutarse.')
+        elif errores:
+            st.warning(f'🟡 Se encontraron {errores} controles con errores.')
+        else:
+            st.success('🟢 Informe consolidado generado correctamente.')
+        st.dataframe(reporte, use_container_width=True, hide_index=True)
+        st.download_button(
+            '📥 Descargar reporte consolidado NFL',
+            data=reporte.to_csv(index=False).encode('utf-8-sig'),
+            file_name='nfl_reporte_consolidado.csv',
+            mime='text/csv',
+            key='nfl35_reporte_consolidado'
+        )
+    except Exception as exc:
+        st.error('🔴 No se pudo generar el reporte consolidado.')
+        st.code(f'{type(exc).__name__}: {exc}')
+
 def clasificar_partidos_nfl_v36(calendario, fecha_consulta=None):
     if fecha_consulta is None:
         fecha_consulta = datetime.now(timezone.utc)
@@ -1031,11 +1090,9 @@ def clasificar_partidos_nfl_v36(calendario, fecha_consulta=None):
     resumen['total_calendario'] = df.groupby('season').size().reindex(resumen['season']).values
     return df, resumen
 
-
 def mostrar_auditoria_nfl_v36(calendario):
     st.subheader('📅 NFL 3.6 | Estado de partidos y resultados pendientes')
-    st.caption('Distingue encuentros programados, resultados disponibles y registros a revisar. '
-               'No considera los partidos futuros como errores.')
+    st.caption('Distingue encuentros programados, resultados disponibles y registros a revisar.')
     try:
         detalle, resumen = clasificar_partidos_nfl_v36(calendario)
         resultados = int(detalle['estado_auditoria'].eq('RESULTADO DISPONIBLE').sum())
@@ -1048,9 +1105,9 @@ def mostrar_auditoria_nfl_v36(calendario):
         b.metric('Programados', programados)
         c.metric('Para revisar', revisar)
         if revisar:
-            st.warning(f'🟡 Hay {revisar} registros por verificar. No implica necesariamente error.')
+            st.warning(f'🟡 Hay {revisar} registros por verificar.')
         else:
-            st.success('🟢 No se detectaron registros pendientes de revisión con estos criterios.')
+            st.success('🟢 No se detectaron registros pendientes de revisión.')
         st.dataframe(resumen, use_container_width=True, hide_index=True)
         with st.expander('Ver detalle de los partidos'):
             st.dataframe(detalle, use_container_width=True, hide_index=True)
@@ -1061,6 +1118,151 @@ def mostrar_auditoria_nfl_v36(calendario):
     except Exception as exc:
         st.error('🔴 No fue posible completar la auditoría NFL 3.6.')
         st.code(f'{type(exc).__name__}: {exc}')
+
+def auditar_consistencia_nfl_v37(calendario, estadisticas, minimo_jugadas=10):
+    cal = calendario.copy()
+    est = estadisticas.copy()
+    columnas_cal = {'game_id','season','home_team','away_team','home_score','away_score'}
+    columnas_est = {'game_id','equipo','jugadas','epa_of','epa_def','sr_of','sr_def'}
+    faltan_cal = columnas_cal - set(cal.columns)
+    faltan_est = columnas_est - set(est.columns)
+    if faltan_cal or faltan_est:
+        raise ValueError('Columnas faltantes: calendario=' + str(sorted(faltan_cal)) + '; estadísticas=' + str(sorted(faltan_est)))
+    cal['game_id'] = cal['game_id'].astype(str)
+    est['game_id'] = est['game_id'].astype(str)
+    cal['home_score'] = pd.to_numeric(cal['home_score'], errors='coerce')
+    cal['away_score'] = pd.to_numeric(cal['away_score'], errors='coerce')
+    est['jugadas'] = pd.to_numeric(est['jugadas'], errors='coerce')
+    finalizados = cal[cal['home_score'].notna() & cal['away_score'].notna()].copy()
+    esperado = pd.concat([
+        finalizados[['game_id','season','home_team']].rename(columns={'home_team':'equipo'}),
+        finalizados[['game_id','season','away_team']].rename(columns={'away_team':'equipo'})
+    ], ignore_index=True)
+    resumen_est = est.groupby(['game_id','equipo'], as_index=False).agg(
+        registros=('jugadas','size'), jugadas=('jugadas','max'))
+    cruce = esperado.merge(resumen_est, on=['game_id','equipo'], how='left', validate='many_to_one')
+    cruce['registros'] = cruce['registros'].fillna(0).astype(int)
+    cruce['estado'] = 'OK'
+    cruce.loc[cruce['registros'].eq(0),'estado'] = 'SIN PBP DE EQUIPO'
+    cruce.loc[cruce['registros'].gt(0) & cruce['jugadas'].lt(minimo_jugadas), 'estado'] = 'PBP INSUFICIENTE'
+    cruce.loc[cruce['registros'].gt(0) & cruce['jugadas'].isna(), 'estado'] = 'JUGADAS NO VALIDAS'
+    ids_cal = set(cal['game_id'])
+    extras = est[~est['game_id'].isin(ids_cal)][['game_id','equipo']].copy()
+    extras['season'] = pd.NA
+    extras['registros'] = 1
+    extras['jugadas'] = pd.NA
+    extras['estado'] = 'PBP SIN PARTIDO EN CALENDARIO'
+    equipos = cal[['game_id','home_team','away_team']].drop_duplicates('game_id')
+    unidos = est.merge(equipos, on='game_id', how='inner')
+    invalidos = unidos[~(unidos['equipo'].eq(unidos['home_team']) | unidos['equipo'].eq(unidos['away_team']))][['game_id','equipo']].copy()
+    invalidos['season'] = pd.NA
+    invalidos['registros'] = 1
+    invalidos['jugadas'] = pd.NA
+    invalidos['estado'] = 'EQUIPO PBP NO CORRESPONDE AL PARTIDO'
+    detalle = pd.concat([cruce, extras, invalidos], ignore_index=True)
+    detalle = detalle[['game_id','season','equipo','registros','jugadas','estado']]
+    resumen = detalle.groupby('estado',dropna=False).size().reset_index(name='registros')
+    return detalle, resumen
+
+def mostrar_auditoria_nfl_v37(calendario, estadisticas):
+    st.subheader('🔗 NFL 3.7 | Consistencia entre calendario y PBP')
+    st.caption('Cruce de equipos y partidos finalizados con estadísticas agregadas.')
+    try:
+        detalle, resumen = auditar_consistencia_nfl_v37(calendario, estadisticas)
+        problemas = detalle[detalle['estado'] != 'OK']
+        a, b, c = st.columns(3)
+        a.metric('Equipos-partido revisados', len(detalle))
+        b.metric('Registros para revisar', len(problemas))
+        c.metric('Tipos de discrepancia', problemas['estado'].nunique())
+        if problemas.empty:
+            st.success('🟢 No se encontraron discrepancias con estos criterios.')
+        else:
+            st.warning('🟡 Se encontraron discrepancias que requieren revisión.')
+        st.dataframe(resumen, use_container_width=True, hide_index=True)
+        with st.expander('Ver detalle de discrepancias'):
+            st.dataframe(problemas, use_container_width=True, hide_index=True)
+        st.download_button('📥 Descargar auditoría NFL 3.7',
+                           detalle.to_csv(index=False).encode('utf-8-sig'),
+                           'nfl_v37_consistencia.csv', 'text/csv', key='nfl37_csv')
+    except Exception as exc:
+        st.error('🔴 No se pudo completar la auditoría NFL 3.7.')
+        st.code(f'{type(exc).__name__}: {exc}')
+
+def mostrar_modulo_nfl_v37():
+    st.header('🏈 NFL | Análisis avanzado v3.7')
+    st.caption('Fuente: NFLverse · EPA y Success Rate · Margen: Gradient Boosting · Total: Ridge')
+    if st.button('🔄 Actualizar datos NFL', key='nfl_v37_refresh'):
+        cargar_datos_nfl_v37.clear()
+        st.rerun()
+    try:
+        with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.7...'):
+            calendario, estadisticas = cargar_datos_nfl_v37()
+            tabla = construir_historial_nfl_v37(calendario, estadisticas)
+            completos = tabla.dropna(subset=['home_score', 'away_score'])
+            if completos.empty:
+                raise ValueError('No hay resultados completos disponibles.')
+            csv_modelo = tabla.to_csv(index=False)
+            huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
+            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v37(csv_modelo, huella)
+    except Exception as exc:
+        st.error('🔴 No se pudo cargar o validar el módulo NFL v3.7. Revisa la fuente de datos.')
+        st.code(str(exc))
+        return
+
+    mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla)
+    mostrar_auditoria_nfl_v33(calendario, estadisticas)
+    mostrar_auditoria_nfl_v341(calendario, estadisticas)
+    mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
+    mostrar_auditoria_nfl_v36(calendario)
+    mostrar_auditoria_nfl_v37(calendario, estadisticas) # <--- Nueva auditoría v3.7
+
+    st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas')
+    st.write(f'**Partidos usados para ajuste final:** {ntrain}')
+    st.caption(f'Último partido con resultado disponible: {completos.gameday.max().date()}')
+
+    st.subheader('📊 Evaluación histórica — 2024 y 2025')
+    st.dataframe(reporte.round(2), use_container_width=True, hide_index=True)
+    st.download_button('📥 Descargar evaluación', reporte.to_csv(index=False).encode('utf-8'),
+                       'nfl_v37_validacion.csv', 'text/csv', key='nfl_v37_eval')
+
+    st.subheader('🏟️ Próximos partidos')
+    hoy = pd.Timestamp(datetime.now(timezone.utc).date())
+    futuros = tabla[(tabla.gameday >= hoy) & tabla.home_score.isna() & tabla.away_score.isna()].sort_values('gameday')
+    if futuros.empty:
+        st.info('No se encontraron próximos partidos en el calendario publicado.')
+        return
+    opciones = {f'{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}': idx
+                for idx, r in futuros.iterrows()}
+    seleccion = st.selectbox('Partido', list(opciones), key='nfl_v37_game')
+    partido = futuros.loc[opciones[seleccion]]
+    X = pd.DataFrame([partido[VARIABLES_NFL_V37].to_dict()])[VARIABLES_NFL_V37]
+    if min(int(partido.local_juegos), int(partido.visitante_juegos)) < 3:
+        st.warning('⚠️ Se requieren al menos tres partidos previos por equipo en esta temporada. No se muestra una proyección con datos neutrales.')
+        return
+    margen = float(modelos['margen'].predict(X)[0])
+    total = float(modelos['total'].predict(X)[0])
+    c1, c2, c3 = st.columns(3)
+    c1.metric('Margen local', f'{margen:+.1f}')
+    c2.metric('Total estimado', f'{total:.1f}')
+    c3.metric('Puntos local / visitante', f'{(total+margen)/2:.1f} / {(total-margen)/2:.1f}')
+    
+    st.subheader('📝 Registro verificable de proyección')
+    fecha_registro = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    registro = pd.DataFrame([{
+        'registrado_utc': fecha_registro,
+        'game_id': str(partido.game_id),
+        'fecha_partido': str(partido.gameday)[:10],
+        'local': partido.home_team,
+        'visitante': partido.away_team,
+        'margen_estimado': round(margen, 3),
+        'total_estimado': round(total, 3),
+        'modelo_version': '3.7',
+        'datos_sha256': huella,
+        'entrenamiento_hasta': 2025,
+    }])
+    st.download_button(
+        '📥 Guardar registro fechado (CSV)', registro.to_csv(index=False).encode('utf-8'),
+        f'nfl_registro_{partido.game_id}.csv', 'text/csv', key='nfl_v37_log')
 
 
 # =========================================================
@@ -1179,7 +1381,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL (Élite v3.6 con Auditoría de Partidos)",
+        "🛡️ Sistema Pro NFL (Élite v3.7 con Consistencia PBP)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
@@ -1724,155 +1926,10 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.6 (CON AUDITORÍA DE ESTADO DE PARTIDOS)
+# 6. SISTEMA PRO NFL v3.7 (CON AUDITORÍA DE CONSISTENCIA PBP)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.6 con Auditoría de Partidos)":
-  st.title(f"🛡️ **Sistema Pro NFL Élite v3.6 (EPA, Success Rate, Auditorías & Estado de Partidos) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis avanzado con NFLverse: EPA, Success Rate, auditoría v3.2, vigilancia v3.3, integridad v3.4.1 y la nueva auditoría de estado de partidos v3.6.*")
-  
-  if st.button("🔄 Actualizar Fuente NFLverse (v3.6)", key="nfl_v36_refresh"):
-    cargar_datos_nfl_v36.clear()
-    st.rerun()
-
-  try:
-    with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.6 (Gradient Boosting + Ridge)...'):
-      calendario, estadisticas = cargar_datos_nfl_v36()
-      tabla = construir_historial_nfl_v36(calendario, estadisticas)
-      completos = tabla.dropna(subset=['home_score', 'away_score'])
-      if completos.empty:
-        raise ValueError('No hay resultados completos disponibles.')
-      csv_modelo = tabla.to_csv(index=False)
-      huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
-      modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v36(csv_modelo, huella)
-  except Exception as exc:
-    st.error('🔴 No se pudo cargar o validar el módulo NFL v3.6. No se promedian proyecciones sin datos válidos.')
-    st.code(str(exc))
-    st.stop()
-
-  # EJECUTAR TODAS LAS AUDITORÍAS (INCLUYENDO LA NUEVA v3.6)
-  mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla)
-  mostrar_auditoria_nfl_v33(calendario, estadisticas)
-  mostrar_auditoria_nfl_v341(calendario, estadisticas)
-  mostrar_auditoria_nfl_v36(calendario)  # <--- Integración de v3.6
-
-  st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas con éxito')
-  st.write(f'**Partidos usados para ajuste final:** {ntrain}')
-  st.caption(f'Último partido con resultado disponible: {completos.gameday.max().date()}')
-  st.caption(f'Partidos históricos sin cobertura suficiente de jugadas: {tabla.attrs.get("sin_cobertura", 0)}.')
-
-  # EVALUACIÓN HISTÓRICA
-  st.subheader('📊 Evaluación histórica — 2024 y 2025')
-  st.dataframe(reporte.round(2), use_container_width=True, hide_index=True)
-  st.download_button('📥 Descargar evaluación', reporte.to_csv(index=False).encode('utf-8'),
-                     'nfl_v36_validacion.csv', 'text/csv', key='nfl_v36_eval')
-
-  # PRÓXIMOS PARTIDOS & PROYECCIÓN
-  st.markdown("---")
-  st.subheader('🏟️ Próximos partidos')
-  hoy = pd.Timestamp(datetime.now(timezone.utc).date())
-  futuros = tabla[(tabla.gameday >= hoy) & tabla.home_score.isna() & tabla.away_score.isna()].sort_values('gameday')
-  
-  if futuros.empty:
-    st.info('No se encontraron próximos partidos en el calendario publicado.')
-  else:
-    opciones = {f'{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}': idx
-                for idx, r in futuros.iterrows()}
-    seleccion = st.selectbox('Partido', list(opciones), key='nfl_v36_game')
-    partido = futuros.loc[opciones[seleccion]]
-    
-    if min(int(partido.local_juegos), int(partido.visitante_juegos)) < 3:
-      st.warning('⚠️ Se requieren al menos tres partidos previos por equipo en esta temporada. No se muestra una proyección con datos neutrales.')
-      st.stop()
-
-    X = pd.DataFrame([partido[VARIABLES_NFL_V36].to_dict()])[VARIABLES_NFL_V36]
-    margen = float(modelos['margen'].predict(X)[0])
-    total = float(modelos['total'].predict(X)[0])
-
-    st.markdown("### 📊 Proyecciones del Modelo v3.6")
-    c1, c2, c3 = st.columns(3)
-    c1.metric('Margen local', f'{margen:+.1f}')
-    c2.metric('Total estimado', f'{total:.1f}')
-    c3.metric('Puntos local / visitante', f'{(total+margen)/2:.1f} / {(total-margen)/2:.1f}')
-
-    # REGISTRO VERIFICABLE
-    st.subheader('📝 Registro verificable de proyección')
-    fecha_registro = datetime.now(timezone.utc).isoformat(timespec='seconds')
-    registro = pd.DataFrame([{
-        'registrado_utc': fecha_registro,
-        'game_id': str(partido.game_id),
-        'fecha_partido': str(partido.gameday)[:10],
-        'local': partido.home_team,
-        'visitante': partido.away_team,
-        'margen_estimado': round(margen, 3),
-        'total_estimado': round(total, 3),
-        'modelo_version': '3.6',
-        'datos_sha256': huella,
-        'entrenamiento_hasta': 2025,
-    }])
-    st.download_button(
-        '📥 Guardar registro fechado (CSV)', registro.to_csv(index=False).encode('utf-8'),
-        f'nfl_registro_{partido.game_id}.csv', 'text/csv', key='nfl_v36_log')
-
-    st.markdown("---")
-    st.subheader("🎯 Configuración de Apuesta & Evaluación de Valor (+EV)")
-    
-    col_l1, col_l2, col_l3 = st.columns(3)
-    with col_l1:
-      tipo_apuesta = st.selectbox("Mercado:", ["Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_v36_ap_tipo")
-    with col_l2:
-      bookie_line = st.number_input("Línea de la Casa (Spread / Total O/U):", value=-3.0 if "Spread" in tipo_apuesta else 43.5, step=0.5, key="nfl_v36_book_line")
-    with col_l3:
-      momio_casa_str = st.text_input("Momio Americano (Ej. -110 o +135):", value="-110", key="nfl_v36_momio_input")
-      momio_casa = limpiar_momio(momio_casa_str)
-
-    if "Spread Local" in tipo_apuesta:
-      ventaja = margen - bookie_line
-      prob_modelo = float(norm.cdf(ventaja / 13.5) * 100.0)
-    elif "Spread Visitante" in tipo_apuesta:
-      ventaja = (-margen) - bookie_line
-      prob_modelo = float(norm.cdf(ventaja / 13.5) * 100.0)
-    elif "Altas" in tipo_apuesta:
-      ventaja = total - bookie_line
-      prob_modelo = float(norm.cdf(ventaja / 14.0) * 100.0)
-    else:
-      ventaja = bookie_line - total
-      prob_modelo = float(norm.cdf(ventaja / 14.0) * 100.0)
-
-    prob_modelo = round(min(92.0, max(10.0, prob_modelo)), 2)
-
-    if momio_casa > 0:
-      prob_imp = 100.0 / (momio_casa + 100.0) * 100.0
-    else:
-      prob_imp = abs(momio_casa) / (abs(momio_casa) + 100.0) * 100.0
-
-    edge = round(prob_modelo - prob_imp, 2)
-
-    bankroll = st.session_state.get("bankroll_global", 15250.0)
-    p = prob_modelo / 100.0
-    b = (momio_casa / 100.0) if momio_casa > 0 else (100.0 / abs(momio_casa))
-    q = 1.0 - p
-    kelly_full = (b * p - q) / b
-    stake_sugerido = round(max(10.0, bankroll * kelly_full * 0.25), 2)
-    stake_final = min(250.0, stake_sugerido)
-
-    st.markdown("### 📈 Resultados del Análisis de Valor")
-    col_res1, col_res2, col_res3 = st.columns(3)
-    col_res1.metric("Probabilidad del Modelo", f"{prob_modelo:.2f}%")
-    col_res2.metric("Edge Matemático", f"{edge:+.2f}%", delta="Valor Positivo (+EV)" if edge > 0 else "Sin Valor")
-    col_res3.metric("Stake Recomendado (Tope $250)", f"${stake_final} MXN")
-
-    if edge > 1.5:
-      st.success(f"🎯 **¡Oportunidad detectada!** El modelo encuentra valor positivo (+EV) en **{partido.away_team} @ {partido.home_team}**.")
-      if st.button("📥 Guardar Apuesta en Base de Datos SQLite", key="save_nfl_v36_bet"):
-        partido_str = f"{partido.away_team} @ {partido.home_team}"
-        mercado_str = f"{tipo_apuesta} ({bookie_line}) [Momio {momio_casa:+d}]"
-        try:
-          registrar_apuesta_db(fecha_formato_str, "NFL Élite v3.6", partido_str, mercado_str, momio_casa, edge, stake_final)
-          st.success("¡Apuesta guardada con éxito en la base de datos SQLite!")
-        except Exception as e:
-          st.error(f"Error al guardar: {e}")
-    else:
-      st.warning("⚠️ Esta línea no ofrece suficiente margen de valor (+EV) según las proyecciones del modelo.")
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.7 con Consistencia PBP)":
+  mostrar_modulo_nfl_v37()
 
 
 # =========================================================
