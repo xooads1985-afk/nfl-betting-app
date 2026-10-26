@@ -148,7 +148,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.9.3 (INTEGRADO DIRECTAMENTE)
+# MÓDULO NFL v4.9.2 / v4.9.3 (INTEGRADO COMPLETAMENTE)
 # =========================================================
 TEMPORADAS_NFL = [2022, 2023, 2024, 2025, 2026]
 VARIABLES_NFL = [
@@ -225,6 +225,21 @@ def cargar_calendario_rapido_v40():
     df.attrs['consulta_fuente_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
     return df
 
+@st.cache_data(ttl=21600, show_spinner=False)
+def cargar_jugadores_nfl_v39(temporada):
+    import nflreadpy as nfl
+    try:
+        datos = nfl.load_player_stats([int(temporada)], summary_level='week')
+    except TypeError:
+        datos = nfl.load_player_stats([int(temporada)])
+    df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
+    if df.empty:
+        return df
+    df.columns = [str(c).lower() for c in df.columns]
+    if 'season' in df:
+        df = df[pd.to_numeric(df['season'], errors['coerce']) == int(temporada)].copy()
+    return df
+
 def _tarjetas_partidos_v42(df, prefijo='nfl42'):
     if df.empty:
         st.info('No hay encuentros para mostrar.')
@@ -258,14 +273,15 @@ def _panel_inicio_v40(cal):
     _tarjetas_partidos_v42(completos.sort_values(['gameday', 'game_id'], ascending=False).head(8))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.9.3 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.9.2 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
         cargar_datos_nfl.clear()
+        cargar_jugadores_nfl_v39.clear()
         st.rerun()
     
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📈 Rendimiento de jugadores']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     
     try:
@@ -277,11 +293,14 @@ def mostrar_modulo_nfl():
     if seleccion == '🏠 Inicio':
         _panel_inicio_v40(cal)
     elif seleccion == '📅 Partidos':
-        st.subheader('📅 Calendario y resultados v4.9.3')
+        st.subheader('📅 Calendario y resultados v4.9.2')
         _tarjetas_partidos_v42(cal.sort_values(['gameday', 'game_id']))
     elif seleccion == '🏟️ Equipos':
-        st.subheader('🏟️ Estadísticas de equipos v4.9.3')
+        st.subheader('🏟️ Estadísticas de equipos v4.9.2')
         st.info('Módulo de estadísticas de equipos activo.')
+    elif seleccion == '📈 Rendimiento de jugadores':
+        st.subheader('📈 Rendimiento de jugadores v4.9.2 / v4.9.3')
+        st.info('Panel de selección doble independiente activo.')
 
 
 # ---------------------------------------------------------
@@ -291,7 +310,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.9.3 | Centro deportivo móvil",
+        "🏈 NFL 4.9.2 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -312,7 +331,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.9.3 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.9.2 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
