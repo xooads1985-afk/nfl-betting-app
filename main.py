@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.3 (INTEGRADO)
+# SISTEMA PRO NFL v4.4 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -424,13 +424,475 @@ def entrenar_v30(csv, huella):
             pd.DataFrame(detalles), pd.DataFrame(comparacion_total),
             pd.DataFrame(evaluacion_2026), pd.DataFrame(detalles_2026))
 
+def experimento_priors(csv):
+    df = pd.read_csv(io.StringIO(csv))
+    df = df.dropna(subset=['home_score', 'away_score']).copy()
+    alt_vars = ['experimental_' + v if 'experimental_' + v in df.columns else v for v in VARIABLES]
+    if df[VARIABLES + alt_vars].isna().any().any():
+        raise ValueError('Variables faltantes en el experimento.')
+    resultados = []
+    for year in (2024, 2025, 2026):
+        train = df[(df.season >= 2022) & (df.season < year)]
+        test = df[df.season == year]
+        if len(train) < 200 or len(test) < 25:
+            continue
+        for objetivo in ('margen', 'total'):
+            target = (lambda x: x.home_score - x.away_score) if objetivo == 'margen' else (lambda x: x.home_score + x.away_score)
+            for nombre, cols in [('Actual', VARIABLES), ('Prior temporada anterior (experimental)', alt_vars)]:
+                model = (HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12, learning_rate=.045, l2_regularization=8., random_state=42) if objetivo == 'margen' else make_pipeline(StandardScaler(), Ridge(alpha=100.0)))
+                model.fit(train[cols], target(train))
+                pred = model.predict(test[cols])
+                resultados.append({
+                    'temporada': year, 'objetivo': objetivo,
+                    'variante': nombre, 'partidos': len(test),
+                    'MAE': float(mean_absolute_error(target(test), pred)),
+                })
+    return pd.DataFrame(resultados)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def experimento_pesos_v30(csv):
+    df = pd.read_csv(io.StringIO(csv))
+    df = df.dropna(subset=['home_score', 'away_score']).copy()
+    requeridas = VARIABLES + ['season', 'week', 'home_score', 'away_score']
+    _requerir(df, requeridas, 'Experimento v3.0')
+    campos = [
+        'local_pf', 'local_pa', 'local_victorias',
+        'visitante_pf', 'visitante_pa', 'visitante_victorias',
+        'local_epa_of', 'local_epa_def', 'visitante_epa_of',
+        'visitante_epa_def', 'local_sr_of', 'local_sr_def',
+        'visitante_sr_of', 'visitante_sr_def',
+    ]
+    _requerir(df, ['experimental_' + c for c in campos], 'Experimento v3.0: variables experimentales')
+    df = df.sort_values(['season', 'week', 'gameday', 'game_id'])
+    if not np.isfinite(df[VARIABLES + ['experimental_' + c for c in campos]].to_numpy(dtype=float)).all():
+        raise ValueError('Hay datos faltantes o no finitos.')
+    variantes = {'Actual (peso 0)': 0.0, 'Peso 1': 1.0, 'Peso 3 (v2.9)': 3.0, 'Peso 5': 5.0}
+    columnas = {}
+    for etiqueta, peso in variantes.items():
+        columnas[etiqueta] = []
+        for c in VARIABLES:
+            dest = f'v30_{peso:g}_{c}'
+            if c in campos and peso > 0:
+                prefix = 'local' if c.startswith('local_') else 'visitante'
+                n = df[f'{prefix}_juegos'].astype(float)
+                previo = (df['experimental_' + c] * (n + 3.0) - df[c] * n) / 3.0
+                df[dest] = (n * df[c] + peso * previo) / (n + peso)
+            else:
+                df[dest] = df[c]
+            columnas[etiqueta].append(dest)
+    detalle = []
+    for temporada in (2024, 2025, 2026):
+        train = df[(df.season >= 2022) & (df.season < temporada)]
+        test = df[df.season == temporada]
+        if len(train) < 200 or len(test) < 25:
+            continue
+        for objetivo in ('margen', 'total'):
+            y_train = (train.home_score - train.away_score if objetivo == 'margen' else train.home_score + train.away_score)
+            y_test = (test.home_score - test.away_score if objetivo == 'margen' else test.home_score + test.away_score)
+            for variante, cols in columnas.items():
+                if objetivo == 'margen':
+                    model = HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12, learning_rate=.045, l2_regularization=8., random_state=42)
+                else:
+                    model = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
+                model.fit(train[cols], y_train)
+                estimado = model.predict(test[cols])
+                for idx, real, pred in zip(test.index, y_test, estimado):
+                    row = test.loc[idx]
+                    detalle.append({
+                        'temporada': temporada, 'semana': int(row.week),
+                        'partido': str(row.game_id), 'objetivo': objetivo,
+                        'variante': variante, 'real': float(real),
+                        'prediccion': float(pred),
+                        'error_absoluto': abs(float(real - pred)),
+                        'partidos_previos_min': int(min(row.local_juegos, row.visitante_juegos)),
+                    })
+    return pd.DataFrame(detalle)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def validar_pesos_cronologicos_v31(csv):
+    detalle = experimento_pesos_v30(csv)
+    if detalle.empty:
+        return pd.DataFrame(), pd.DataFrame()
+    resumen = (detalle.groupby(['temporada', 'objetivo', 'variante'], as_index=False)
+               .agg(MAE=('error_absoluto', 'mean'), partidos=('partido', 'nunique')))
+    resultados = []
+    variantes = ['Actual (peso 0)', 'Peso 1', 'Peso 3 (v2.9)', 'Peso 5']
+    for year in (2025, 2026):
+        for objetivo in ('margen', 'total'):
+            previo = detalle[(detalle.temporada < year) & (detalle.objetivo == objetivo)]
+            prueba = detalle[(detalle.temporada == year) & (detalle.objetivo == objetivo)]
+            if previo.empty or prueba.empty:
+                continue
+            metricas = (previo.groupby(['temporada', 'variante'], as_index=False)
+                        .agg(MAE=('error_absoluto', 'mean'))
+                        .groupby('variante').MAE.mean())
+            if not set(variantes).issubset(metricas.index):
+                continue
+            elegido = min(variantes, key=lambda v: (float(metricas[v]), variantes.index(v)))
+            for configuracion, variante in [('Referencia peso 0', 'Actual (peso 0)'), ('Seleccion previa', elegido)]:
+                bloque = prueba[prueba.variante == variante]
+                if bloque.empty:
+                    continue
+                resultados.append({
+                    'temporada_evaluada': year, 'objetivo': objetivo,
+                    'configuracion': configuracion, 'variante': variante,
+                    'MAE': float(bloque.error_absoluto.mean()),
+                    'partidos': int(bloque.partido.nunique()),
+                    'seleccion_con_temporadas': ', '.join(map(str, sorted(previo.temporada.unique()))),
+                })
+    return resumen, pd.DataFrame(resultados)
+
+def auditoria_calidad_nfl_v32(calendario, estadisticas, tabla):
+    cal = calendario.copy()
+    est = estadisticas.copy()
+    cal['finalizado'] = cal['home_score'].notna() & cal['away_score'].notna()
+    cal['gameday'] = pd.to_datetime(cal['gameday'], errors='coerce')
+    equipos = pd.concat([
+        cal[['game_id', 'season', 'finalizado', 'home_team']].rename(columns={'home_team': 'equipo'}),
+        cal[['game_id', 'season', 'finalizado', 'away_team']].rename(columns={'away_team': 'equipo'})
+    ], ignore_index=True)
+    est['jugadas'] = pd.to_numeric(est['jugadas'], errors='coerce')
+    est['epa_of'] = pd.to_numeric(est['epa_of'], errors='coerce')
+    est['sr_of'] = pd.to_numeric(est['sr_of'], errors='coerce')
+    est['sr_def'] = pd.to_numeric(est['sr_def'], errors='coerce')
+    est['epa_def'] = pd.to_numeric(est['epa_def'], errors='coerce')
+    equipos = equipos.merge(est, on=['game_id', 'equipo'], how='left', validate='many_to_one')
+    equipos['estadistica_valida'] = (
+        equipos['jugadas'].ge(10)
+        & equipos[['epa_of', 'epa_def', 'sr_of', 'sr_def']].notna().all(axis=1)
+        & equipos['sr_of'].between(0, 1)
+        & equipos['sr_def'].between(0, 1)
+    )
+    partidos = equipos.groupby(['season', 'game_id'], as_index=False).agg(
+        finalizado=('finalizado', 'max'),
+        equipos_con_estadistica=('estadistica_valida', 'sum'),
+    )
+    partidos['cobertura_completa'] = partidos['equipos_con_estadistica'].eq(2)
+    partidos['incompleto_finalizado'] = partidos['finalizado'] & ~partidos['cobertura_completa']
+    resumen = partidos.groupby('season', as_index=False).agg(
+        calendario=('game_id', 'nunique'),
+        finalizados=('finalizado', 'sum'),
+        finalizados_sin_pbp_completo=('incompleto_finalizado', 'sum'),
+    )
+    resumen['finalizados_con_pbp_completo'] = (
+        resumen['finalizados'] - resumen['finalizados_sin_pbp_completo']
+    )
+    resumen['cobertura_pct'] = (
+        100 * resumen['finalizados_con_pbp_completo']
+        / resumen['finalizados'].replace(0, np.nan)
+    ).round(1)
+    resumen['estado'] = np.select(
+        [resumen['finalizados'].eq(0), resumen['finalizados_sin_pbp_completo'].eq(0)],
+        ['SIN RESULTADOS', 'COMPLETO'], default='INCOMPLETO'
+    )
+    pendientes = partidos[partidos['incompleto_finalizado']].copy()
+    pendientes = pendientes.merge(
+        cal[['game_id', 'gameday', 'week', 'home_team', 'away_team']],
+        on='game_id', how='left', validate='one_to_one'
+    ).sort_values(['season', 'gameday', 'game_id'])
+    fechas = {
+        'ultima_fecha_calendario': cal['gameday'].max(),
+        'ultimo_resultado': cal.loc[cal['finalizado'], 'gameday'].max(),
+        'ultima_fecha_con_pbp_completo': cal.loc[
+            cal['game_id'].isin(partidos.loc[partidos['cobertura_completa'], 'game_id']),
+            'gameday'
+        ].max(),
+        'consulta_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'),
+    }
+    return resumen, pendientes, fechas
+
+def mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla):
+    st.subheader('🛡️ NFL 3.2 | Auditoría de calidad de datos')
+    try:
+        resumen, pendientes, fechas = auditoria_calidad_nfl_v32(calendario, estadisticas, tabla)
+        for titulo, valor in [
+            ('Último resultado disponible', fechas['ultimo_resultado']),
+            ('Último partido con PBP completo', fechas['ultima_fecha_con_pbp_completo']),
+        ]:
+            fecha = 'Sin datos' if pd.isna(valor) else pd.Timestamp(valor).strftime('%Y-%m-%d')
+            st.write(f'**{titulo}:** {fecha}')
+        st.dataframe(resumen, use_container_width=True, hide_index=True)
+    except Exception as exc:
+        st.error('🔴 No se pudo completar la auditoría NFL 3.2.')
+
+def _instantanea_nfl_v33(calendario, estadisticas):
+    cal = calendario.copy()
+    cal['gameday'] = pd.to_datetime(cal['gameday'], errors='coerce')
+    cal['finalizado'] = cal['home_score'].notna() & cal['away_score'].notna()
+    terminados = cal.loc[cal['finalizado']].copy()
+    terminados['game_id'] = terminados['game_id'].astype(str)
+    est = estadisticas.copy()
+    est['game_id'] = est['game_id'].astype(str)
+    est['equipo'] = est['equipo'].astype(str)
+    for columna in ['epa_of', 'epa_def', 'sr_of', 'sr_def', 'jugadas']:
+        est[columna] = pd.to_numeric(est[columna], errors='coerce')
+    est = est.sort_values(['game_id', 'equipo'])
+    campos = ['game_id', 'equipo', 'epa_of', 'epa_def', 'sr_of', 'sr_def', 'jugadas']
+    huellas_pbp = {}
+    for game_id, grupo in est.groupby('game_id'):
+        serial = grupo[campos].to_csv(index=False, float_format='%.12g')
+        huellas_pbp[game_id] = hashlib.sha256(serial.encode('utf-8')).hexdigest()
+    juegos = {}
+    for fila in terminados.itertuples(index=False):
+        juegos[str(fila.game_id)] = {
+            'temporada': int(fila.season),
+            'fecha': str(fila.gameday.date()),
+            'marcador': [float(fila.home_score), float(fila.away_score)],
+            'pbp_sha256': huellas_pbp.get(str(fila.game_id)),
+        }
+    ultimo = terminados['gameday'].max() if not terminados.empty else pd.NaT
+    return {
+        'consulta_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'ultimo_resultado': None if pd.isna(ultimo) else str(ultimo.date()),
+        'partidos_finalizados': len(juegos),
+        'partidos_con_pbp': sum(x['pbp_sha256'] is not None for x in juegos.values()),
+        'juegos': juegos,
+    }
+
+def _comparar_instantaneas_nfl_v33(anterior, actual):
+    antes, ahora = anterior['juegos'], actual['juegos']
+    nuevos = sorted(set(ahora) - set(antes))
+    desaparecidos = sorted(set(antes) - set(ahora))
+    modificados = []
+    for game_id in sorted(set(antes) & set(ahora)):
+        campos = []
+        if antes[game_id]['marcador'] != ahora[game_id]['marcador']:
+            campos.append('marcador')
+        if antes[game_id]['pbp_sha256'] != ahora[game_id]['pbp_sha256']:
+            campos.append('PBP agregado')
+        if campos:
+            modificados.append({'game_id': game_id, 'cambio': ', '.join(campos)})
+    return nuevos, desaparecidos, modificados
+
+def mostrar_auditoria_nfl_v33(calendario, estadisticas):
+    st.subheader('🔎 NFL 3.3 | Vigilancia de actualizaciones')
+    actual = _instantanea_nfl_v33(calendario, estadisticas)
+    anterior = st.session_state.get('nfl33_ultima_instantanea')
+    historial = st.session_state.setdefault('nfl33_historial', [])
+    if anterior is not None:
+        nuevos, desaparecidos, modificados = _comparar_instantaneas_nfl_v33(anterior, actual)
+        historial.append({
+            'consulta_utc': actual['consulta_utc'],
+            'resultados_nuevos': len(nuevos),
+            'resultados_desaparecidos': len(desaparecidos),
+            'partidos_modificados': len(modificados),
+            'total_finalizados': actual['partidos_finalizados'],
+        })
+        del historial[:-20]
+    st.session_state['nfl33_ultima_instantanea'] = actual
+
+def auditar_integridad_nfl_v341(calendario, estadisticas):
+    cal, est = calendario.copy(), estadisticas.copy()
+    filas = []
+    def agregar(nombre, accion, descripcion):
+        try:
+            cantidad, nivel = accion()
+            filas.append(dict(nivel=nivel, control=nombre, registros=int(cantidad), detalle=descripcion))
+        except Exception as exc:
+            filas.append(dict(nivel='NO EJECUTADO', control=nombre, registros=0, detalle=f'{type(exc).__name__}: {exc}'))
+    def serie_num(df, col):
+        return pd.to_numeric(df[col], errors='coerce')
+    def contar(n, nivel='ERROR'):
+        return (int(n), nivel if n else 'OK')
+    agregar('IDs de partidos duplicados', lambda: contar(cal['game_id'].duplicated().sum()), 'Cada game_id debe ser único.')
+    agregar('Local y visitante idénticos', lambda: contar((cal['home_team'] == cal['away_team']).sum()), 'Los equipos deben ser distintos.')
+    agregar('Fechas inválidas', lambda: contar(pd.to_datetime(cal['gameday'], errors='coerce').isna().sum()), 'Todas las fechas deben poder interpretarse.')
+    agregar('Partidos sin marcador completo', lambda: contar(cal[['home_score', 'away_score']].apply(pd.to_numeric, errors='coerce').isna().any(axis=1).sum(), 'INFO'), 'Incluye partidos futuros.')
+    agregar('Marcadores negativos', lambda: contar(cal[['home_score', 'away_score']].apply(pd.to_numeric, errors='coerce').lt(0).any(axis=1).sum()), 'Los puntos no pueden ser negativos.')
+    agregar('Estadísticas duplicadas por equipo', lambda: contar(est.duplicated(['game_id', 'equipo']).sum()), 'Solo una fila por equipo y partido.')
+    return pd.DataFrame(filas)
+
+def mostrar_auditoria_nfl_v341(calendario, estadisticas):
+    st.subheader('🧪 NFL 3.4.1 | Integridad y anomalías')
+    informe = auditar_integridad_nfl_v341(calendario, estadisticas)
+    st.dataframe(informe, use_container_width=True, hide_index=True)
+
+def crear_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla):
+    fecha_consulta = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    filas = []
+    cobertura, pendientes, fechas = auditoria_calidad_nfl_v32(calendario, estadisticas, tabla)
+    for registro in cobertura.to_dict('records'):
+        temporada = registro.get('season')
+        for campo in ['calendario', 'finalizados', 'finalizados_con_pbp_completo', 'finalizados_sin_pbp_completo', 'cobertura_pct']:
+            filas.append({'consulta_utc': fecha_consulta, 'seccion': 'Cobertura NFL 3.2', 'temporada': temporada, 'indicador': campo, 'valor': registro.get(campo), 'estado': registro.get('estado', ''), 'detalle': 'Cobertura calculada.'})
+    return pd.DataFrame(filas)
+
+def mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla):
+    st.subheader('📋 NFL 3.5 | Reporte consolidado de auditorías')
+    reporte = crear_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
+    st.dataframe(reporte, use_container_width=True, hide_index=True)
+
+def clasificar_partidos_nfl_v36(calendario, fecha_consulta=None):
+    if fecha_consulta is None:
+        fecha_consulta = datetime.now(timezone.utc)
+    fecha_consulta = pd.Timestamp(fecha_consulta)
+    if fecha_consulta.tzinfo is None:
+        fecha_consulta = fecha_consulta.tz_localize('UTC')
+    df = calendario.copy()
+    df['gameday'] = pd.to_datetime(df['gameday'], errors='coerce', utc=True)
+    df['home_score'] = pd.to_numeric(df['home_score'], errors='coerce')
+    df['away_score'] = pd.to_numeric(df['away_score'], errors='coerce')
+    ambos = df['home_score'].notna() & df['away_score'].notna()
+    uno = df['home_score'].notna() ^ df['away_score'].notna()
+    fecha_valida = df['gameday'].notna()
+    vencido = fecha_valida & (df['gameday'] < fecha_consulta - pd.Timedelta(days=1))
+    futuro = fecha_valida & (df['gameday'] >= fecha_consulta.normalize())
+    df['estado_auditoria'] = 'PENDIENTE DE CONFIRMACION'
+    df.loc[futuro & ~ambos & ~uno, 'estado_auditoria'] = 'PROGRAMADO SIN RESULTADO'
+    df.loc[vencido & ~ambos & ~uno, 'estado_auditoria'] = 'REVISAR RESULTADO PENDIENTE'
+    df.loc[uno, 'estado_auditoria'] = 'MARCADOR PARCIAL'
+    df.loc[ambos, 'estado_auditoria'] = 'RESULTADO DISPONIBLE'
+    df.loc[~fecha_valida, 'estado_auditoria'] = 'FECHA INVALIDA'
+    resumen = (df.groupby(['season', 'estado_auditoria'], dropna=False).size().unstack(fill_value=0).reset_index())
+    resumen['total_calendario'] = df.groupby('season').size().reindex(resumen['season']).values
+    return df, resumen
+
+def mostrar_auditoria_nfl_v36(calendario):
+    st.subheader('📅 NFL 3.6 | Estado de partidos y resultados pendientes')
+    detalle, resumen = clasificar_partidos_nfl_v36(calendario)
+    st.dataframe(resumen, use_container_width=True, hide_index=True)
+
+def auditar_consistencia_nfl_v37(calendario, estadisticas, minimo_jugadas=10):
+    cal, est = calendario.copy(), estadisticas.copy()
+    cal['game_id'] = cal['game_id'].astype(str)
+    est['game_id'] = est['game_id'].astype(str)
+    cal['home_score'] = pd.to_numeric(cal['home_score'], errors='coerce')
+    cal['away_score'] = pd.to_numeric(cal['away_score'], errors='coerce')
+    est['jugadas'] = pd.to_numeric(est['jugadas'], errors='coerce')
+    finalizados = cal[cal['home_score'].notna() & cal['away_score'].notna()].copy()
+    esperado = pd.concat([
+        finalizados[['game_id','season','home_team']].rename(columns={'home_team':'equipo'}),
+        finalizados[['game_id','season','away_team']].rename(columns={'away_team':'equipo'})
+    ], ignore_index=True)
+    resumen_est = est.groupby(['game_id','equipo'], as_index=False).agg(registros=('jugadas','size'), jugadas=('jugadas','max'))
+    cruce = esperado.merge(resumen_est, on=['game_id','equipo'], how='left', validate='many_to_one')
+    cruce['registros'] = cruce['registros'].fillna(0).astype(int)
+    cruce['estado'] = 'OK'
+    cruce.loc[cruce['registros'].eq(0),'estado'] = 'SIN PBP DE EQUIPO'
+    cruce.loc[cruce['registros'].gt(0) & cruce['jugadas'].lt(minimo_jugadas), 'estado'] = 'PBP INSUFICIENTE'
+    return cruce, cruce.groupby('estado', dropna=False).size().reset_index(name='registros')
+
+def mostrar_auditoria_nfl_v37(calendario, estadisticas):
+    st.subheader('🔗 NFL 3.7 | Consistencia entre calendario y PBP')
+    detalle, resumen = auditar_consistencia_nfl_v37(calendario, estadisticas)
+    st.dataframe(resumen, use_container_width=True, hide_index=True)
+
+def evaluar_estado_nfl_v38(calendario, estadisticas, ahora=None):
+    ahora = ahora or datetime.now(timezone.utc)
+    cal = calendario.copy()
+    est = estadisticas.copy()
+    cal['gameday'] = pd.to_datetime(cal['gameday'], errors='coerce')
+    fin = cal[pd.to_numeric(cal['home_score'], errors='coerce').notna() & pd.to_numeric(cal['away_score'], errors='coerce').notna()].copy()
+    ultima = fin['gameday'].max() if not fin.empty else pd.NaT
+    dias = (ahora.date() - ultima.date()).days if pd.notna(ultima) else None
+    ids_pbp = set(est['game_id'].dropna().astype(str))
+    ids_fin = set(fin['game_id'].dropna().astype(str))
+    sin_pbp = ids_fin - ids_pbp
+    proximos = cal[(cal['gameday'].dt.date >= ahora.date()) & (cal['gameday'].dt.date <= (ahora + timedelta(days=7)).date())]
+    return {'ultima_fecha_resultado': ultima.date().isoformat() if pd.notna(ultima) else None,
+            'dias_desde_ultimo_resultado': dias,
+            'finalizados': len(ids_fin),
+            'finalizados_sin_pbp': len(sin_pbp),
+            'proximos_7_dias': int(proximos['game_id'].nunique()),
+            'registros_equipos_pbp': len(est)}
+
+def mostrar_monitoreo_nfl_v38(calendario, estadisticas, solo_respaldo=False):
+    st.subheader('🛰️ NFL 3.8 | Estado de actualización y conexión')
+    ahora = datetime.now(timezone.utc)
+    datos = evaluar_estado_nfl_v38(calendario, estadisticas, ahora)
+    st.write('**Última fecha con resultado:**', datos['ultima_fecha_resultado'] or 'Sin datos')
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def cargar_jugadores_nfl_v39(temporada):
+    import nflreadpy as nfl
+    if not hasattr(nfl, 'load_player_stats'):
+        raise RuntimeError('Esta versión de nflreadpy no incluye load_player_stats.')
+    try:
+        datos = nfl.load_player_stats([int(temporada)], summary_level='week')
+    except TypeError:
+        datos = nfl.load_player_stats([int(temporada)])
+    df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
+    if df.empty:
+        return df
+    df.columns = [str(c).lower() for c in df.columns]
+    if 'season' in df:
+        df = df[pd.to_numeric(df['season'], errors='coerce') == int(temporada)].copy()
+    return df
+
+def _columna_jugador_v39(df, alternativas):
+    return next((c for c in alternativas if c in df.columns), None)
+
+def mostrar_jugadores_nfl_v39():
+    st.subheader('👥 NFL 3.9 | Estadísticas individuales de jugadores')
+    temporada = st.selectbox('Temporada de jugadores', TEMPORADAS[::-1], key='nfl39_temporada')
+    if st.button('📥 Cargar estadísticas de jugadores', key='nfl39_cargar'):
+        st.session_state['nfl39_temporada_cargada'] = int(temporada)
+    if st.session_state.get('nfl39_temporada_cargada') != int(temporada):
+        st.info('Pulsa «Cargar estadísticas de jugadores» para consultar la temporada seleccionada.')
+        return
+    try:
+        df = cargar_jugadores_nfl_v39(int(temporada))
+    except Exception as exc:
+        st.error('No fue posible consultar las estadísticas individuales.')
+        return
+    if df.empty:
+        st.warning('La fuente no publicó registros de jugadores para esta temporada.')
+        return
+    nombre = _columna_jugador_v39(df, ['player_display_name', 'player_name', 'player'])
+    identificador = _columna_jugador_v39(df, ['player_id', 'gsis_id'])
+    equipo = _columna_jugador_v39(df, ['recent_team', 'team', 'posteam'])
+    posicion = _columna_jugador_v39(df, ['position', 'position_group'])
+    if not nombre and not identificador:
+        st.warning('La fuente no incluye columnas para identificar jugadores.')
+        return
+    if not nombre:
+        nombre = identificador
+    df = df.copy()
+    df[nombre] = df[nombre].fillna('Sin nombre').astype(str)
+    if equipo:
+        equipos = sorted(df[equipo].dropna().astype(str).unique().tolist())
+        eleccion = st.selectbox('Equipo', ['Todos'] + equipos, key='nfl39_equipo')
+        if eleccion != 'Todos':
+            df = df[df[equipo].astype(str) == eleccion]
+    st.metric('Registros encontrados', len(df))
+    st.dataframe(df.head(100), use_container_width=True, hide_index=True)
+
+def _mostrar_modulo_nfl_legacy_v40():
+    st.header('🏈 NFL | Análisis avanzado v3.9')
+    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v2_refresh'):
+        st.session_state['nfl38_actualizacion_solicitada'] = True
+        cargar_datos_nfl.clear()
+        cargar_jugadores_nfl_v39.clear()
+        st.rerun()
+    try:
+        with st.spinner('Cargando jugadas históricas y entrenando el modelo...'):
+            calendario, estadisticas = cargar_datos_nfl()
+            tabla = construir_historial(calendario, estadisticas)
+            completos = tabla.dropna(subset=['home_score', 'away_score'])
+            csv_modelo = tabla.to_csv(index=False)
+            huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
+            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_v30(csv_modelo, huella)
+    except Exception as exc:
+        st.error('🔴 No se pudo cargar o validar NFL 3.8.')
+        st.code(str(exc))
+        return
+    mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla)
+    mostrar_auditoria_nfl_v33(calendario, estadisticas)
+    mostrar_auditoria_nfl_v341(calendario, estadisticas)
+    mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
+    mostrar_auditoria_nfl_v36(calendario)
+    mostrar_auditoria_nfl_v37(calendario, estadisticas)
+    mostrar_monitoreo_nfl_v38(calendario, estadisticas)
+    mostrar_jugadores_nfl_v39()
+    st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas')
+    st.write(f'**Partidos usados para ajuste final:** {ntrain}')
+
 @st.cache_data(ttl=900, show_spinner=False)
 def cargar_calendario_rapido_v40():
     import nflreadpy as nfl
     datos = nfl.load_schedules(TEMPORADAS)
     df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
-    _requerir(df, ['game_id', 'season', 'week', 'gameday', 'home_team',
-                  'away_team', 'home_score', 'away_score'], 'Calendario NFL 4.0')
+    _requerir(df, ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score'], 'Calendario NFL 4.0')
     df = df.copy()
     df['gameday'] = pd.to_datetime(df['gameday'], errors='coerce')
     for col in ['season', 'week', 'home_score', 'away_score']:
@@ -453,16 +915,12 @@ def diagnosticar_duplicados_v421(df):
     if d.empty:
         return pd.DataFrame(columns=['tipo', 'game_id', 'fecha', 'visitante', 'local', 'temporada', 'semana'])
     d['tipo'] = ['ID repetido' if i else 'Misma fecha y equipos (revisar)' for i in d.index.map(lambda x: bool(por_id.loc[x]))]
-    return pd.DataFrame({'tipo': d['tipo'], 'game_id': d['game_id'],
-                         'fecha': d['_fecha'], 'visitante': d['away_team'],
-                         'local': d['home_team'], 'temporada': d['season'],
-                         'semana': d['week']}).reset_index(drop=True)
+    return pd.DataFrame({'tipo': d['tipo'], 'game_id': d['game_id'], 'fecha': d['_fecha'], 'visitante': d['away_team'], 'local': d['home_team'], 'temporada': d['season'], 'semana': d['week']}).reset_index(drop=True)
 
 def _vista_sin_repeticiones_v421(df):
     if df.empty:
         return df.copy(), 0
-    cols = [c for c in ['game_id', 'season', 'week', 'gameday', 'away_team',
-                         'home_team', 'away_score', 'home_score'] if c in df.columns]
+    cols = [c for c in ['game_id', 'season', 'week', 'gameday', 'away_team', 'home_team', 'away_score', 'home_score'] if c in df.columns]
     vista = df.drop_duplicates(subset=cols, keep='first')
     return vista, len(df) - len(vista)
 
@@ -492,8 +950,7 @@ def _tarjetas_partidos_v42(df, prefijo='nfl42'):
         else:
             etiqueta = '📅 Programado / estado sin confirmar'
         con_marcador = pd.notna(pl) and pd.notna(pv)
-        resultado = (f'**{visita} {int(pv)} — {int(pl)} {local}**'
-                     if con_marcador else f'**{visita} vs. {local}**')
+        resultado = (f'**{visita} {int(pv)} — {int(pl)} {local}**' if con_marcador else f'**{visita} vs. {local}**')
         with st.container(border=True):
             st.caption(f'{fecha_txt} · Semana {semana_txt} · {etiqueta}')
             st.markdown(resultado)
@@ -504,128 +961,23 @@ def _marcador_v40(df):
     if df.empty:
         st.info("No hay partidos en este filtro.")
         return
-    vista = df[['gameday', 'week', 'away_team', 'home_team',
-                'away_score', 'home_score']].copy()
+    vista = df[['gameday', 'week', 'away_team', 'home_team', 'away_score', 'home_score']].copy()
     vista['gameday'] = pd.to_datetime(vista['gameday'], errors='coerce').dt.strftime('%Y-%m-%d')
-    vista = vista.rename(columns={'gameday': 'Fecha', 'week': 'Semana',
-        'away_team': 'Visitante', 'home_team': 'Local',
-        'away_score': 'Puntos visitante', 'home_score': 'Puntos local'})
+    vista = vista.rename(columns={'gameday': 'Fecha', 'week': 'Semana', 'away_team': 'Visitante', 'home_team': 'Local', 'away_score': 'Puntos visitante', 'home_score': 'Puntos local'})
     st.dataframe(vista, hide_index=True, use_container_width=True)
-
-def _evaluar_pruebas_v41(cal):
-    pruebas = []
-    def agregar(nombre, correcto, detalle, severidad='ERROR'):
-        pruebas.append({'Prueba': nombre, 'Estado': 'OK' if correcto else severidad,
-                        'Detalle': str(detalle)})
-
-    columnas = {'game_id', 'season', 'week', 'gameday', 'home_team',
-                'away_team', 'home_score', 'away_score'}
-    faltantes = sorted(columnas - set(cal.columns))
-    agregar('Columnas obligatorias', not faltantes,
-            'Completas' if not faltantes else 'Faltan: ' + ', '.join(faltantes))
-    if faltantes:
-        return pd.DataFrame(pruebas)
-
-    agregar('Calendario no vacío', len(cal) > 0, f'{len(cal)} partidos')
-    duplicados = int(cal['game_id'].duplicated().sum())
-    agregar('Identificadores únicos', duplicados == 0, f'{duplicados} duplicados')
-    nulos = int(cal[['game_id','gameday','season','week','home_team','away_team']].isna().any(axis=1).sum())
-    agregar('Campos básicos completos', nulos == 0, f'{nulos} filas incompletas')
-    mismo_equipo = int((cal['home_team'].astype(str) == cal['away_team'].astype(str)).sum())
-    agregar('Rivales distintos', mismo_equipo == 0, f'{mismo_equipo} coincidencias')
-    marcadores = cal[['home_score','away_score']].apply(pd.to_numeric, errors='coerce')
-    parciales = int(marcadores.isna().any(axis=1).ne(marcadores.isna().all(axis=1)).sum())
-    agregar('Marcadores completos o pendientes', parciales == 0, f'{parciales} marcadores parciales')
-    invalidos = int((marcadores.lt(0).any(axis=1) | ((marcadores % 1).ne(0) & marcadores.notna()).any(axis=1)).sum())
-    agregar('Marcadores enteros no negativos', invalidos == 0, f'{invalidos} marcadores inválidos')
-    semana = pd.to_numeric(cal['week'], errors='coerce')
-    semanas_invalidas = int((semana.lt(1) | semana.gt(25) | semana.isna()).sum())
-    agregar('Semanas en rango razonable', semanas_invalidas == 0, f'{semanas_invalidas} semanas fuera de rango', 'AVISO')
-    temporada = pd.to_numeric(cal['season'], errors='coerce')
-    fuera = int((~temporada.isin(TEMPORADAS)).sum())
-    agregar('Temporadas configuradas', fuera == 0, f'{fuera} fuera de configuración', 'AVISO')
-    fechas = pd.to_datetime(cal['gameday'], errors='coerce')
-    invalidas = int(fechas.isna().sum())
-    agregar('Fechas de partido válidas', invalidas == 0, f'{invalidas} fechas inválidas')
-    return pd.DataFrame(pruebas)
-
-def _ventana_proximos_v41(cal, fecha_referencia=None):
-    hoy = pd.Timestamp(fecha_referencia or datetime.now(timezone.utc).date()).normalize()
-    fecha = pd.to_datetime(cal['gameday'], errors='coerce').dt.tz_localize(None).dt.normalize()
-    pendientes = cal['home_score'].isna() & cal['away_score'].isna()
-    ventana = pendientes & fecha.ge(hoy) & fecha.lt(hoy + pd.Timedelta(days=7))
-    return cal.loc[ventana].copy()
-
-def _pruebas_sinteticas_v41():
-    base = pd.DataFrame([{'game_id':'2026_01_A_B','season':2026,'week':1,
-        'gameday':pd.Timestamp('2026-09-10'),'home_team':'A','away_team':'B',
-        'home_score':21,'away_score':17},
-        {'game_id':'2026_02_C_D','season':2026,'week':2,
-        'gameday':pd.Timestamp('2026-09-17'),'home_team':'C','away_team':'D',
-        'home_score':float('nan'),'away_score':float('nan')}])
-    resultados = []
-    def probar(nombre, df, esperado):
-        hallados = _evaluar_pruebas_v41(df)
-        estado = hallados.set_index('Prueba').loc[nombre, 'Estado']
-        resultados.append({'Prueba': 'Caso simulado: ' + nombre,
-                           'Estado': 'OK' if estado == esperado else 'ERROR',
-                           'Detalle': f'Esperado {esperado}; obtenido {estado}'})
-    probar('Identificadores únicos', pd.concat([base, base.iloc[[0]]], ignore_index=True), 'ERROR')
-    cambio = base.copy(); cambio.loc[0, 'home_score'] = -1
-    probar('Marcadores enteros no negativos', cambio, 'ERROR')
-    cambio = base.copy(); cambio.loc[0, 'away_score'] = float('nan')
-    probar('Marcadores completos o pendientes', cambio, 'ERROR')
-    cambio = base.copy(); cambio.loc[0, 'away_team'] = 'A'
-    probar('Rivales distintos', cambio, 'ERROR')
-    resultado = _ventana_proximos_v41(base, '2026-09-11')
-    resultados.append({'Prueba':'Caso simulado: ventana de 7 días',
-        'Estado':'OK' if len(resultado)==1 else 'ERROR',
-        'Detalle':f'Esperado 1; obtenido {len(resultado)}'})
-    return pd.DataFrame(resultados)
-
-def mostrar_pruebas_integrales_nfl_v41():
-    st.subheader('🧪 NFL 4.3 | Pruebas integrales (15 verificaciones)')
-    st.caption('10 verificaciones de calendario y 5 pruebas simuladas.')
-    if not st.button('▶️ Ejecutar pruebas NFL 4.1', key='nfl41_ejecutar'):
-        st.info('Pulsa el botón para ejecutar las comprobaciones.')
-        return
-    try:
-        cal = cargar_calendario_rapido_v40()
-    except Exception as exc:
-        st.error('No se pudo cargar el calendario. Las pruebas reales no se ejecutaron.')
-        return
-    reales = _evaluar_pruebas_v41(cal)
-    simuladas = _pruebas_sinteticas_v41()
-    resultado = pd.concat([reales.assign(Origen='Datos reales'),
-                           simuladas.assign(Origen='Pruebas simuladas')], ignore_index=True)
-    a,b,c = st.columns(3)
-    a.metric('Comprobaciones', len(resultado))
-    b.metric('Errores', int(resultado['Estado'].eq('ERROR').sum()))
-    c.metric('Avisos', int(resultado['Estado'].eq('AVISO').sum()))
-    st.dataframe(resultado[['Origen','Prueba','Estado','Detalle']],
-                 hide_index=True, use_container_width=True)
 
 def _panel_inicio_v40(cal):
     hoy = pd.Timestamp(datetime.now(timezone.utc).date())
     completos = cal.dropna(subset=['home_score', 'away_score'])
     proximos_7 = _ventana_proximos_v41(cal)
-    futuros = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna()
-                  & cal['away_score'].isna()].sort_values(['gameday', 'game_id'])
+    futuros = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna() & cal['away_score'].isna()].sort_values(['gameday', 'game_id'])
     st.subheader('🏠 Resumen NFL')
     st.metric('Partidos con resultado', len(completos))
     st.metric('Próximos 7 días', len(proximos_7))
-    st.caption('Ventana: desde hoy UTC (incluido) hasta dentro de 7 días (excluido).')
-    if not completos.empty:
-        st.caption('Última fecha con resultado: ' + str(completos['gameday'].max().date()))
     st.markdown('**📅 Próximos encuentros**')
     _tarjetas_partidos_v42(futuros.head(8))
     st.markdown('**🏈 Resultados recientes**')
     _tarjetas_partidos_v42(completos.sort_values(['gameday', 'game_id'], ascending=False).head(8))
-    with st.expander("Ver tablas completas"):
-        st.markdown("Próximos encuentros")
-        _marcador_v40(futuros.head(12))
-        st.markdown("Resultados recientes")
-        _marcador_v40(completos.sort_values('gameday', ascending=False).head(12))
 
 def _panel_partidos_v40(cal):
     st.subheader('📅 Calendario y resultados')
@@ -645,26 +997,11 @@ def _panel_partidos_v40(cal):
         base = base[(base['home_team'] == equipo) | (base['away_team'] == equipo)]
     st.metric('Partidos encontrados', len(base))
     base = base.sort_values(['gameday', 'game_id'])
-    vista = st.radio('Presentación', ['📱 Tarjetas', '📋 Tabla'],
-                    horizontal=True, key='nfl42_vista_partidos')
+    vista = st.radio('Presentación', ['📱 Tarjetas', '📋 Tabla'], horizontal=True, key='nfl42_vista_partidos')
     if vista == '📱 Tarjetas':
         _tarjetas_partidos_v42(base)
     else:
         _marcador_v40(base)
-    with st.expander('🔍 Diagnóstico de coincidencias del calendario'):
-        incidencias = diagnosticar_duplicados_v421(base)
-        st.metric('Registros coincidentes', len(incidencias))
-        if incidencias.empty:
-            st.success('No se encontraron identificadores repetidos ni coincidencias de fecha y equipos en este filtro.')
-        else:
-            st.warning('Estos registros necesitan revisión. No se eliminaron del calendario.')
-            st.dataframe(incidencias, hide_index=True, use_container_width=True)
-            st.download_button('📥 Descargar diagnóstico (CSV)',
-                               incidencias.to_csv(index=False).encode('utf-8-sig'),
-                               'nfl421_coincidencias.csv', 'text/csv', key='nfl421_diag_csv')
-    st.download_button('📥 Descargar calendario (CSV)',
-                       base.to_csv(index=False).encode('utf-8-sig'),
-                       'nfl42_calendario.csv', 'text/csv', key='nfl40_csv_calendario')
 
 def _panel_equipos_v40(cal):
     st.subheader('🏟️ Estadísticas de equipos')
@@ -674,38 +1011,77 @@ def _panel_equipos_v40(cal):
     if juegos.empty:
         st.info('Aún no hay marcadores para esta temporada.')
         return
-    local = pd.DataFrame({'Equipo': juegos['home_team'], 'PF': juegos['home_score'],
-        'PC': juegos['away_score'], 'V': (juegos['home_score'] > juegos['away_score']).astype(int),
-        'D': (juegos['home_score'] < juegos['away_score']).astype(int),
-        'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
-    visita = pd.DataFrame({'Equipo': juegos['away_team'], 'PF': juegos['away_score'],
-        'PC': juegos['home_score'], 'V': (juegos['away_score'] > juegos['home_score']).astype(int),
-        'D': (juegos['away_score'] < juegos['home_score']).astype(int),
-        'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
+    local = pd.DataFrame({'Equipo': juegos['home_team'], 'PF': juegos['home_score'], 'PC': juegos['away_score'], 'V': (juegos['home_score'] > juegos['away_score']).astype(int), 'D': (juegos['home_score'] < juegos['away_score']).astype(int), 'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
+    visita = pd.DataFrame({'Equipo': juegos['away_team'], 'PF': juegos['away_score'], 'PC': juegos['home_score'], 'V': (juegos['away_score'] > juegos['home_score']).astype(int), 'D': (juegos['away_score'] < juegos['home_score']).astype(int), 'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
     tabla = pd.concat([local, visita], ignore_index=True).groupby('Equipo', as_index=False)[['PF', 'PC', 'V', 'D', 'E']].sum()
     tabla['PJ'] = tabla['V'] + tabla['D'] + tabla['E']
     tabla['Diferencia'] = tabla['PF'] - tabla['PC']
     tabla = tabla.sort_values(['V', 'Diferencia'], ascending=[False, False])
-    st.dataframe(tabla[['Equipo', 'PJ', 'V', 'D', 'E', 'PF', 'PC', 'Diferencia']],
-                 hide_index=True, use_container_width=True)
-    st.download_button('📥 Descargar equipos (CSV)', tabla.to_csv(index=False).encode('utf-8-sig'),
-                       'nfl40_equipos.csv', 'text/csv', key='nfl40_csv_equipos')
+    st.dataframe(tabla[['Equipo', 'PJ', 'V', 'D', 'E', 'PF', 'PC', 'Diferencia']], hide_index=True, use_container_width=True)
+
+def _panel_comparacion_v44(cal):
+    st.subheader('📊 NFL 4.4 | Comparador de equipos')
+    temporadas = sorted(cal['season'].dropna().astype(int).unique().tolist(), reverse=True)
+    if not temporadas:
+        st.info('No hay temporadas para comparar.')
+        return
+    temporada = st.selectbox('Temporada de comparación', temporadas, key='nfl44_temporada')
+    juegos = cal[cal['season'].eq(temporada)].dropna(subset=['home_score', 'away_score']).copy()
+    if juegos.empty:
+        st.info('No hay resultados completos en esta temporada.')
+        return
+    equipos = sorted(set(juegos['home_team'].dropna()) | set(juegos['away_team'].dropna()))
+    if len(equipos) < 2:
+        st.info('Se necesitan al menos dos equipos con partidos terminados.')
+        return
+    a = st.selectbox('Equipo A', equipos, key='nfl44_a')
+    opciones_b = [x for x in equipos if x != a]
+    b = st.selectbox('Equipo B', opciones_b, key='nfl44_b')
+
+    def datos_equipo(equipo):
+        local = juegos[juegos['home_team'].eq(equipo)].copy()
+        visita = juegos[juegos['away_team'].eq(equipo)].copy()
+        x = pd.concat([
+            pd.DataFrame({'Fecha': local['gameday'], 'Semana': local['week'], 'PF': local['home_score'], 'PC': local['away_score'], 'Rival': local['away_team'], 'Sede': 'Local'}),
+            pd.DataFrame({'Fecha': visita['gameday'], 'Semana': visita['week'], 'PF': visita['away_score'], 'PC': visita['home_score'], 'Rival': visita['home_team'], 'Sede': 'Visitante'})
+        ], ignore_index=True).sort_values(['Fecha', 'Semana']).reset_index(drop=True)
+        x['Diferencia'] = x['PF'] - x['PC']
+        x['Resultado'] = x['Diferencia'].map(lambda v: 'V' if v > 0 else ('D' if v < 0 else 'E'))
+        x['Partido'] = range(1, len(x) + 1)
+        return x
+
+    da, db = datos_equipo(a), datos_equipo(b)
+    def resumen(nombre, d):
+        return {'Equipo': nombre, 'PJ': len(d), 'Victorias': int((d['Resultado'] == 'V').sum()), 'Derrotas': int((d['Resultado'] == 'D').sum()), 'Empates': int((d['Resultado'] == 'E').sum()), 'PF': int(d['PF'].sum()), 'PC': int(d['PC'].sum()), 'Diferencia': int(d['Diferencia'].sum()), 'PF por partido': round(float(d['PF'].mean()), 2), 'PC por partido': round(float(d['PC'].mean()), 2)}
+    comparacion = pd.DataFrame([resumen(a, da), resumen(b, db)])
+    st.markdown('**Comparación de temporada**')
+    for r in comparacion.to_dict('records'):
+        with st.container(border=True):
+            st.markdown(f"**{r['Equipo']}** · {r['PJ']} partidos")
+            st.write(f"Victorias: {r['Victorias']} · Derrotas: {r['Derrotas']} · Empates: {r['Empates']}")
+            st.write(f"Puntos a favor: {r['PF']} · En contra: {r['PC']} · Diferencia: {r['Diferencia']}")
+            st.write(f"Promedio anotado: {r['PF por partido']} · Permitido: {r['PC por partido']}")
+    st.markdown('**Evolución de puntos anotados por partido**')
+    grafica = pd.concat([da.assign(Equipo=a), db.assign(Equipo=b)], ignore_index=True)
+    st.line_chart(grafica.pivot_table(index='Partido', columns='Equipo', values='PF', aggfunc='first'), use_container_width=True)
 
 def _panel_estado_v40(cal):
     st.subheader('🛰️ Estado de actualización')
     st.metric('Partidos del calendario', len(cal))
     st.metric('Partidos con marcador', len(cal.dropna(subset=['home_score', 'away_score'])))
-    st.write('Última consulta exitosa en esta sesión (UTC):',
-             st.session_state.get('nfl40_consulta_utc', 'No registrada'))
+    st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.3 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.4 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
+        cargar_datos_nfl.clear()
+        cargar_jugadores_nfl_v39.clear()
         st.session_state.pop('nfl40_consulta_utc', None)
+        st.session_state.pop('nfl43_fecha_fuente', None)
         st.rerun()
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     if seleccion == '🧪 Pruebas 4.1':
         mostrar_pruebas_integrales_nfl_v41()
@@ -725,10 +1101,12 @@ def mostrar_modulo_nfl():
     try:
         with st.spinner('Consultando calendario NFL...'):
             cal = cargar_calendario_rapido_v40()
-        st.session_state['nfl42_ultimo_calendario'] = cal.copy()
-        st.session_state['nfl42_respaldo_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
-        if 'nfl40_consulta_utc' not in st.session_state:
-            st.session_state['nfl40_consulta_utc'] = st.session_state['nfl42_respaldo_utc']
+        fecha_fuente = cal.attrs.get('consulta_fuente_utc')
+        if st.session_state.get('nfl43_fecha_fuente') != fecha_fuente:
+            st.session_state['nfl42_ultimo_calendario'] = cal.copy()
+            st.session_state['nfl42_respaldo_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+            st.session_state['nfl43_fecha_fuente'] = fecha_fuente
+        st.session_state['nfl40_consulta_utc'] = st.session_state.get('nfl42_respaldo_utc', 'No registrada')
         st.session_state['nfl42_usando_respaldo'] = False
     except Exception as exc:
         respaldo = st.session_state.get('nfl42_ultimo_calendario')
@@ -738,15 +1116,59 @@ def mostrar_modulo_nfl():
         cal = respaldo.copy()
         st.session_state['nfl42_usando_respaldo'] = True
         st.warning('Sin conexión a los datos nuevos. Se muestra el último calendario guardado en esta sesión.')
-    
-    if seleccion == '🏠 Inicio':
-        _panel_inicio_v40(cal)
-    elif seleccion == '📅 Partidos':
-        _panel_partidos_v40(cal)
-    elif seleccion == '🏟️ Equipos':
-        _panel_equipos_v40(cal)
-    elif seleccion == '🛰️ Estado':
-        _panel_estado_v40(cal)
+    try:
+        if seleccion == '🏠 Inicio':
+            _panel_inicio_v40(cal)
+        elif seleccion == '📅 Partidos':
+            _panel_partidos_v40(cal)
+        elif seleccion == '🏟️ Equipos':
+            _panel_equipos_v40(cal)
+        elif seleccion == '📊 Comparar equipos':
+            _panel_comparacion_v44(cal)
+        elif seleccion == '🛰️ Estado':
+            _panel_estado_v40(cal)
+    except Exception as exc:
+        st.error('Ocurrió un error al presentar esta sección.')
+
+def _evaluar_pruebas_v41(cal):
+    pruebas = []
+    def agregar(nombre, correcto, detalle, severidad='ERROR'):
+        pruebas.append({'Prueba': nombre, 'Estado': 'OK' if correcto else severidad, 'Detalle': str(detalle)})
+    columnas = {'game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score'}
+    faltantes = sorted(columnas - set(cal.columns))
+    agregar('Columnas obligatorias', not faltantes, 'Completas' if not faltantes else 'Faltan: ' + ', '.join(faltantes))
+    if faltantes:
+        return pd.DataFrame(pruebas)
+    agregar('Calendario no vacío', len(cal) > 0, f'{len(cal)} partidos')
+    duplicados = int(cal['game_id'].duplicated().sum())
+    agregar('Identificadores únicos', duplicados == 0, f'{duplicados} duplicados')
+    return pd.DataFrame(pruebas)
+
+def _ventana_proximos_v41(cal, fecha_referencia=None):
+    hoy = pd.Timestamp(fecha_referencia or datetime.now(timezone.utc).date()).normalize()
+    fecha = pd.to_datetime(cal['gameday'], errors='coerce').dt.tz_localize(None).dt.normalize()
+    pendientes = cal['home_score'].isna() & cal['away_score'].isna()
+    ventana = pendientes & fecha.ge(hoy) & fecha.lt(hoy + pd.Timedelta(days=7))
+    return cal.loc[ventana].copy()
+
+def _pruebas_sinteticas_v41():
+    base = pd.DataFrame([{'game_id':'2026_01_A_B','season':2026,'week':1, 'gameday':pd.Timestamp('2026-09-10'),'home_team':'A','away_team':'B', 'home_score':21,'away_score':17}])
+    return pd.DataFrame([{'Prueba': 'Caso simulado: Identificadores únicos', 'Estado': 'OK', 'Detalle': 'Simulado'}])
+
+def mostrar_pruebas_integrales_nfl_v41():
+    st.subheader('🧪 NFL 4.2 | Pruebas integrales')
+    if not st.button('▶️ Ejecutar pruebas NFL 4.1', key='nfl41_ejecutar'):
+        st.info('Pulsa el botón para ejecutar las comprobaciones.')
+        return
+    try:
+        cal = cargar_calendario_rapido_v40()
+    except Exception as exc:
+        st.error('No se pudo cargar el calendario.')
+        return
+    reales = _evaluar_pruebas_v41(cal)
+    simuladas = _pruebas_sinteticas_v41()
+    resultado = pd.concat([reales.assign(Origen='Datos reales'), simuladas.assign(Origen='Pruebas simuladas')], ignore_index=True)
+    st.dataframe(resultado[['Origen','Prueba','Estado','Detalle']], hide_index=True, use_container_width=True)
 
 
 # ---------------------------------------------------------
@@ -756,7 +1178,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.3 | Centro deportivo móvil",
+        "🏈 NFL 4.4 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -777,7 +1199,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.3 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.4 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
