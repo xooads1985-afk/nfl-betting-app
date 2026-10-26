@@ -195,11 +195,6 @@ def analizar_prop_ufc_comun(combate, mercado, probabilidad_estimada_modelo):
 
 
 def analizar_prop_nba_comun_avanzado(jugador, mercado, promedio_jugador, linea_casino, pace_equipo_jugador, pace_equipo_rival, viene_de_b2b):
-  """
-  [MÓDULO PLAYER PROPS NBA - AVANZADO]
-  Calcula la probabilidad real (Over/Under) ajustando el volumen por el Pace de ambos equipos
-  y penalizando la fatiga por Back-to-Back (B2B).
-  """
   pace_partido_proyectado = (pace_equipo_jugador + pace_equipo_rival) / 2.0
   pace_promedio_liga = 98.5
   factor_ritmo = pace_partido_proyectado / pace_promedio_liga
@@ -395,24 +390,54 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 # =========================================================
-# 4. MOTOR PRO NBA (FIJO E INTOCABLE)
+# 4. MOTOR PRO NBA (CON MATRIZ DE BAJAS & LOAD MANAGEMENT)
 # =========================================================
-def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino, linea_total_casino, contexto):
-  pace_estimado = 99.0
-  eficiencia_ofensiva_local = (stats_local["ppg"] + stats_visita["opp_ppg"]) / 2.0 + 2.5
-  eficiencia_ofensiva_visita = (stats_visita["ppg"] + stats_local["opp_ppg"]) / 2.0
-  
-  if contexto.get("local_b2b", False): eficiencia_ofensiva_local -= 2.5
-  if contexto.get("visita_b2b", False): eficiencia_ofensiva_visita -= 2.5
-  if contexto.get("local_estrella_baja", False): eficiencia_ofensiva_local -= 4.5
-  if contexto.get("visita_estrella_baja", False): eficiencia_ofensiva_visita -= 4.5
-  
-  puntos_proyectados_local = eficiencia_ofensiva_local * (pace_estimado / 100.0)
-  puntos_proyectados_visita = eficiencia_ofensiva_visita * (pace_estimado / 100.0)
-  
+MATRIZ_BAJAS_NBA = {
+    "Boston Celtics": {"Jugador": "Jayson Tatum", "Impacto_Ort": 5.5, "Impacto_Pace": -1.2},
+    "Milwaukee Bucks": {"Jugador": "Giannis Antetokounmpo", "Impacto_Ort": 6.2, "Impacto_Pace": -2.0},
+    "Dallas Mavericks": {"Jugador": "Luka Doncic", "Impacto_Ort": 6.5, "Impacto_Pace": -2.5},
+    "Oklahoma City Thunder": {"Jugador": "Shai Gilgeous-Alexander", "Impacto_Ort": 5.8, "Impacto_Pace": +0.5},
+    "Denver Nuggets": {"Jugador": "Nikola Jokic", "Impacto_Ort": 7.0, "Impacto_Pace": -1.5},
+    "Los Angeles Lakers": {"Jugador": "Anthony Davis", "Impacto_Ort": 4.8, "Impacto_Pace": -1.0},
+    "Golden State Warriors": {"Jugador": "Stephen Curry", "Impacto_Ort": 6.0, "Impacto_Pace": +1.0}
+}
+
+def aplicar_matriz_bajas_nba(equipo, ort_base, pace_base, esta_baja):
+  ort_ajustado = ort_base
+  pace_ajustado = pace_base
+  if esta_baja and equipo in MATRIZ_BAJAS_NBA:
+    datos_baja = MATRIZ_BAJAS_NBA[equipo]
+    ort_ajustado -= datos_baja["Impacto_Ort"]
+    pace_ajustado += datos_baja["Impacto_Pace"]
+  return ort_ajustado, pace_ajustado
+
+def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino, linea_total_casino, contexto, equipo_local_nombre="Boston Celtics", equipo_visita_nombre="Milwaukee Bucks"):
+  ort_l_base = stats_local.get("ort", 115.0)
+  drt_l_base = stats_local.get("drt", 115.0)
+  pace_l_base = stats_local.get("pace", 98.5)
+
+  ort_v_base = stats_visita.get("ort", 115.0)
+  drt_v_base = stats_visita.get("drt", 115.0)
+  pace_v_base = stats_visita.get("pace", 98.5)
+
+  ort_l_ajustada, pace_l_ajustado = aplicar_matriz_bajas_nba(equipo_local_nombre, ort_l_base, pace_l_base, contexto.get("local_estrella_baja", False))
+  ort_v_ajustada, pace_v_ajustado = aplicar_matriz_bajas_nba(equipo_visita_nombre, ort_v_base, pace_v_base, contexto.get("visita_estrella_baja", False))
+
+  pace_estimado = (pace_l_ajustado + pace_v_ajustado) / 2.0
+  ventaja_casa = 2.5
+
+  ef_ofensiva_final_l = (ort_l_ajustada + ventaja_casa + drt_v_base) / 2.0
+  ef_ofensiva_final_v = (ort_v_ajustada + drt_l_base) / 2.0
+
+  if contexto.get("local_b2b", False): ef_ofensiva_final_l -= 2.0
+  if contexto.get("visita_b2b", False): ef_ofensiva_final_v -= 2.0
+
+  puntos_proyectados_local = (ef_ofensiva_final_l / 100.0) * pace_estimado
+  puntos_proyectados_visita = (ef_ofensiva_final_v / 100.0) * pace_estimado
+
   margen_proyectado = puntos_proyectados_local - puntos_proyectados_visita
   total_proyectado = puntos_proyectados_local + puntos_proyectados_visita
-  
+
   z_spread = (linea_spread_casino - margen_proyectado) / 11.0
   prob_local_handicap = norm.cdf(z_spread) * 100.0
   prob_visita_handicap = 100.0 - prob_local_handicap
@@ -1079,42 +1104,34 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
 
 
 # =========================================================
-# 4. SISTEMA PRO NBA (FIJO E INTOCABLE)
+# 4. SISTEMA PRO NBA (CON MATRIZ DE BAJAS & LOAD MANAGEMENT)
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
-  st.title(f"🏀 **Sistema Pro NBA Élite [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis basado en Puntos, Asistencias, Tiros, Rebotes y Factores de Cansancio (B2B).*")
+  st.title(f"🏀 **Sistema Pro NBA Élite con Matriz de Bajas & Load Management [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis avanzado de Eficiencia Ofensiva (ORT), Defensiva (DRT), Ritmo (Pace) y Reporte de Lesiones de Superestrellas.*")
 
   col_nba_eq1, col_nba_eq2 = st.columns(2)
   with col_nba_eq1:
-    el_nba = st.text_input("Equipo Local NBA:", value="Boston Celtics", key="nba_el")
-    st.markdown("##### 📊 Estadísticas Local")
-    ppg_l = st.number_input("Puntos por Partido (PPG):", value=115.0, step=0.5, key="nba_ppgl")
-    opp_ppg_l = st.number_input("Puntos Permitidos (Opp PPG):", value=108.0, step=0.5, key="nba_oppl")
-    apg_l = st.number_input("Asistencias (APG):", value=26.5, step=0.5, key="nba_apgl")
-    tov_l = st.number_input("Pérdidas (TOV):", value=12.5, step=0.5, key="nba_tovl")
-    fg_l = st.number_input("% Tiros de Campo (FG%):", value=48.2, step=0.1, key="nba_fgl")
-    tp_l = st.number_input("% Triples (3P%):", value=37.5, step=0.1, key="nba_tpl")
-    rpg_l = st.number_input("Rebotes Totales (RPG):", value=44.0, step=0.5, key="nba_rpgl")
+    el_nba = st.selectbox("Equipo Local NBA:", list(MATRIZ_BAJAS_NBA.keys()) + ["Los Angeles Lakers", "Golden State Warriors", "Denver Nuggets", "Phoenix Suns"], key="nba_el")
+    st.markdown("##### 📊 Métricas Avanzadas Local")
+    ort_l = st.number_input("Offensive Rating (ORT):", value=122.0, step=0.5, key="nba_ortl")
+    drt_l = st.number_input("Defensive Rating (DRT):", value=110.5, step=0.5, key="nba_drtl")
+    pace_l = st.number_input("Ritmo de Juego (Pace):", value=97.5, step=0.1, key="nba_pacel")
     
     st.markdown("##### 🚨 Situación Local")
     b2b_l_nba = st.checkbox("Local en B2B (Días consecutivos)", key="nba_b2bl")
-    estrella_l_nba = st.checkbox("Estrella Local Fuera / Baja", key="nba_starl")
+    estrella_l_nba = st.checkbox(f"🚨 {MATRIZ_BAJAS_NBA.get(el_nba, {}).get('Jugador', 'Estrella Local')} Fuera (Baja / Load Mng)", key="nba_starl")
 
   with col_nba_eq2:
-    ev_nba = st.text_input("Equipo Visitante NBA:", value="Milwaukee Bucks", key="nba_ev")
-    st.markdown("##### 📊 Estadísticas Visitante")
-    ppg_v = st.number_input("Puntos por Partido (PPG):", value=114.0, step=0.5, key="nba_ppgv")
-    opp_ppg_v = st.number_input("Puntos Permitidos (Opp PPG):", value=111.0, step=0.5, key="nba_oppv")
-    apg_v = st.number_input("Asistencias (APG):", value=25.8, step=0.5, key="nba_apgv")
-    tov_v = st.number_input("Pérdidas (TOV):", value=13.0, step=0.5, key="nba_tovv")
-    fg_v = st.number_input("% Tiros de Campo (FG%):", value=47.5, step=0.1, key="nba_fgv")
-    tp_v = st.number_input("% Triples (3P%):", value=36.8, step=0.1, key="nba_tpv")
-    rpg_v = st.number_input("Rebotes Totales (RPG):", value=42.5, step=0.5, key="nba_rpgv")
+    ev_nba = st.selectbox("Equipo Visitante NBA:", list(MATRIZ_BAJAS_NBA.keys()) + ["Los Angeles Lakers", "Golden State Warriors", "Denver Nuggets", "Phoenix Suns"], index=1, key="nba_ev")
+    st.markdown("##### 📊 Métricas Avanzadas Visitante")
+    ort_v = st.number_input("Offensive Rating (ORT):", value=117.5, step=0.5, key="nba_ortv")
+    drt_v = st.number_input("Defensive Rating (DRT):", value=115.0, step=0.5, key="nba_drtv")
+    pace_v = st.number_input("Ritmo de Juego (Pace):", value=100.2, step=0.1, key="nba_pacev")
     
     st.markdown("##### 🚨 Situación Visitante")
     b2b_v_nba = st.checkbox("Visitante en B2B (Días consecutivos)", key="nba_b2bv")
-    estrella_v_nba = st.checkbox("Estrella Visitante Fuera / Baja", key="nba_starv")
+    estrella_v_nba = st.checkbox(f"🚨 {MATRIZ_BAJAS_NBA.get(ev_nba, {}).get('Jugador', 'Estrella Visitante')} Fuera (Baja / Load Mng)", key="nba_starv")
 
   st.markdown("---")
   col_line1, col_line2 = st.columns(2)
@@ -1124,12 +1141,12 @@ elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   with col_line2:
     linea_tot_nba = st.number_input("Línea Total Casino O/U:", value=228.5, step=0.5, key="nba_ltot")
 
-  stats_local_dict = {"ppg": ppg_l, "opp_ppg": opp_ppg_l, "apg": apg_l, "tov": tov_l, "fg_pct": fg_l, "three_p_pct": tp_l, "rpg": rpg_l}
-  stats_visita_dict = {"ppg": ppg_v, "opp_ppg": opp_ppg_v, "apg": apg_v, "tov": tov_v, "fg_pct": fg_v, "three_p_pct": tp_v, "rpg": rpg_v}
+  stats_local_dict = {"ort": ort_l, "drt": drt_l, "pace": pace_l}
+  stats_visita_dict = {"ort": ort_v, "drt": drt_v, "pace": pace_v}
   contexto_nba = {"local_b2b": b2b_l_nba, "visita_b2b": b2b_v_nba, "local_estrella_baja": estrella_l_nba, "visita_estrella_baja": estrella_v_nba}
 
-  if st.button("🚀 Ejecutar Análisis NBA Detallado", use_container_width=True):
-    res_nba = analizar_lineas_nba_detallado(stats_local_dict, stats_visita_dict, linea_sp_nba, linea_tot_nba, contexto_nba)
+  if st.button("🚀 Ejecutar Análisis NBA con Matriz de Bajas", use_container_width=True):
+    res_nba = analizar_lineas_nba_detallado(stats_local_dict, stats_visita_dict, linea_sp_nba, linea_tot_nba, contexto_nba, el_nba, ev_nba)
     st.session_state["resultado_nba_calculado"] = {"partido": f"{ev_nba} @ {el_nba}", "analisis": res_nba}
 
   if st.session_state["resultado_nba_calculado"]:
