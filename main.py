@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.5.1 (INTEGRADO)
+# SISTEMA PRO NFL v4.6 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -605,12 +605,6 @@ def mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla):
     st.subheader('🛡️ NFL 3.2 | Auditoría de calidad de datos')
     try:
         resumen, pendientes, fechas = auditoria_calidad_nfl_v32(calendario, estadisticas, tabla)
-        for titulo, valor in [
-            ('Último resultado disponible', fechas['ultimo_resultado']),
-            ('Último partido con PBP completo', fechas['ultima_fecha_con_pbp_completo']),
-        ]:
-            fecha = 'Sin datos' if pd.isna(valor) else pd.Timestamp(valor).strftime('%Y-%m-%d')
-            st.write(f'**{titulo}:** {fecha}')
         st.dataframe(resumen, use_container_width=True, hide_index=True)
     except Exception as exc:
         st.error('🔴 No se pudo completar la auditoría NFL 3.2.')
@@ -1033,6 +1027,58 @@ def _panel_comparacion_v44(cal):
     grafica = pd.concat([da.assign(Equipo=a), db.assign(Equipo=b)], ignore_index=True)
     st.line_chart(grafica.pivot_table(index='Partido', columns='Equipo', values='PF', aggfunc='first'), use_container_width=True)
 
+def _panel_enfrentamientos_v46(cal):
+    st.subheader('🏈 NFL 4.6 | Historial de enfrentamientos')
+    st.caption('Resultados observados del calendario disponible (2022–2026).')
+    requeridas = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
+    _requerir(cal, requeridas, 'Calendario de enfrentamientos')
+    base = cal.copy()
+    base['gameday'] = pd.to_datetime(base['gameday'], errors='coerce')
+    for col in ['season', 'week', 'home_score', 'away_score']:
+        base[col] = pd.to_numeric(base[col], errors='coerce')
+    base = base.dropna(subset=['game_id', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score'])
+    base = base.drop_duplicates(subset=['game_id'])
+    base = base[base['home_team'].ne(base['away_team'])]
+    equipos = sorted(set(base['home_team']) | set(base['away_team']))
+    if len(equipos) < 2:
+        st.info('No hay suficientes equipos con resultados para comparar.')
+        return
+    col_a, col_b = st.columns(2)
+    with col_a:
+        a = st.selectbox('Equipo A', equipos, key='nfl46_equipo_a')
+    with col_b:
+        b = st.selectbox('Equipo B', [e for e in equipos if e != a], key='nfl46_equipo_b')
+    temporadas = sorted(base['season'].dropna().astype(int).unique(), reverse=True)
+    seleccion = st.multiselect('Temporadas', temporadas, default=temporadas, key='nfl46_temporadas')
+    if not seleccion:
+        st.info('Selecciona al menos una temporada.')
+        return
+    base = base[base['season'].isin(seleccion)]
+    cruces = base[((base['home_team'] == a) & (base['away_team'] == b)) | ((base['home_team'] == b) & (base['away_team'] == a))]
+    cruces = cruces.sort_values(['gameday', 'game_id'], ascending=False).copy()
+    st.metric('Enfrentamientos con resultado', len(cruces))
+    if cruces.empty:
+        st.info('No hay enfrentamientos con resultado en las temporadas seleccionadas.')
+        return
+    cruces['puntos_a'] = np.where(cruces['home_team'].eq(a), cruces['home_score'], cruces['away_score'])
+    cruces['puntos_b'] = np.where(cruces['home_team'].eq(b), cruces['home_score'], cruces['away_score'])
+    cruces['ganador'] = np.select([cruces['puntos_a'].gt(cruces['puntos_b']), cruces['puntos_b'].gt(cruces['puntos_a'])], [a, b], default='Empate')
+    victorias_a = int(cruces['ganador'].eq(a).sum())
+    victorias_b = int(cruces['ganador'].eq(b).sum())
+    empates = int(cruces['ganador'].eq('Empate').sum())
+    with st.container(border=True):
+        st.markdown(f'**Balance histórico · {a} vs. {b}**')
+        st.write(f'{a}: **{victorias_a} victorias** · {b}: **{victorias_b} victorias** · Empates: **{empates}**')
+        st.write(f'Puntos totales: {a} **{int(cruces["puntos_a"].sum())}** · {b} **{int(cruces["puntos_b"].sum())}**')
+        st.write(f'Promedio por encuentro: {a} **{cruces["puntos_a"].mean():.2f}** · {b} **{cruces["puntos_b"].mean():.2f}**')
+    st.markdown('**Últimos enfrentamientos**')
+    for _, fila in cruces.head(10).iterrows():
+        fecha = fila['gameday'].strftime('%d/%m/%Y')
+        with st.container(border=True):
+            st.caption(f'{fecha} · Temporada {int(fila["season"])} · Semana {int(fila["week"])}')
+            st.markdown(f'**{fila["away_team"]} {int(fila["away_score"])} — {int(fila["home_score"])} {fila["home_team"]}**')
+            st.caption('Ganador: ' + str(fila['ganador']))
+
 def _agregar_pbp_v451(df):
     cols = ['game_id', 'posteam', 'defteam', 'play_type', 'epa', 'success']
     faltantes = [c for c in cols if c not in df.columns]
@@ -1148,7 +1194,7 @@ def _panel_estado_v40(cal):
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.5.1 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.6 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1157,7 +1203,7 @@ def mostrar_modulo_nfl():
         st.session_state.pop('nfl40_consulta_utc', None)
         st.session_state.pop('nfl43_fecha_fuente', None)
         st.rerun()
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🧠 Rendimiento avanzado', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏈 Enfrentamientos', '🧠 Rendimiento avanzado', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     if seleccion == '🧪 Pruebas 4.1':
         mostrar_pruebas_integrales_nfl_v41()
@@ -1201,6 +1247,8 @@ def mostrar_modulo_nfl():
             _panel_equipos_v40(cal)
         elif seleccion == '📊 Comparar equipos':
             _panel_comparacion_v44(cal)
+        elif seleccion == '🏈 Enfrentamientos':
+            _panel_enfrentamientos_v46(cal)
         elif seleccion == '🧠 Rendimiento avanzado':
             _panel_avanzado_v45(cal)
         elif seleccion == '🛰️ Estado':
@@ -1256,7 +1304,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.5.1 | Centro deportivo móvil",
+        "🏈 NFL 4.6 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1277,7 +1325,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.5.1 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.6 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
