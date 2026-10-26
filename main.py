@@ -148,7 +148,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.9 (ACTUALIZADO)
+# SISTEMA PRO NFL v4.9.1.3 (ACTUALIZADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -917,7 +917,7 @@ def _panel_inicio_v40(cal):
     completos = cal.dropna(subset=['home_score', 'away_score'])
     proximos_7 = _ventana_proximos_v41(cal)
     futuros = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna() & cal['away_score'].isna()].sort_values(['gameday', 'game_id'])
-    st.subheader('🏠 Resumen NFL')
+    st.subheader('🏠 Resumen NFL v4.9.1.3')
     st.metric('Partidos con resultado', len(completos))
     st.metric('Próximos 7 días', len(proximos_7))
     st.markdown('**📅 Próximos encuentros**')
@@ -1277,7 +1277,7 @@ def _panel_jugadores_partido_v48(cal):
     st.dataframe(tabla, hide_index=True, use_container_width=True)
     st.download_button('📥 Descargar estadísticas de jugadores (CSV)', tabla.to_csv(index=False).encode('utf-8-sig'), f'nfl48_jugadores_{game_id}.csv', 'text/csv', key='nfl48_jug_csv')
 
-# NUEVOS COMPONENTES NFL 4.9 (Rendimiento Semanal de Jugadores)
+# RENDIMIENTO SEMANAL DE JUGADORES (VERSIÓN 4.9.1.3)
 _METRICAS_V49 = {
     'Pases completos': ['completions'],
     'Intentos de pase': ['attempts', 'passing_attempts'],
@@ -1343,7 +1343,7 @@ def _calcular_indicadores_v49(semanal, disponibles):
     return datos
 
 def _panel_rendimiento_jugadores_v49(cal):
-    st.subheader('📈 NFL 4.9 | Rendimiento de jugadores')
+    st.subheader('📈 NFL 4.9.1.3 | Rendimiento avanzado de jugadores')
     st.caption('Evolución semanal y comparaciones de datos observados de NFLverse.')
     temporadas = sorted(cal['season'].dropna().astype(int).unique(), reverse=True)
     temporada = st.selectbox('Temporada', temporadas, key='nfl49_temporada')
@@ -1511,13 +1511,13 @@ def _panel_avanzado_v45(cal):
     st.dataframe(tabla, hide_index=True, use_container_width=True)
 
 def _panel_estado_v40(cal):
-    st.subheader('🛰️ Estado de actualización')
+    st.subheader('🛰️ Estado de actualización v4.9.1.3')
     st.metric('Partidos del calendario', len(cal))
     st.metric('Partidos con marcador', len(cal.dropna(subset=['home_score', 'away_score'])))
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.9 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.9.1.3 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1635,7 +1635,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.9 | Centro deportivo móvil",
+        "🏈 NFL 4.9.1.3 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1656,7 +1656,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.9 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.9.1.3 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
