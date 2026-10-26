@@ -482,7 +482,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.0 (ÉLITE CON ARQUITECTURA HÍBRIDA & EXPERIMENTO v3.0)
+# 6. SISTEMA PRO NFL v3.1 (INCLUYENDO VALIDACIÓN CRONOLÓGICA)
 # =========================================================
 TEMPORADAS_NFL_V30 = [2022, 2023, 2024, 2025, 2026]
 VARIABLES_NFL_V30 = [
@@ -647,7 +647,6 @@ def construir_historial_nfl_v30(calendario, estadisticas):
         raise ValueError(f'Existen {sin_cobertura} partidos terminados sin cobertura PBP suficiente; validación detenida para evitar estadísticas sesgadas.')
     return salida
 
-@st.cache_resource(show_spinner=False)
 def entrenar_modelo_nfl_v30(csv, huella):
     df = pd.read_csv(io.StringIO(csv))
     df = df.dropna(subset=['home_score', 'away_score']).copy()
@@ -827,6 +826,40 @@ def experimento_pesos_v30_main(csv):
                     })
     return pd.DataFrame(detalle)
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def validar_pesos_cronologicos_v31(csv):
+    detalle = experimento_pesos_v30_main(csv)
+    if detalle.empty:
+        return pd.DataFrame(), pd.DataFrame()
+    resumen = (detalle.groupby(['temporada', 'objetivo', 'variante'], as_index=False)
+               .agg(MAE=('error_absoluto', 'mean'), partidos=('partido', 'nunique')))
+    resultados = []
+    variantes = ['Actual (peso 0)', 'Peso 1', 'Peso 3 (v2.9)', 'Peso 5']
+    for year in (2025, 2026):
+        for objetivo in ('margen', 'total'):
+            previo = detalle[(detalle.temporada < year) & (detalle.objetivo == objetivo)]
+            prueba = detalle[(detalle.temporada == year) & (detalle.objetivo == objetivo)]
+            if previo.empty or prueba.empty:
+                continue
+            metricas = (previo.groupby(['temporada', 'variante'], as_index=False)
+                        .agg(MAE=('error_absoluto', 'mean'))
+                        .groupby('variante').MAE.mean())
+            if not set(variantes).issubset(metricas.index):
+                continue
+            elegido = min(variantes, key=lambda v: (float(metricas[v]), variantes.index(v)))
+            for variante in ['Actual (peso 0)', elegido]:
+                bloque = prueba[prueba.variante == variante]
+                resultados.append({
+                    'temporada_evaluada': year,
+                    'objetivo': objetivo,
+                    'configuracion': 'Referencia peso 0' if variante == 'Actual (peso 0)' else 'Seleccion previa',
+                    'variante': variante,
+                    'MAE': float(bloque.error_absoluto.mean()),
+                    'partidos': int(bloque.partido.nunique()),
+                    'seleccion_con_temporadas': ', '.join(map(str, sorted(previo.temporada.unique()))),
+                })
+    return resumen, pd.DataFrame(resultados)
+
 
 # =========================================================
 # 7. FÚTBOL SOCCER
@@ -944,7 +977,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)",
+        "🛡️ Sistema Pro NFL (Élite v3.1 con EPA, SR & Validación Temporal)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
@@ -1489,18 +1522,18 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.0 (ÉLITE CON EPA, SR, EXPERIMENTO DE PESOS & HÍBRIDO)
+# 6. SISTEMA PRO NFL v3.1 (INCLUYENDO VALIDACIÓN CRONOLÓGICA)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)":
-  st.title(f"🛡️ **Sistema Pro NFL Élite v3.0 (EPA, Success Rate, Experimento de Sensibilidad & Apuestas +EV) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Análisis avanzado con NFLverse: EPA por jugada, Success Rate, arquitectura híbrida, auditoría semanal, auditoría por equipo, investigación de errores 2026, estabilidad por historial, experimento de sensibilidad de pesos (0, 1, 3, 5) y registro verificable SHA-256.*")
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.1 con EPA, SR & Validación Temporal)":
+  st.title(f"🛡️ **Sistema Pro NFL Élite v3.1 (EPA, Success Rate, Validación Temporal de Pesos & Apuestas +EV) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis avanzado con NFLverse: EPA por jugada, Success Rate, arquitectura híbrida, auditoría semanal, auditoría por equipo, investigación de errores 2026, validación temporal de pesos y registro verificable SHA-256.*")
   
-  if st.button("🔄 Actualizar Fuente NFLverse (v3.0)", key="nfl_v30_refresh"):
+  if st.button("🔄 Actualizar Fuente NFLverse (v3.1)", key="nfl_v30_refresh"):
     cargar_datos_nfl_v30.clear()
     st.rerun()
 
   try:
-    with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.0 (Gradient Boosting + Ridge)...'):
+    with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.1 (Gradient Boosting + Ridge)...'):
       calendario, estadisticas = cargar_datos_nfl_v30()
       tabla = construir_historial_nfl_v30(calendario, estadisticas)
       completos = tabla.dropna(subset=['home_score', 'away_score'])
@@ -1510,7 +1543,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
       huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
       modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v30(csv_modelo, huella)
   except Exception as exc:
-    st.error('🔴 No se pudo cargar o validar el módulo NFL v3.0. No se muestran proyecciones sin datos válidos.')
+    st.error('🔴 No se pudo cargar o validar el módulo NFL v3.1. No se muestran proyecciones sin datos válidos.')
     st.code(str(exc))
     st.stop()
 
@@ -1730,10 +1763,41 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
               st.error('No se pudo completar el experimento.')
               st.code(str(exc))
 
-  # NUEVO EXPERIMENTO v3.0: SENSIBILIDAD AL PESO HISTÓRICO
+  # NUEVO MÓDULO: VALIDACIÓN TEMPORAL DE PESOS (NFL 3.1)
+  st.subheader('🧪 NFL 3.1 | Validación temporal de pesos')
+  st.caption('Para cada temporada se selecciona el peso usando solo temporadas anteriores. Esto evita elegir el ganador mirando los errores de la misma temporada evaluada.')
+  if st.button('🔬 Ejecutar validación NFL 3.1', key='nfl31_run'):
+      st.session_state['nfl31_enabled'] = True
+  if st.session_state.get('nfl31_enabled', False):
+      try:
+          with st.spinner('Calculando validación cronológica...'):
+              resumen31, validacion31 = validar_pesos_cronologicos_v31(csv_modelo)
+          if validacion31.empty:
+              st.info('No hay suficientes partidos completos para esta validación.')
+          else:
+              st.write('**Comparación de la selección previa frente al peso cero**')
+              st.dataframe(validacion31.round(3), hide_index=True, use_container_width=True)
+              st.download_button('📥 Descargar validación NFL 3.1',
+                  validacion31.to_csv(index=False).encode('utf-8'),
+                  'nfl_v31_validacion_temporal.csv', 'text/csv', key='nfl31_csv')
+              periodo31 = st.selectbox('Periodo para desglose',
+                  ['Semanas 1–4', 'Semana 5+'], key='nfl31_periodo')
+              detalles31 = experimento_pesos_v30_main(csv_modelo)
+              filtrados31 = detalles31[detalles31.semana.le(4) if periodo31 == 'Semanas 1–4' else detalles31.semana.gt(4)]
+              desglose31 = (filtrados31.groupby(['temporada', 'objetivo', 'variante'], as_index=False)
+                  .agg(MAE=('error_absoluto', 'mean'), partidos=('partido', 'nunique')))
+              st.dataframe(desglose31.round(2), hide_index=True, use_container_width=True)
+              st.warning('La selección de pesos sigue siendo experimental. No garantiza menor error en partidos futuros.')
+      except Exception as exc:
+          st.error('Falló la validación NFL 3.1.')
+          st.code(str(exc))
+
+  # SENSIBILIDAD AL PESO HISTÓRICO (NFL 3.0)
   st.subheader('🧪 NFL 3.0 | Sensibilidad al peso histórico')
-  st.caption('Experimento exploratorio: pesos 0, 1, 3 y 5 partidos equivalentes de la temporada anterior. Entrena con temporadas anteriores y evalúa cada temporada posterior por separado. No cambia las proyecciones principales.')
+  st.caption('Experimento exploratorio: pesos 0, 1, 3 y 5 partidos equivalentes de la temporada anterior.')
   if st.button('📊 Comparar pesos y semanas', key='nfl_v30_run'):
+      st.session_state['nfl31_experiment_enabled'] = True
+  if st.session_state.get('nfl31_experiment_enabled', False):
       try:
           with st.spinner('Comparando variantes cronológicas...'):
               exp30 = experimento_pesos_v30_main(csv_modelo)
@@ -1764,9 +1828,9 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
                           .agg(partidos=('partido', 'nunique'), MAE=('error_absoluto', 'mean')))
               st.dataframe(periodos.round(2), hide_index=True, use_container_width=True)
               st.download_button('📥 Descargar comparación 3.0', exp30.to_csv(index=False).encode('utf-8'), 'nfl_v30_errores_por_partido.csv', 'text/csv', key='nfl_v30_download')
-              st.warning('Las temporadas 2024–2026 ya fueron exploradas en versiones anteriores. No selecciones un peso como ganador definitivo usando estas mismas pruebas.')
+              st.warning('Las temporadas 2024–2026 ya fueron exploradas en versiones anteriores.')
       except Exception as exc:
-          st.error('No se pudo ejecutar el experimento 3.0.')
+          st.error('No se pudo ejecutar el experimento.')
           st.code(str(exc))
 
   # AUDITORÍA DE VARIABLES ENTRE TEMPORADAS
@@ -1863,7 +1927,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
     margen = float(modelos['margen'].predict(X)[0])
     total = float(modelos['total'].predict(X)[0])
 
-    st.markdown("### 📊 Proyecciones del Modelo v3.0")
+    st.markdown("### 📊 Proyecciones del Modelo v3.1")
     c1, c2, c3 = st.columns(3)
     st.caption('Modelos activos: Gradient Boosting (margen) y Ridge (total). Ajuste final: temporadas 2022–2025; 2026 no participa en el entrenamiento.')
     c1.metric('Margen local', f'{margen:+.1f}')
@@ -1881,7 +1945,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
         'visitante': partido.away_team,
         'margen_estimado': round(margen, 3),
         'total_estimado': round(total, 3),
-        'modelo_version': '3.0',
+        'modelo_version': '3.1',
         'datos_sha256': huella,
         'entrenamiento_hasta': 2025,
     }])
@@ -1953,7 +2017,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
         partido_str = f"{partido.away_team} @ {partido.home_team}"
         mercado_str = f"{tipo_apuesta} ({bookie_line}) [Momio {momio_casa:+d}]"
         try:
-          registrar_apuesta_db(fecha_formato_str, "NFL Élite v3.0", partido_str, mercado_str, momio_casa, edge, stake_final)
+          registrar_apuesta_db(fecha_formato_str, "NFL Élite v3.1", partido_str, mercado_str, momio_casa, edge, stake_final)
           st.success("¡Apuesta guardada con éxito en la base de datos SQLite!")
         except Exception as e:
           st.error(f"Error al guardar: {e}")
@@ -1967,7 +2031,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.0 con EPA & SR)"
         'edge': edge, 'stake_sugerido': stake_final
     }])
     st.download_button('📥 Descargar proyección y análisis (.csv)', exportar.to_csv(index=False).encode('utf-8'),
-                       'nfl_v30_analisis_apuesta.csv', 'text/csv', key='nfl_v30_export')
+                       'nfl_v31_analisis_apuesta.csv', 'text/csv', key='nfl_v31_export')
 
 
 # =========================================================
@@ -2027,8 +2091,8 @@ elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
 elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
   st.title(f"🧮 **Calculadora de Arbitraje [{fecha_formato_str}]**")
   col_a1, col_a2 = st.columns(2)
-  with col_a1: cuota_a = st.number_input("Cuota Casa A:", value=130)
-  with col_a2: cuota_b = st.number_input("Cuota Casa B:", value=-120)
+  with col_a1: cuota_a = st.number_input("Casa A:", value=130)
+  with col_a2: cuota_b = st.number_input("Casa B:", value=-120)
   bankroll_total_arb = st.number_input("Inversión Total (MXN):", value=5000.0, step=500.0)
   if st.button("⚖️ Calcular Surebet", use_container_width=True):
     dec_a = (1.0 + (cuota_a / 100.0)) if cuota_a > 0 else (1.0 + (100.0 / abs(cuota_a)))
