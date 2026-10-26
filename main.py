@@ -482,10 +482,10 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.9 (CON JUGADORES Y MONITOREO)
+# 6. SISTEMA PRO NFL v4.0 (CENTRO DEPORTIVO & MODULAR)
 # =========================================================
-TEMPORADAS_NFL_V39 = [2022, 2023, 2024, 2025, 2026]
-VARIABLES_NFL_V39 = [
+TEMPORADAS_NFL_V40 = [2022, 2023, 2024, 2025, 2026]
+VARIABLES_NFL_V40 = [
     'local_pf', 'local_pa', 'local_victorias', 'visitante_pf', 'visitante_pa',
     'visitante_victorias', 'local_epa_of', 'local_epa_def',
     'visitante_epa_of', 'visitante_epa_def', 'local_sr_of', 'local_sr_def',
@@ -494,17 +494,17 @@ VARIABLES_NFL_V39 = [
     'visitante_fuera_pf',
 ]
 
-def _requerir_nfl_v39(df, cols, fuente):
+def _requerir_nfl_v40(df, cols, fuente):
     faltan = sorted(set(cols) - set(df.columns))
     if faltan:
         raise ValueError(f'{fuente}: faltan columnas requeridas: {", ".join(faltan)}')
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cargar_datos_nfl_v39():
+def cargar_datos_nfl():
     import nflreadpy as nfl
-    calendario = nfl.load_schedules(TEMPORADAS_NFL_V39).to_pandas()
+    calendario = nfl.load_schedules(TEMPORADAS_NFL_V40).to_pandas()
     cols = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
-    _requerir_nfl_v39(calendario, cols, 'Calendario')
+    _requerir_nfl_v40(calendario, cols, 'Calendario')
     calendario = calendario[cols].copy()
     calendario['gameday'] = pd.to_datetime(calendario['gameday'], errors='coerce').dt.normalize()
     for c in ['season', 'week', 'home_score', 'away_score']:
@@ -514,11 +514,11 @@ def cargar_datos_nfl_v39():
 
     partes = []
     errores = []
-    for temporada in TEMPORADAS_NFL_V39:
+    for temporada in TEMPORADAS_NFL_V40:
         try:
             pbp = nfl.load_pbp(temporada)
             requeridas = ['game_id', 'posteam', 'defteam', 'epa', 'success', 'play_type']
-            _requerir_nfl_v39(pbp, requeridas, f'PBP {temporada}')
+            _requerir_nfl_v40(pbp, requeridas, f'PBP {temporada}')
             pbp = pbp.select(requeridas).to_pandas()
             pbp = pbp[pbp['play_type'].isin(['pass', 'run'])].copy()
             pbp['epa'] = pd.to_numeric(pbp['epa'], errors='coerce')
@@ -544,7 +544,7 @@ def cargar_datos_nfl_v39():
     estadisticas = pd.concat(partes, ignore_index=True).drop_duplicates(['game_id', 'equipo'])
     return calendario, estadisticas
 
-def construir_historial_nfl_v39(calendario, estadisticas):
+def construir_historial(calendario, estadisticas):
     stats = {(str(r.game_id), str(r.equipo)): r for r in estadisticas.itertuples(index=False)}
     historico = {}
     registros = []
@@ -647,12 +647,12 @@ def construir_historial_nfl_v39(calendario, estadisticas):
     return salida
 
 @st.cache_resource(show_spinner=False)
-def entrenar_modelo_nfl_v39(csv, huella):
+def entrenar_v30(csv, huella):
     df = pd.read_csv(io.StringIO(csv))
     df = df.dropna(subset=['home_score', 'away_score']).copy()
-    if df[VARIABLES_NFL_V39].isna().any().any():
+    if df[VARIABLES_NFL_V40].isna().any().any():
         raise ValueError('Existen variables faltantes; entrenamiento cancelado.')
-    if not np.isfinite(df[VARIABLES_NFL_V39].to_numpy(dtype=float)).all():
+    if not np.isfinite(df[VARIABLES_NFL_V40].to_numpy(dtype=float)).all():
         raise ValueError('Existen valores no finitos; entrenamiento cancelado.')
     objetivos = {
         'margen': lambda d: d.home_score - d.away_score,
@@ -670,12 +670,12 @@ def entrenar_modelo_nfl_v39(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-            modelo.fit(train[VARIABLES_NFL_V39], objetivo(train))
-            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V39])
+            modelo.fit(train[VARIABLES_NFL_V40], objetivo(train))
+            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V40])
             if nombre == 'total':
                 ridge = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
-                ridge.fit(train[VARIABLES_NFL_V39], objetivo(train))
-                estimado = ridge.predict(test[VARIABLES_NFL_V39])
+                ridge.fit(train[VARIABLES_NFL_V40], objetivo(train))
+                estimado = ridge.predict(test[VARIABLES_NFL_V40])
             else:
                 estimado = estimado_boosting
             base = np.full(len(test), float(objetivo(train).mean()))
@@ -712,7 +712,7 @@ def entrenar_modelo_nfl_v39(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-        modelo.fit(train_final[VARIABLES_NFL_V39], objetivo(train_final))
+        modelo.fit(train_final[VARIABLES_NFL_V40], objetivo(train_final))
         modelos[nombre] = modelo
     evaluacion_2026 = []
     detalles_2026 = []
@@ -720,7 +720,7 @@ def entrenar_modelo_nfl_v39(csv, huella):
     if not prueba_2026.empty:
         for nombre, objetivo in objetivos.items():
             real = objetivo(prueba_2026)
-            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V39])
+            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V40])
             base = np.full(len(prueba_2026), float(objetivo(train_final).mean()))
             for i, (_, juego) in enumerate(prueba_2026.iterrows()):
                 detalles_2026.append({
@@ -1192,8 +1192,8 @@ def evaluar_estado_nfl_v38(calendario, estadisticas, ahora=None):
     ahora = ahora or datetime.now(timezone.utc)
     cal = calendario.copy()
     est = estadisticas.copy()
-    _requerir_nfl_v39(cal, ['game_id','gameday','home_score','away_score'], 'Calendario v3.9')
-    _requerir_nfl_v39(est, ['game_id','equipo'], 'PBP v3.9')
+    _requerir_nfl_v40(cal, ['game_id','gameday','home_score','away_score'], 'Calendario v4.0')
+    _requerir_nfl_v40(est, ['game_id','equipo'], 'PBP v4.0')
     cal['gameday'] = pd.to_datetime(cal['gameday'], errors='coerce')
     fin = cal[pd.to_numeric(cal['home_score'], errors='coerce').notna() &
               pd.to_numeric(cal['away_score'], errors='coerce').notna()].copy()
@@ -1243,7 +1243,6 @@ def mostrar_monitoreo_nfl_v38(calendario, estadisticas, solo_respaldo=False):
         st.error('No se pudo ejecutar el monitoreo NFL 3.8.')
         st.code(f'{type(exc).__name__}: {exc}')
 
-
 @st.cache_data(ttl=21600, show_spinner=False)
 def cargar_jugadores_nfl_v39(temporada):
     import nflreadpy as nfl
@@ -1267,7 +1266,7 @@ def _columna_jugador_v39(df, alternativas):
 def mostrar_jugadores_nfl_v39():
     st.subheader('👥 NFL 3.9 | Estadísticas individuales de jugadores')
     st.caption('Datos observados de NFLverse. Las estadísticas disponibles dependen de la fuente.')
-    temporada = st.selectbox('Temporada de jugadores', TEMPORADAS_NFL_V39[::-1], key='nfl39_temporada')
+    temporada = st.selectbox('Temporada de jugadores', TEMPORADAS_NFL_V40[::-1], key='nfl39_temporada')
     if st.button('📥 Cargar estadísticas de jugadores', key='nfl39_cargar'):
         st.session_state['nfl39_temporada_cargada'] = int(temporada)
     if st.session_state.get('nfl39_temporada_cargada') != int(temporada):
@@ -1365,36 +1364,36 @@ def mostrar_jugadores_nfl_v39():
         else:
             st.info('No hay semanas válidas para graficar este jugador.')
 
-def mostrar_modulo_nfl_v39():
+def _mostrar_modulo_nfl_legacy_v40():
     st.header('🏈 NFL | Análisis avanzado v3.9')
     st.caption('Fuente: NFLverse · EPA y Success Rate · Margen: Gradient Boosting · Total: Ridge')
-    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v39_refresh'):
-        st.session_state['nfl39_actualizacion_solicitada'] = True
-        st.session_state['nfl39_ultimo_intento_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
-        cargar_datos_nfl_v39.clear()
+    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v2_refresh'):
+        st.session_state['nfl38_actualizacion_solicitada'] = True
+        st.session_state['nfl38_ultimo_intento_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        cargar_datos_nfl.clear()
         cargar_jugadores_nfl_v39.clear()
         st.rerun()
     try:
-        with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.9...'):
-            calendario, estadisticas = cargar_datos_nfl_v39()
+        with st.spinner('Cargando jugadas históricas y entrenando el modelo...'):
+            calendario, estadisticas = cargar_datos_nfl()
             st.session_state['nfl38_ultima_carga_exitosa'] = {
                 'calendario': calendario.copy(),
                 'estadisticas': estadisticas.copy(),
                 'consulta_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
             }
             st.session_state['nfl38_error_reciente'] = None
-            st.session_state['nfl39_actualizacion_solicitada'] = False
+            st.session_state['nfl38_actualizacion_solicitada'] = False
             
-            tabla = construir_historial_nfl_v39(calendario, estadisticas)
+            tabla = construir_historial(calendario, estadisticas)
             completos = tabla.dropna(subset=['home_score', 'away_score'])
             if completos.empty:
                 raise ValueError('No hay resultados completos disponibles.')
             csv_modelo = tabla.to_csv(index=False)
             huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
-            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v39(csv_modelo, huella)
+            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_v30(csv_modelo, huella)
     except Exception as exc:
         st.session_state['nfl38_error_reciente'] = f'{type(exc).__name__}: {exc}'
-        st.error('🔴 No se pudo cargar o validar NFL v3.9. No se mostrarán resultados nuevos como si fueran actuales.')
+        st.error('🔴 No se pudo cargar o validar NFL. No se mostrarán resultados nuevos como si fueran actuales.')
         st.code(str(exc))
         anterior = st.session_state.get('nfl38_ultima_carga_exitosa')
         if anterior is not None:
@@ -1409,7 +1408,7 @@ def mostrar_modulo_nfl_v39():
     mostrar_auditoria_nfl_v36(calendario)
     mostrar_auditoria_nfl_v37(calendario, estadisticas)
     mostrar_monitoreo_nfl_v38(calendario, estadisticas)
-    mostrar_jugadores_nfl_v39() # <--- Nuevo panel v3.9 de estadísticas individuales
+    mostrar_jugadores_nfl_v39()
 
     st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas')
     st.write(f'**Partidos usados para ajuste final:** {ntrain}')
@@ -1430,7 +1429,7 @@ def mostrar_modulo_nfl_v39():
                 for idx, r in futuros.iterrows()}
     seleccion = st.selectbox('Partido', list(opciones), key='nfl_v39_game')
     partido = futuros.loc[opciones[seleccion]]
-    X = pd.DataFrame([partido[VARIABLES_NFL_V39].to_dict()])[VARIABLES_NFL_V39]
+    X = pd.DataFrame([partido[VARIABLES_NFL_V40].to_dict()])[VARIABLES_NFL_V40]
     if min(int(partido.local_juegos), int(partido.visitante_juegos)) < 3:
         st.warning('⚠️ Se requieren al menos tres partidos previos por equipo en esta temporada. No se muestra una proyección con datos neutrales.')
         return
@@ -1451,13 +1450,144 @@ def mostrar_modulo_nfl_v39():
         'visitante': partido.away_team,
         'margen_estimado': round(margen, 3),
         'total_estimado': round(total, 3),
-        'modelo_version': '3.9',
+        'modelo_version': '4.0',
         'datos_sha256': huella,
         'entrenamiento_hasta': 2025,
     }])
     st.download_button(
         '📥 Guardar registro fechado (CSV)', registro.to_csv(index=False).encode('utf-8'),
         f'nfl_registro_{partido.game_id}.csv', 'text/csv', key='nfl_v39_log')
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def cargar_calendario_rapido_v40():
+    import nflreadpy as nfl
+    datos = nfl.load_schedules(TEMPORADAS_NFL_V40)
+    df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
+    _requerir_nfl_v40(df, ['game_id', 'season', 'week', 'gameday', 'home_team',
+                  'away_team', 'home_score', 'away_score'], 'Calendario NFL 4.0')
+    df = df.copy()
+    df['gameday'] = pd.to_datetime(df['gameday'], errors='coerce')
+    for col in ['season', 'week', 'home_score', 'away_score']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df.dropna(subset=['game_id', 'gameday']).drop_duplicates('game_id')
+
+def _marcador_v40(df):
+    vista = df[['gameday', 'week', 'away_team', 'home_team',
+                'away_score', 'home_score']].copy()
+    vista['gameday'] = vista['gameday'].dt.strftime('%Y-%m-%d')
+    vista = vista.rename(columns={'gameday': 'Fecha', 'week': 'Semana',
+        'away_team': 'Visitante', 'home_team': 'Local',
+        'away_score': 'Puntos visitante', 'home_score': 'Puntos local'})
+    st.dataframe(vista, hide_index=True, use_container_width=True)
+
+def _panel_inicio_v40(cal):
+    hoy = pd.Timestamp(datetime.now(timezone.utc).date())
+    completos = cal.dropna(subset=['home_score', 'away_score'])
+    proximos = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna()
+                   & cal['away_score'].isna()].sort_values('gameday')
+    st.subheader('🏠 Resumen NFL')
+    a, b = st.columns(2)
+    a.metric('Partidos con resultado', len(completos))
+    b.metric('Próximos 7 días', int((proximos['gameday'] < hoy + pd.Timedelta(days=7)).sum()))
+    if not completos.empty:
+        st.caption('Última fecha con resultado: ' + str(completos['gameday'].max().date()))
+    st.markdown('**Próximos encuentros**')
+    if proximos.empty:
+        st.info('No hay partidos futuros publicados en el calendario consultado.')
+    else:
+        _marcador_v40(proximos.head(12))
+    st.markdown('**Resultados recientes**')
+    if not completos.empty:
+        _marcador_v40(completos.sort_values('gameday', ascending=False).head(12))
+
+def _panel_partidos_v40(cal):
+    st.subheader('📅 Calendario y resultados')
+    temporadas = sorted(cal['season'].dropna().astype(int).unique().tolist(), reverse=True)
+    temporada = st.selectbox('Temporada', temporadas, key='nfl40_temporada_partidos')
+    base = cal[cal['season'] == temporada].copy()
+    semanas = sorted(base['week'].dropna().astype(int).unique().tolist())
+    semana = st.selectbox('Semana', ['Todas'] + semanas, key='nfl40_semana')
+    if semana != 'Todas':
+        base = base[base['week'] == semana]
+    equipos = sorted(set(base['home_team'].dropna()) | set(base['away_team'].dropna()))
+    equipo = st.selectbox('Equipo', ['Todos'] + equipos, key='nfl40_equipo_partidos')
+    if equipo != 'Todos':
+        base = base[(base['home_team'] == equipo) | (base['away_team'] == equipo)]
+    st.metric('Partidos encontrados', len(base))
+    _marcador_v40(base.sort_values(['gameday', 'game_id']))
+    st.download_button('📥 Descargar calendario (CSV)', base.to_csv(index=False).encode('utf-8-sig'),
+                       'nfl40_calendario.csv', 'text/csv', key='nfl40_csv_calendario')
+
+def _panel_equipos_v40(cal):
+    st.subheader('🏟️ Estadísticas de equipos')
+    temporadas = sorted(cal['season'].dropna().astype(int).unique().tolist(), reverse=True)
+    temporada = st.selectbox('Temporada', temporadas, key='nfl40_temporada_equipos')
+    juegos = cal[(cal['season'] == temporada)].dropna(subset=['home_score', 'away_score']).copy()
+    if juegos.empty:
+        st.info('Aún no hay marcadores para esta temporada.')
+        return
+    local = pd.DataFrame({'Equipo': juegos['home_team'], 'PF': juegos['home_score'],
+        'PC': juegos['away_score'], 'V': (juegos['home_score'] > juegos['away_score']).astype(int),
+        'D': (juegos['home_score'] < juegos['away_score']).astype(int),
+        'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
+    visita = pd.DataFrame({'Equipo': juegos['away_team'], 'PF': juegos['away_score'],
+        'PC': juegos['home_score'], 'V': (juegos['away_score'] > juegos['home_score']).astype(int),
+        'D': (juegos['away_score'] < juegos['home_score']).astype(int),
+        'E': (juegos['home_score'] == juegos['away_score']).astype(int)})
+    tabla = pd.concat([local, visita], ignore_index=True).groupby('Equipo', as_index=False)[['PF', 'PC', 'V', 'D', 'E']].sum()
+    tabla['PJ'] = tabla['V'] + tabla['D'] + tabla['E']
+    tabla['Diferencia'] = tabla['PF'] - tabla['PC']
+    tabla = tabla.sort_values(['V', 'Diferencia'], ascending=[False, False])
+    st.caption('Resumen calculado de los marcadores disponibles.')
+    st.dataframe(tabla[['Equipo', 'PJ', 'V', 'D', 'E', 'PF', 'PC', 'Diferencia']],
+                 hide_index=True, use_container_width=True)
+    st.download_button('📥 Descargar equipos (CSV)', tabla.to_csv(index=False).encode('utf-8-sig'),
+                       'nfl40_equipos.csv', 'text/csv', key='nfl40_csv_equipos')
+
+def _panel_estado_v40(cal):
+    st.subheader('🛰️ Estado de actualización')
+    st.metric('Partidos del calendario', len(cal))
+    st.metric('Partidos con marcador', len(cal.dropna(subset=['home_score', 'away_score'])))
+    st.write('Última consulta exitosa en esta sesión (UTC):',
+             st.session_state.get('nfl40_consulta_utc', 'No registrada'))
+    st.info('Para revisar la cobertura PBP, errores y auditorías completas, abre «Auditorías y análisis».')
+
+def mostrar_modulo_nfl():
+    st.header('🏈 NFL 4.0 | Centro deportivo')
+    st.caption('Panel unificado para celular · NFLverse · Resultados y estadísticas observadas')
+    if st.button('🔄 Actualizar calendario y estadísticas', key='nfl40_actualizar'):
+        cargar_calendario_rapido_v40.clear()
+        cargar_datos_nfl.clear()
+        cargar_jugadores_nfl_v39.clear()
+        st.session_state.pop('nfl40_consulta_utc', None)
+        st.rerun()
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos',
+                 '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis']
+    seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
+    if seleccion == '👥 Jugadores':
+        mostrar_jugadores_nfl_v39()
+        return
+    if seleccion == '🧪 Auditorías y análisis':
+        st.caption('Este panel conserva las auditorías y el análisis histórico. La carga puede tardar.')
+        _mostrar_modulo_nfl_legacy_v40()
+        return
+    try:
+        with st.spinner('Consultando calendario NFL...'):
+            cal = cargar_calendario_rapido_v40()
+        if 'nfl40_consulta_utc' not in st.session_state:
+            st.session_state['nfl40_consulta_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    except Exception as exc:
+        st.error('No fue posible cargar el calendario. Intenta actualizar más tarde.')
+        st.caption(f'Detalle técnico: {type(exc).__name__}: {exc}')
+        return
+    if seleccion == '🏠 Inicio':
+        _panel_inicio_v40(cal)
+    elif seleccion == '📅 Partidos':
+        _panel_partidos_v40(cal)
+    elif seleccion == '🏟️ Equipos':
+        _panel_equipos_v40(cal)
+    elif seleccion == '🛰️ Estado':
+        _panel_estado_v40(cal)
 
 
 # =========================================================
@@ -1576,7 +1706,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL (Élite v3.9 con Jugadores)",
+        "🛡️ Sistema Pro NFL (Centro Deportivo v4.0)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
@@ -2121,10 +2251,10 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.9 (CON JUGADORES Y MONITOREO)
+# 6. SISTEMA PRO NFL v4.0 (CENTRO DEPORTIVO)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.9 con Jugadores)":
-  mostrar_modulo_nfl_v39()
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Centro Deportivo v4.0)":
+  mostrar_modulo_nfl()
 
 
 # =========================================================
