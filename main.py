@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.2 (INTEGRADO)
+# SISTEMA PRO NFL v4.2.1 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -239,29 +239,66 @@ def cargar_calendario_rapido_v40():
         df[col] = pd.to_numeric(df[col], errors='coerce')
     return df.dropna(subset=['game_id', 'gameday']).drop_duplicates('game_id')
 
-def _tarjetas_partidos_v42(df, prefijo="nfl42"):
+def diagnosticar_duplicados_v421(df):
     if df.empty:
-        st.info("No hay encuentros para mostrar.")
+        return pd.DataFrame(columns=['tipo', 'game_id', 'fecha', 'visitante', 'local', 'temporada', 'semana'])
+    d = df.copy()
+    d['_fecha'] = pd.to_datetime(d['gameday'], errors='coerce').dt.strftime('%Y-%m-%d')
+    d['_id'] = d['game_id'].astype('string').fillna('')
+    d['_away'] = d['away_team'].astype('string').fillna('')
+    d['_home'] = d['home_team'].astype('string').fillna('')
+    por_id = d['_id'].ne('') & d.duplicated('_id', keep=False)
+    por_cruce = d.duplicated(['_fecha', '_away', '_home'], keep=False)
+    d = d.loc[por_id | por_cruce].copy()
+    if d.empty:
+        return pd.DataFrame(columns=['tipo', 'game_id', 'fecha', 'visitante', 'local', 'temporada', 'semana'])
+    d['tipo'] = ['ID repetido' if i else 'Misma fecha y equipos (revisar)' for i in d.index.map(lambda x: bool(por_id.loc[x]))]
+    return pd.DataFrame({'tipo': d['tipo'], 'game_id': d['game_id'],
+                         'fecha': d['_fecha'], 'visitante': d['away_team'],
+                         'local': d['home_team'], 'temporada': d['season'],
+                         'semana': d['week']}).reset_index(drop=True)
+
+def _vista_sin_repeticiones_v421(df):
+    if df.empty:
+        return df.copy(), 0
+    cols = [c for c in ['game_id', 'season', 'week', 'gameday', 'away_team',
+                         'home_team', 'away_score', 'home_score'] if c in df.columns]
+    vista = df.drop_duplicates(subset=cols, keep='first')
+    return vista, len(df) - len(vista)
+
+def _tarjetas_partidos_v42(df, prefijo='nfl42'):
+    if df.empty:
+        st.info('No hay encuentros para mostrar.')
         return
-    vista = df.head(30)
-    for _, juego in vista.iterrows():
-        fecha = pd.to_datetime(juego.get("gameday"), errors="coerce")
-        fecha_txt = fecha.strftime("%d/%m/%Y") if pd.notna(fecha) else "Fecha no disponible"
-        semana = juego.get("week")
-        semana_txt = str(int(semana)) if pd.notna(semana) else "—"
-        local = str(juego.get("home_team", "—"))
-        visita = str(juego.get("away_team", "—"))
-        pl = pd.to_numeric(juego.get("home_score"), errors="coerce")
-        pv = pd.to_numeric(juego.get("away_score"), errors="coerce")
-        terminado = pd.notna(pl) and pd.notna(pv)
-        etiqueta = "Finalizado" if terminado else "Programado / sin resultado"
-        resultado = (f"**{visita} {int(pv)} — {int(pl)} {local}**"
-                     if terminado else f"**{visita} vs. {local}**")
+    vista, ocultos = _vista_sin_repeticiones_v421(df)
+    if ocultos:
+        st.caption(f'{ocultos} copias idénticas ocultas solo en la presentación.')
+    for _, juego in vista.head(30).iterrows():
+        fecha = pd.to_datetime(juego.get('gameday'), errors='coerce')
+        fecha_txt = fecha.strftime('%d/%m/%Y') if pd.notna(fecha) else 'Fecha no disponible'
+        semana = pd.to_numeric(juego.get('week'), errors='coerce')
+        semana_txt = str(int(semana)) if pd.notna(semana) else '—'
+        local = str(juego.get('home_team', '—'))
+        visita = str(juego.get('away_team', '—'))
+        pl = pd.to_numeric(juego.get('home_score'), errors='coerce')
+        pv = pd.to_numeric(juego.get('away_score'), errors='coerce')
+        estado = str(juego.get('gametype_status', juego.get('status', ''))).strip().lower()
+        vivo = estado in {'in_progress', 'in progress', 'live', 'inprogress', 'playing'}
+        final = estado in {'final', 'closed', 'completed', 'finished'}
+        if vivo:
+            etiqueta = '🔴 En juego (según fuente)'
+        elif final or (pd.notna(pl) and pd.notna(pv) and not estado):
+            etiqueta = '✅ Con resultado' if not final else '✅ Finalizado'
+        else:
+            etiqueta = '📅 Programado / estado sin confirmar'
+        con_marcador = pd.notna(pl) and pd.notna(pv)
+        resultado = (f'**{visita} {int(pv)} — {int(pl)} {local}**'
+                     if con_marcador else f'**{visita} vs. {local}**')
         with st.container(border=True):
-            st.caption(f"📅 {fecha_txt} · Semana {semana_txt} · {etiqueta}")
+            st.caption(f'{fecha_txt} · Semana {semana_txt} · {etiqueta}')
             st.markdown(resultado)
-    if len(df) > 30:
-        st.caption(f"Mostrando 30 de {len(df)} partidos. Usa los filtros para reducir la lista.")
+    if len(vista) > 30:
+        st.caption(f'Mostrando 30 de {len(vista)} partidos. Usa los filtros para reducir la lista.')
 
 def _marcador_v40(df):
     if df.empty:
@@ -347,7 +384,7 @@ def _pruebas_sinteticas_v41():
     return pd.DataFrame(resultados)
 
 def mostrar_pruebas_integrales_nfl_v41():
-    st.subheader('🧪 NFL 4.2 | Pruebas integrales (15 verificaciones)')
+    st.subheader('🧪 NFL 4.2.1 | Pruebas integrales (15 verificaciones)')
     st.caption('10 verificaciones de calendario y 5 pruebas simuladas.')
     if not st.button('▶️ Ejecutar pruebas NFL 4.1', key='nfl41_ejecutar'):
         st.info('Pulsa el botón para ejecutar las comprobaciones.')
@@ -414,6 +451,17 @@ def _panel_partidos_v40(cal):
         _tarjetas_partidos_v42(base)
     else:
         _marcador_v40(base)
+    with st.expander('🔍 Diagnóstico de coincidencias del calendario'):
+        incidencias = diagnosticar_duplicados_v421(base)
+        st.metric('Registros coincidentes', len(incidencias))
+        if incidencias.empty:
+            st.success('No se encontraron identificadores repetidos ni coincidencias de fecha y equipos en este filtro.')
+        else:
+            st.warning('Estos registros necesitan revisión. No se eliminaron del calendario.')
+            st.dataframe(incidencias, hide_index=True, use_container_width=True)
+            st.download_button('📥 Descargar diagnóstico (CSV)',
+                               incidencias.to_csv(index=False).encode('utf-8-sig'),
+                               'nfl421_coincidencias.csv', 'text/csv', key='nfl421_diag_csv')
     st.download_button('📥 Descargar calendario (CSV)',
                        base.to_csv(index=False).encode('utf-8-sig'),
                        'nfl42_calendario.csv', 'text/csv', key='nfl40_csv_calendario')
@@ -451,7 +499,7 @@ def _panel_estado_v40(cal):
              st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.2 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.2.1 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -496,7 +544,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.2 | Centro deportivo móvil",
+        "🏈 NFL 4.2.1 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -517,7 +565,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.2 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.2.1 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
