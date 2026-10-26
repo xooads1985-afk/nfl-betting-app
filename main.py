@@ -847,12 +847,17 @@ def validar_pesos_cronologicos_v31(csv):
             if not set(variantes).issubset(metricas.index):
                 continue
             elegido = min(variantes, key=lambda v: (float(metricas[v]), variantes.index(v)))
-            for variante in ['Actual (peso 0)', elegido]:
+            for configuracion, variante in [
+                ('Referencia peso 0', 'Actual (peso 0)'),
+                ('Seleccion previa', elegido),
+            ]:
                 bloque = prueba[prueba.variante == variante]
+                if bloque.empty:
+                    continue
                 resultados.append({
                     'temporada_evaluada': year,
                     'objetivo': objetivo,
-                    'configuracion': 'Referencia peso 0' if variante == 'Actual (peso 0)' else 'Seleccion previa',
+                    'configuracion': configuracion,
                     'variante': variante,
                     'MAE': float(bloque.error_absoluto.mean()),
                     'partidos': int(bloque.partido.nunique()),
@@ -1591,8 +1596,25 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.1 con EPA, SR & 
           partidos=('game_id', 'nunique'))
       variable_semana = st.selectbox(
           'Variable para análisis semanal', ['margen', 'total'], key='nfl_v30_week_target')
-      semanal = por_semana[por_semana.objetivo == variable_semana]
-      st.line_chart(semanal.set_index('semana')[['MAE_modelo', 'MAE_referencia']])
+      semanal = por_semana[por_semana.objetivo == variable_semana].copy()
+      columnas_mae = ['MAE_modelo', 'MAE_referencia']
+      semanal['semana'] = pd.to_numeric(semanal['semana'], errors='coerce')
+      for columna in columnas_mae:
+          semanal[columna] = pd.to_numeric(semanal[columna], errors='coerce')
+      semanal = semanal.dropna(subset=['semana']).sort_values('semana')
+      if semanal.empty or semanal[columnas_mae].isna().all().all():
+          st.warning('No hay valores numéricos para graficar esta variable.')
+      else:
+          datos_largos = semanal[['semana'] + columnas_mae].melt(
+              id_vars='semana', value_vars=columnas_mae,
+              var_name='indicador', value_name='MAE').dropna(subset=['MAE'])
+          grafica = alt.Chart(datos_largos).mark_line(point=True).encode(
+              x=alt.X('semana:O', title='Semana NFL'),
+              y=alt.Y('MAE:Q', title='Error absoluto medio'),
+              color=alt.Color('indicador:N', title='Indicador'),
+              tooltip=['semana:O', 'indicador:N', alt.Tooltip('MAE:Q', format='.2f')]
+          ).properties(height=350)
+          st.altair_chart(grafica, use_container_width=True)
       st.dataframe(semanal.round(2), use_container_width=True, hide_index=True)
       st.download_button('📥 Descargar auditoría semanal',
                          por_semana.to_csv(index=False).encode('utf-8'),
