@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.2.1 (INTEGRADO)
+# SISTEMA PRO NFL v4.3 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -222,11 +222,209 @@ def cargar_datos_nfl():
     if not partes:
         raise ValueError('NFLverse no devolvió jugadas válidas para calcular EPA y Success Rate.')
     if errores:
-        raise ValueError('Falló la carga de estadísticas PBP: ' + ' | '.join(errores))
+        raise ValueError('Falló la carga de estadísticas PBP; no se realizará una validación incompleta: ' + ' | '.join(errores))
     estadisticas = pd.concat(partes, ignore_index=True).drop_duplicates(['game_id', 'equipo'])
     return calendario, estadisticas
 
-@st.cache_data(ttl=3600, show_spinner=False)
+def construir_historial(calendario, estadisticas):
+    stats = {(str(r.game_id), str(r.equipo)): r for r in estadisticas.itertuples(index=False)}
+    historico = {}
+    registros = []
+    sin_cobertura = 0
+    ultima_temporada = None
+    prev_temporada = {}
+
+    def previo(equipo, fecha, condicion):
+        juegos = historico.get(equipo, [])[-5:]
+        if not juegos:
+            return dict(pf=21., pa=21., victorias=.5, epa_of=0., epa_def=0.,
+                        sr_of=.45, sr_def=.45, n=0, descanso=7, ubicacion_pf=21.)
+        subset = [x for x in juegos if x['ubicacion'] == condicion]
+        return dict(
+            pf=float(np.mean([x['pf'] for x in juegos])),
+            pa=float(np.mean([x['pa'] for x in juegos])),
+            victorias=float(np.mean([x['victoria'] for x in juegos])),
+            epa_of=float(np.mean([x['epa_of'] for x in juegos])),
+            epa_def=float(np.mean([x['epa_def'] for x in juegos])),
+            sr_of=float(np.mean([x['sr_of'] for x in juegos])),
+            sr_def=float(np.mean([x['sr_def'] for x in juegos])),
+            n=len(juegos),
+            descanso=int(np.clip((fecha - juegos[-1]['fecha']).days, 0, 21)),
+            ubicacion_pf=float(np.mean([x['pf'] for x in subset])) if subset else 21.,
+        )
+
+    for fecha, grupo in calendario.groupby('gameday', sort=True):
+        temporadas_dia = set(grupo['season'].astype(int))
+        if len(temporadas_dia) != 1:
+            raise ValueError('Una fecha contiene partidos de distintas temporadas; revisar calendario.')
+        temporada_dia = next(iter(temporadas_dia))
+        if temporada_dia != ultima_temporada:
+            prev_temporada = {k: list(v[-5:]) for k, v in historico.items()}
+            historico.clear()
+            ultima_temporada = temporada_dia
+        pendientes = []
+        for g in grupo.itertuples(index=False):
+            local, visitante, gid = str(g.home_team), str(g.away_team), str(g.game_id)
+            h = previo(local, fecha, 'casa')
+            a = previo(visitante, fecha, 'fuera')
+            fila = dict(game_id=gid, gameday=fecha, season=int(g.season), week=int(g.week),
+                        home_team=local, away_team=visitante,
+                        home_score=g.home_score, away_score=g.away_score,
+                        local_pf=h['pf'], local_pa=h['pa'], local_victorias=h['victorias'],
+                        visitante_pf=a['pf'], visitante_pa=a['pa'], visitante_victorias=a['victorias'],
+                        local_epa_of=h['epa_of'], local_epa_def=h['epa_def'],
+                        visitante_epa_of=a['epa_of'], visitante_epa_def=a['epa_def'],
+                        local_sr_of=h['sr_of'], local_sr_def=h['sr_def'],
+                        visitante_sr_of=a['sr_of'], visitante_sr_def=a['sr_def'],
+                        local_juegos=h['n'], visitante_juegos=a['n'],
+                        descanso_local=h['descanso'], descanso_visitante=a['descanso'],
+                        local_en_casa_pf=h['ubicacion_pf'], visitante_fuera_pf=a['ubicacion_pf'])
+            for prefix, team, curr in [('local', local, h), ('visitante', visitante, a)]:
+                prior_games = prev_temporada.get(team, [])
+                if prior_games:
+                    prior = {
+                        'pf': float(np.mean([x['pf'] for x in prior_games])),
+                        'pa': float(np.mean([x['pa'] for x in prior_games])),
+                        'victorias': float(np.mean([x['victoria'] for x in prior_games])),
+                        'epa_of': float(np.mean([x['epa_of'] for x in prior_games])),
+                        'epa_def': float(np.mean([x['epa_def'] for x in prior_games])),
+                        'sr_of': float(np.mean([x['sr_of'] for x in prior_games])),
+                        'sr_def': float(np.mean([x['sr_def'] for x in prior_games])),
+                    }
+                    n = curr['n']
+                    for suf, key in [('pf', 'pf'), ('pa', 'pa'),
+                                     ('victorias', 'victorias'), ('epa_of', 'epa_of'),
+                                     ('epa_def', 'epa_def'), ('sr_of', 'sr_of'),
+                                     ('sr_def', 'sr_def')]:
+                        col = f'{prefix}_{suf}'
+                        fila['experimental_' + col] = (
+                            n * curr[key] + 3.0 * prior[key]) / (n + 3.0)
+                else:
+                    for suf in ('pf', 'pa', 'victorias', 'epa_of', 'epa_def',
+                                'sr_of', 'sr_def'):
+                        col = f'{prefix}_{suf}'
+                        fila['experimental_' + col] = fila[col]
+            registros.append(fila)
+            if pd.notna(g.home_score) and pd.notna(g.away_score):
+                sh, sa = stats.get((gid, local)), stats.get((gid, visitante))
+                if sh is not None and sa is not None and sh.jugadas >= 10 and sa.jugadas >= 10:
+                    pendientes.append((local, visitante, float(g.home_score), float(g.away_score), sh, sa))
+                else:
+                    sin_cobertura += 1
+        for local, visitante, hp, ap, sh, sa in pendientes:
+            historico.setdefault(local, []).append(dict(fecha=fecha, pf=hp, pa=ap,
+                victoria=float(hp > ap) + .5 * float(hp == ap), ubicacion='casa',
+                epa_of=float(sh.epa_of), epa_def=float(sh.epa_def),
+                sr_of=float(sh.sr_of), sr_def=float(sh.sr_def)))
+            historico.setdefault(visitante, []).append(dict(fecha=fecha, pf=ap, pa=hp,
+                victoria=float(ap > hp) + .5 * float(ap == hp), ubicacion='fuera',
+                epa_of=float(sa.epa_of), epa_def=float(sa.epa_def),
+                sr_of=float(sa.sr_of), sr_def=float(sa.sr_def)))
+    salida = pd.DataFrame(registros)
+    salida.attrs['sin_cobertura'] = sin_cobertura
+    if sin_cobertura:
+        raise ValueError(f'Existen {sin_cobertura} partidos terminados sin cobertura PBP suficiente; validación detenida para evitar estadísticas sesgadas.')
+    return salida
+
+@st.cache_resource(show_spinner=False)
+def entrenar_v30(csv, huella):
+    df = pd.read_csv(io.StringIO(csv))
+    df = df.dropna(subset=['home_score', 'away_score']).copy()
+    if df[VARIABLES].isna().any().any():
+        raise ValueError('Existen variables faltantes; entrenamiento cancelado.')
+    if not np.isfinite(df[VARIABLES].to_numpy(dtype=float)).all():
+        raise ValueError('Existen valores no finitos; entrenamiento cancelado.')
+    objetivos = {
+        'margen': lambda d: d.home_score - d.away_score,
+        'total': lambda d: d.home_score + d.away_score,
+    }
+    resultados = []
+    detalles = []
+    comparacion_total = []
+    for evaluacion in (2024, 2025):
+        train = df[(df.season >= 2022) & (df.season < evaluacion)]
+        test = df[df.season == evaluacion]
+        if len(train) < 200 or len(test) < 100:
+            raise ValueError(f'Datos insuficientes para evaluación {evaluacion}: {len(train)} entrenamiento, {len(test)} prueba.')
+        for nombre, objetivo in objetivos.items():
+            modelo = HistGradientBoostingRegressor(
+                max_iter=110, max_leaf_nodes=12, learning_rate=.045,
+                l2_regularization=8., random_state=42)
+            modelo.fit(train[VARIABLES], objetivo(train))
+            estimado_boosting = modelo.predict(test[VARIABLES])
+            if nombre == 'total':
+                ridge = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
+                ridge.fit(train[VARIABLES], objetivo(train))
+                estimado = ridge.predict(test[VARIABLES])
+            else:
+                estimado = estimado_boosting
+            base = np.full(len(test), float(objetivo(train).mean()))
+            for pos, (_, partido_eval) in enumerate(test.iterrows()):
+                real = float(objetivo(test).iloc[pos])
+                detalles.append({
+                    'temporada': evaluacion, 'objetivo': nombre,
+                    'fecha': str(partido_eval.gameday)[:10],
+                    'local': partido_eval.home_team, 'visitante': partido_eval.away_team,
+                    'real': real, 'prediccion': float(estimado[pos]),
+                    'referencia': float(base[pos]),
+                    'error_absoluto': abs(real - float(estimado[pos])),
+                    'error_referencia': abs(real - float(base[pos])),
+                    'error_firmado': float(estimado[pos]) - real,
+                })
+            if nombre == 'total':
+                comparacion_total.extend([
+                    {'temporada': evaluacion, 'modelo': 'Gradient Boosting', 'MAE': float(mean_absolute_error(objetivo(test), estimado_boosting))},
+                    {'temporada': evaluacion, 'modelo': 'Ridge (modelo activo)', 'MAE': float(mean_absolute_error(objetivo(test), estimado))},
+                    {'temporada': evaluacion, 'modelo': 'Referencia: promedio', 'MAE': float(mean_absolute_error(objetivo(test), base))},
+                ])
+            resultados.append({
+                'temporada': evaluacion, 'objetivo': nombre,
+                'MAE_modelo': float(mean_absolute_error(objetivo(test), estimado)),
+                'MAE_referencia': float(mean_absolute_error(objetivo(test), base)),
+                'partidos_entrenamiento': len(train), 'partidos_prueba': len(test),
+            })
+    train_final = df[df.season.between(2022, 2025)]
+    modelos = {}
+    for nombre, objetivo in objetivos.items():
+        if nombre == 'total':
+            modelo = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
+        else:
+            modelo = HistGradientBoostingRegressor(
+                max_iter=110, max_leaf_nodes=12, learning_rate=.045,
+                l2_regularization=8., random_state=42)
+        modelo.fit(train_final[VARIABLES], objetivo(train_final))
+        modelos[nombre] = modelo
+    evaluacion_2026 = []
+    detalles_2026 = []
+    prueba_2026 = df[df.season == 2026].copy()
+    if not prueba_2026.empty:
+        for nombre, objetivo in objetivos.items():
+            real = objetivo(prueba_2026)
+            pred = modelos[nombre].predict(prueba_2026[VARIABLES])
+            base = np.full(len(prueba_2026), float(objetivo(train_final).mean()))
+            for i, (_, juego) in enumerate(prueba_2026.iterrows()):
+                detalles_2026.append({
+                    'game_id': str(juego.game_id),
+                    'temporada': 2026, 'semana': int(juego.week),
+                    'fecha': str(juego.gameday)[:10],
+                    'local': juego.home_team, 'visitante': juego.away_team,
+                    'objetivo': nombre, 'real': float(real.iloc[i]),
+                    'prediccion': float(pred[i]),
+                    'referencia': float(base[i]),
+                    'error_modelo': abs(float(real.iloc[i]) - float(pred[i])),
+                    'error_referencia': abs(float(real.iloc[i]) - float(base[i])),
+                })
+            evaluacion_2026.append({
+                'objetivo': nombre,
+                'MAE_hibrido': float(mean_absolute_error(real, pred)),
+                'MAE_referencia': float(mean_absolute_error(real, base)),
+                'partidos': len(prueba_2026),
+            })
+    return (modelos, pd.DataFrame(resultados), len(train_final),
+            pd.DataFrame(detalles), pd.DataFrame(comparacion_total),
+            pd.DataFrame(evaluacion_2026), pd.DataFrame(detalles_2026))
+
+@st.cache_data(ttl=900, show_spinner=False)
 def cargar_calendario_rapido_v40():
     import nflreadpy as nfl
     datos = nfl.load_schedules(TEMPORADAS)
@@ -237,7 +435,9 @@ def cargar_calendario_rapido_v40():
     df['gameday'] = pd.to_datetime(df['gameday'], errors='coerce')
     for col in ['season', 'week', 'home_score', 'away_score']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-    return df.dropna(subset=['game_id', 'gameday']).drop_duplicates('game_id')
+    df = df.dropna(subset=['game_id', 'gameday']).drop_duplicates('game_id')
+    df.attrs['consulta_fuente_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+    return df
 
 def diagnosticar_duplicados_v421(df):
     if df.empty:
@@ -384,7 +584,7 @@ def _pruebas_sinteticas_v41():
     return pd.DataFrame(resultados)
 
 def mostrar_pruebas_integrales_nfl_v41():
-    st.subheader('🧪 NFL 4.2.1 | Pruebas integrales (15 verificaciones)')
+    st.subheader('🧪 NFL 4.3 | Pruebas integrales (15 verificaciones)')
     st.caption('10 verificaciones de calendario y 5 pruebas simuladas.')
     if not st.button('▶️ Ejecutar pruebas NFL 4.1', key='nfl41_ejecutar'):
         st.info('Pulsa el botón para ejecutar las comprobaciones.')
@@ -499,16 +699,28 @@ def _panel_estado_v40(cal):
              st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.2.1 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.3 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
         st.session_state.pop('nfl40_consulta_utc', None)
         st.rerun()
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '🛰️ Estado', '🧪 Pruebas 4.1']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     if seleccion == '🧪 Pruebas 4.1':
         mostrar_pruebas_integrales_nfl_v41()
+        return
+    if seleccion == '👥 Jugadores':
+        try:
+            mostrar_jugadores_nfl_v39()
+        except Exception as exc:
+            st.error('No se pudieron mostrar las estadísticas de jugadores.')
+        return
+    if seleccion == '🧪 Auditorías y análisis':
+        try:
+            _mostrar_modulo_nfl_legacy_v40()
+        except Exception as exc:
+            st.error('No se pudo completar el análisis histórico.')
         return
     try:
         with st.spinner('Consultando calendario NFL...'):
@@ -544,7 +756,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.2.1 | Centro deportivo móvil",
+        "🏈 NFL 4.3 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -565,7 +777,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.2.1 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.3 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
