@@ -23,26 +23,13 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# CREDENCIALES FIJAS (PERSISTENCIA DIRECTA EN CÓDIGO)
-# ---------------------------------------------------------
-API_KEY_PREDEFINIDA = "9b6f790aa41c52a7907627574d246155"
-TELEGRAM_TOKEN_PREDEFINIDO = "8688686395:AAG8x26_IfQsghS28hSmB6dQEE1qSsCe68w"
-TELEGRAM_CHAT_ID_PREDEFINIDO = "1567134615"
-
-# ---------------------------------------------------------
 # INICIALIZACIÓN Y PERSISTENCIA DE SESSION_STATE
 # ---------------------------------------------------------
 if "bankroll_global" not in st.session_state:
   st.session_state["bankroll_global"] = 15250.0
 
-if "api_key_guardada" not in st.session_state or not st.session_state["api_key_guardada"]:
-  st.session_state["api_key_guardada"] = API_KEY_PREDEFINIDA
-
-if "telegram_token" not in st.session_state or not st.session_state["telegram_token"]:
-  st.session_state["telegram_token"] = TELEGRAM_TOKEN_PREDEFINIDO
-
-if "telegram_chat_id" not in st.session_state or not st.session_state["telegram_chat_id"]:
-  st.session_state["telegram_chat_id"] = TELEGRAM_CHAT_ID_PREDEFINIDO
+if "api_key_guardada" not in st.session_state:
+  st.session_state["api_key_guardada"] = ""
 
 if "apuestas_manuales_ev" not in st.session_state:
   st.session_state["apuestas_manuales_ev"] = []
@@ -99,28 +86,6 @@ def registrar_apuesta_db(fecha, deporte, partido, mercado, momio, edge, stake):
   )
   conn.commit()
   conn.close()
-
-
-# ---------------------------------------------------------
-# MOTOR DE ALERTAS PARA TELEGRAM
-# ---------------------------------------------------------
-def enviar_alerta_telegram(token, chat_id, mensaje):
-  if not token or not chat_id:
-    return False, "Faltan el Token o el Chat ID de Telegram."
-  
-  token_limpio = token.strip()
-  chat_id_limpio = str(chat_id).strip()
-  url = f"https://api.telegram.org/bot{token_limpio}/sendMessage"
-  
-  payload = {"chat_id": chat_id_limpio, "text": mensaje, "parse_mode": "Markdown"}
-  try:
-    response = requests.post(url, json=payload, timeout=5)
-    if response.status_code == 200:
-      return True, "¡Alerta enviada con éxito à Telegram!"
-    else:
-      return False, f"Error de Telegram ({response.status_code})"
-  except Exception as e:
-    return False, f"Excepción de red: {str(e)}"
 
 
 # ---------------------------------------------------------
@@ -390,7 +355,7 @@ def analizar_lineas_nhl(local, visita, linea_total_casino, contexto):
 
 
 # =========================================================
-# 4. MOTOR PRO NBA (MÉTRICAS COMPLETAS + PACE RECIENTE + MATRIZ DE BAJAS)
+# 4. MOTOR PRO NBA
 # =========================================================
 MATRIZ_BAJAS_NBA = {
     "Boston Celtics": {"Jugador": "Jayson Tatum", "Impacto_Ort": 5.5, "Impacto_Pace": -1.2},
@@ -511,7 +476,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (EQUIPOS OFICIALES + ML + TÉRMICO & ZONA ROJA)
+# 6. SISTEMA PRO NFL
 # =========================================================
 EQUIPOS_NFL_OFICIALES = [
     'Arizona Cardinals', 'Atlanta Falcons', 'Baltimore Ravens', 'Buffalo Bills',
@@ -584,7 +549,7 @@ def calibrar_entorno_nfl_avanzado(total_base_proyectado, contexto_partido):
 
 
 # =========================================================
-# 7. FÚTBOL SOCCER (POISSON BIVARIADO)
+# 7. FÚTBOL SOCCER
 # =========================================================
 def analizar_mercados_futbol(equipo_local, equipo_visita, xg_local, xg_visita, momio_playdoit_1x2):
   prob_l = [poisson.pmf(i, xg_local) for i in range(7)]
@@ -678,10 +643,8 @@ fecha_seleccionada = st.sidebar.date_input("📅 Fecha a Analizar:", value=date.
 fecha_formato_str = fecha_seleccionada.strftime("%Y-%m-%d")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🌐 Configuración de API & Telegram")
-st.session_state["api_key_guardada"] = st.sidebar.text_input("API Key:", value=st.session_state["api_key_guardada"], type="password")
-st.session_state["telegram_token"] = st.sidebar.text_input("Bot Token:", value=st.session_state["telegram_token"], type="password")
-st.session_state["telegram_chat_id"] = st.sidebar.text_input("Chat ID:", value=st.session_state["telegram_chat_id"])
+st.sidebar.subheader("🌐 Configuración de API")
+st.session_state["api_key_guardada"] = st.sidebar.text_input("Ingresa tu API Key de The Odds API:", value=st.session_state["api_key_guardada"], type="password")
 
 if st.sidebar.button("🔄 Sincronizar Datos", use_container_width=True):
   st.cache_data.clear()
@@ -937,9 +900,12 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
   with tab_auto:
     api_key = st.session_state["api_key_guardada"]
     if st.button("🚀 Ejecutar Barrido Global Automático", use_container_width=True):
-      with st.spinner("Conectando con The Odds API y escaneando mercados globales..."):
-        cartelera_global = obtener_partidos_y_momios_api_multideporte(api_key)
-        st.session_state["cartelera_escaner"] = cartelera_global
+      if not api_key:
+        st.error("⚠️ Por favor ingresa tu API Key en la barra lateral.")
+      else:
+        with st.spinner("Conectando con The Odds API y escaneando mercados globales..."):
+          cartelera_global = obtener_partidos_y_momios_api_multideporte(api_key)
+          st.session_state["cartelera_escaner"] = cartelera_global
 
     if "cartelera_escaner" in st.session_state and st.session_state["cartelera_escaner"]:
       resultados = st.session_state["cartelera_escaner"]
@@ -957,7 +923,7 @@ elif modulo_seleccionado == "🔍 Escáner Automático & Manual (+EV)":
             st.success("¡Guardado!")
         st.markdown("---")
     else:
-      st.info("Haz clic en el botón superior para barrer cuotas automáticamente con la API.")
+      st.info("Ingresa tu API Key y haz clic en el botón superior para barrer cuotas automáticamente con la API.")
 
   with tab_manual:
     st.markdown("### ✍️ Registrar Oportunidad Manualmente")
@@ -1127,7 +1093,7 @@ elif modulo_seleccionado == "🏒 Hockey Pro (NHL)":
 
 
 # =========================================================
-# 4. SISTEMA PRO NBA (MÉTRICAS COMPLETAS + PACE RECIENTE + MATRIZ DE BAJAS)
+# 4. SISTEMA PRO NBA
 # =========================================================
 elif modulo_seleccionado == "🏀 Sistema Pro NBA":
   st.title(f"🏀 **Sistema Pro NBA Élite con Métricas Detalladas, Pace Reciente & Matriz de Bajas [{fecha_formato_str}]**")
@@ -1243,7 +1209,7 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (EQUIPOS OFICIALES + ML + TÉRMICO & ZONA ROJA)
+# 6. SISTEMA PRO NFL
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL Élite con Equipos Oficiales, Machine Learning & Control Térmico [{fecha_formato_str}]**")
@@ -1254,9 +1220,9 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
   col_nfl1, col_nfl2 = st.columns(2)
   with col_nfl1:
-    home_team = st.selectbox("Equipo Local NFL:", EQUIPOS_NFL_OFICIALES, index=26, key="nfl_ml_home") # Pittsburgh Steelers por defecto
+    home_team = st.selectbox("Equipo Local NFL:", EQUIPOS_NFL_OFICIALES, index=26, key="nfl_ml_home")
   with col_nfl2:
-    away_team = st.selectbox("Equipo Visitante NFL:", EQUIPOS_NFL_OFICIALES, index=22, key="nfl_ml_away") # New Orleans Saints por defecto
+    away_team = st.selectbox("Equipo Visitante NFL:", EQUIPOS_NFL_OFICIALES, index=22, key="nfl_ml_away")
 
   col_nfl3, col_nfl4 = st.columns(2)
   with col_nfl3:
@@ -1466,12 +1432,12 @@ elif modulo_seleccionado == "🚀 Optimizador de Parlays (Monte Carlo)":
   st.info("Módulo de simulación de parlay activo.")
 
 elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
-  st.title(f"🧮 **Calculadora de Arbitraje & Alertas Telegram [{fecha_formato_str}]**")
+  st.title(f"🧮 **Calculadora de Arbitraje [{fecha_formato_str}]**")
   col_a1, col_a2 = st.columns(2)
   with col_a1: cuota_a = st.number_input("Cuota Casa A:", value=130)
   with col_a2: cuota_b = st.number_input("Cuota Casa B:", value=-120)
   bankroll_total_arb = st.number_input("Inversión Total (MXN):", value=5000.0, step=500.0)
-  if st.button("⚖️ Calcular Surebet y Enviar à Telegram", use_container_width=True):
+  if st.button("⚖️ Calcular Surebet", use_container_width=True):
     dec_a = (1.0 + (cuota_a / 100.0)) if cuota_a > 0 else (1.0 + (100.0 / abs(cuota_a)))
     dec_b = (1.0 + (cuota_b / 100.0)) if cuota_b > 0 else (1.0 + (100.0 / abs(cuota_b)))
     implied_sum = (1.0 / dec_a) + (1.0 / dec_b)
@@ -1481,7 +1447,6 @@ elif modulo_seleccionado == "🧮 Calculadora de Arbitraje (Surebets)":
       stake_b = bankroll_total_arb * ((1.0 / dec_b) / implied_sum)
       ganancia_garantizada = (stake_a * dec_a) - bankroll_total_arb
       st.success(f"🚨 ¡Oportunidad de Arbitraje! ROI: **+{roi_arb:.2f}%** | Ganancia: **${ganancia_garantizada:,.2f} MXN**")
-      enviar_alerta_telegram(st.session_state["telegram_token"], st.session_state["telegram_chat_id"], f"⚖️ Alerta Arbitraje: ROI +{roi_arb:.2f}%")
     else:
       st.error("❌ Sin oportunidad de arbitraje.")
 
