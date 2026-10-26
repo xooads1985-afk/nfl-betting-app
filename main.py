@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.8 (ACTUALIZADO)
+# SISTEMA PRO NFL v4.8.1 (ACTUALIZADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -1172,7 +1172,7 @@ def _panel_partido_v47(cal):
         filas.append(fila)
     st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
 
-# NUEVOS PANELES NFL 4.8
+# NUEVOS PANELES NFL 4.8 / 4.8.1
 def _panel_puntos_v48(cal):
     st.subheader('📊 NFL 4.8 | Análisis histórico de puntos')
     st.caption('Estudia los puntos registrados y compara promedios históricos.')
@@ -1236,7 +1236,7 @@ def _resumir_jugadores_partido_v48(d):
     return tablas
 
 def _panel_jugadores_partido_v48(cal):
-    st.subheader('👥 NFL 4.8 | Jugadores por partido')
+    st.subheader('👥 NFL 4.8.1 | Jugadores por partido')
     st.caption('Estadísticas observadas de pases, carreras y recepciones.')
     temporadas = sorted(cal['season'].dropna().astype(int).unique(), reverse=True)
     temporada = st.selectbox('Temporada', temporadas, key='nfl48_jug_temporada')
@@ -1271,12 +1271,25 @@ def _panel_jugadores_partido_v48(cal):
         st.warning('La fuente no incluye columnas suficientes para resumir jugadores.')
         return
     categoria = st.selectbox('Categoría', list(tablas), key='nfl48_jug_categoria')
-    tabla = tablas[categoria]
-    jugadores = tabla['Jugador'].dropna().astype(str).tolist()
-    seleccionados = st.multiselect('Comparar jugadores (hasta 2)', jugadores, default=jugadores[:2], max_selections=2, key='nfl48_jug_comparar')
+    tabla = tablas[categoria].copy()
+    tabla['Jugador'] = tabla['Jugador'].astype('string')
+    columnas = [c for c in tabla.columns if c != 'Jugador']
+    tabla = tabla[['Jugador'] + columnas]
+    jugadores = list(dict.fromkeys(tabla['Jugador'].dropna().astype(str).tolist()))
+    
+    clave_comparacion = f'nfl481_comparar_{temporada}_{game_id}_{categoria}'
+    if clave_comparacion in st.session_state:
+        anteriores = st.session_state[clave_comparacion]
+        validos = [j for j in anteriores if j in jugadores][:2]
+        if validos != anteriores:
+            st.session_state[clave_comparacion] = validos
+            
+    seleccionados = st.multiselect('Comparar jugadores (hasta 2)', jugadores, default=jugadores[:2], max_selections=2, key=clave_comparacion)
     if seleccionados:
         st.markdown('**Comparación de jugadores del encuentro**')
-        st.dataframe(tabla[tabla['Jugador'].astype(str).isin(seleccionados)], hide_index=True, use_container_width=True)
+        comparacion = tabla.loc[tabla['Jugador'].isin(seleccionados), ['Jugador'] + columnas]
+        if not comparacion.empty:
+            st.dataframe(comparacion, hide_index=True, use_container_width=True)
     st.markdown('**Todos los jugadores con datos**')
     st.dataframe(tabla, hide_index=True, use_container_width=True)
     st.download_button('📥 Descargar estadísticas de jugadores (CSV)', tabla.to_csv(index=False).encode('utf-8-sig'), f'nfl48_jugadores_{game_id}.csv', 'text/csv', key='nfl48_jug_csv')
@@ -1396,7 +1409,7 @@ def _panel_estado_v40(cal):
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.8 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.8.1 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1512,7 +1525,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.8 | Centro deportivo móvil",
+        "🏈 NFL 4.8.1 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1533,7 +1546,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.8 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.8.1 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
