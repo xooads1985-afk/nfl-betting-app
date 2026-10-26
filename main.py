@@ -194,15 +194,26 @@ def analizar_prop_ufc_comun(combate, mercado, probabilidad_estimada_modelo):
   return [o for o in opciones if o["prob"] >= 70.0]
 
 
-def analizar_prop_nba_comun(jugador, mercado, promedio_jugador, linea_casino, pace_partido, pace_promedio_liga=98.5):
-  desviaciones = {
-      "Puntos": 6.5,
-      "Rebotes": 3.2,
-      "Asistencias": 2.5
-  }
-  desv_estandar = desviaciones.get(mercado, 4.0)
-  factor_ritmo = pace_partido / pace_promedio_liga
+def analizar_prop_nba_comun_avanzado(jugador, mercado, promedio_jugador, linea_casino, pace_equipo_jugador, pace_equipo_rival, viene_de_b2b):
+  """
+  [MÓDULO PLAYER PROPS NBA - AVANZADO]
+  Calcula la probabilidad real (Over/Under) ajustando el volumen por el Pace de ambos equipos
+  y penalizando la fatiga por Back-to-Back (B2B).
+  """
+  pace_partido_proyectado = (pace_equipo_jugador + pace_equipo_rival) / 2.0
+  pace_promedio_liga = 98.5
+  factor_ritmo = pace_partido_proyectado / pace_promedio_liga
+  
   proyeccion_ajustada = promedio_jugador * factor_ritmo
+  
+  if viene_de_b2b:
+    if mercado == "Puntos":
+      proyeccion_ajustada -= 1.5
+    elif mercado == "Asistencias":
+      proyeccion_ajustada -= 0.8
+            
+  desviaciones = {"Puntos": 6.5, "Rebotes": 3.2, "Asistencias": 2.5}
+  desv_estandar = desviaciones.get(mercado, 4.0)
   
   z_score = (linea_casino - proyeccion_ajustada) / desv_estandar
   prob_under = norm.cdf(z_score) * 100.0
@@ -462,7 +473,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO & QUARTER-KELLY FINANCIERO)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO + QUARTER-KELLY)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
@@ -510,23 +521,17 @@ def entrenar_modelo_nfl_ml_avanzado():
 
 
 def calibrar_entorno_nfl_avanzado(total_base_proyectado, contexto_partido):
-  """
-  Módulo dedicado a sincronizar clima severo, estadios abiertos y control de reloj por QB suplente.
-  """
   total_ajustado = total_base_proyectado
-  
   if contexto_partido.get("local_qb_baja", False):
     total_ajustado -= 3.5
   if contexto_partido.get("visita_qb_baja", False):
     total_ajustado -= 3.5
-    
   if contexto_partido.get("estadio_abierto", True):
     viento = contexto_partido.get("viento_kmh", 0.0)
     if viento >= 25.0:
       total_ajustado -= 3.5
     if contexto_partido.get("temperatura_f", 50) <= 20:
       total_ajustado -= 2.0
-      
   return total_ajustado
 
 
@@ -826,24 +831,32 @@ elif modulo_seleccionado == "🛡️ Prop: NFL Común (Playdoit)":
 
 
 elif modulo_seleccionado == "🏀 Prop: NBA Común (Playdoit)":
-  st.title(f"🏀 **Props: NBA Común [{fecha_formato_str}]**")
-  st.markdown("--- \n *Props de volumen (Puntos, Rebotes y Asistencias) ajustados por el ritmo (Pace) del partido bajo la Campana de Gauss.*")
+  st.title(f"🏀 **Props: NBA Común Élite (Avanzado con Pace Cruzado & B2B) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Props de volumen (Puntos, Rebotes y Asistencias) ajustados por el ritmo combinado del partido y factor de fatiga por Back-to-Back.*")
   
   col1, col2 = st.columns(2)
   with col1:
-    jugador = st.text_input("Jugador / Atleta:", value="Jayson Tatum", key="pnbc_jug")
+    jugador = st.text_input("Jugador / Atleta:", value="Anthony Davis", key="pnbc_jug")
     mercado = st.selectbox("Mercado Playdoit:", ["Puntos", "Rebotes", "Asistencias"], key="pnbc_merc")
-    partido_str = st.text_input("Partido (Ej. Celtics vs Pacers):", value="Celtics vs Pacers", key="pnbc_part")
+    partido_str = st.text_input("Partido (Ej. Lakers vs Knicks):", value="Lakers vs Knicks", key="pnbc_part")
   with col2:
-    promedio_jug = st.number_input("Promedio Base del Jugador:", value=27.2, step=0.1, key="pnbc_prom")
-    linea_cas = st.number_input("Línea Casino:", value=29.5, step=0.5, key="pnbc_lin")
+    promedio_jug = st.number_input("Promedio Base del Jugador:", value=25.0, step=0.1, key="pnbc_prom")
+    linea_cas = st.number_input("Línea Casino (O/U):", value=26.5, step=0.5, key="pnbc_lin")
 
-  pace_partido = st.number_input("Pace Proyectado del Partido:", value=103.5, step=0.5, key="pnbc_pace")
+  st.markdown("### ⚙️ Factores de Entorno Cruzados (Pace y Fatiga)")
+  col_p1, col_p2, col_p3 = st.columns(3)
+  with col_p1:
+    pace_eq_jugador = st.number_input("Pace Equipo del Jugador:", value=101.1, step=0.5, key="pnbc_pace_j")
+  with col_p2:
+    pace_eq_rival = st.number_input("Pace Equipo Rival:", value=95.8, step=0.5, key="pnbc_pace_r")
+  with col_p3:
+    b2b_activo = st.checkbox("⚠️ ¿El equipo viene de jugar anoche (B2B)?", value=True, key="pnbc_b2b")
+
   momio_prop_str = st.text_input("Momio Americano (Ej. -115 o +105):", value="-115", key="pnbc_mom")
   momio_prop = limpiar_momio(momio_prop_str)
 
-  if st.button("🚀 Evaluar Prop de NBA", use_container_width=True):
-    res = analizar_prop_nba_comun(jugador, mercado, promedio_jug, linea_cas, pace_partido)
+  if st.button("🚀 Evaluar Prop Avanzado de NBA", use_container_width=True):
+    res = analizar_prop_nba_comun_avanzado(jugador, mercado, promedio_jug, linea_cas, pace_eq_jugador, pace_eq_rival, b2b_activo)
     for r in res:
       r["partido"] = partido_str
     st.session_state["resultado_props_nba_comun_calculado"] = res
@@ -1245,15 +1258,12 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
         'away_off_epa': a_off,
         'away_def_epa': a_def,
         'away_success_rate': a_suc,
-        'wind': wind_forecast / 1.60934 # Convertir KM/H a MPH para el modelo base
+        'wind': wind_forecast / 1.60934
     }])
     
     pred_spread = m_spread.predict(input_data)[0]
     pred_total_base = m_total.predict(input_data)[0]
     
-    # -------------------------------------------------------------------------
-    # APLICACIÓN DE LA NUEVA LÓGICA DE CALIBRACIÓN TÉRMICA & QB
-    # -------------------------------------------------------------------------
     contexto_partido = {
         "local_qb_baja": qb_local_suplente,
         "visita_qb_baja": qb_visita_suplente,
@@ -1276,16 +1286,14 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     elif "Altas" in tipo_apuesta_nfl:
       ventaja_apuesta = pred_total - bookie_total
       if ventaja_apuesta < 2.5:
-        prob_modelo_nfl = 45.0  # Filtro estricto anti-over
+        prob_modelo_nfl = 45.0
       else:
         prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.5))), 2)
-    else:  # Bajas (Under)
+    else:
       ventaja_apuesta = bookie_total - pred_total
       prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.8))), 2)
 
     _, edge_calculado_nfl = calcular_edge_real(momio_casa_nfl, prob_modelo_nfl)
-    
-    # Criterio de Kelly con tope de seguridad estricto a $250 MXN
     stake_calculado_kelly = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_nfl, momio_casa_nfl)
     stake_recomendado_nfl = min(250.0, stake_calculado_kelly)
     
@@ -1324,7 +1332,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
     if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
       registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl:+d})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
-      st.success("¡Apuesta NFL guardada con éxito en SQLite con control térmico y financiero aplicado!")
+      st.success("¡Apuesta NFL guardada con éxito en SQLite!")
 
   if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
