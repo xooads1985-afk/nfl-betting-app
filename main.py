@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.6 (INTEGRADO)
+# SISTEMA PRO NFL v4.7 (INTEGRADO CON CENTRO POR PARTIDO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -1079,6 +1079,99 @@ def _panel_enfrentamientos_v46(cal):
             st.markdown(f'**{fila["away_team"]} {int(fila["away_score"])} — {int(fila["home_score"])} {fila["home_team"]}**')
             st.caption('Ganador: ' + str(fila['ganador']))
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cargar_jugadas_partido_v47(temporada, game_id):
+    import nflreadpy as nfl
+    raw = nfl.load_pbp(int(temporada))
+    disponibles = list(raw.columns)
+    columnas = ['game_id', 'posteam', 'defteam', 'play_type', 'epa', 'success',
+                'qtr', 'desc', 'yards_gained', 'passer_player_name',
+                'receiver_player_name', 'rusher_player_name', 'passing_yards',
+                'receiving_yards', 'rushing_yards', 'complete_pass',
+                'pass_attempt', 'rush_attempt', 'touchdown']
+    elegir = [c for c in columnas if c in disponibles]
+    if 'game_id' not in elegir:
+        raise ValueError('La fuente PBP no incluye game_id.')
+    if hasattr(raw, 'select') and hasattr(raw, 'to_pandas'):
+        d = raw.select(elegir).filter(
+            __import__('polars').col('game_id') == str(game_id)).to_pandas()
+    else:
+        d = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
+        d = d.loc[d['game_id'].astype(str).eq(str(game_id)), elegir].copy()
+    return d
+
+def _panel_partido_v47(cal):
+    st.subheader('🏈 NFL 4.7 | Centro de estadísticas por partido')
+    st.caption('Resultados del calendario y jugadas PBP observadas.')
+    temporadas = sorted(cal['season'].dropna().astype(int).unique(), reverse=True)
+    if not temporadas:
+        st.info('Sin temporadas disponibles.')
+        return
+    temporada = st.selectbox('Temporada', temporadas, key='nfl47_temporada')
+    base = cal[cal['season'].eq(temporada)].copy()
+    semanas = sorted(base['week'].dropna().astype(int).unique())
+    semana = st.selectbox('Semana', ['Todas'] + semanas, key='nfl47_semana')
+    if semana != 'Todas':
+        base = base[base['week'].eq(semana)]
+    equipos = sorted(set(base['home_team'].dropna()) | set(base['away_team'].dropna()))
+    equipo = st.selectbox('Filtrar equipo', ['Todos'] + equipos, key='nfl47_equipo')
+    if equipo != 'Todos':
+        base = base[base['home_team'].eq(equipo) | base['away_team'].eq(equipo)]
+    if base.empty:
+        st.info('No hay partidos para estos filtros.')
+        return
+    base = base.sort_values(['gameday', 'game_id'], ascending=False)
+    opciones = base['game_id'].astype(str).tolist()
+    etiquetas = {}
+    for _, r in base.iterrows():
+        fecha = pd.to_datetime(r['gameday'], errors='coerce')
+        fecha_txt = fecha.strftime('%d/%m/%Y') if pd.notna(fecha) else 'Sin fecha'
+        etiquetas[str(r['game_id'])] = (f"{fecha_txt} · {r['away_team']} @ "
+                                        f"{r['home_team']} · {r['game_id']}")
+    game_id = st.selectbox('Seleccionar partido', opciones,
+                           format_func=lambda v: etiquetas.get(v, v),
+                           key='nfl47_partido')
+    partido = base[base['game_id'].astype(str).eq(game_id)].iloc[0]
+    visitante, local = str(partido['away_team']), str(partido['home_team'])
+    pv = pd.to_numeric(partido['away_score'], errors='coerce')
+    pl = pd.to_numeric(partido['home_score'], errors='coerce')
+    finalizado = pd.notna(pv) and pd.notna(pl)
+    with st.container(border=True):
+        st.caption(f"Semana {int(partido['week'])} · {partido['gameday']}")
+        if finalizado:
+            st.markdown(f'### {visitante} {int(pv)} — {int(pl)} {local}')
+        else:
+            st.markdown(f'### {visitante} vs. {local}')
+            st.info('Sin marcador final registrado.')
+    st.markdown('**Estadísticas de jugadas del encuentro**')
+    if st.button('📥 Cargar PBP del partido', key='nfl47_cargar'):
+        st.session_state['nfl47_solicitado'] = (temporada, game_id)
+    if st.session_state.get('nfl47_solicitado') != (temporada, game_id):
+        st.info('Pulsa el botón para consultar las jugadas.')
+        return
+    try:
+        with st.spinner('Consultando jugadas PBP...'):
+            d = _cargar_jugadas_partido_v47(temporada, game_id)
+    except Exception as exc:
+        st.warning('No fue posible consultar las jugadas de este partido.')
+        return
+    if d.empty:
+        st.info('La fuente no tiene jugadas para este encuentro.')
+        return
+    jugadas = d[d['play_type'].isin(['pass', 'run'])].copy()
+    for col in ['epa', 'success', 'yards_gained']:
+        if col in jugadas:
+            jugadas[col] = pd.to_numeric(jugadas[col], errors='coerce')
+    filas = []
+    for e in (visitante, local):
+        of = jugadas[jugadas['posteam'].eq(e)]
+        de = jugadas[jugadas['defteam'].eq(e)]
+        fila = {'Equipo': e, 'Jugadas ofensivas': len(of), 'Jugadas defensivas': len(de)}
+        for etiqueta, subset, columna in [('EPA ofensivo', of, 'epa'), ('EPA permitido', de, 'epa'), ('SR ofensivo', of, 'success'), ('SR permitido', de, 'success'), ('Yardas por jugada', of, 'yards_gained')]:
+            fila[etiqueta] = (round(float(subset[columna].mean()), 3) if columna in subset and subset[columna].notna().any() else None)
+        filas.append(fila)
+    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+
 def _agregar_pbp_v451(df):
     cols = ['game_id', 'posteam', 'defteam', 'play_type', 'epa', 'success']
     faltantes = [c for c in cols if c not in df.columns]
@@ -1194,7 +1287,7 @@ def _panel_estado_v40(cal):
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.6 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.7 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1203,7 +1296,7 @@ def mostrar_modulo_nfl():
         st.session_state.pop('nfl40_consulta_utc', None)
         st.session_state.pop('nfl43_fecha_fuente', None)
         st.rerun()
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏈 Enfrentamientos', '🧠 Rendimiento avanzado', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏈 Enfrentamientos', '🏈 Centro por partido', '🧠 Rendimiento avanzado', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     if seleccion == '🧪 Pruebas 4.1':
         mostrar_pruebas_integrales_nfl_v41()
@@ -1249,6 +1342,8 @@ def mostrar_modulo_nfl():
             _panel_comparacion_v44(cal)
         elif seleccion == '🏈 Enfrentamientos':
             _panel_enfrentamientos_v46(cal)
+        elif seleccion == '🏈 Centro por partido':
+            _panel_partido_v47(cal)
         elif seleccion == '🧠 Rendimiento avanzado':
             _panel_avanzado_v45(cal)
         elif seleccion == '🛰️ Estado':
@@ -1304,7 +1399,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.6 | Centro deportivo móvil",
+        "🏈 NFL 4.7 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1325,7 +1420,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.6 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.7 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
