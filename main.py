@@ -482,10 +482,10 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.8 (CON MÓDULO INTEGRADO COMPLETO)
+# 6. SISTEMA PRO NFL v3.9 (CON JUGADORES Y MONITOREO)
 # =========================================================
-TEMPORADAS_NFL_V38 = [2022, 2023, 2024, 2025, 2026]
-VARIABLES_NFL_V38 = [
+TEMPORADAS_NFL_V39 = [2022, 2023, 2024, 2025, 2026]
+VARIABLES_NFL_V39 = [
     'local_pf', 'local_pa', 'local_victorias', 'visitante_pf', 'visitante_pa',
     'visitante_victorias', 'local_epa_of', 'local_epa_def',
     'visitante_epa_of', 'visitante_epa_def', 'local_sr_of', 'local_sr_def',
@@ -494,17 +494,17 @@ VARIABLES_NFL_V38 = [
     'visitante_fuera_pf',
 ]
 
-def _requerir_nfl_v38(df, cols, fuente):
+def _requerir_nfl_v39(df, cols, fuente):
     faltan = sorted(set(cols) - set(df.columns))
     if faltan:
         raise ValueError(f'{fuente}: faltan columnas requeridas: {", ".join(faltan)}')
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cargar_datos_nfl_v38():
+def cargar_datos_nfl_v39():
     import nflreadpy as nfl
-    calendario = nfl.load_schedules(TEMPORADAS_NFL_V38).to_pandas()
+    calendario = nfl.load_schedules(TEMPORADAS_NFL_V39).to_pandas()
     cols = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
-    _requerir_nfl_v38(calendario, cols, 'Calendario')
+    _requerir_nfl_v39(calendario, cols, 'Calendario')
     calendario = calendario[cols].copy()
     calendario['gameday'] = pd.to_datetime(calendario['gameday'], errors='coerce').dt.normalize()
     for c in ['season', 'week', 'home_score', 'away_score']:
@@ -514,11 +514,11 @@ def cargar_datos_nfl_v38():
 
     partes = []
     errores = []
-    for temporada in TEMPORADAS_NFL_V38:
+    for temporada in TEMPORADAS_NFL_V39:
         try:
             pbp = nfl.load_pbp(temporada)
             requeridas = ['game_id', 'posteam', 'defteam', 'epa', 'success', 'play_type']
-            _requerir_nfl_v38(pbp, requeridas, f'PBP {temporada}')
+            _requerir_nfl_v39(pbp, requeridas, f'PBP {temporada}')
             pbp = pbp.select(requeridas).to_pandas()
             pbp = pbp[pbp['play_type'].isin(['pass', 'run'])].copy()
             pbp['epa'] = pd.to_numeric(pbp['epa'], errors='coerce')
@@ -544,7 +544,7 @@ def cargar_datos_nfl_v38():
     estadisticas = pd.concat(partes, ignore_index=True).drop_duplicates(['game_id', 'equipo'])
     return calendario, estadisticas
 
-def construir_historial_nfl_v38(calendario, estadisticas):
+def construir_historial_nfl_v39(calendario, estadisticas):
     stats = {(str(r.game_id), str(r.equipo)): r for r in estadisticas.itertuples(index=False)}
     historico = {}
     registros = []
@@ -647,12 +647,12 @@ def construir_historial_nfl_v38(calendario, estadisticas):
     return salida
 
 @st.cache_resource(show_spinner=False)
-def entrenar_modelo_nfl_v38(csv, huella):
+def entrenar_modelo_nfl_v39(csv, huella):
     df = pd.read_csv(io.StringIO(csv))
     df = df.dropna(subset=['home_score', 'away_score']).copy()
-    if df[VARIABLES_NFL_V38].isna().any().any():
+    if df[VARIABLES_NFL_V39].isna().any().any():
         raise ValueError('Existen variables faltantes; entrenamiento cancelado.')
-    if not np.isfinite(df[VARIABLES_NFL_V38].to_numpy(dtype=float)).all():
+    if not np.isfinite(df[VARIABLES_NFL_V39].to_numpy(dtype=float)).all():
         raise ValueError('Existen valores no finitos; entrenamiento cancelado.')
     objetivos = {
         'margen': lambda d: d.home_score - d.away_score,
@@ -670,12 +670,12 @@ def entrenar_modelo_nfl_v38(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-            modelo.fit(train[VARIABLES_NFL_V38], objetivo(train))
-            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V38])
+            modelo.fit(train[VARIABLES_NFL_V39], objetivo(train))
+            estimado_boosting = modelo.predict(test[VARIABLES_NFL_V39])
             if nombre == 'total':
                 ridge = make_pipeline(StandardScaler(), Ridge(alpha=100.0))
-                ridge.fit(train[VARIABLES_NFL_V38], objetivo(train))
-                estimado = ridge.predict(test[VARIABLES_NFL_V38])
+                ridge.fit(train[VARIABLES_NFL_V39], objetivo(train))
+                estimado = ridge.predict(test[VARIABLES_NFL_V39])
             else:
                 estimado = estimado_boosting
             base = np.full(len(test), float(objetivo(train).mean()))
@@ -712,7 +712,7 @@ def entrenar_modelo_nfl_v38(csv, huella):
             modelo = HistGradientBoostingRegressor(
                 max_iter=110, max_leaf_nodes=12, learning_rate=.045,
                 l2_regularization=8., random_state=42)
-        modelo.fit(train_final[VARIABLES_NFL_V38], objetivo(train_final))
+        modelo.fit(train_final[VARIABLES_NFL_V39], objetivo(train_final))
         modelos[nombre] = modelo
     evaluacion_2026 = []
     detalles_2026 = []
@@ -720,7 +720,7 @@ def entrenar_modelo_nfl_v38(csv, huella):
     if not prueba_2026.empty:
         for nombre, objetivo in objetivos.items():
             real = objetivo(prueba_2026)
-            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V38])
+            pred = modelos[nombre].predict(prueba_2026[VARIABLES_NFL_V39])
             base = np.full(len(prueba_2026), float(objetivo(train_final).mean()))
             for i, (_, juego) in enumerate(prueba_2026.iterrows()):
                 detalles_2026.append({
@@ -1192,8 +1192,8 @@ def evaluar_estado_nfl_v38(calendario, estadisticas, ahora=None):
     ahora = ahora or datetime.now(timezone.utc)
     cal = calendario.copy()
     est = estadisticas.copy()
-    _requerir_nfl_v38(cal, ['game_id','gameday','home_score','away_score'], 'Calendario v3.8')
-    _requerir_nfl_v38(est, ['game_id','equipo'], 'PBP v3.8')
+    _requerir_nfl_v39(cal, ['game_id','gameday','home_score','away_score'], 'Calendario v3.9')
+    _requerir_nfl_v39(est, ['game_id','equipo'], 'PBP v3.9')
     cal['gameday'] = pd.to_datetime(cal['gameday'], errors='coerce')
     fin = cal[pd.to_numeric(cal['home_score'], errors='coerce').notna() &
               pd.to_numeric(cal['away_score'], errors='coerce').notna()].copy()
@@ -1214,7 +1214,7 @@ def evaluar_estado_nfl_v38(calendario, estadisticas, ahora=None):
 
 def mostrar_monitoreo_nfl_v38(calendario, estadisticas, solo_respaldo=False):
     st.subheader('🛰️ NFL 3.8 | Estado de actualización y conexión')
-    st.caption('Diagnóstico de datos disponibles. La hora de consulta NO es la hora de publicación de NFLverse.')
+    st.caption('Diagnóstico de datos disponibles.')
     ahora = datetime.now(timezone.utc)
     try:
         datos = evaluar_estado_nfl_v38(calendario, estadisticas, ahora)
@@ -1243,35 +1243,158 @@ def mostrar_monitoreo_nfl_v38(calendario, estadisticas, solo_respaldo=False):
         st.error('No se pudo ejecutar el monitoreo NFL 3.8.')
         st.code(f'{type(exc).__name__}: {exc}')
 
-def mostrar_modulo_nfl_v38():
-    st.header('🏈 NFL | Análisis avanzado v3.8')
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def cargar_jugadores_nfl_v39(temporada):
+    import nflreadpy as nfl
+    if not hasattr(nfl, 'load_player_stats'):
+        raise RuntimeError('Esta versión de nflreadpy no incluye load_player_stats. Actualiza la dependencia.')
+    try:
+        datos = nfl.load_player_stats([int(temporada)], summary_level='week')
+    except TypeError:
+        datos = nfl.load_player_stats([int(temporada)])
+    df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
+    if df.empty:
+        return df
+    df.columns = [str(c).lower() for c in df.columns]
+    if 'season' in df:
+        df = df[pd.to_numeric(df['season'], errors='coerce') == int(temporada)].copy()
+    return df
+
+def _columna_jugador_v39(df, alternativas):
+    return next((c for c in alternativas if c in df.columns), None)
+
+def mostrar_jugadores_nfl_v39():
+    st.subheader('👥 NFL 3.9 | Estadísticas individuales de jugadores')
+    st.caption('Datos observados de NFLverse. Las estadísticas disponibles dependen de la fuente.')
+    temporada = st.selectbox('Temporada de jugadores', TEMPORADAS_NFL_V39[::-1], key='nfl39_temporada')
+    if st.button('📥 Cargar estadísticas de jugadores', key='nfl39_cargar'):
+        st.session_state['nfl39_temporada_cargada'] = int(temporada)
+    if st.session_state.get('nfl39_temporada_cargada') != int(temporada):
+        st.info('Pulsa «Cargar estadísticas de jugadores» para consultar la temporada seleccionada.')
+        return
+    try:
+        with st.spinner('Consultando estadísticas individuales...'):
+            df = cargar_jugadores_nfl_v39(int(temporada))
+    except Exception as exc:
+        st.error('No fue posible consultar las estadísticas individuales.')
+        st.caption(f'Detalle técnico: {type(exc).__name__}: {exc}')
+        return
+    if df.empty:
+        st.warning('La fuente no publicó registros de jugadores para esta temporada.')
+        return
+    nombre = _columna_jugador_v39(df, ['player_display_name', 'player_name', 'player'])
+    identificador = _columna_jugador_v39(df, ['player_id', 'gsis_id'])
+    equipo = _columna_jugador_v39(df, ['recent_team', 'team', 'posteam'])
+    posicion = _columna_jugador_v39(df, ['position', 'position_group'])
+    semana = _columna_jugador_v39(df, ['week'])
+    if not nombre and not identificador:
+        st.warning('La fuente no incluye columnas para identificar jugadores.')
+        return
+    if not nombre:
+        nombre = identificador
+    df = df.copy()
+    df[nombre] = df[nombre].fillna('Sin nombre').astype(str)
+    if equipo:
+        equipos = sorted(df[equipo].dropna().astype(str).unique().tolist())
+        eleccion = st.selectbox('Equipo', ['Todos'] + equipos, key='nfl39_equipo')
+        if eleccion != 'Todos':
+            df = df[df[equipo].astype(str) == eleccion]
+    if posicion:
+        posiciones = sorted(df[posicion].dropna().astype(str).unique().tolist())
+        seleccion = st.selectbox('Posición', ['Todas'] + posiciones, key='nfl39_posicion')
+        if seleccion != 'Todas':
+            df = df[df[posicion].astype(str) == seleccion]
+    if df.empty:
+        st.info('No hay jugadores para los filtros seleccionados.')
+        return
+    metricas = {
+        'Pases completos': ['completions'],
+        'Intentos de pase': ['attempts', 'passing_attempts'],
+        'Yardas por pase': ['passing_yards'],
+        'TD por pase': ['passing_tds'],
+        'Intercepciones lanzadas': ['interceptions', 'passing_interceptions'],
+        'Acarreos': ['carries', 'rushing_attempts'],
+        'Yardas terrestres': ['rushing_yards'],
+        'TD terrestres': ['rushing_tds'],
+        'Recepciones': ['receptions'],
+        'Objetivos de pase': ['targets'],
+        'Yardas por recepción': ['receiving_yards'],
+        'TD por recepción': ['receiving_tds'],
+        'Capturas defensivas': ['sacks_solo', 'sacks', 'def_sacks'],
+        'Intercepciones defensivas': ['def_interceptions', 'defensive_interceptions'],
+        'Tacleadas': ['def_tackles_solo', 'tackles_solo'],
+    }
+    disponibles = {etiqueta: col for etiqueta, cols in metricas.items() if (col := _columna_jugador_v39(df, cols)) is not None}
+    if not disponibles:
+        st.warning('No se encontraron columnas estadísticas reconocidas.')
+        return
+    claves = [identificador] if identificador else [nombre]
+    if identificador and nombre:
+        claves.append(nombre)
+    if equipo:
+        claves.append(equipo)
+    if posicion:
+        claves.append(posicion)
+    for col in disponibles.values():
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    agregados = df.groupby(claves, dropna=False, as_index=False)[list(set(disponibles.values()))].sum(min_count=1)
+    agregados = agregados.rename(columns={v: k for k, v in disponibles.items()})
+    metrica = st.selectbox('Estadística para ordenar', list(disponibles), key='nfl39_metrica')
+    agregados = agregados.sort_values(metrica, ascending=False, na_position='last')
+    st.metric('Jugadores encontrados', len(agregados))
+    st.dataframe(agregados.head(100).round(2), use_container_width=True, hide_index=True)
+    st.download_button('📥 Descargar estadísticas de jugadores (CSV)', agregados.to_csv(index=False).encode('utf-8-sig'), f'nfl_v39_jugadores_{temporada}.csv', 'text/csv', key='nfl39_csv')
+    
+    etiquetas = (agregados[nombre].astype(str) + (' | ' + agregados[equipo].astype(str) if equipo else '')).tolist()
+    elegido = st.selectbox('Ver evolución de un jugador', range(len(etiquetas)), format_func=lambda i: etiquetas[i], key='nfl39_jugador')
+    fila = agregados.iloc[int(elegido)]
+    if identificador:
+        detalle = df[df[identificador] == fila[identificador]].copy()
+    else:
+        detalle = df[df[nombre] == fila[nombre]].copy()
+        if equipo:
+            detalle = detalle[detalle[equipo] == fila[equipo]]
+    if semana:
+        detalle[semana] = pd.to_numeric(detalle[semana], errors='coerce')
+        detalle = detalle.dropna(subset=[semana])
+        if not detalle.empty:
+            evolucion = detalle.groupby(semana, as_index=False)[disponibles[metrica]].sum(min_count=1)
+            evolucion = evolucion.sort_values(semana).rename(columns={semana: 'Semana', disponibles[metrica]: metrica})
+            st.line_chart(evolucion.set_index('Semana'))
+        else:
+            st.info('No hay semanas válidas para graficar este jugador.')
+
+def mostrar_modulo_nfl_v39():
+    st.header('🏈 NFL | Análisis avanzado v3.9')
     st.caption('Fuente: NFLverse · EPA y Success Rate · Margen: Gradient Boosting · Total: Ridge')
-    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v38_refresh'):
-        st.session_state['nfl38_actualizacion_solicitada'] = True
-        st.session_state['nfl38_ultimo_intento_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
-        cargar_datos_nfl_v38.clear()
+    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v39_refresh'):
+        st.session_state['nfl39_actualizacion_solicitada'] = True
+        st.session_state['nfl39_ultimo_intento_utc'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        cargar_datos_nfl_v39.clear()
+        cargar_jugadores_nfl_v39.clear()
         st.rerun()
     try:
-        with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.8...'):
-            calendario, estadisticas = cargar_datos_nfl_v38()
+        with st.spinner('Cargando jugadas históricas y entrenando el modelo v3.9...'):
+            calendario, estadisticas = cargar_datos_nfl_v39()
             st.session_state['nfl38_ultima_carga_exitosa'] = {
                 'calendario': calendario.copy(),
                 'estadisticas': estadisticas.copy(),
                 'consulta_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
             }
             st.session_state['nfl38_error_reciente'] = None
-            st.session_state['nfl38_actualizacion_solicitada'] = False
+            st.session_state['nfl39_actualizacion_solicitada'] = False
             
-            tabla = construir_historial_nfl_v38(calendario, estadisticas)
+            tabla = construir_historial_nfl_v39(calendario, estadisticas)
             completos = tabla.dropna(subset=['home_score', 'away_score'])
             if completos.empty:
                 raise ValueError('No hay resultados completos disponibles.')
             csv_modelo = tabla.to_csv(index=False)
             huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
-            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v38(csv_modelo, huella)
+            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_modelo_nfl_v39(csv_modelo, huella)
     except Exception as exc:
         st.session_state['nfl38_error_reciente'] = f'{type(exc).__name__}: {exc}'
-        st.error('🔴 No se pudo cargar o validar NFL v3.8. No se mostrarán resultados nuevos como si fueran actuales.')
+        st.error('🔴 No se pudo cargar o validar NFL v3.9. No se mostrarán resultados nuevos como si fueran actuales.')
         st.code(str(exc))
         anterior = st.session_state.get('nfl38_ultima_carga_exitosa')
         if anterior is not None:
@@ -1285,7 +1408,8 @@ def mostrar_modulo_nfl_v38():
     mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
     mostrar_auditoria_nfl_v36(calendario)
     mostrar_auditoria_nfl_v37(calendario, estadisticas)
-    mostrar_monitoreo_nfl_v38(calendario, estadisticas) # <--- Nuevo monitoreo v3.8
+    mostrar_monitoreo_nfl_v38(calendario, estadisticas)
+    mostrar_jugadores_nfl_v39() # <--- Nuevo panel v3.9 de estadísticas individuales
 
     st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas')
     st.write(f'**Partidos usados para ajuste final:** {ntrain}')
@@ -1294,7 +1418,7 @@ def mostrar_modulo_nfl_v38():
     st.subheader('📊 Evaluación histórica — 2024 y 2025')
     st.dataframe(reporte.round(2), use_container_width=True, hide_index=True)
     st.download_button('📥 Descargar evaluación', reporte.to_csv(index=False).encode('utf-8'),
-                       'nfl_v38_validacion.csv', 'text/csv', key='nfl_v38_eval')
+                       'nfl_v39_validacion.csv', 'text/csv', key='nfl_v39_eval')
 
     st.subheader('🏟️ Próximos partidos')
     hoy = pd.Timestamp(datetime.now(timezone.utc).date())
@@ -1304,9 +1428,9 @@ def mostrar_modulo_nfl_v38():
         return
     opciones = {f'{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}': idx
                 for idx, r in futuros.iterrows()}
-    seleccion = st.selectbox('Partido', list(opciones), key='nfl_v38_game')
+    seleccion = st.selectbox('Partido', list(opciones), key='nfl_v39_game')
     partido = futuros.loc[opciones[seleccion]]
-    X = pd.DataFrame([partido[VARIABLES_NFL_V38].to_dict()])[VARIABLES_NFL_V38]
+    X = pd.DataFrame([partido[VARIABLES_NFL_V39].to_dict()])[VARIABLES_NFL_V39]
     if min(int(partido.local_juegos), int(partido.visitante_juegos)) < 3:
         st.warning('⚠️ Se requieren al menos tres partidos previos por equipo en esta temporada. No se muestra una proyección con datos neutrales.')
         return
@@ -1327,13 +1451,13 @@ def mostrar_modulo_nfl_v38():
         'visitante': partido.away_team,
         'margen_estimado': round(margen, 3),
         'total_estimado': round(total, 3),
-        'modelo_version': '3.8',
+        'modelo_version': '3.9',
         'datos_sha256': huella,
         'entrenamiento_hasta': 2025,
     }])
     st.download_button(
         '📥 Guardar registro fechado (CSV)', registro.to_csv(index=False).encode('utf-8'),
-        f'nfl_registro_{partido.game_id}.csv', 'text/csv', key='nfl_v38_log')
+        f'nfl_registro_{partido.game_id}.csv', 'text/csv', key='nfl_v39_log')
 
 
 # =========================================================
@@ -1452,7 +1576,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL (Élite v3.8 con Monitoreo)",
+        "🛡️ Sistema Pro NFL (Élite v3.9 con Jugadores)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
@@ -1997,10 +2121,10 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL v3.8 (CON MONITOREO DE ACTUALIZACIÓN)
+# 6. SISTEMA PRO NFL v3.9 (CON JUGADORES Y MONITOREO)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.8 con Monitoreo)":
-  mostrar_modulo_nfl_v38()
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v3.9 con Jugadores)":
+  mostrar_modulo_nfl_v39()
 
 
 # =========================================================
