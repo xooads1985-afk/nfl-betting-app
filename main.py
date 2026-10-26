@@ -154,7 +154,6 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
   return round(max(10.0, stake_sugerido), 2)
 
 
-# Funciones auxiliares para parsear texto con signos (+ / -) de forma segura
 def limpiar_momio(texto_momio):
   try:
     limpio = texto_momio.strip().replace("+", "")
@@ -463,7 +462,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MONEYLINE + LÍNEAS SEPARADAS)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + MEJORAS TÉRMICAS & RITMO)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
@@ -1156,14 +1155,14 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MONEYLINE + LÍNEAS SEPARADAS)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + OPTIMIZACIÓN OVER/UNDER)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.title(f"🛡️ **Sistema Pro NFL con Machine Learning Avanzado & Excel [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo inteligente con opciones para Spread, Totales O/U y Moneyline (Soporte total para signos + y -).*")
+  st.markdown("--- \n *Modelo inteligente optimizado con factores térmicos severos, ritmo de juego y control anti-over.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
-  st.success("✅ Modelos de Machine Learning y optimizaciones listos para operar sin interrupciones.")
+  st.success("✅ Modelos de Machine Learning y motores térmicos listos para operar.")
 
   col_nfl1, col_nfl2 = st.columns(2)
   with col_nfl1:
@@ -1177,22 +1176,27 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   with col_nfl4:
     qb_visita_suplente = st.checkbox("⚠️ ¿QB Titular Visitante Lesionado / Suplente?", key="nfl_qb_vis_sup")
 
-  st.markdown("### ⚙️ Selección de Mercado y Momios de la Casa")
+  st.markdown("### ⚙️ Factores Situacionales y Ambientales de Precisión")
+  col_cl1, col_cl2, col_cl3 = st.columns(3)
+  with col_cl1:
+    wind_forecast = st.number_input("Pronóstico de Viento (MPH):", value=8.0, step=1.0, key="nfl_ml_wind")
+  with col_cl2:
+    condicion_clima = st.selectbox("Estado del Clima / Terreno:", ["Domo / Estándar", "Lluvia Moderada", "Frío Extremo / Congelación (< 0°C)", "Nieve Pesada"], key="nfl_clima_ext")
+  with col_cl3:
+    ritmo_lento = st.checkbox("🐢 Ritmo Lento / Consumo de Reloj (Ambos equipos top baja posesión)", key="nfl_ritmo_lento")
+
+  st.markdown("### 📊 Selección de Mercado y Momios de la Casa")
   col_l1, col_l2, col_l3, col_l4 = st.columns(4)
   with col_l1:
     tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
   with col_l2:
-    # Campo de texto libre para escribir hándicaps con '+' o '-' (ej. +3.5 o -3.0)
     bookie_spread_str = st.text_input("Hándicap / Spread (Ej. -3.0 o +3.5):", value="-3.0", key="nfl_ml_bsp")
     bookie_spread = limpiar_spread(bookie_spread_str)
   with col_l3:
     bookie_total = st.number_input("Total de Puntos O/U (si aplica):", value=43.5, step=0.5, format="%.1f", key="nfl_ml_btot")
   with col_l4:
-    # Campo de texto libre para escribir momios americanos con '+' o '-' (ej. +135 o -160)
     momio_casa_nfl_str = st.text_input("Momio Americano (Ej. -160 o +134):", value="-160", key="nfl_ml_momio")
     momio_casa_nfl = limpiar_momio(momio_casa_nfl_str)
-
-  wind_forecast = st.number_input("Pronóstico de Viento (MPH - 0 si es Domo):", value=10.0, step=1.0, key="nfl_ml_wind")
 
   if st.button("🚀 Ejecutar Predicción NFL Optimizada", use_container_width=True):
     home_data = df_metricas[df_metricas['team'].str.lower() == home_team.strip().lower()]
@@ -1226,6 +1230,19 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     pred_spread = m_spread.predict(input_data)[0]
     pred_total = m_total.predict(input_data)[0]
     
+    # MOTOR ANTI-OVER & CORRECCIÓN CLIMÁTICA SEVERA
+    # Castigos agresivos al total si el clima o el ritmo restan explosividad
+    if wind_forecast > 10.0:
+      pred_total -= (wind_forecast - 10.0) * 0.35  # Mayor castigo por viento fuerte
+    if "Lluvia Moderada" in condicion_clima:
+      pred_total -= 3.2
+    elif "Frío Extremo" in condicion_clima:
+      pred_total -= 4.5
+    elif "Nieve Pesada" in condicion_clima:
+      pred_total -= 6.0
+    if ritmo_lento:
+      pred_total -= 3.5
+
     if "Moneyline Local" in tipo_apuesta_nfl:
       prob_modelo_nfl = round(min(92.0, max(10.0, 50.0 + (pred_spread * 6.5))), 2)
     elif "Moneyline Visitante" in tipo_apuesta_nfl:
@@ -1238,10 +1255,14 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
       prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 4.0))), 2)
     elif "Altas" in tipo_apuesta_nfl:
       ventaja_apuesta = pred_total - bookie_total
-      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.5))), 2)
-    else:
+      # Exigimos un margen de seguridad estricto de al menos 2.5 puntos para dar luz verde al Over
+      if ventaja_apuesta < 2.5:
+        prob_modelo_nfl = 45.0  # Castiga la probabilidad si el margen es estrecho
+      else:
+        prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.5))), 2)
+    else:  # Bajas (Under)
       ventaja_apuesta = bookie_total - pred_total
-      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.5))), 2)
+      prob_modelo_nfl = round(min(92.0, max(15.0, 50.0 + (ventaja_apuesta * 3.8))), 2)
 
     _, edge_calculado_nfl = calcular_edge_real(momio_casa_nfl, prob_modelo_nfl)
     stake_recomendado_nfl = calcular_criterio_kelly(st.session_state["bankroll_global"], prob_modelo_nfl, momio_casa_nfl)
@@ -1249,7 +1270,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     st.markdown("### 📊 Resultados de la Proyección Inteligente Optimizada")
     col_res1, col_res2, col_res3 = st.columns(3)
     col_res1.metric("Spread Proyectado (Local)", f"{pred_spread:+.1f}")
-    col_res2.metric("Total Proyectado", f"{pred_total:.1f} pts")
+    col_res2.metric("Total Proyectado Ajustado", f"{pred_total:.1f} pts")
     col_res3.metric("Edge Matemático (+EV)", f"{edge_calculado_nfl:+.2f}%", delta=f"Stake: ${stake_recomendado_nfl} MXN")
     
     recomendacion_final = "SIN APUESTA DE VALOR"
@@ -1281,7 +1302,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
 
     if st.button("📥 Guardar Análisis en Base de Datos SQLite", key="save_nfl_ml"):
       registrar_apuesta_db(fecha_formato_str, "NFL ML Élite", f"{away_team} @ {home_team}", f"{tipo_apuesta_nfl} ({momio_casa_nfl:+d})", momio_casa_nfl, edge_calculado_nfl, stake_recomendado_nfl)
-      st.success("¡Apuesta NFL guardada con éxito en SQLite con soporte para signos en momios y hándicaps!")
+      st.success("¡Apuesta NFL guardada con éxito en SQLite con soporte térmico y anti-over!")
 
   if "ultimo_resultado_nfl" in st.session_state and st.session_state["ultimo_resultado_nfl"]:
     st.markdown("---")
