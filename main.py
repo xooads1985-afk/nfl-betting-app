@@ -477,91 +477,149 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + NFLVERSE)
+# 6. SISTEMA PRO NFL v2 (EPA, SUCCESS RATE & ML)
 # =========================================================
-YEARS_NFL = [2022, 2023, 2024, 2025, 2026]
-FEATURES_NFL = ["home_pf", "home_pa", "home_win", "away_pf", "away_pa", "away_win", "home_n", "away_n", "rest_home", "rest_away"]
+TEMPORADAS_NFL_V2 = [2022, 2023, 2024, 2025, 2026]
+VARIABLES_NFL_V2 = [
+    'local_pf', 'local_pa', 'local_victorias', 'visitante_pf', 'visitante_pa',
+    'visitante_victorias', 'local_epa_of', 'local_epa_def',
+    'visitante_epa_of', 'visitante_epa_def', 'local_sr_of', 'local_sr_def',
+    'visitante_sr_of', 'visitante_sr_def', 'local_juegos', 'visitante_juegos',
+    'descanso_local', 'descanso_visitante', 'local_en_casa_pf',
+    'visitante_fuera_pf',
+]
+
+def _requerir_nfl_v2(df, cols, fuente):
+    faltan = sorted(set(cols) - set(df.columns))
+    if faltan:
+        raise ValueError(f'{fuente}: faltan columnas requeridas: {", ".join(faltan)}')
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def cargar_partidos_nfl():
+def cargar_datos_nfl_v2():
     import nflreadpy as nfl
-    raw = nfl.load_schedules(YEARS_NFL).to_pandas()
-    needed = ["game_id", "season", "week", "gameday", "home_team", "away_team", "home_score", "away_score"]
-    missing = [c for c in needed if c not in raw.columns]
-    if missing:
-        raise ValueError(f"La fuente no contiene columnas requeridas: {', '.join(missing)}")
-    df = raw[needed].copy()
-    df["gameday"] = pd.to_datetime(df["gameday"], errors="coerce")
-    for c in ("season", "week", "home_score", "away_score"):
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    df = df.dropna(subset=["game_id", "season", "week", "gameday", "home_team", "away_team"])
-    df = df.drop_duplicates("game_id").sort_values(["gameday", "game_id"]).reset_index(drop=True)
-    if df.empty:
-        raise ValueError("NFLverse devolvió un calendario vacío")
-    return df
+    calendario = nfl.load_schedules(TEMPORADAS_NFL_V2).to_pandas()
+    cols = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
+    _requerir_nfl_v2(calendario, cols, 'Calendario')
+    calendario = calendario[cols].copy()
+    calendario['gameday'] = pd.to_datetime(calendario['gameday'], errors='coerce').dt.normalize()
+    for c in ['season', 'week', 'home_score', 'away_score']:
+        calendario[c] = pd.to_numeric(calendario[c], errors='coerce')
+    calendario = calendario.dropna(subset=['game_id', 'gameday', 'season', 'week', 'home_team', 'away_team'])
+    calendario = calendario.drop_duplicates('game_id').sort_values(['gameday', 'game_id']).reset_index(drop=True)
 
-def construir_variables_nfl(df):
-    history = {}
-    rows = []
-    for date, group in df.groupby("gameday", sort=True):
-        pending = []
-        for _, g in group.iterrows():
-            home, away = str(g.home_team), str(g.away_team)
-            def prior(team):
-                played = history.get(team, [])
-                last = played[-5:]
-                n = len(last)
-                if not n:
-                    return 21.0, 21.0, 0.5, 0, 7
-                rest = int((date - last[-1][0]).days)
-                return (float(np.mean([x[1] for x in last])),
-                        float(np.mean([x[2] for x in last])),
-                        float(np.mean([x[3] for x in last])), n,
-                        int(np.clip(rest, 0, 21)))
-            hpf, hpa, hw, hn, hr = prior(home)
-            apf, apa, aw, an, ar = prior(away)
-            row = {"game_id": g.game_id, "gameday": date, "season": int(g.season),
-                   "week": int(g.week), "home_team": home, "away_team": away,
-                   "home_pf": hpf, "home_pa": hpa, "home_win": hw,
-                   "away_pf": apf, "away_pa": apa, "away_win": aw,
-                   "home_n": hn, "away_n": an, "rest_home": hr, "rest_away": ar,
-                   "home_score": g.home_score, "away_score": g.away_score}
-            rows.append(row)
+    partes = []
+    for temporada in TEMPORADAS_NFL_V2:
+        try:
+            pbp = nfl.load_pbp(temporada)
+            requeridas = ['game_id', 'posteam', 'defteam', 'epa', 'success', 'play_type']
+            _requerir_nfl_v2(pbp, requeridas, f'PBP {temporada}')
+            pbp = pbp.select(requeridas).to_pandas()
+            pbp = pbp[pbp['play_type'].isin(['pass', 'run'])].copy()
+            pbp['epa'] = pd.to_numeric(pbp['epa'], errors='coerce')
+            pbp['success'] = pd.to_numeric(pbp['success'], errors='coerce')
+            pbp = pbp.dropna(subset=['game_id', 'posteam', 'defteam', 'epa', 'success'])
+            if pbp.empty:
+                continue
+            ataque = pbp.groupby(['game_id', 'posteam'], as_index=False).agg(
+                epa_of=('epa', 'mean'), sr_of=('success', 'mean'), jugadas=('epa', 'size'))
+            defensa = pbp.groupby(['game_id', 'defteam'], as_index=False).agg(
+                epa_def=('epa', 'mean'), sr_def=('success', 'mean'))
+            equipo = ataque.merge(defensa, left_on=['game_id', 'posteam'],
+                                  right_on=['game_id', 'defteam'], how='inner')
+            equipo = equipo.rename(columns={'posteam': 'equipo'}).drop(columns=['defteam'])
+            partes.append(equipo)
+            del pbp
+        except Exception:
+            continue
+            
+    if not partes:
+        raise ValueError('NFLverse no devolvió jugadas válidas para calcular EPA y Success Rate.')
+    estadisticas = pd.concat(partes, ignore_index=True).drop_duplicates(['game_id', 'equipo'])
+    return calendario, estadisticas
+
+def construir_historial_nfl_v2(calendario, estadisticas):
+    stats = {(str(r.game_id), str(r.equipo)): r for r in estadisticas.itertuples(index=False)}
+    historico = {}
+    registros = []
+
+    def previo(equipo, fecha, condicion):
+        juegos = historico.get(equipo, [])[-5:]
+        if not juegos:
+            return dict(pf=21., pa=21., victorias=.5, epa_of=0., epa_def=0.,
+                        sr_of=.45, sr_def=.45, n=0, descanso=7, ubicacion_pf=21.)
+        subset = [x for x in juegos if x['ubicacion'] == condicion]
+        return dict(
+            pf=float(np.mean([x['pf'] for x in juegos])),
+            pa=float(np.mean([x['pa'] for x in juegos])),
+            victorias=float(np.mean([x['victoria'] for x in juegos])),
+            epa_of=float(np.mean([x['epa_of'] for x in juegos])),
+            epa_def=float(np.mean([x['epa_def'] for x in juegos])),
+            sr_of=float(np.mean([x['sr_of'] for x in juegos])),
+            sr_def=float(np.mean([x['sr_def'] for x in juegos])),
+            n=len(juegos),
+            descanso=int(np.clip((fecha - juegos[-1]['fecha']).days, 0, 21)),
+            ubicacion_pf=float(np.mean([x['pf'] for x in subset])) if subset else 21.,
+        )
+
+    for fecha, grupo in calendario.groupby('gameday', sort=True):
+        pendientes = []
+        for g in grupo.itertuples(index=False):
+            local, visitante, gid = str(g.home_team), str(g.away_team), str(g.game_id)
+            h = previo(local, fecha, 'casa')
+            a = previo(visitante, fecha, 'fuera')
+            fila = dict(game_id=gid, gameday=fecha, season=int(g.season), week=int(g.week),
+                        home_team=local, away_team=visitante,
+                        home_score=g.home_score, away_score=g.away_score,
+                        local_pf=h['pf'], local_pa=h['pa'], local_victorias=h['victorias'],
+                        visitante_pf=a['pf'], visitante_pa=a['pa'], visitante_victorias=a['victorias'],
+                        local_epa_of=h['epa_of'], local_epa_def=h['epa_def'],
+                        visitante_epa_of=a['epa_of'], visitante_epa_def=a['epa_def'],
+                        local_sr_of=h['sr_of'], local_sr_def=h['sr_def'],
+                        visitante_sr_of=a['sr_of'], visitante_sr_def=a['sr_def'],
+                        local_juegos=h['n'], visitante_juegos=a['n'],
+                        descanso_local=h['descanso'], descanso_visitante=a['descanso'],
+                        local_en_casa_pf=h['ubicacion_pf'], visitante_fuera_pf=a['ubicacion_pf'])
+            registros.append(fila)
             if pd.notna(g.home_score) and pd.notna(g.away_score):
-                hs, vs = float(g.home_score), float(g.away_score)
-                pending.append((home, away, hs, vs))
-        for home, away, hs, vs in pending:
-            history.setdefault(home, []).append((date, hs, vs, float(hs > vs) + 0.5 * float(hs == vs)))
-            history.setdefault(away, []).append((date, vs, hs, float(vs > hs) + 0.5 * float(vs == vs)))
-    return pd.DataFrame(rows)
+                sh, sa = stats.get((gid, local)), stats.get((gid, visitante))
+                if sh is not None and sa is not None and sh.jugadas >= 10 and sa.jugadas >= 10:
+                    pendientes.append((local, visitante, float(g.home_score), float(g.away_score), sh, sa))
+        for local, visitante, hp, ap, sh, sa in pendientes:
+            historico.setdefault(local, []).append(dict(fecha=fecha, pf=hp, pa=ap,
+                victoria=float(hp > ap) + .5 * float(hp == ap), ubicacion='casa',
+                epa_of=float(sh.epa_of), epa_def=float(sh.epa_def),
+                sr_of=float(sh.sr_of), sr_def=float(sh.sr_def)))
+            historico.setdefault(visitante, []).append(dict(fecha=fecha, pf=ap, pa=hp,
+                victoria=float(ap > hp) + .5 * float(ap == hp), ubicacion='fuera',
+                epa_of=float(sa.epa_of), epa_def=float(sa.epa_def),
+                sr_of=float(sa.sr_of), sr_def=float(sa.sr_def)))
+    return pd.DataFrame(registros)
 
 @st.cache_resource(show_spinner=False)
-def entrenar_modelo_nfl(data_version, train_csv):
-    df = pd.read_csv(io.StringIO(train_csv), parse_dates=["gameday"])
-    complete = df.dropna(subset=["home_score", "away_score"]).copy()
-    train = complete[complete.season.between(2022, 2024)]
-    test = complete[complete.season == 2025]
+def entrenar_modelo_nfl_v2(csv, huella):
+    df = pd.read_csv(io.StringIO(csv), parse_dates=['gameday'])
+    df = df.dropna(subset=['home_score', 'away_score']).copy()
+    train = df[df['season'].between(2022, 2024)].copy()
+    test = df[df['season'] == 2025].copy()
     if len(train) < 300 or len(test) < 100:
-        raise ValueError("Faltan partidos suficientes de 2022-2025 para validar el modelo.")
-    for frame in (train, test):
-        if frame[FEATURES_NFL].isna().any().any():
-            raise ValueError("Hay variables faltantes en el historial")
-    targets = {"margen": lambda d: d.home_score - d.away_score,
-               "total": lambda d: d.home_score + d.away_score}
-    metrics, models = {}, {}
-    for name, target in targets.items():
-        model = HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12, learning_rate=0.045,
-                                              l2_regularization=8.0, random_state=42)
-        model.fit(train[FEATURES_NFL], target(train))
-        pred = model.predict(test[FEATURES_NFL])
-        base = np.repeat(float(target(train).mean()), len(test))
-        metrics[name] = {"MAE_modelo": float(mean_absolute_error(target(test), pred)),
-                         "MAE_referencia": float(mean_absolute_error(target(test), base))}
-        models[name] = model
-    full = complete[complete.season.between(2022, 2025)]
-    for name, target in targets.items():
-        models[name].fit(full[FEATURES_NFL], target(full))
-    return models, metrics, len(train), len(test)
+        raise ValueError('No hay suficientes partidos completos para entrenar 2022–2024 y evaluar 2025.')
+    if df[VARIABLES_NFL_V2].isna().any().any():
+        raise ValueError('Se detectaron variables faltantes; se cancela el entrenamiento.')
+    objetivos = {'margen': lambda d: d.home_score - d.away_score,
+                 'total': lambda d: d.home_score + d.away_score}
+    modelos, metricas = {}, {}
+    for nombre, objetivo in objetivos.items():
+        modelo = HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12,
+                learning_rate=.045, l2_regularization=8., random_state=42)
+        modelo.fit(train[VARIABLES_NFL_V2], objetivo(train))
+        estimado = modelo.predict(test[VARIABLES_NFL_V2])
+        base = np.full(len(test), float(objetivo(train).mean()))
+        metricas[nombre] = {'MAE_modelo': float(mean_absolute_error(objetivo(test), estimado)),
+                           'MAE_referencia': float(mean_absolute_error(objetivo(test), base))}
+        completo = df[df['season'].between(2022, 2025)]
+        modelo.fit(completo[VARIABLES_NFL_V2], objetivo(completo))
+        modelos[nombre] = modelo
+    return modelos, metricas, len(train), len(test)
 
 
 # =========================================================
@@ -680,7 +738,7 @@ modulo_seleccionado = st.sidebar.radio(
         "🏒 Hockey Pro (NHL)",
         "🏀 Sistema Pro NBA",
         "🎓 Sistema Pro NCAAF (Universitario)",
-        "🛡️ Sistema Pro NFL",
+        "🛡️ Sistema Pro NFL (Élite v2 con EPA & SR)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Historial SQLite",
         "🚀 Optimizador de Parlays (Monte Carlo)",
@@ -1225,90 +1283,95 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (ML + NFLVERSE CON MÉTRICAS Y APUESTAS +EV)
+# 6. SISTEMA PRO NFL v2 (ÉLITE CON EPA, SUCCESS RATE & APUESTAS +EV)
 # =========================================================
-elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite (Machine Learning & Apuestas +EV) [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo predictivo basado en HistGradientBoostingRegressor con validación histórica y cálculo de valor (+EV).*")
+elif modulo_seleccionado == "🛡️ Sistema Pro NFL (Élite v2 con EPA & SR)":
+  st.title(f"🛡️ **Sistema Pro NFL Élite v2 (EPA, Success Rate & Apuestas +EV) [{fecha_formato_str}]**")
+  st.markdown("--- \n *Análisis avanzado con NFLverse: EPA por jugada, Success Rate, validación histórica (2025) y cálculo de valor (+EV).*")
   
-  if st.button("🔄 Actualizar Fuente NFLverse", key="nfl_refresh"):
-    cargar_partidos_nfl.clear()
+  if st.button("🔄 Actualizar Fuente NFLverse (v2)", key="nfl_v2_refresh"):
+    cargar_datos_nfl_v2.clear()
     st.rerun()
 
   try:
-    with st.spinner("Consultando NFLverse y construyendo historial de rendimiento..."):
-      games = cargar_partidos_nfl()
-      frame = construir_variables_nfl(games)
-      completed = frame.dropna(subset=["home_score", "away_score"])
-      if completed.empty:
-        st.error("La fuente no contiene resultados terminados.")
-        st.stop()
-      fingerprint = int(pd.util.hash_pandas_object(
-          completed[["game_id", "home_score", "away_score"]], index=False).sum())
-      models, metrics, ntrain, ntest = entrenar_modelo_nfl(
-          fingerprint, frame.to_csv(index=False))
+    with st.spinner('Cargando jugadas históricas y entrenando el modelo avanzado con EPA y Success Rate...'):
+      calendario, estadisticas = cargar_datos_nfl_v2()
+      tabla = construir_historial_nfl_v2(calendario, estadisticas)
+      completos = tabla.dropna(subset=['home_score', 'away_score'])
+      if completos.empty:
+        raise ValueError('No hay resultados completos disponibles.')
+      huella = int(pd.util.hash_pandas_object(completos[['game_id','home_score','away_score']], index=False).sum())
+      modelos, metricas, ntrain, ntest = entrenar_modelo_nfl_v2(tabla.to_csv(index=False), huella)
   except Exception as exc:
-    st.error("🔴 Modelo no disponible: no fue posible cargar o validar datos históricos.")
+    st.error('🔴 No se pudo cargar o validar el módulo NFL v2. No se muestran proyecciones sin datos válidos.')
     st.code(str(exc))
     st.stop()
 
-  st.success("🟢 Fuente real cargada y validación histórica completada con datos de NFLverse.")
-  st.write(f"**Partidos para entrenamiento inicial:** {ntrain} · **Partidos evaluados de 2025:** {ntest}")
-  st.caption(f"Último partido con resultado disponible en la fuente: {completed.gameday.max().date()}")
+  st.success('🟢 Datos históricos cargados y evaluación de 2025 completada con éxito.')
+  st.write(f'**Entrenamiento (2022–2024):** {ntrain} partidos · **Evaluación 2025:** {ntest} partidos')
+  st.caption(f'Último partido con resultado disponible: {completos.gameday.max().date()}')
 
   # VALIDACIÓN DEL MODELO (MÉTRICAS MAE)
-  report = pd.DataFrame(metrics).T.round(2)
-  st.subheader("📊 Validación del Modelo (Métricas MAE - Temporada 2025)")
-  st.dataframe(report, use_container_width=True)
+  reporte = pd.DataFrame(metricas).T.round(2)
+  st.subheader('📊 Validación del Modelo fuera de muestra — 2025 (MAE)')
+  st.dataframe(reporte, use_container_width=True)
   
-  if any(v["MAE_modelo"] >= v["MAE_referencia"] for v in metrics.values()):
-    st.warning("🟡 Al menos una proyección no supera la referencia básica en 2025. Interprétala con cautela.")
+  if any(m['MAE_modelo'] >= m['MAE_referencia'] for m in metricas.values()):
+    st.warning('🟡 Al menos una métrica no supera la referencia básica en 2025.')
   else:
-    st.info("✅ La validación de 2025 mejora la referencia básica del error absoluto medio (MAE).")
+    st.info('✅ La validación de 2025 mejora la referencia básica del error absoluto medio (MAE).')
 
   st.markdown("---")
-  st.subheader("📅 Seleccionar Próximo Partido para Analizar y Apostar")
-  today = pd.Timestamp(datetime.now(timezone.utc).date())
-  future = frame[(frame.gameday >= today) & frame.home_score.isna() & frame.away_score.isna()].copy()
-  future = future.sort_values("gameday")
+  st.subheader('🏟️ Seleccionar Próximo Partido para Analizar y Apostar')
+  hoy = pd.Timestamp(datetime.now(timezone.utc).date())
+  futuros = tabla[(tabla.gameday >= hoy) & tabla.home_score.isna() & tabla.away_score.isna()].sort_values('gameday')
   
-  if future.empty:
-    st.info("No hay partidos futuros publicados en los datos cargados actualmente.")
+  if futuros.empty:
+    st.info('No se encontraron próximos partidos en el calendario publicado.')
   else:
-    options = {f"{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}": i
-               for i, r in future.iterrows()}
-    chosen = st.selectbox("Selecciona un enfrentamiento:", list(options), key="nfl_game_select")
-    row = future.loc[options[chosen]]
+    opciones = {f'{r.gameday.date()} | {r.away_team} @ {r.home_team} | Semana {r.week}': idx
+                for idx, r in futuros.iterrows()}
+    seleccion = st.selectbox('Partido', list(opciones), key='nfl_v2_game')
+    partido = futuros.loc[opciones[seleccion]]
     
-    x = pd.DataFrame([row[FEATURES_NFL].to_dict()])[FEATURES_NFL]
-    margin = float(models["margen"].predict(x)[0])
-    total = float(models["total"].predict(x)[0])
-    home_points, away_points = (total + margin) / 2, (total - margin) / 2
+    X = pd.DataFrame([partido[VARIABLES_NFL_V2].to_dict()])[VARIABLES_NFL_V2]
+    margen = float(modelos['margen'].predict(X)[0])
+    total = float(modelos['total'].predict(X)[0])
+    home_points, away_points = (total + margen) / 2, (total - margen) / 2
 
-    st.markdown("### 📊 Proyecciones del Modelo")
+    st.markdown("### 📊 Proyecciones del Modelo v2")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Margen Local Estimado", f"{margin:+.1f}")
-    c2.metric("Total de Puntos Estimado", f"{total:.1f}")
-    c3.metric("Puntos (Local / Visita)", f"{home_points:.1f} / {away_points:.1f}")
+    c1.metric('Margen local estimado', f'{margen:+.1f}')
+    c2.metric('Total de puntos estimado', f'{total:.1f}')
+    c3.metric('Puntos (Local / Visita)', f'{home_points:.1f} / {away_points:.1f}')
 
-    if min(int(row.home_n), int(row.away_n)) < 3:
-      st.warning("⚠️ Algún equipo tiene menos de 3 partidos recientes en el historial; proyectar con precaución.")
+    st.write('**Indicadores previos al partido (últimos cinco encuentros disponibles):**')
+    st.dataframe(pd.DataFrame({
+        'Métrica': ['EPA ofensivo', 'EPA defensivo', 'Success Rate ofensivo', 'Success Rate defensivo', 'Partidos previos'],
+        'Local': [partido.local_epa_of, partido.local_epa_def, partido.local_sr_of,
+                  partido.local_sr_def, partido.local_juegos],
+        'Visitante': [partido.visitante_epa_of, partido.visitante_epa_def,
+                      partido.visitante_sr_of, partido.visitante_sr_def, partido.visitante_juegos],
+    }).round(3), hide_index=True, use_container_width=True)
+
+    if min(int(partido.local_juegos), int(partido.visitante_juegos)) < 3:
+      st.warning('⚠️ Uno de los equipos tiene menos de tres partidos previos con cobertura válida.')
 
     st.markdown("---")
     st.subheader("🎯 Configuración de Apuesta & Evaluación de Valor (+EV)")
     
     col_l1, col_l2, col_l3 = st.columns(3)
     with col_l1:
-      tipo_apuesta = st.selectbox("Mercado:", ["Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_ap_tipo")
+      tipo_apuesta = st.selectbox("Mercado:", ["Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_v2_ap_tipo")
     with col_l2:
-      bookie_line = st.number_input("Línea de la Casa (Spread / Total O/U):", value=-3.0 if "Spread" in tipo_apuesta else 43.5, step=0.5, key="nfl_book_line")
+      bookie_line = st.number_input("Línea de la Casa (Spread / Total O/U):", value=-3.0 if "Spread" in tipo_apuesta else 43.5, step=0.5, key="nfl_v2_book_line")
     with col_l3:
-      momio_casa_str = st.text_input("Momio Americano (Ej. -110 o +135):", value="-110", key="nfl_momio_input")
+      momio_casa_str = st.text_input("Momio Americano (Ej. -110 o +135):", value="-110", key="nfl_v2_momio_input")
       momio_casa = limpiar_momio(momio_casa_str)
 
     # Cálculo de probabilidad del modelo basado en distribución normal
     if "Spread Local" in tipo_apuesta:
-      ventaja = margin - bookie_line
+      ventaja = margen - bookie_line
       prob_modelo = float(norm.cdf(ventaja / 13.5) * 100.0)
     elif "Spread Visitante" in tipo_apuesta:
       ventaja = (-margin) - bookie_line
@@ -1346,26 +1409,26 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
     col_res3.metric("Stake Recomendado (Tope $250)", f"${stake_final} MXN")
 
     if edge > 1.5:
-      st.success(f"🎯 **¡Oportunidad detectada!** El modelo encuentra valor positivo (+EV) en **{row.away_team} @ {row.home_team}**.")
-      if st.button("📥 Guardar Apuesta en Base de Datos SQLite", key="save_nfl_bet"):
-        partido_str = f"{row.away_team} @ {row.home_team}"
+      st.success(f"🎯 **¡Oportunidad detectada!** El modelo encuentra valor positivo (+EV) en **{partido.away_team} @ {partido.home_team}**.")
+      if st.button("📥 Guardar Apuesta en Base de Datos SQLite", key="save_nfl_v2_bet"):
+        partido_str = f"{partido.away_team} @ {partido.home_team}"
         mercado_str = f"{tipo_apuesta} ({bookie_line}) [Momio {momio_casa:+d}]"
         try:
-          registrar_apuesta_db(fecha_formato_str, "NFL Élite ML", partido_str, mercado_str, momio_casa, edge, stake_final)
+          registrar_apuesta_db(fecha_formato_str, "NFL Élite v2", partido_str, mercado_str, momio_casa, edge, stake_final)
           st.success("¡Apuesta guardada con éxito en la base de datos SQLite!")
         except Exception as e:
           st.error(f"Error al guardar: {e}")
     else:
       st.warning("⚠️ Esta línea no ofrece suficiente margen de valor (+EV) según las proyecciones del modelo.")
 
-    output = pd.DataFrame([{
-        "fecha": row.gameday.date(), "local": row.home_team,
-        "visitante": row.away_team, "margen_local": round(margin, 2),
-        "total": round(total, 2), "probabilidad_modelo": prob_modelo,
-        "edge": edge, "stake_sugerido": stake_final
+    exportar = pd.DataFrame([{
+        'fecha': partido.gameday.date(), 'local': partido.home_team,
+        'visitante': partido.away_team, 'margen_local': round(margen, 2),
+        'total': round(total, 2), 'probabilidad_modelo': prob_modelo,
+        'edge': edge, 'stake_sugerido': stake_final
     }])
-    st.download_button("📥 Descargar Proyección y Análisis (.csv)", output.to_csv(index=False).encode("utf-8"),
-                       "nfl_analisis_apuesta.csv", "text/csv", key="nfl_projection_dl")
+    st.download_button('📥 Descargar proyección y análisis (.csv)', exportar.to_csv(index=False).encode('utf-8'),
+                       'nfl_v2_analisis_apuesta.csv', 'text/csv', key='nfl_v2_export')
 
 
 # =========================================================
