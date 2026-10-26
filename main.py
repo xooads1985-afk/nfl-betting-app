@@ -164,7 +164,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# SISTEMA PRO NFL v4.4 (INTEGRADO)
+# SISTEMA PRO NFL v4.5 (INTEGRADO)
 # =========================================================
 TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
 VARIABLES = [
@@ -427,8 +427,8 @@ def entrenar_v30(csv, huella):
 def experimento_priors(csv):
     df = pd.read_csv(io.StringIO(csv))
     df = df.dropna(subset=['home_score', 'away_score']).copy()
-    alt_vars = ['experimental_' + v if 'experimental_' + v in df.columns else v for v in VARIABLES]
-    if df[VARIABLES + alt_vars].isna().any().any():
+    alt = ['experimental_' + v if 'experimental_' + v in df.columns else v for v in VARIABLES]
+    if df[VARIABLES + alt].isna().any().any():
         raise ValueError('Variables faltantes en el experimento.')
     resultados = []
     for year in (2024, 2025, 2026):
@@ -438,7 +438,7 @@ def experimento_priors(csv):
             continue
         for objetivo in ('margen', 'total'):
             target = (lambda x: x.home_score - x.away_score) if objetivo == 'margen' else (lambda x: x.home_score + x.away_score)
-            for nombre, cols in [('Actual', VARIABLES), ('Prior temporada anterior (experimental)', alt_vars)]:
+            for nombre, cols in [('Actual', VARIABLES), ('Prior temporada anterior (experimental)', alt)]:
                 model = (HistGradientBoostingRegressor(max_iter=110, max_leaf_nodes=12, learning_rate=.045, l2_regularization=8., random_state=42) if objetivo == 'margen' else make_pipeline(StandardScaler(), Ridge(alpha=100.0)))
                 model.fit(train[cols], target(train))
                 pred = model.predict(test[cols])
@@ -857,36 +857,6 @@ def mostrar_jugadores_nfl_v39():
     st.metric('Registros encontrados', len(df))
     st.dataframe(df.head(100), use_container_width=True, hide_index=True)
 
-def _mostrar_modulo_nfl_legacy_v40():
-    st.header('🏈 NFL | Análisis avanzado v3.9')
-    if st.button('🔄 Consultar nuevamente la fuente NFL', key='nfl_v2_refresh'):
-        st.session_state['nfl38_actualizacion_solicitada'] = True
-        cargar_datos_nfl.clear()
-        cargar_jugadores_nfl_v39.clear()
-        st.rerun()
-    try:
-        with st.spinner('Cargando jugadas históricas y entrenando el modelo...'):
-            calendario, estadisticas = cargar_datos_nfl()
-            tabla = construir_historial(calendario, estadisticas)
-            completos = tabla.dropna(subset=['home_score', 'away_score'])
-            csv_modelo = tabla.to_csv(index=False)
-            huella = hashlib.sha256(csv_modelo.encode('utf-8')).hexdigest()
-            modelos, reporte, ntrain, detalles, comparacion_total, evaluacion_2026, detalles_2026 = entrenar_v30(csv_modelo, huella)
-    except Exception as exc:
-        st.error('🔴 No se pudo cargar o validar NFL 3.8.')
-        st.code(str(exc))
-        return
-    mostrar_auditoria_nfl_v32(calendario, estadisticas, tabla)
-    mostrar_auditoria_nfl_v33(calendario, estadisticas)
-    mostrar_auditoria_nfl_v341(calendario, estadisticas)
-    mostrar_reporte_consolidado_nfl_v35(calendario, estadisticas, tabla)
-    mostrar_auditoria_nfl_v36(calendario)
-    mostrar_auditoria_nfl_v37(calendario, estadisticas)
-    mostrar_monitoreo_nfl_v38(calendario, estadisticas)
-    mostrar_jugadores_nfl_v39()
-    st.success('🟢 Datos históricos cargados y evaluaciones temporales completadas')
-    st.write(f'**Partidos usados para ajuste final:** {ntrain}')
-
 @st.cache_data(ttl=900, show_spinner=False)
 def cargar_calendario_rapido_v40():
     import nflreadpy as nfl
@@ -1065,6 +1035,94 @@ def _panel_comparacion_v44(cal):
     grafica = pd.concat([da.assign(Equipo=a), db.assign(Equipo=b)], ignore_index=True)
     st.line_chart(grafica.pivot_table(index='Partido', columns='Equipo', values='PF', aggfunc='first'), use_container_width=True)
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cargar_pbp_comparacion_v45(temporada):
+    import nflreadpy as nfl
+    raw = nfl.load_pbp(int(temporada))
+    campos = ['game_id', 'posteam', 'defteam', 'play_type', 'epa', 'success']
+    if hasattr(raw, 'select') and hasattr(raw, 'to_pandas'):
+        df = raw.select(campos).to_pandas()
+    else:
+        df = raw.to_pandas() if hasattr(raw, 'to_pandas') else pd.DataFrame(raw)
+        _requerir(df, campos, 'PBP NFL 4.5')
+        df = df[campos].copy()
+    _requerir(df, campos, 'PBP NFL 4.5')
+    df = df[df['play_type'].isin(['pass', 'run'])].copy()
+    df['epa'] = pd.to_numeric(df['epa'], errors='coerce')
+    df['success'] = pd.to_numeric(df['success'], errors='coerce')
+    df = df.dropna(subset=['game_id', 'posteam', 'defteam', 'epa', 'success'])
+    if df.empty:
+        return pd.DataFrame(columns=['game_id', 'equipo', 'EPA ofensivo', 'SR ofensivo', 'EPA permitido', 'SR permitido', 'Jugadas'])
+    ataque = df.groupby(['game_id', 'posteam'], as_index=False).agg(
+        **{'EPA ofensivo': ('epa', 'mean'), 'SR ofensivo': ('success', 'mean'), 'Jugadas': ('epa', 'size')}).rename(columns={'posteam': 'equipo'})
+    defensa = df.groupby(['game_id', 'defteam'], as_index=False).agg(
+        **{'EPA permitido': ('epa', 'mean'), 'SR permitido': ('success', 'mean')}
+    ).rename(columns={'defteam': 'equipo'})
+    return ataque.merge(defensa, on=['game_id', 'equipo'], how='outer')
+
+def _panel_avanzado_v45(cal):
+    st.subheader('🧠 NFL 4.5 | Rendimiento avanzado')
+    temporadas = sorted(cal['season'].dropna().astype(int).unique().tolist(), reverse=True)
+    if not temporadas:
+        st.info('Sin temporadas disponibles.')
+        return
+    temporada = st.selectbox('Temporada', temporadas, key='nfl45_temporada')
+    base = cal[cal['season'].eq(temporada)].dropna(subset=['home_score', 'away_score']).copy()
+    if base.empty:
+        st.info('Aún no hay partidos con resultado.')
+        return
+    equipos = sorted(set(base['home_team'].dropna()) | set(base['away_team'].dropna()))
+    a = st.selectbox('Equipo A', equipos, key='nfl45_a')
+    b = st.selectbox('Equipo B', [e for e in equipos if e != a], key='nfl45_b')
+
+    def historial(e):
+        local = base[base['home_team'].eq(e)]
+        visita = base[base['away_team'].eq(e)]
+        d = pd.concat([
+            pd.DataFrame({'game_id': local['game_id'], 'Fecha': local['gameday'], 'Semana': local['week'], 'Sede': 'Local', 'PF': local['home_score'], 'PC': local['away_score']}),
+            pd.DataFrame({'game_id': visita['game_id'], 'Fecha': visita['gameday'], 'Semana': visita['week'], 'Sede': 'Visitante', 'PF': visita['away_score'], 'PC': visita['home_score']})
+        ], ignore_index=True).sort_values(['Fecha', 'Semana', 'game_id'])
+        d['Resultado'] = d.apply(lambda r: 'V' if r.PF > r.PC else ('D' if r.PF < r.PC else 'E'), axis=1)
+        return d
+
+    def resumen(d):
+        return {'PJ': len(d), 'V': int((d['Resultado'] == 'V').sum()), 'D': int((d['Resultado'] == 'D').sum()), 'E': int((d['Resultado'] == 'E').sum()), 'PF/prom': round(float(d['PF'].mean()), 2) if len(d) else None, 'PC/prom': round(float(d['PC'].mean()), 2) if len(d) else None}
+    
+    historiales = {a: historial(a), b: historial(b)}
+    for equipo, d in historiales.items():
+        with st.container(border=True):
+            st.markdown(f'**{equipo} · Últimos cinco partidos**')
+            st.write(resumen(d.tail(5)))
+
+    st.markdown('**EPA y Success Rate (PBP)**')
+    if st.button('📥 Cargar eficiencia PBP de esta temporada', key='nfl45_cargar_pbp'):
+        st.session_state['nfl45_pbp_solicitada'] = temporada
+    if st.session_state.get('nfl45_pbp_solicitada') != temporada:
+        st.info('Pulsa el botón para consultar PBP.')
+        return
+    try:
+        with st.spinner('Calculando eficiencia por partido...'):
+            pbp = _cargar_pbp_comparacion_v45(temporada)
+    except Exception as exc:
+        st.warning('No se pudo consultar PBP.')
+        return
+    if pbp.empty:
+        st.info('Sin jugadas válidas para esta temporada.')
+        return
+    filas = []
+    for equipo, d in historiales.items():
+        x = pbp[pbp['equipo'].eq(equipo)].merge(d[['game_id']], on='game_id', how='inner')
+        n = pd.to_numeric(x['Jugadas'], errors='coerce').fillna(0)
+        total = n.sum()
+        fila = {'Equipo': equipo, 'Partidos con PBP': len(x), 'Jugadas': int(total)}
+        for col in ['EPA ofensivo', 'SR ofensivo', 'EPA permitido', 'SR permitido']:
+            vals = pd.to_numeric(x[col], errors='coerce')
+            ok = vals.notna() & n.gt(0)
+            fila[col] = round(float((vals[ok] * n[ok]).sum() / n[ok].sum()), 4) if ok.any() else None
+        filas.append(fila)
+    tabla = pd.DataFrame(filas)
+    st.dataframe(tabla, hide_index=True, use_container_width=True)
+
 def _panel_estado_v40(cal):
     st.subheader('🛰️ Estado de actualización')
     st.metric('Partidos del calendario', len(cal))
@@ -1072,7 +1130,7 @@ def _panel_estado_v40(cal):
     st.write('Última consulta exitosa en esta sesión (UTC):', st.session_state.get('nfl40_consulta_utc', 'No registrada'))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.4 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.5 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -1081,7 +1139,7 @@ def mostrar_modulo_nfl():
         st.session_state.pop('nfl40_consulta_utc', None)
         st.session_state.pop('nfl43_fecha_fuente', None)
         st.rerun()
-    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
+    secciones = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🧠 Rendimiento avanzado', '👥 Jugadores', '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas 4.1']
     seleccion = st.selectbox('Ir a sección', secciones, key='nfl40_navegacion')
     if seleccion == '🧪 Pruebas 4.1':
         mostrar_pruebas_integrales_nfl_v41()
@@ -1125,6 +1183,8 @@ def mostrar_modulo_nfl():
             _panel_equipos_v40(cal)
         elif seleccion == '📊 Comparar equipos':
             _panel_comparacion_v44(cal)
+        elif seleccion == '🧠 Rendimiento avanzado':
+            _panel_avanzado_v45(cal)
         elif seleccion == '🛰️ Estado':
             _panel_estado_v40(cal)
     except Exception as exc:
@@ -1178,7 +1238,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.4 | Centro deportivo móvil",
+        "🏈 NFL 4.5 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -1199,7 +1259,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.4 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.5 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
