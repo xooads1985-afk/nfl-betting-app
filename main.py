@@ -412,15 +412,12 @@ def aplicar_matriz_bajas_nba(equipo, ort_base, pace_base, esta_baja):
   return ort_ajustado, pace_ajustado
 
 def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino, linea_total_casino, contexto, equipo_local_nombre="Boston Celtics", equipo_visita_nombre="Milwaukee Bucks"):
-  # Extraer Tiros Libres (FTA)
   fta_l = stats_local.get("fta", 22.0)
   fta_v = stats_visita.get("fta", 21.5)
 
-  # Eficiencias base ajustadas con Asistencias, Pérdidas y Tiros Libres
   ort_l_base = stats_local.get("ort", 115.0) + ((stats_local.get("apg", 25.0) - 25.0) * 0.15) - ((stats_local.get("tov", 13.0) - 13.0) * 0.25) + ((fta_l - 22.0) * 0.1)
   drt_l_base = stats_local.get("drt", 115.0)
   
-  # Pace ponderado: 60% reciente (últimos 5 partidos) y 40% temporada completa
   pace_l_temporada = stats_local.get("pace", 98.5)
   pace_l_reciente = stats_local.get("pace_reciente", pace_l_temporada)
   pace_l_base = (pace_l_reciente * 0.60) + (pace_l_temporada * 0.40)
@@ -432,7 +429,6 @@ def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino
   pace_v_reciente = stats_visita.get("pace_reciente", pace_v_temporada)
   pace_v_base = (pace_v_reciente * 0.60) + (pace_v_temporada * 0.40)
 
-  # Aplicar Matriz de Bajas / Load Management
   ort_l_ajustada, pace_l_ajustado = aplicar_matriz_bajas_nba(equipo_local_nombre, ort_l_base, pace_l_base, contexto.get("local_estrella_baja", False))
   ort_v_ajustada, pace_v_ajustado = aplicar_matriz_bajas_nba(equipo_visita_nombre, ort_v_base, pace_v_base, contexto.get("visita_estrella_baja", False))
 
@@ -442,7 +438,6 @@ def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino
   ef_ofensiva_final_l = (ort_l_ajustada + ventaja_casa + drt_v_base) / 2.0
   ef_ofensiva_final_v = (ort_v_ajustada + drt_l_base) / 2.0
 
-  # Penalización por Fatiga Back-to-Back (B2B)
   if contexto.get("local_b2b", False): 
       ef_ofensiva_final_l -= 2.5
       pace_estimado -= 1.0
@@ -460,7 +455,6 @@ def analizar_lineas_nba_detallado(stats_local, stats_visita, linea_spread_casino
   prob_local_handicap = norm.cdf(z_spread) * 100.0
   prob_visita_handicap = 100.0 - prob_local_handicap
   
-  # Desviación estándar calibrada de 11.5 para totales Over/Under
   z_totales = (linea_total_casino - total_proyectado) / 11.5
   prob_under = norm.cdf(z_totales) * 100.0
   prob_over = 100.0 - prob_under
@@ -517,7 +511,7 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO + QUARTER-KELLY)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO & ZONA ROJA + QUARTER-KELLY)
 # =========================================================
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
@@ -570,13 +564,22 @@ def calibrar_entorno_nfl_avanzado(total_base_proyectado, contexto_partido):
     total_ajustado -= 3.5
   if contexto_partido.get("visita_qb_baja", False):
     total_ajustado -= 3.5
+    
+  # Factor Zona Roja Deficiente (Más FGs, Menos TDs)
+  if contexto_partido.get("zona_roja_deficiente", False):
+    total_ajustado -= 3.0
+    
   if contexto_partido.get("estadio_abierto", True):
     viento = contexto_partido.get("viento_kmh", 0.0)
-    if viento >= 25.0:
-      total_ajustado -= 3.5
-    if contexto_partido.get("temperatura_f", 50) <= 20:
+    if viento >= 24.0:
+      total_ajustado -= 4.0
+    elif viento >= 16.0:
       total_ajustado -= 2.0
-  return total_ajustado
+      
+    if contexto_partido.get("temperatura_f", 50) <= 20:
+      total_ajustado -= 2.5
+      
+  return max(30.0, total_ajustado)
 
 
 # =========================================================
@@ -1239,11 +1242,11 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO + QUARTER-KELLY)
+# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO & ZONA ROJA + QUARTER-KELLY)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite con Machine Learning & Control Térmico [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo de predicción dual optimizado con calibración climática, control de reloj y tope disciplinado de $250 MXN.*")
+  st.title(f"🛡️ **Sistema Pro NFL Élite con Machine Learning, Zona Roja & Control Térmico [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo dual optimizado con calibración de clima, velocidad de viento, eficiencia en Zona Roja y tope disciplinado de $250 MXN.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y motores térmicos listos para operar.")
@@ -1260,19 +1263,21 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   with col_nfl4:
     qb_visita_suplente = st.checkbox("⚠️ ¿QB Titular Visitante Lesionado / Suplente?", key="nfl_qb_vis_sup")
 
-  st.markdown("### ⚙️ Factores Ambientales y de Entorno")
-  col_cl1, col_cl2, col_cl3 = st.columns(3)
+  st.markdown("### ⚙️ Factores Ambientales, de Zona Roja y de Entorno")
+  col_cl1, col_cl2, col_cl3, col_cl4 = st.columns(4)
   with col_cl1:
     estadio_abierto = st.checkbox("Estadio Abierto / Clima Descubierto", value=True, key="nfl_est_abierto")
   with col_cl2:
     wind_forecast = st.number_input("Velocidad de Viento (KM/H):", value=15.0, step=1.0, key="nfl_ml_wind_kmh")
   with col_cl3:
-    temp_f = st.number_input("Temperatura (°F) [<= 20°F es frío extremo]:", value=35.0, step=1.0, key="nfl_ml_temp")
+    temp_f = st.number_input("Temperatura (°F) [<= 20°F frío extremo]:", value=35.0, step=1.0, key="nfl_ml_temp")
+  with col_cl4:
+    zona_roja_deficiente = st.checkbox("⚠️ Equipos con baja eficiencia en Zona Roja (Más FGs)", key="nfl_rz_def_ui")
 
   st.markdown("### 📊 Selección de Mercado y Momios de la Casa")
   col_l1, col_l2, col_l3, col_l4 = st.columns(4)
   with col_l1:
-    tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
+    tipo_apuesta_nfl = st.selectbox("Mercado à Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
   with col_l2:
     bookie_spread_str = st.text_input("Hándicap / Spread (Ej. -3.0 o +3.5):", value="-3.0", key="nfl_ml_bsp")
     bookie_spread = limpiar_spread(bookie_spread_str)
@@ -1319,7 +1324,8 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
         "visita_qb_baja": qb_visita_suplente,
         "estadio_abierto": estadio_abierto,
         "viento_kmh": wind_forecast,
-        "temperatura_f": temp_f
+        "temperatura_f": temp_f,
+        "zona_roja_deficiente": zona_roja_deficiente
     }
     pred_total = calibrar_entorno_nfl_avanzado(pred_total_base, contexto_partido)
 
