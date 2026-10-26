@@ -511,8 +511,19 @@ def analizar_lineas_ncaaf(pr_local, pr_visita, total_proyectado, linea_spread_ca
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO & ZONA ROJA + QUARTER-KELLY)
+# 6. SISTEMA PRO NFL (EQUIPOS OFICIALES + ML + TÉRMICO & ZONA ROJA)
 # =========================================================
+EQUIPOS_NFL_OFICIALES = [
+    'Arizona Cardinals', 'Atlanta Falcons', 'Baltimore Ravens', 'Buffalo Bills',
+    'Carolina Panthers', 'Chicago Bears', 'Cincinnati Bengals', 'Cleveland Browns',
+    'Dallas Cowboys', 'Denver Broncos', 'Detroit Lions', 'Green Bay Packers',
+    'Houston Texans', 'Indianapolis Colts', 'Jacksonville Jaguars', 'Kansas City Chiefs',
+    'Las Vegas Raiders', 'Los Angeles Chargers', 'Los Angeles Rams', 'Miami Dolphins',
+    'Minnesota Vikings', 'New England Patriots', 'New Orleans Saints', 'New York Giants',
+    'New York Jets', 'Philadelphia Eagles', 'Pittsburgh Steelers', 'San Francisco 49ers',
+    'Seattle Seahawks', 'Tampa Bay Buccaneers', 'Tennessee Titans', 'Washington Commanders'
+]
+
 @st.cache_resource
 def entrenar_modelo_nfl_ml_avanzado():
   np.random.seed(42)
@@ -535,19 +546,10 @@ def entrenar_modelo_nfl_ml_avanzado():
   model_total = GradientBoostingRegressor(n_estimators=50, learning_rate=0.05, max_depth=3, random_state=42)
   model_total.fit(X_dummy, y_dummy_total)
   
-  equipos_nfl_completos = [
-      'Kansas City Chiefs', 'Buffalo Bills', 'San Francisco 49ers', 'Philadelphia Eagles', 
-      'Baltimore Ravens', 'Detroit Lions', 'Dallas Cowboys', 'Miami Dolphins', 
-      'Cincinnati Bengals', 'Green Bay Packers', 'Los Angeles Rams', 'Houston Texans', 
-      'Cleveland Browns', 'Pittsburgh Steelers', 'Tampa Bay Buccaneers', 'Jacksonville Jaguars', 
-      'Seattle Seahawks', 'Los Angeles Chargers', 'Minnesota Vikings', 'New York Jets',
-      'New England Patriots', 'Denver Broncos', 'Las Vegas Raiders', 'Chicago Bears', 'New Orleans Saints'
-  ]
-  
   data_respaldo = []
-  for eq in equipos_nfl_completos:
+  for eq in EQUIPOS_NFL_OFICIALES:
     data_respaldo.append({
-        'season': 2025,
+        'season': 2026,
         'team': eq,
         'off_epa_ema': round(np.random.uniform(0.03, 0.12), 3),
         'def_epa_ema': round(np.random.uniform(-0.08, -0.02), 3),
@@ -565,7 +567,6 @@ def calibrar_entorno_nfl_avanzado(total_base_proyectado, contexto_partido):
   if contexto_partido.get("visita_qb_baja", False):
     total_ajustado -= 3.5
     
-  # Factor Zona Roja Deficiente (Más FGs, Menos TDs)
   if contexto_partido.get("zona_roja_deficiente", False):
     total_ajustado -= 3.0
     
@@ -1242,20 +1243,20 @@ elif modulo_seleccionado == "🎓 Sistema Pro NCAAF (Universitario)":
 
 
 # =========================================================
-# 6. SISTEMA PRO NFL (MACHINE LEARNING + MOTOR TÉRMICO & ZONA ROJA + QUARTER-KELLY)
+# 6. SISTEMA PRO NFL (EQUIPOS OFICIALES + ML + TÉRMICO & ZONA ROJA)
 # =========================================================
 elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
-  st.title(f"🛡️ **Sistema Pro NFL Élite con Machine Learning, Zona Roja & Control Térmico [{fecha_formato_str}]**")
-  st.markdown("--- \n *Modelo dual optimizado con calibración de clima, velocidad de viento, eficiencia en Zona Roja y tope disciplinado de $250 MXN.*")
+  st.title(f"🛡️ **Sistema Pro NFL Élite con Equipos Oficiales, Machine Learning & Control Térmico [{fecha_formato_str}]**")
+  st.markdown("--- \n *Modelo dual optimizado con selectores oficiales de franquicias, calibración de clima, viento, Zona Roja y tope disciplinado de $250 MXN.*")
 
   m_spread, m_total, df_metricas, dict_titulares, modelo_ok = entrenar_modelo_nfl_ml_avanzado()
   st.success("✅ Modelos de Machine Learning y motores térmicos listos para operar.")
 
   col_nfl1, col_nfl2 = st.columns(2)
   with col_nfl1:
-    home_team = st.text_input("Equipo Local (Nombre Completo, Ej. Pittsburgh Steelers):", value="Pittsburgh Steelers", key="nfl_ml_home")
+    home_team = st.selectbox("Equipo Local NFL:", EQUIPOS_NFL_OFICIALES, index=26, key="nfl_ml_home") # Pittsburgh Steelers por defecto
   with col_nfl2:
-    away_team = st.text_input("Equipo Visitante (Nombre Completo, Ej. New Orleans Saints):", value="New Orleans Saints", key="nfl_ml_away")
+    away_team = st.selectbox("Equipo Visitante NFL:", EQUIPOS_NFL_OFICIALES, index=22, key="nfl_ml_away") # New Orleans Saints por defecto
 
   col_nfl3, col_nfl4 = st.columns(2)
   with col_nfl3:
@@ -1277,7 +1278,7 @@ elif modulo_seleccionado == "🛡️ Sistema Pro NFL":
   st.markdown("### 📊 Selección de Mercado y Momios de la Casa")
   col_l1, col_l2, col_l3, col_l4 = st.columns(4)
   with col_l1:
-    tipo_apuesta_nfl = st.selectbox("Mercado à Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
+    tipo_apuesta_nfl = st.selectbox("Mercado a Analizar:", ["Moneyline Local", "Moneyline Visitante", "Spread Local", "Spread Visitante", "Altas (Over)", "Bajas (Under)"], key="nfl_tipo_ap")
   with col_l2:
     bookie_spread_str = st.text_input("Hándicap / Spread (Ej. -3.0 o +3.5):", value="-3.0", key="nfl_ml_bsp")
     bookie_spread = limpiar_spread(bookie_spread_str)
