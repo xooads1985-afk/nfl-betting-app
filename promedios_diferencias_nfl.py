@@ -417,43 +417,73 @@ def mostrar_promedios_diferencias():
                 "que cada marcador coincida con una fuente externa independiente.")
 
 
-    st.markdown("### 🌐 Verificación externa de marcadores")
-    with st.expander("Comparar resultados con ESPN y descargar reporte", expanded=False):
-        st.caption("Compara los partidos finalizados de la fuente principal (nflreadpy) "
-                   "con los marcadores publicados por ESPN. La verificación no es "
-                   "una certificación oficial ni modifica los resultados originales.")
-        if st.button("🔄 Ejecutar comparación externa", key="pd_ejecutar_externa"):
-            with st.spinner("Consultando marcadores externos por semana..."):
+    st.markdown("### 🌐 Supervisión y verificación externa")
+    with st.expander("Supervisar resultados y comparar con ESPN", expanded=False):
+        st.caption("La supervisión se ejecuta al abrir esta sección y cuando Streamlit "
+                   "vuelve a ejecutar la página. No funciona en segundo plano con la app cerrada.")
+        automatico = st.checkbox("Activar supervisión automática al usar la página",
+                                 value=False, key="pd_auto_supervision")
+        actualizar = st.button("🔄 Actualizar ahora y verificar", key="pd_ejecutar_externa")
+        if actualizar:
+            cargar_resultados.clear()
+            cargar_marcadores_espn.clear()
+            with st.spinner("Actualizando resultados de ambas fuentes..."):
+                partidos_revision = cargar_resultados(temporada)
+        else:
+            partidos_revision = partidos
+
+        if automatico or actualizar:
+            with st.spinner("Revisando marcadores de ESPN..."):
                 espn, errores_espn = cargar_marcadores_espn(temporada)
                 comparados, coinciden, sin_verificar, diferentes = comparar_fuentes_nfl(
-                    partidos, espn, errores_espn)
-            st.caption(f"Consulta: {pd.Timestamp.now(tz='UTC'):%Y-%m-%d %H:%M} UTC · "
-                       f"Partidos finalizados recibidos de ESPN: {len(espn)}")
+                    partidos_revision, espn, errores_espn)
+
+            ahora = pd.Timestamp.now(tz="UTC")
+            st.caption(f"Última revisión de la página: {ahora:%Y-%m-%d %H:%M} UTC · "
+                       f"Resultados recibidos de ESPN: {len(espn)} · "
+                       "Caché de ESPN: máximo 30 minutos; fuente principal: 15 minutos.")
             col1, col2, col3 = st.columns(3)
             col1.metric("Coinciden", coinciden)
             col2.metric("Diferentes", diferentes)
             col3.metric("Sin verificar", sin_verificar)
+
+            # Comparación contra la última revisión de ESTA sesión de Streamlit.
+            clave = f"pd_snapshot_{temporada}"
+            actual = set(partidos_revision["game_id"].astype(str))
+            anterior = st.session_state.get(clave)
+            if anterior is None:
+                st.info("Primera revisión de esta sesión: no hay referencia previa "
+                        "para identificar partidos nuevos.")
+            else:
+                nuevos = actual - anterior
+                if nuevos:
+                    st.info(f"🆕 {len(nuevos)} partido(s) nuevo(s) desde la revisión anterior: "
+                            + ", ".join(sorted(nuevos)[:10])
+                            + ("…" if len(nuevos) > 10 else ""))
+                else:
+                    st.caption("Sin partidos nuevos desde la revisión anterior de esta sesión.")
+            st.session_state[clave] = actual
+
             if errores_espn:
-                st.warning(f"Fallaron {len(errores_espn)} de 18 consultas semanales. "
-                           "Los partidos sin verificar NO se consideran errores de marcador.")
-                with st.expander("Detalles de conexión"):
+                st.warning(f"Fallaron {len(errores_espn)} consultas semanales de ESPN; "
+                           "los partidos sin verificar no se consideran errores de marcador.")
+                with st.expander("Ver errores de conexión"):
                     st.write(errores_espn)
             if diferentes:
-                st.error("Se encontraron marcadores diferentes entre las dos fuentes.")
-            elif sin_verificar:
-                st.warning("No todos los partidos pudieron verificarse externamente.")
-            else:
-                st.success("Todos los partidos cargados coinciden con ESPN.")
+                st.error(f"⚠️ {diferentes} partido(s) con marcador diferente entre fuentes.")
+            if sin_verificar:
+                st.warning(f"⚠️ {sin_verificar} partido(s) pendientes de verificación externa.")
+            if not diferentes and not sin_verificar and not errores_espn:
+                st.success("Todos los partidos cargados coinciden con ESPN en esta revisión.")
             st.dataframe(comparados, use_container_width=True, hide_index=True)
-            st.download_button("📥 Descargar verificación externa CSV",
+            st.download_button("📥 Descargar reporte de verificación CSV",
                                comparados.to_csv(index=False).encode("utf-8-sig"),
                                file_name=f"verificacion_externa_nfl_{temporada}.csv",
                                mime="text/csv", key="pd_externa_csv")
         else:
-            st.info("Pulsa el botón para consultar ESPN. No se ejecutan consultas externas "
-                    "hasta que lo solicites.")
+            st.info("Activa la supervisión o pulsa 'Actualizar ahora y verificar'. "
+                    "La verificación externa no se ejecuta hasta entonces.")
 
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
-
 
