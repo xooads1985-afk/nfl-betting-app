@@ -148,7 +148,7 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# MÓDULO NFL v4.9.3 (INTEGRADO COMPLETAMENTE)
+# MÓDULO NFL v4.9.3.3 (INTEGRADO COMPLETAMENTE)
 # =========================================================
 TEMPORADAS_NFL = [2022, 2023, 2024, 2025, 2026]
 VARIABLES_NFL = [
@@ -265,7 +265,7 @@ def _panel_inicio_v40(cal):
     completos = cal.dropna(subset=['home_score', 'away_score'])
     futuros = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna()
                   & cal['away_score'].isna()].sort_values(['gameday', 'game_id'])
-    st.subheader('🏠 Resumen NFL v4.9.3')
+    st.subheader('🏠 Resumen NFL v4.9.3.3')
     st.metric('Partidos con resultado', len(completos))
     st.markdown('**📅 Próximos encuentros**')
     _tarjetas_partidos_v42(futuros.head(8))
@@ -273,7 +273,7 @@ def _panel_inicio_v40(cal):
     _tarjetas_partidos_v42(completos.sort_values(['gameday', 'game_id'], ascending=False).head(8))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.9.3 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.9.3.3 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -293,13 +293,13 @@ def mostrar_modulo_nfl():
     if seleccion == '🏠 Inicio':
         _panel_inicio_v40(cal)
     elif seleccion == '📅 Partidos':
-        st.subheader('📅 Calendario y resultados v4.9.3')
+        st.subheader('📅 Calendario y resultados v4.9.3.3')
         _tarjetas_partidos_v42(cal.sort_values(['gameday', 'game_id']))
     elif seleccion == '🏟️ Equipos':
-        st.subheader('🏟️ Estadísticas de equipos v4.9.3')
+        st.subheader('🏟️ Estadísticas de equipos v4.9.3.3')
         st.info('Módulo de estadísticas de equipos activo.')
     elif seleccion == '📈 Rendimiento de jugadores':
-        st.subheader('📈 Rendimiento de jugadores v4.9.3')
+        st.subheader('📈 Rendimiento de jugadores v4.9.3.3')
         st.info('Panel de selección doble independiente activo.')
 
 
@@ -310,7 +310,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.9.3 | Centro deportivo móvil",
+        "🏈 NFL 4.9.3.3 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -331,7 +331,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.9.3 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.9.3.3 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
