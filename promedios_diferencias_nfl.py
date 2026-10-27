@@ -484,6 +484,40 @@ def mostrar_promedios_diferencias():
             st.info("Activa la supervisión o pulsa 'Actualizar ahora y verificar'. "
                     "La verificación externa no se ejecuta hasta entonces.")
 
+
+    st.markdown("### 🗂️ Historial permanente de revisiones")
+    with st.expander("Consultar historial guardado en GitHub", expanded=False):
+        st.caption("Este historial se genera mediante GitHub Actions. "
+                   "No depende de la sesión de Streamlit y no se actualiza "
+                   "automáticamente al abrir esta página.")
+        ruta_historial = (
+            "https://raw.githubusercontent.com/xooads1985-afk/nfl-betting-app/"
+            f"main/datos_auditoria/historial_{temporada}.csv"
+        )
+        if st.button("🔄 Consultar historial guardado", key="pd_ver_historial"):
+            try:
+                from urllib.request import Request, urlopen
+                from io import BytesIO
+                req = Request(ruta_historial, headers={"User-Agent": "NFL-stats-history"})
+                with urlopen(req, timeout=15) as respuesta:
+                    contenido = respuesta.read()
+                historial = pd.read_csv(BytesIO(contenido))
+                if historial.empty:
+                    st.info("Todavía no hay revisiones guardadas.")
+                else:
+                    st.metric("Revisiones guardadas", len(historial))
+                    st.dataframe(historial.iloc[::-1], use_container_width=True, hide_index=True)
+                    st.line_chart(historial.set_index("fecha_utc")[["partidos", "coinciden"]])
+                    st.download_button("📥 Descargar historial CSV", contenido,
+                                       file_name=f"historial_nfl_{temporada}.csv",
+                                       mime="text/csv", key="pd_historial_descarga")
+            except Exception as exc:
+                st.warning("Aún no se pudo leer el historial desde GitHub. "
+                           "Ejecuta primero la tarea programada y comprueba que "
+                           "el repositorio sea público o accesible desde la aplicación. "
+                           f"Detalle: {type(exc).__name__}: {exc}")
+
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
+
 
