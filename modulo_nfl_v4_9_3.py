@@ -1,7 +1,3 @@
-"""NFL v4.9: proyecciones deportivas educativas con EPA y Success Rate reales.
-Integración: from modulo_nfl import mostrar_modulo_nfl
-Fuente: nflverse mediante nflreadpy. No incluye cuotas ni apuestas.
-"""
 from datetime import datetime, timezone, timedelta
 import io
 import hashlib
