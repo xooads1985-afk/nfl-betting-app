@@ -66,6 +66,64 @@ def mostrar_promedios_diferencias():
     detalle['PC_por_partido'] = (detalle.PC / detalle.PJ).round(2)
     detalle['diferencia_por_partido'] = ((detalle.PF - detalle.PC) / detalle.PJ).round(2)
     st.dataframe(detalle, use_container_width=True, hide_index=True)
+        st.markdown('### 🏈 Resultados partido por partido')
+
+    individuales = juegos[
+        juegos['equipo'].isin([equipo_a, equipo_b])
+    ].copy()
+
+    rivales = partidos[
+        ['game_id', 'home_team', 'away_team']
+    ].copy()
+
+    individuales = individuales.merge(
+        rivales,
+        on='game_id',
+        how='left',
+        validate='many_to_one'
+    )
+
+    individuales['rival'] = individuales.apply(
+        lambda r: (
+            r['away_team']
+            if r['condicion'] == 'Local'
+            else r['home_team']
+        ),
+        axis=1
+    )
+
+    individuales['diferencia'] = (
+        individuales['anotados'] - individuales['recibidos']
+    )
+
+    individuales['fecha'] = (
+        pd.to_datetime(individuales['gameday'])
+        .dt.strftime('%Y-%m-%d')
+    )
+
+    individuales = individuales[
+        [
+            'equipo', 'fecha', 'rival', 'condicion',
+            'anotados', 'recibidos', 'diferencia'
+        ]
+    ].sort_values(
+        ['equipo', 'fecha'],
+        ascending=[True, False]
+    )
+
+    st.dataframe(
+        individuales,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.download_button(
+        '📥 Descargar partidos individuales CSV',
+        individuales.to_csv(index=False).encode('utf-8-sig'),
+        f'partidos_individuales_nfl_{temporada}.csv',
+        mime='text/csv',
+        key='pd_partidos_csv'
+    )
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
 
