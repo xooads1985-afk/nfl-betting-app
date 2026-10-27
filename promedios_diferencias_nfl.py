@@ -560,12 +560,17 @@ def mostrar_promedios_diferencias():
                         st.metric("Antigüedad de la última revisión", f"{horas:.1f} h")
                         st.caption("Última revisión guardada: "
                                    f"{ultimo['_fecha']:%Y-%m-%d %H:%M:%S} UTC")
-                        c1, c2 = st.columns(2)
-                        c1.metric("Partidos registrados", partidos_guardados if partidos_guardados is not None else "N/D")
-                        c2.metric("Marcadores coincidentes", coinciden_guardados if coinciden_guardados is not None else "N/D")
-                        c3, c4 = st.columns(2)
-                        c3.metric("Marcadores diferentes", diferentes_guardados if diferentes_guardados is not None else "N/D")
-                        c4.metric("Sin verificar", pendientes_guardados if pendientes_guardados is not None else "N/D")
+                        # Indicadores en un único bloque, sin columnas anidadas en móvil.
+                        indicadores = pd.DataFrame({
+                            "Indicador": ["Partidos registrados", "Marcadores coincidentes",
+                                          "Marcadores diferentes", "Sin verificar"],
+                            "Valor": [partidos_guardados, coinciden_guardados,
+                                      diferentes_guardados, pendientes_guardados],
+                        })
+                        indicadores["Valor"] = indicadores["Valor"].map(
+                            lambda valor: "N/D" if pd.isna(valor) else str(int(valor))
+                        )
+                        st.dataframe(indicadores, use_container_width=True, hide_index=True)
                         if anterior is not None and partidos_guardados is not None:
                             previo = pd.to_numeric(pd.Series([anterior.get("partidos")]), errors="coerce").iloc[0]
                             if pd.notna(previo):
