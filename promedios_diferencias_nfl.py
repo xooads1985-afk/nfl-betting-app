@@ -189,6 +189,60 @@ def mostrar_promedios_diferencias():
             "Las muestras pequeñas pueden producir "
             "promedios poco representativos."
         )    
+
+    # Comparación histórica de ataque y defensa, sin generar marcador previsto.
+    st.markdown("### 🧭 Comparación ofensiva y defensiva")
+    st.caption(
+        "Los siguientes indicadores son históricos. "
+        "No estiman los puntos que se anotarán en un partido futuro."
+    )
+
+    recientes_juegos, recientes_resumen = resumen_equipos(partidos, 5)
+    filas = recientes_resumen.set_index("equipo")
+    if equipo_a != equipo_b and all(e in filas.index for e in (equipo_a, equipo_b)):
+        comparativa = pd.DataFrame([
+            {
+                "Equipo": equipo_a,
+                "Ataque: puntos anotados/partido": filas.loc[equipo_a, "PF_por_partido"],
+                "Defensa rival: puntos recibidos/partido": filas.loc[equipo_b, "PC_por_partido"],
+                "Partidos analizados": int(filas.loc[equipo_a, "PJ"]),
+            },
+            {
+                "Equipo": equipo_b,
+                "Ataque: puntos anotados/partido": filas.loc[equipo_b, "PF_por_partido"],
+                "Defensa rival: puntos recibidos/partido": filas.loc[equipo_a, "PC_por_partido"],
+                "Partidos analizados": int(filas.loc[equipo_b, "PJ"]),
+            },
+        ])
+        st.dataframe(comparativa, use_container_width=True, hide_index=True)
+
+    st.markdown("### 📈 Evolución de puntos por encuentro")
+    st.caption(
+        "Cada punto de la gráfica corresponde a un partido finalizado "
+        "dentro del periodo seleccionado. No son puntos acumulados."
+    )
+    for equipo in dict.fromkeys([equipo_a, equipo_b]):
+        historial = juegos.loc[
+            juegos["equipo"].eq(equipo),
+            ["gameday", "game_id", "anotados", "recibidos"]
+        ].sort_values(["gameday", "game_id"]).copy()
+        if historial.empty:
+            st.info(f"No hay partidos disponibles para {equipo}.")
+            continue
+        historial["Partido"] = range(1, len(historial) + 1)
+        grafica = historial.set_index("Partido")[["anotados", "recibidos"]]
+        grafica = grafica.rename(columns={
+            "anotados": "Puntos anotados",
+            "recibidos": "Puntos recibidos",
+        })
+        st.markdown(f"**{equipo} — {len(historial)} partidos**")
+        st.line_chart(grafica)
+        st.caption(
+            f"Partidos ordenados del más antiguo al más reciente "
+            f"({historial['gameday'].min():%Y-%m-%d} a "
+            f"{historial['gameday'].max():%Y-%m-%d})."
+        )
+
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
 
