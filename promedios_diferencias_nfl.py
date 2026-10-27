@@ -124,6 +124,71 @@ def mostrar_promedios_diferencias():
         mime='text/csv',
         key='pd_partidos_csv'
     )
+    st.markdown("### 📊 Análisis del próximo encuentro")
+
+    st.caption(
+        "Comparación descriptiva del rendimiento reciente. "
+        "No representa una predicción del marcador."
+    )
+
+    if equipo_a == equipo_b:
+        st.warning("Selecciona dos equipos diferentes.")
+    else:
+        recientes = resumen_equipos(partidos, 5)[1]
+
+        comparacion_reciente = recientes[
+            recientes["equipo"].isin([equipo_a, equipo_b])
+        ].copy()
+
+        comparacion_reciente = comparacion_reciente[
+            [
+                "equipo",
+                "PJ",
+                "PF_por_partido",
+                "PC_por_partido",
+                "diferencia_por_partido",
+            ]
+        ]
+
+        comparacion_reciente = comparacion_reciente.rename(
+            columns={
+                "equipo": "Equipo",
+                "PJ": "Partidos",
+                "PF_por_partido": "Promedio anotado",
+                "PC_por_partido": "Promedio recibido",
+                "diferencia_por_partido": "Diferencia promedio",
+            }
+        )
+
+        st.dataframe(
+            comparacion_reciente,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.markdown("#### 🏟️ Rendimiento local y visitante")
+
+        st.dataframe(
+            detalle[
+                [
+                    "equipo",
+                    "condicion",
+                    "PJ",
+                    "PF_por_partido",
+                    "PC_por_partido",
+                    "diferencia_por_partido",
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Los promedios locales y visitantes corresponden "
+            "al periodo seleccionado arriba. "
+            "Las muestras pequeñas pueden producir "
+            "promedios poco representativos."
+        )    
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
 
