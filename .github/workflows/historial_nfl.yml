@@ -20,6 +20,8 @@ jobs:
           python-version: '3.11'
       - name: Instalar dependencias
         run: pip install pandas streamlit nflreadpy
+      - name: Comprobar sintaxis
+        run: python -m compileall -q promedios_diferencias_nfl.py auditoria_programada.py
       - name: Consultar y registrar resultados
         env:
           NFL_TEMPORADA: '2026'
