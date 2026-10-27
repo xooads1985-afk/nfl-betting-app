@@ -66,7 +66,7 @@ def mostrar_promedios_diferencias():
     detalle['PC_por_partido'] = (detalle.PC / detalle.PJ).round(2)
     detalle['diferencia_por_partido'] = ((detalle.PF - detalle.PC) / detalle.PJ).round(2)
     st.dataframe(detalle, use_container_width=True, hide_index=True)
-        st.markdown('### 🏈 Resultados partido por partido')
+    st.markdown('### 🏈 Resultados partido por partido')
 
     individuales = juegos[
         juegos['equipo'].isin([equipo_a, equipo_b])
