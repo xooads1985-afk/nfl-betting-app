@@ -15,7 +15,7 @@ def mostrar_centro_estadistico_nfl():
             "Comparador de jugadores",
             "Promedios y diferencias",
         ],
-        horizontal=True,
+        horizontal=False,
         key="centro_nfl_vista",
     )
 
