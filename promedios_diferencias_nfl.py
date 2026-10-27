@@ -67,7 +67,7 @@ def cargar_marcadores_espn(temporada):
                     continue
                 h, a = por_condicion["home"], por_condicion["away"]
                 # Abreviaturas que ESPN utiliza de manera diferente.
-                alias = {"WSH": "WAS", "JAX": "JAC", "LA": "LAR"}
+                alias = {"WSH": "WAS", "JAC": "JAX", "LA": "LAR"}
                 home = alias.get(h.get("team", {}).get("abbreviation", ""),
                                  h.get("team", {}).get("abbreviation", ""))
                 away = alias.get(a.get("team", {}).get("abbreviation", ""),
@@ -83,32 +83,62 @@ def cargar_marcadores_espn(temporada):
 
 
 def comparar_fuentes_nfl(partidos, externos, errores):
-    """Compara por local y visitante; no equipara fechas UTC con fechas locales."""
+    """Relaciona equipos y fecha (±1 día por UTC); nunca inventa coincidencias."""
     base = partidos[["game_id", "gameday", "home_team", "away_team",
                      "home_score", "away_score"]].copy()
-    base["fecha_nflverse"] = base["gameday"].dt.strftime("%Y-%m-%d")
+    base["fecha_nflverse"] = pd.to_datetime(base["gameday"]).dt.strftime("%Y-%m-%d")
     base = base.drop(columns=["gameday"])
+    columnas_externas = ["home_score_espn", "away_score_espn", "fecha_espn_utc", "espn_id"]
+    for col in columnas_externas:
+        base[col] = pd.NA
+    base["Estado"] = "SIN VERIFICAR"
+    base["Observación"] = "Sin encuentro externo compatible"
     if externos.empty:
-        base["Estado"] = "SIN VERIFICAR"
-        base["Observación"] = "No hay resultados externos disponibles"
+        base["Observación"] = "ESPN no devolvió partidos finalizados"
         return base, 0, len(base), 0
-    externos = externos.drop_duplicates(["home_team", "away_team"], keep=False)
-    merged = base.merge(externos, on=["home_team", "away_team"], how="left", validate="many_to_one")
-    sin_dato = merged["espn_id"].isna()
-    iguales = ((merged["home_score"] == merged["home_score_espn"])
-               & (merged["away_score"] == merged["away_score_espn"]))
-    merged["Estado"] = "COINCIDE"
-    merged.loc[~iguales & ~sin_dato, "Estado"] = "DIFERENTE"
-    merged.loc[sin_dato, "Estado"] = "SIN VERIFICAR"
-    merged["Observación"] = ""
-    merged.loc[sin_dato, "Observación"] = (
-        "No encontrado en ESPN; puede ser falta de cobertura, error o partido no finalizado")
-    # Fechas UTC de ESPN pueden diferir un día de la fecha de juego local.
-    if errores:
-        merged.loc[sin_dato, "Observación"] = "Consulta ESPN incompleta; no declarar como faltante"
-    return (merged, int((merged["Estado"] == "COINCIDE").sum()),
-            int((merged["Estado"] == "SIN VERIFICAR").sum()),
-            int((merged["Estado"] == "DIFERENTE").sum()))
+
+    # Normalizar variantes de abreviaturas en AMBAS fuentes.
+    alias = {"WSH": "WAS", "JAC": "JAX", "LA": "LAR", "OAK": "LV",
+             "SD": "LAC", "STL": "LAR"}
+    def normalizar(valor):
+        codigo = str(valor).strip().upper()
+        return alias.get(codigo, codigo)
+
+    ref = externos.copy()
+    ref["_home"] = ref["home_team"].map(normalizar)
+    ref["_away"] = ref["away_team"].map(normalizar)
+    ref["_fecha"] = pd.to_datetime(ref["fecha_espn_utc"], errors="coerce", utc=True).dt.tz_localize(None)
+    ref = ref.drop_duplicates(subset=["espn_id"], keep="first")
+    usados = set()
+    for idx, fila in base.iterrows():
+        local = normalizar(fila["home_team"])
+        visitante = normalizar(fila["away_team"])
+        fecha = pd.to_datetime(fila["fecha_nflverse"], errors="coerce")
+        candidatos = ref[(ref["_home"] == local) & (ref["_away"] == visitante)].copy()
+        if pd.notna(fecha):
+            candidatos = candidatos[(candidatos["_fecha"] - fecha).abs() <= pd.Timedelta(days=1)]
+        candidatos = candidatos[~candidatos["espn_id"].astype(str).isin(usados)]
+        if len(candidatos) == 0:
+            base.at[idx, "Observación"] = (
+                "Sin resultado ESPN para equipos y fecha (±1 día)"
+                + ("; hubo fallos de consulta" if errores else ""))
+            continue
+        if len(candidatos) != 1:
+            base.at[idx, "Observación"] = "Varias coincidencias posibles: revisión manual"
+            continue
+        externo = candidatos.iloc[0]
+        usados.add(str(externo["espn_id"]))
+        for col in columnas_externas:
+            base.at[idx, col] = externo[col]
+        iguales = (int(fila["home_score"]) == int(externo["home_score_espn"])
+                   and int(fila["away_score"]) == int(externo["away_score_espn"]))
+        base.at[idx, "Estado"] = "COINCIDE" if iguales else "DIFERENTE"
+        base.at[idx, "Observación"] = (
+            "Equipos y fecha compatibles; marcador igual" if iguales
+            else "Equipos y fecha compatibles; marcador distinto")
+    return (base, int((base["Estado"] == "COINCIDE").sum()),
+            int((base["Estado"] == "SIN VERIFICAR").sum()),
+            int((base["Estado"] == "DIFERENTE").sum()))
 
 def mostrar_promedios_diferencias():
     st.subheader('🏈 Promedios y diferencias de puntos')
@@ -425,4 +455,5 @@ def mostrar_promedios_diferencias():
 
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
+
 
