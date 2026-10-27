@@ -1,1 +1,35 @@
-
+name: Historial estadístico NFL
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 12 * * *'  # Diario 12:25 UTC; GitHub puede retrasarlo.
+permissions:
+  contents: write
+concurrency:
+  group: historial-nfl
+  cancel-in-progress: false
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: pip install pandas streamlit nflreadpy
+      - name: Consultar y registrar resultados
+        env:
+          NFL_TEMPORADA: '2026'
+        run: python auditoria_programada.py
+      - name: Guardar historial en el repositorio
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add datos_auditoria/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Actualizar historial estadístico NFL'
+            git push
+          fi
