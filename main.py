@@ -1,5 +1,5 @@
-"""Master Suite Analítica Élite Pro - Versión Limpia (4 Deportes + Apuestas)
-Deportes: NFL (v4.9.3.5), NBA, NHL y Fútbol.
+"""Master Suite Analítica Élite Pro - Aplicación Unificada
+Deportes: NFL (Centro Estadístico Pro + Comparador), NBA, NHL, Fútbol + Bankroll SQLite.
 """
 from datetime import datetime
 import sqlite3
@@ -7,6 +7,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 import streamlit as st
+
+# Importar tus módulos especializados
+from centro_estadistico_nfl import mostrar_centro_estadistico_nfl
+from comparador_jugadores_nfl import mostrar_comparador
 
 # Configuración global de la página
 st.set_page_config(
@@ -69,15 +73,15 @@ def calcular_criterio_kelly(bankroll, prob_modelo_pct, momio_americano, fraccion
   return round(max(10.0, bankroll * kelly_full * fraccion_kelly), 2)
 
 # ---------------------------------------------------------
-# MENÚ LATERAL (4 DEPORTES + GESTIÓN)
+# MENÚ LATERAL UNIFICADO (4 DEPORTES + APUESTAS)
 # ---------------------------------------------------------
 st.sidebar.title("🎯 Master Suite Élite")
-st.sidebar.caption("Versión Optimizada: 4 Deportes")
+st.sidebar.caption("Panel de Control Unificado")
 
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 Módulo Pro NFL",
+        "🏈 Centro Deportivo NFL",
         "🏀 Módulo Pro NBA",
         "🏒 Módulo Pro NHL (Hockey)",
         "⚽ Módulo Pro Fútbol (Soccer)",
@@ -89,18 +93,10 @@ modulo_seleccionado = st.sidebar.selectbox(
 fecha_hoy = datetime.now().strftime("%Y-%m-%d")
 
 # ---------------------------------------------------------
-# 1. MÓDULO NFL (Importando tu archivo modulo_nfl.py o integrado)
+# 1. MÓDULO NFL (Desde centro_estadistico_nfl.py)
 # ---------------------------------------------------------
-if modulo_seleccionado == "🏈 Módulo Pro NFL":
-  st.title(f"🏈 **Centro Deportivo NFL [{fecha_hoy}]**")
-  st.markdown("---")
-  try:
-    # Intentamos importar tu módulo separado para mantener el main limpio
-    from modulo_nfl import mostrar_modulo_nfl
-    mostrar_modulo_nfl()
-  except ImportError:
-    st.error("⚠️ No se encontró el archivo `modulo_nfl.py` en tu Replit.")
-    st.info("Sube o crea tu archivo `modulo_nfl.py` en la misma carpeta para que carguen las 3,000 líneas de la NFL automáticamente.")
+if modulo_seleccionado == "🏈 Centro Deportivo NFL":
+  mostrar_centro_estadistico_nfl()
 
 # ---------------------------------------------------------
 # 2. MÓDULO NBA
@@ -108,7 +104,7 @@ if modulo_seleccionado == "🏈 Módulo Pro NFL":
 elif modulo_seleccionado == "🏀 Módulo Pro NBA":
   st.title(f"🏀 **Módulo Pro NBA Élite [{fecha_hoy}]**")
   st.markdown("---")
-  st.info("Panel de análisis avanzado de NBA (Ratings ofensivos/defensivos, Pace y análisis de descanso B2B).")
+  st.info("Panel de análisis avanzado de NBA (Ratings ofensivos/defensivos, Pace y descanso B2B).")
   
   col1, col2 = st.columns(2)
   with col1:
@@ -212,7 +208,7 @@ elif modulo_seleccionado == "🧮 Calculadora Kelly / EV & Arbitraje":
     bank_actual = st.number_input("Bankroll actual disponible:", value=st.session_state["bankroll_global"])
     frac_k = st.slider("Fracción de Kelly:", 0.1, 1.0, 0.25)
 
-  if st.button("⚖️ Calcular Stake Óptimo", use_container_width=True):
+  if st.button("⚖️ Stake Óptimo", use_container_width=True):
     implied = 100.0 / (abs(momio_casa) + 100.0) * 100 if momio_casa < 0 else 100.0 / (momio_casa + 100.0) * 100
     edge = prob_modelo - implied
     stake_sugerido = calcular_criterio_kelly(bank_actual, prob_modelo, momio_casa, frac_k)
