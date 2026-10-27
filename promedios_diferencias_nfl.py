@@ -485,6 +485,101 @@ def mostrar_promedios_diferencias():
                     "La verificación externa no se ejecuta hasta entonces.")
 
 
+    # Panel descriptivo de salud de los datos persistidos en GitHub.
+    st.markdown("### 🩺 Panel de Salud de Datos NFL")
+    with st.expander("Consultar estado y alertas del historial", expanded=False):
+        st.caption("Estado calculado a partir del último registro guardado por GitHub Actions. "
+                   "No comprueba en tiempo real si la tarea programada sigue activa.")
+        if st.button("🔄 Revisar salud de datos", key="pd_salud_actualizar"):
+            from urllib.request import Request, urlopen
+            from io import BytesIO
+            url_salud = (
+                "https://raw.githubusercontent.com/xooads1985-afk/nfl-betting-app/"
+                f"main/datos_auditoria/historial_{temporada}.csv"
+            )
+            try:
+                req = Request(url_salud, headers={"User-Agent": "NFL-stats-health"})
+                with urlopen(req, timeout=15) as respuesta:
+                    contenido_salud = respuesta.read()
+                registros = pd.read_csv(BytesIO(contenido_salud))
+                if registros.empty:
+                    st.warning("El historial existe, pero no contiene revisiones.")
+                elif "fecha_utc" not in registros.columns:
+                    st.error("El historial no contiene la columna fecha_utc.")
+                else:
+                    registros = registros.copy()
+                    registros["_fecha"] = pd.to_datetime(
+                        registros["fecha_utc"], utc=True, errors="coerce")
+                    registros = registros.dropna(subset=["_fecha"]).sort_values("_fecha")
+                    if registros.empty:
+                        st.error("No se encontraron fechas válidas en el historial.")
+                    else:
+                        ultimo = registros.iloc[-1]
+                        anterior = registros.iloc[-2] if len(registros) >= 2 else None
+                        ahora_utc = pd.Timestamp.now(tz="UTC")
+                        horas = max(0.0, (ahora_utc - ultimo["_fecha"]).total_seconds() / 3600)
+
+                        def numero(nombre):
+                            if nombre not in registros.columns:
+                                return None
+                            valor = pd.to_numeric(pd.Series([ultimo[nombre]]), errors="coerce").iloc[0]
+                            return int(valor) if pd.notna(valor) else None
+
+                        partidos_guardados = numero("partidos")
+                        coinciden_guardados = numero("coinciden")
+                        diferentes_guardados = numero("diferentes")
+                        pendientes_guardados = numero("sin_verificar")
+                        if pendientes_guardados is None:
+                            pendientes_guardados = numero("sin_verificar_externa")
+
+                        # Los umbrales son orientativos y configurables, no una prueba
+                        # de que GitHub Actions haya ejecutado o no su horario.
+                        if diferentes_guardados is not None and diferentes_guardados > 0:
+                            estado = "🔴 Revisar: hay marcadores diferentes"
+                            mostrar_estado = st.error
+                        elif horas > 48:
+                            estado = "🔴 Revisar: última revisión hace más de 48 h"
+                            mostrar_estado = st.error
+                        elif horas > 30 or (pendientes_guardados is not None and pendientes_guardados > 0):
+                            estado = "🟡 Atención: revisión atrasada o pendiente de verificar"
+                            mostrar_estado = st.warning
+                        elif diferentes_guardados is None or pendientes_guardados is None:
+                            estado = "🟡 Atención: faltan columnas para validar discrepancias"
+                            mostrar_estado = st.warning
+                        else:
+                            estado = "🟢 Correcto según el último historial disponible"
+                            mostrar_estado = st.success
+                        mostrar_estado(estado)
+                        st.caption("Umbrales de antigüedad: atención >30 horas; revisar >48 horas. "
+                                   "Estos límites son orientativos para una tarea diaria.")
+                        st.metric("Revisiones guardadas", len(registros))
+                        st.metric("Antigüedad de la última revisión", f"{horas:.1f} h")
+                        st.caption("Última revisión guardada: "
+                                   f"{ultimo['_fecha']:%Y-%m-%d %H:%M:%S} UTC")
+                        c1, c2 = st.columns(2)
+                        c1.metric("Partidos registrados", partidos_guardados if partidos_guardados is not None else "N/D")
+                        c2.metric("Marcadores coincidentes", coinciden_guardados if coinciden_guardados is not None else "N/D")
+                        c3, c4 = st.columns(2)
+                        c3.metric("Marcadores diferentes", diferentes_guardados if diferentes_guardados is not None else "N/D")
+                        c4.metric("Sin verificar", pendientes_guardados if pendientes_guardados is not None else "N/D")
+                        if anterior is not None and partidos_guardados is not None:
+                            previo = pd.to_numeric(pd.Series([anterior.get("partidos")]), errors="coerce").iloc[0]
+                            if pd.notna(previo):
+                                cambio = partidos_guardados - int(previo)
+                                if cambio > 0:
+                                    st.info(f"🆕 {cambio} partido(s) adicionales respecto a la revisión anterior.")
+                                elif cambio == 0:
+                                    st.caption("No cambió el número de partidos desde la revisión anterior.")
+                                else:
+                                    st.warning(f"El historial registra {abs(cambio)} partido(s) menos que antes; revisar.")
+                        else:
+                            st.caption("Se necesitan al menos dos revisiones para calcular cambios.")
+                        st.dataframe(registros.drop(columns=["_fecha"]).tail(5).iloc[::-1],
+                                     use_container_width=True, hide_index=True)
+            except Exception as exc:
+                st.error("No se pudo consultar el historial de GitHub. "
+                         f"Detalle: {type(exc).__name__}: {exc}")
+
     st.markdown("### 🗂️ Historial permanente de revisiones")
     with st.expander("Consultar historial guardado en GitHub", expanded=False):
         st.caption("Este historial se genera mediante GitHub Actions. "
