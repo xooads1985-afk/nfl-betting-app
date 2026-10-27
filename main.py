@@ -148,10 +148,10 @@ def analizar_mercados_futbol(el, ev, xg_l, xg_v, momio_playdoit):
 
 
 # =========================================================
-# MÓDULO NFL v4.9.3.3 (INTEGRADO COMPLETAMENTE)
+# MÓDULO NFL v4.9.3.4 (INTEGRADO COMPLETAMENTE)
 # =========================================================
-TEMPORADAS_NFL = [2022, 2023, 2024, 2025, 2026]
-VARIABLES_NFL = [
+TEMPORADAS = [2022, 2023, 2024, 2025, 2026]
+VARIABLES = [
     'local_pf', 'local_pa', 'local_victorias', 'visitante_pf', 'visitante_pa',
     'visitante_victorias', 'local_epa_of', 'local_epa_def',
     'visitante_epa_of', 'visitante_epa_def', 'local_sr_of', 'local_sr_def',
@@ -160,7 +160,7 @@ VARIABLES_NFL = [
     'visitante_fuera_pf',
 ]
 
-def _requerir_nfl(df, cols, fuente):
+def _requerir(df, cols, fuente):
     faltan = sorted(set(cols) - set(df.columns))
     if faltan:
         raise ValueError(f'{fuente}: faltan columnas requeridas: {", ".join(faltan)}')
@@ -168,9 +168,9 @@ def _requerir_nfl(df, cols, fuente):
 @st.cache_data(ttl=86400, show_spinner=False)
 def cargar_datos_nfl():
     import nflreadpy as nfl
-    calendario = nfl.load_schedules(TEMPORADAS_NFL).to_pandas()
+    calendario = nfl.load_schedules(TEMPORADAS).to_pandas()
     cols = ['game_id', 'season', 'week', 'gameday', 'home_team', 'away_team', 'home_score', 'away_score']
-    _requerir_nfl(calendario, cols, 'Calendario')
+    _requerir(calendario, cols, 'Calendario')
     calendario = calendario[cols].copy()
     calendario['gameday'] = pd.to_datetime(calendario['gameday'], errors='coerce').dt.normalize()
     for c in ['season', 'week', 'home_score', 'away_score']:
@@ -180,11 +180,11 @@ def cargar_datos_nfl():
 
     partes = []
     errores = []
-    for temporada in TEMPORADAS_NFL:
+    for temporada in TEMPORADAS:
         try:
             pbp = nfl.load_pbp(temporada)
             requeridas = ['game_id', 'posteam', 'defteam', 'epa', 'success', 'play_type']
-            _requerir_nfl(pbp, requeridas, f'PBP {temporada}')
+            _requerir(pbp, requeridas, f'PBP {temporada}')
             pbp = pbp.select(requeridas).to_pandas()
             pbp = pbp[pbp['play_type'].isin(['pass', 'run'])].copy()
             pbp['epa'] = pd.to_numeric(pbp['epa'], errors='coerce')
@@ -213,9 +213,9 @@ def cargar_datos_nfl():
 @st.cache_data(ttl=900, show_spinner=False)
 def cargar_calendario_rapido_v40():
     import nflreadpy as nfl
-    datos = nfl.load_schedules(TEMPORADAS_NFL)
+    datos = nfl.load_schedules(TEMPORADAS)
     df = datos.to_pandas() if hasattr(datos, 'to_pandas') else pd.DataFrame(datos)
-    _requerir_nfl(df, ['game_id', 'season', 'week', 'gameday', 'home_team',
+    _requerir(df, ['game_id', 'season', 'week', 'gameday', 'home_team',
                        'away_team', 'home_score', 'away_score'], 'Calendario NFL 4.0')
     df = df.copy()
     df['gameday'] = pd.to_datetime(df['gameday'], errors='coerce')
@@ -265,7 +265,7 @@ def _panel_inicio_v40(cal):
     completos = cal.dropna(subset=['home_score', 'away_score'])
     futuros = cal[(cal['gameday'] >= hoy) & cal['home_score'].isna()
                   & cal['away_score'].isna()].sort_values(['gameday', 'game_id'])
-    st.subheader('🏠 Resumen NFL v4.9.3.3')
+    st.subheader('🏠 Resumen NFL v4.9.3.4')
     st.metric('Partidos con resultado', len(completos))
     st.markdown('**📅 Próximos encuentros**')
     _tarjetas_partidos_v42(futuros.head(8))
@@ -273,7 +273,7 @@ def _panel_inicio_v40(cal):
     _tarjetas_partidos_v42(completos.sort_values(['gameday', 'game_id'], ascending=False).head(8))
 
 def mostrar_modulo_nfl():
-    st.header('🏈 NFL 4.9.3.3 | Centro deportivo móvil')
+    st.header('🏈 NFL 4.9.3.4 | Centro deportivo móvil')
     st.caption('NFLverse · Calendario, resultados y estadísticas observadas')
     if st.button('🔄 Consultar datos nuevos', key='nfl40_actualizar'):
         cargar_calendario_rapido_v40.clear()
@@ -293,13 +293,13 @@ def mostrar_modulo_nfl():
     if seleccion == '🏠 Inicio':
         _panel_inicio_v40(cal)
     elif seleccion == '📅 Partidos':
-        st.subheader('📅 Calendario y resultados v4.9.3.3')
+        st.subheader('📅 Calendario y resultados v4.9.3.4')
         _tarjetas_partidos_v42(cal.sort_values(['gameday', 'game_id']))
     elif seleccion == '🏟️ Equipos':
-        st.subheader('🏟️ Estadísticas de equipos v4.9.3.3')
+        st.subheader('🏟️ Estadísticas de equipos v4.9.3.4')
         st.info('Módulo de estadísticas de equipos activo.')
     elif seleccion == '📈 Rendimiento de jugadores':
-        st.subheader('📈 Rendimiento de jugadores v4.9.3.3')
+        st.subheader('📈 Rendimiento de jugadores v4.9.3.4')
         st.info('Panel de selección doble independiente activo.')
 
 
@@ -310,7 +310,7 @@ st.sidebar.title("🎯 Master Suite Analítica")
 modulo_seleccionado = st.sidebar.selectbox(
     "Selecciona un Módulo",
     [
-        "🏈 NFL 4.9.3.3 | Centro deportivo móvil",
+        "🏈 NFL 4.9.3.4 | Centro deportivo móvil",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "🏈 Módulo Pro NCAAF (Colegial)",
         "🏀 Módulo Pro NBA",
@@ -331,7 +331,7 @@ modulo_seleccionado = st.sidebar.selectbox(
 
 fecha_formato_str = datetime.now().strftime("%Y-%m-%d")
 
-if modulo_seleccionado == "🏈 NFL 4.9.3.3 | Centro deportivo móvil":
+if modulo_seleccionado == "🏈 NFL 4.9.3.4 | Centro deportivo móvil":
   mostrar_modulo_nfl()
 
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
