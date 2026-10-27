@@ -79,7 +79,7 @@ def cargar_marcadores_espn(temporada):
                                    "espn_id": str(event.get("id", ""))})
         except Exception as exc:
             errores.append(f"Semana {semana}: {type(exc).__name__}: {exc}")
-    return pd.DataFrame(resultados), errores
+    return pd.DataFrame(resultados, columns=["home_team", "away_team", "home_score_espn", "away_score_espn", "fecha_espn_utc", "espn_id"]), errores
 
 
 def comparar_fuentes_nfl(partidos, externos, errores):
@@ -227,7 +227,7 @@ def mostrar_promedios_diferencias():
         mime='text/csv',
         key='pd_partidos_csv'
     )
-    st.markdown("### 📊 Análisis del próximo encuentro")
+    st.markdown("### 📊 Comparación de rendimiento histórico")
 
     st.caption(
         "Comparación descriptiva del rendimiento reciente. "
@@ -424,15 +424,18 @@ def mostrar_promedios_diferencias():
         automatico = st.checkbox("Activar supervisión automática al usar la página",
                                  value=False, key="pd_auto_supervision")
         actualizar = st.button("🔄 Actualizar ahora y verificar", key="pd_ejecutar_externa")
+        partidos_revision = partidos
         if actualizar:
             cargar_resultados.clear()
             cargar_marcadores_espn.clear()
-            with st.spinner("Actualizando resultados de ambas fuentes..."):
-                partidos_revision = cargar_resultados(temporada)
-        else:
-            partidos_revision = partidos
+            try:
+                with st.spinner("Actualizando resultados de ambas fuentes..."):
+                    partidos_revision = cargar_resultados(temporada)
+            except Exception as exc:
+                st.error(f"No se pudieron actualizar los resultados: {type(exc).__name__}: {exc}")
+                partidos_revision = None
 
-        if automatico or actualizar:
+        if (automatico or actualizar) and partidos_revision is not None:
             with st.spinner("Revisando marcadores de ESPN..."):
                 espn, errores_espn = cargar_marcadores_espn(temporada)
                 comparados, coinciden, sin_verificar, diferentes = comparar_fuentes_nfl(
@@ -441,7 +444,7 @@ def mostrar_promedios_diferencias():
             ahora = pd.Timestamp.now(tz="UTC")
             st.caption(f"Última revisión de la página: {ahora:%Y-%m-%d %H:%M} UTC · "
                        f"Resultados recibidos de ESPN: {len(espn)} · "
-                       "Caché de ESPN: máximo 30 minutos; fuente principal: 15 minutos.")
+                       "Caché de ESPN: hasta 30 minutos; fuente principal: hasta 15 minutos, salvo actualización manual.")
             col1, col2, col3 = st.columns(3)
             col1.metric("Coinciden", coinciden)
             col2.metric("Diferentes", diferentes)
@@ -473,7 +476,7 @@ def mostrar_promedios_diferencias():
                 st.error(f"⚠️ {diferentes} partido(s) con marcador diferente entre fuentes.")
             if sin_verificar:
                 st.warning(f"⚠️ {sin_verificar} partido(s) pendientes de verificación externa.")
-            if not diferentes and not sin_verificar and not errores_espn:
+            if len(partidos_revision) > 0 and not diferentes and not sin_verificar and not errores_espn:
                 st.success("Todos los partidos cargados coinciden con ESPN en esta revisión.")
             st.dataframe(comparados, use_container_width=True, hide_index=True)
             st.download_button("📥 Descargar reporte de verificación CSV",
@@ -481,8 +484,9 @@ def mostrar_promedios_diferencias():
                                file_name=f"verificacion_externa_nfl_{temporada}.csv",
                                mime="text/csv", key="pd_externa_csv")
         else:
-            st.info("Activa la supervisión o pulsa 'Actualizar ahora y verificar'. "
-                    "La verificación externa no se ejecuta hasta entonces.")
+            if partidos_revision is not None:
+                st.info("Activa la supervisión o pulsa 'Actualizar ahora y verificar'. "
+                        "La verificación externa no se ejecuta hasta entonces.")
 
 
     # Panel descriptivo de salud de los datos persistidos en GitHub.
@@ -602,7 +606,11 @@ def mostrar_promedios_diferencias():
                 else:
                     st.metric("Revisiones guardadas", len(historial))
                     st.dataframe(historial.iloc[::-1], use_container_width=True, hide_index=True)
-                    st.line_chart(historial.set_index("fecha_utc")[["partidos", "coinciden"]])
+                    columnas_grafica = [c for c in ("partidos", "coinciden") if c in historial.columns]
+                    if "fecha_utc" in historial.columns and columnas_grafica:
+                        st.line_chart(historial.set_index("fecha_utc")[columnas_grafica])
+                    else:
+                        st.warning("No hay columnas suficientes para dibujar la evolución histórica.")
                     st.download_button("📥 Descargar historial CSV", contenido,
                                        file_name=f"historial_nfl_{temporada}.csv",
                                        mime="text/csv", key="pd_historial_descarga")
