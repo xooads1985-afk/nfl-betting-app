@@ -243,6 +243,77 @@ def mostrar_promedios_diferencias():
             f"{historial['gameday'].max():%Y-%m-%d})."
         )
 
+    # Auditoría interna de todos los resultados disponibles en la temporada.
+    # La fuente externa debe contrastarse por separado: esto no certifica NFLverse.
+    st.markdown("### 🔎 Auditoría estadística de toda la liga")
+    with st.expander("Ver auditoría de los equipos y descargar reportes", expanded=False):
+        todos_juegos, todos_resumen = resumen_equipos(partidos)
+        auditoria = todos_resumen.sort_values("equipo").reset_index(drop=True).copy()
+        locales = todos_juegos[todos_juegos["condicion"] == "Local"].groupby("equipo").agg(
+            PJ_local=("game_id", "nunique"), PF_local=("anotados", "sum"),
+            PC_local=("recibidos", "sum"))
+        visitantes = todos_juegos[todos_juegos["condicion"] == "Visitante"].groupby("equipo").agg(
+            PJ_visitante=("game_id", "nunique"), PF_visitante=("anotados", "sum"),
+            PC_visitante=("recibidos", "sum"))
+        auditoria = auditoria.merge(locales, left_on="equipo", right_index=True, how="left")
+        auditoria = auditoria.merge(visitantes, left_on="equipo", right_index=True, how="left")
+        columnas_desglose = ["PJ_local", "PF_local", "PC_local", "PJ_visitante", "PF_visitante", "PC_visitante"]
+        auditoria[columnas_desglose] = auditoria[columnas_desglose].fillna(0).astype(int)
+        auditoria["PJ_correcto"] = auditoria["PJ"] == (auditoria["PJ_local"] + auditoria["PJ_visitante"])
+        auditoria["PF_correcto"] = auditoria["PF"] == (auditoria["PF_local"] + auditoria["PF_visitante"])
+        auditoria["PC_correcto"] = auditoria["PC"] == (auditoria["PC_local"] + auditoria["PC_visitante"])
+        auditoria["Promedios_correctos"] = (
+            ((auditoria["PF"] / auditoria["PJ"]).round(2) == auditoria["PF_por_partido"])
+            & ((auditoria["PC"] / auditoria["PJ"]).round(2) == auditoria["PC_por_partido"])
+            & (((auditoria["PF"] - auditoria["PC"]) / auditoria["PJ"]).round(2)
+               == auditoria["diferencia_por_partido"])
+        )
+        comprobaciones = ["PJ_correcto", "PF_correcto", "PC_correcto", "Promedios_correctos"]
+        auditoria["Estado"] = auditoria[comprobaciones].all(axis=1).map({True: "OK", False: "REVISAR"})
+
+        ids_duplicados = int(partidos["game_id"].duplicated().sum())
+        marcadores_invalidos = int(((partidos["home_score"] < 0) | (partidos["away_score"] < 0)
+                                   | (partidos["home_score"] % 1 != 0)
+                                   | (partidos["away_score"] % 1 != 0)).sum())
+        equipos_iguales = int((partidos["home_team"] == partidos["away_team"]).sum())
+        total_pf = int(auditoria["PF"].sum())
+        total_pc = int(auditoria["PC"].sum())
+        errores_equipos = int((auditoria["Estado"] != "OK").sum())
+        errores_globales = (ids_duplicados + marcadores_invalidos + equipos_iguales
+                            + int(total_pf != total_pc) + errores_equipos)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Equipos con resultados", len(auditoria))
+        c2.metric("Partidos únicos", len(partidos))
+        c3.metric("Comprobaciones fallidas", errores_globales)
+        if len(auditoria) != 32:
+            st.warning(f"Se encontraron {len(auditoria)} equipos con partidos finalizados, no 32. "
+                       "Esto puede deberse a la cobertura de la fuente o al momento de la temporada.")
+        if errores_globales:
+            st.error("Hay inconsistencias en los datos procesados. Revisa la tabla y la fuente.")
+        else:
+            st.success("Las comprobaciones internas sobre los datos procesados pasaron.")
+        st.caption(f"Control global: PF={total_pf:,}; PC={total_pc:,}. "
+                   f"IDs repetidos tras la carga={ids_duplicados}; marcadores inválidos={marcadores_invalidos}; "
+                   f"local=visitante={equipos_iguales}.")
+        st.dataframe(auditoria, use_container_width=True, hide_index=True)
+        st.download_button(
+            "📥 Descargar auditoría de equipos CSV",
+            auditoria.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"auditoria_equipos_nfl_{temporada}.csv",
+            mime="text/csv", key="pd_auditoria_equipos_csv")
+        juegos_exportar = partidos.copy()
+        juegos_exportar["gameday"] = juegos_exportar["gameday"].dt.strftime("%Y-%m-%d")
+        st.download_button(
+            "📥 Descargar todos los partidos CSV",
+            juegos_exportar.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"todos_los_partidos_nfl_{temporada}.csv",
+            mime="text/csv", key="pd_todos_partidos_csv")
+        st.info("Esta auditoría comprueba coherencia matemática de los datos cargados. "
+                "No detecta filas descartadas antes de la carga ni verifica por sí sola "
+                "que cada marcador coincida con una fuente externa independiente.")
+
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
+
 
