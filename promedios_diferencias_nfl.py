@@ -37,6 +37,79 @@ def resumen_equipos(partidos, ultimos=None):
     return juegos, resumen
 
 
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def cargar_marcadores_espn(temporada):
+    """Consulta marcadores FINALIZADOS de temporada regular en ESPN (fuente distinta)."""
+    import json
+    from urllib.request import Request, urlopen
+    resultados = []
+    errores = []
+    for semana in range(1, 19):
+        url = ("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+               f"?dates={temporada}&week={semana}&seasontype=2&limit=100")
+        try:
+            req = Request(url, headers={"User-Agent": "Mozilla/5.0 (NFL stats validator)",
+                                        "Accept": "application/json"})
+            with urlopen(req, timeout=12) as resp:
+                payload = json.load(resp)
+            for event in payload.get("events", []):
+                if not event.get("status", {}).get("type", {}).get("completed", False):
+                    continue
+                competitions = event.get("competitions", [])
+                if not competitions:
+                    continue
+                competidores = competitions[0].get("competitors", [])
+                if len(competidores) != 2:
+                    continue
+                por_condicion = {x.get("homeAway"): x for x in competidores}
+                if "home" not in por_condicion or "away" not in por_condicion:
+                    continue
+                h, a = por_condicion["home"], por_condicion["away"]
+                # Abreviaturas que ESPN utiliza de manera diferente.
+                alias = {"WSH": "WAS", "JAX": "JAC", "LA": "LAR"}
+                home = alias.get(h.get("team", {}).get("abbreviation", ""),
+                                 h.get("team", {}).get("abbreviation", ""))
+                away = alias.get(a.get("team", {}).get("abbreviation", ""),
+                                 a.get("team", {}).get("abbreviation", ""))
+                resultados.append({"home_team": home, "away_team": away,
+                                   "home_score_espn": int(h["score"]),
+                                   "away_score_espn": int(a["score"]),
+                                   "fecha_espn_utc": str(event.get("date", ""))[:10],
+                                   "espn_id": str(event.get("id", ""))})
+        except Exception as exc:
+            errores.append(f"Semana {semana}: {type(exc).__name__}: {exc}")
+    return pd.DataFrame(resultados), errores
+
+
+def comparar_fuentes_nfl(partidos, externos, errores):
+    """Compara por local y visitante; no equipara fechas UTC con fechas locales."""
+    base = partidos[["game_id", "gameday", "home_team", "away_team",
+                     "home_score", "away_score"]].copy()
+    base["fecha_nflverse"] = base["gameday"].dt.strftime("%Y-%m-%d")
+    base = base.drop(columns=["gameday"])
+    if externos.empty:
+        base["Estado"] = "SIN VERIFICAR"
+        base["Observación"] = "No hay resultados externos disponibles"
+        return base, 0, len(base), 0
+    externos = externos.drop_duplicates(["home_team", "away_team"], keep=False)
+    merged = base.merge(externos, on=["home_team", "away_team"], how="left", validate="many_to_one")
+    sin_dato = merged["espn_id"].isna()
+    iguales = ((merged["home_score"] == merged["home_score_espn"])
+               & (merged["away_score"] == merged["away_score_espn"]))
+    merged["Estado"] = "COINCIDE"
+    merged.loc[~iguales & ~sin_dato, "Estado"] = "DIFERENTE"
+    merged.loc[sin_dato, "Estado"] = "SIN VERIFICAR"
+    merged["Observación"] = ""
+    merged.loc[sin_dato, "Observación"] = (
+        "No encontrado en ESPN; puede ser falta de cobertura, error o partido no finalizado")
+    # Fechas UTC de ESPN pueden diferir un día de la fecha de juego local.
+    if errores:
+        merged.loc[sin_dato, "Observación"] = "Consulta ESPN incompleta; no declarar como faltante"
+    return (merged, int((merged["Estado"] == "COINCIDE").sum()),
+            int((merged["Estado"] == "SIN VERIFICAR").sum()),
+            int((merged["Estado"] == "DIFERENTE").sum()))
+
 def mostrar_promedios_diferencias():
     st.subheader('🏈 Promedios y diferencias de puntos')
     st.caption('Estadísticas descriptivas basadas exclusivamente en partidos con marcador completo; no son líneas de apuestas.')
@@ -313,7 +386,43 @@ def mostrar_promedios_diferencias():
                 "No detecta filas descartadas antes de la carga ni verifica por sí sola "
                 "que cada marcador coincida con una fuente externa independiente.")
 
+
+    st.markdown("### 🌐 Verificación externa de marcadores")
+    with st.expander("Comparar resultados con ESPN y descargar reporte", expanded=False):
+        st.caption("Compara los partidos finalizados de la fuente principal (nflreadpy) "
+                   "con los marcadores publicados por ESPN. La verificación no es "
+                   "una certificación oficial ni modifica los resultados originales.")
+        if st.button("🔄 Ejecutar comparación externa", key="pd_ejecutar_externa"):
+            with st.spinner("Consultando marcadores externos por semana..."):
+                espn, errores_espn = cargar_marcadores_espn(temporada)
+                comparados, coinciden, sin_verificar, diferentes = comparar_fuentes_nfl(
+                    partidos, espn, errores_espn)
+            st.caption(f"Consulta: {pd.Timestamp.now(tz='UTC'):%Y-%m-%d %H:%M} UTC · "
+                       f"Partidos finalizados recibidos de ESPN: {len(espn)}")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Coinciden", coinciden)
+            col2.metric("Diferentes", diferentes)
+            col3.metric("Sin verificar", sin_verificar)
+            if errores_espn:
+                st.warning(f"Fallaron {len(errores_espn)} de 18 consultas semanales. "
+                           "Los partidos sin verificar NO se consideran errores de marcador.")
+                with st.expander("Detalles de conexión"):
+                    st.write(errores_espn)
+            if diferentes:
+                st.error("Se encontraron marcadores diferentes entre las dos fuentes.")
+            elif sin_verificar:
+                st.warning("No todos los partidos pudieron verificarse externamente.")
+            else:
+                st.success("Todos los partidos cargados coinciden con ESPN.")
+            st.dataframe(comparados, use_container_width=True, hide_index=True)
+            st.download_button("📥 Descargar verificación externa CSV",
+                               comparados.to_csv(index=False).encode("utf-8-sig"),
+                               file_name=f"verificacion_externa_nfl_{temporada}.csv",
+                               mime="text/csv", key="pd_externa_csv")
+        else:
+            st.info("Pulsa el botón para consultar ESPN. No se ejecutan consultas externas "
+                    "hasta que lo solicites.")
+
     st.download_button('📥 Descargar comparación CSV', comparacion.to_csv(index=False).encode('utf-8-sig'),
                        f'promedios_nfl_{temporada}.csv', mime='text/csv', key='pd_csv')
-
 
