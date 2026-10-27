@@ -40,7 +40,7 @@ def ejecutar():
         "partidos_nuevos": len(nuevos), "marcadores_cambiados": len(cambiados),
     }
     # Nunca reemplazar una referencia válida con un resultado parcial de red.
-    if errores or externos.empty or len(partidos) == 0:
+    if errores or externos.empty or len(partidos) == 0 or sin_verificar > 0:
         raise RuntimeError(f"Consulta incompleta: {fila}. No se guardó revisión parcial.")
     with HISTORIAL.open("a", newline="", encoding="utf-8") as archivo:
         writer = csv.DictWriter(archivo, fieldnames=CAMPOS)
@@ -55,3 +55,4 @@ def ejecutar():
 
 if __name__ == "__main__":
     ejecutar()
+
