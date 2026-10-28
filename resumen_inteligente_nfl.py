@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.9.2: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.9.3: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import unicodedata
 import re
@@ -239,7 +239,7 @@ def _jugadores(temporada, elegidos, cal):
     elif len(guardados) >= 3:
         st.caption('Ya seleccionaste tres jugadores. Quita uno para agregar otro.')
     else:
-        st.caption('No hay jugadores que coincidan con la búsqueda.')
+        st.caption('No hay jugadores disponibles para esta posición.')
 
     seleccionados = st.session_state[clave]
     if seleccionados:
@@ -248,14 +248,14 @@ def _jugadores(temporada, elegidos, cal):
             d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
             if d.empty:
                 continue
-            # Nombre y botón en la misma fila; sin repetir encabezado en la ficha.
-            nombre_col, quitar_col = st.columns([0.84, 0.16], vertical_alignment='center')
-            with nombre_col:
-                st.markdown(f'**{_etiqueta(completo, ident)}**')
-            with quitar_col:
-                if st.button('✕', key=f'ri16_quitar_{ident}', help='Quitar jugador'):
-                    st.session_state[clave] = [x for x in seleccionados if x != ident]
-                    st.rerun()
+            # En móviles Streamlit apila las columnas: un solo botón mantiene
+            # el nombre y la X en la MISMA línea, sin una fila extra.
+            if st.button(f'✕  {_etiqueta(completo, ident)}',
+                         key=f'ri16_quitar_{ident}',
+                         help='Quitar este jugador de la selección',
+                         use_container_width=True):
+                st.session_state[clave] = [x for x in seleccionados if x != ident]
+                st.rerun()
             _ficha(d, metricas, cal, temporada, snaps)
             st.divider()
     else:
@@ -288,10 +288,19 @@ def _ficha(d, metricas, cal, temporada, snaps):
                       'Promedio últimos 5': round(float(reciente.mean()), 1) if reciente.notna().any() else None})
     if filas:
         st.caption('**Temporada | Promedio últimos 5 partidos**')
+        # Una sola tabla de texto compacta evita grandes espacios verticales
+        # entre llamadas consecutivas a st.markdown en pantallas pequeñas.
+        import html
+        renglones = []
         for fila in filas:
             promedio = fila['Promedio últimos 5']
             valor = f'{promedio:g}' if promedio is not None else 'N/D'
-            st.markdown(f"**{fila['Estadística']}**: {fila['Total temporada']:g} · {valor}")
+            etiqueta = html.escape(str(fila['Estadística']))
+            renglones.append(
+                f'<div style="margin:0;padding:2px 0;line-height:1.35;">'
+                f'<strong>{etiqueta}</strong>: {fila["Total temporada"]:g} · {valor}</div>'
+            )
+        st.markdown(''.join(renglones), unsafe_allow_html=True)
 
     equipo = str(d.Equipo.iloc[-1])
     proximo = _proximo_partido(cal, equipo, temporada)
@@ -345,7 +354,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.9.2')
+    st.header('🏈 Resumen Inteligente NFL 1.9.3')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
