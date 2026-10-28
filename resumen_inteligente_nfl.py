@@ -1,4 +1,5 @@
-"""Resumen Inteligente NFL 1.1: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.2: vista compacta y descriptiva para móvil."""
+from datetime import date
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -19,8 +20,55 @@ def _partidos(cal, equipo, temporada):
     d['Resultado'] = ['V' if x > y else 'D' if x < y else 'E' for x, y in zip(d.PF, d.PC)]
     return d
 
+
+def _proximo_partido(cal, equipo, temporada):
+    """Busca el siguiente encuentro sin resultado, posterior al último disputado."""
+    d = cal[(cal.season.eq(temporada)) &
+            (cal.home_team.eq(equipo) | cal.away_team.eq(equipo))].copy()
+    if d.empty:
+        return None
+    d['gameday'] = pd.to_datetime(d.gameday, errors='coerce')
+    d = d.dropna(subset=['gameday']).sort_values('gameday')
+    terminados = d.dropna(subset=['home_score', 'away_score'])
+    pendientes = d[d.home_score.isna() | d.away_score.isna()]
+    if not terminados.empty:
+        pendientes = pendientes[pendientes.gameday > terminados.gameday.max()]
+    if int(temporada) >= date.today().year:
+        pendientes = pendientes[pendientes.gameday.dt.date >= date.today()]
+    if pendientes.empty:
+        return None
+    juego = pendientes.iloc[0]
+    rival = juego.away_team if juego.home_team == equipo else juego.home_team
+    sede = 'Local' if juego.home_team == equipo else 'Visitante'
+    return {'rival': rival, 'sede': sede, 'fecha': juego.gameday,
+            'semana': juego['week']}
+
+
+def _estimacion_puntos(cal, equipo, temporada, rival):
+    propios = _partidos(cal, equipo, temporada)
+    contrarios = _partidos(cal, rival, temporada)
+    if len(propios) < 3 or len(contrarios) < 3:
+        return None
+    # Media de anotación reciente, de temporada y puntos permitidos por el rival.
+    estimado = (0.50 * propios.PF.tail(5).mean() +
+                0.25 * propios.PF.mean() +
+                0.25 * contrarios.PC.tail(5).mean())
+    return max(0.0, float(estimado))
+
+
+def _estimacion_yardas(d, metricas):
+    posicion = str(d['Posición'].iloc[-1]).upper()
+    principal = {'QB': 'Yardas de pase', 'RB': 'Yardas terrestres',
+                 'WR': 'Yardas recibidas', 'TE': 'Yardas recibidas'}.get(posicion)
+    if not principal or principal not in metricas:
+        return None, None
+    serie = pd.to_numeric(d.sort_values('Semana')[metricas[principal]], errors='coerce').dropna()
+    if len(serie) < 3:
+        return principal, None
+    estimado = 0.70 * serie.tail(5).mean() + 0.30 * serie.mean()
+    return principal, max(0.0, float(estimado))
+
 def _equipos(cal, temporada, elegidos):
-    st.markdown('#### 🏈 Equipos')
     for equipo in elegidos:
         d = _partidos(cal, equipo, temporada)
         st.markdown(f'**{equipo}**')
@@ -33,10 +81,21 @@ def _equipos(cal, temporada, elegidos):
         u.metric('Puntos en contra', f'{d.PC.mean():.1f}')
         ult = d.tail(5)
         st.caption('Últimos 5: ' + ' · '.join(f"{r.Resultado} {r.Rival} {int(r.PF)}-{int(r.PC)}" for r in ult.itertuples()))
-        st.caption(f'Referencia reciente de puntos: {ult.PF.mean():.1f} por partido (promedio, no pronóstico).')
+        proximo = _proximo_partido(cal, equipo, temporada)
+        if proximo:
+            st.caption(f"Próximo: vs. {proximo['rival']} · {proximo['sede']} · "
+                       f"{proximo['fecha']:%d/%m/%Y} · Semana {int(proximo['semana'])}")
+            estimado = _estimacion_puntos(cal, equipo, temporada, proximo['rival'])
+            if estimado is not None:
+                st.metric('🎯 Puntos estimados · próximo partido', f'{estimado:.1f}')
+                st.caption('Estimación orientativa: anotación reciente y de temporada, '
+                           'más puntos permitidos recientemente por el rival.')
+            else:
+                st.caption('Estimación no disponible: faltan partidos registrados del equipo o rival.')
+        else:
+            st.caption('No hay próximo partido confirmado en el calendario disponible.')
 
-def _jugadores(temporada, elegidos):
-    st.markdown('#### ⭐ Jugadores')
+def _jugadores(temporada, elegidos, cal):
     try:
         bruto = cargar_jugadores_nfl_v39(temporada)
         semanal, metricas = _preparar_rendimiento_v49(bruto)
@@ -64,7 +123,7 @@ def _jugadores(temporada, elegidos):
     ids = catalogo.ID.tolist()
     seleccionado = st.selectbox('Jugador', ids, format_func=lambda x: _etiqueta(catalogo, x), key='ri11_jugador')
     d = semanal[semanal.ID.eq(seleccionado)].sort_values('Semana')
-    _ficha(d, metricas)
+    _ficha(d, metricas, cal, temporada)
     return semanal, metricas, seleccionado
 
 def _etiqueta(catalogo, ident):
@@ -75,7 +134,7 @@ def _metricas_posicion(d, metricas):
     posicion = str(d['Posición'].iloc[-1]).upper()
     return [x for x in POSICIONES.get(posicion, ['Yardas terrestres', 'Yardas recibidas', 'Recepciones', 'Yardas de pase']) if x in metricas]
 
-def _ficha(d, metricas):
+def _ficha(d, metricas, cal, temporada):
     st.markdown(f'**{d.Jugador.iloc[-1]} · {d.Equipo.iloc[-1]} · {d["Posición"].iloc[-1]}**')
     ult = d.tail(5)
     filas = []
@@ -89,16 +148,24 @@ def _ficha(d, metricas):
                       'Promedio últimos 5': round(float(reciente.mean()), 1) if reciente.notna().any() else None})
     if filas:
         st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
-    st.caption('Promedios calculados sobre hasta cinco partidos con registro. No se rellenan partidos ausentes.')
-    for nombre in _metricas_posicion(d, metricas):
-        if 'Yardas' in nombre:
-            serie = pd.to_numeric(ult[metricas[nombre]], errors='coerce')
-            if serie.notna().any():
-                st.caption(f'Referencia reciente de {nombre.lower()}: {serie.mean():.1f} por partido (no pronóstico).')
-                break
+    st.caption('Promedios de hasta cinco partidos con registro; no se inventan partidos ausentes.')
+    equipo = str(d.Equipo.iloc[-1])
+    proximo = _proximo_partido(cal, equipo, temporada)
+    if proximo:
+        st.caption(f"Próximo: vs. {proximo['rival']} · {proximo['sede']} · "
+                   f"{proximo['fecha']:%d/%m/%Y}")
+        metrica, estimado = _estimacion_yardas(d, metricas)
+        if estimado is not None:
+            st.metric(f'🎯 {metrica} estimadas · próximo partido', f'{estimado:.1f}')
+            st.caption('Estimación orientativa: 70 % promedio últimos cinco partidos '
+                       'y 30 % promedio de temporada. No incorpora lesiones ni disponibilidad.')
+        else:
+            st.caption('Estimación de yardas no disponible: faltan al menos tres partidos '
+                       'registrados o una métrica compatible.')
+    else:
+        st.caption('No hay próximo partido confirmado para proyectar yardas.')
 
 def _comparar(semanal, metricas, primero):
-    st.markdown('#### 🔎 Comparación rápida')
     if semanal is None or semanal.empty:
         st.info('Primero consulta los jugadores.')
         return
@@ -127,8 +194,8 @@ def _comparar(semanal, metricas, primero):
     st.caption('Promedios de hasta cinco partidos registrados por jugador. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.1')
-    st.caption('Resumen compacto de datos observados · Referencias recientes, no predicciones garantizadas.')
+    st.header('🏈 Resumen Inteligente NFL 1.2')
+    st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
     except Exception as exc:
@@ -148,7 +215,7 @@ def mostrar_resumen_inteligente_nfl():
     with st.expander('🏈 1. Resumen de equipos', expanded=True):
         _equipos(juegos, temporada, elegidos)
     with st.expander('⭐ 2. Jugadores', expanded=False):
-        semanal, metricas, seleccionado = _jugadores(temporada, elegidos)
+        semanal, metricas, seleccionado = _jugadores(temporada, elegidos, juegos)
     # Carga independiente para que la comparación funcione aun con la sección de jugadores cerrada.
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         try:
