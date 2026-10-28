@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.9.1: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.9.2: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import unicodedata
 import re
@@ -101,7 +101,17 @@ def _nombre_normalizado(nombre):
     nombre = ''.join(c for c in nombre if not unicodedata.combining(c))
     nombre = re.sub(r'[^a-z0-9 ]', ' ', nombre.casefold())
     partes = [p for p in nombre.split() if p not in ('jr', 'sr', 'ii', 'iii', 'iv')]
-    return ' '.join(partes)
+    # Unificar iniciales escritas con puntos: D.K. y DK -> dk.
+    unidas = []
+    i = 0
+    while i < len(partes):
+        if i + 1 < len(partes) and len(partes[i]) == len(partes[i + 1]) == 1:
+            unidas.append(partes[i] + partes[i + 1])
+            i += 2
+        else:
+            unidas.append(partes[i])
+            i += 1
+    return ' '.join(unidas)
 
 
 def _participacion(d, snaps, error_snaps=None):
@@ -215,14 +225,9 @@ def _jugadores(temporada, elegidos, cal):
 
     pos = st.selectbox('Filtrar posición para agregar', ['Todas', 'QB', 'RB', 'WR', 'TE'],
                        key='ri15_posicion')
-    buscar = st.text_input('Buscar por nombre para agregar', placeholder='Ejemplo: Henry',
-                           key='ri15_buscar').strip().casefold()
     candidatos = completo[~completo.ID.isin(guardados)]
     if pos != 'Todas':
         candidatos = candidatos[candidatos['Posición'].str.upper().eq(pos)]
-    if buscar:
-        candidatos = candidatos[candidatos.Jugador.str.casefold().str.contains(
-            buscar, regex=False, na=False)]
     opciones = candidatos.ID.tolist()
     if len(guardados) < 3 and opciones:
         nuevo = st.selectbox('Agregar jugador', [None] + opciones,
@@ -340,7 +345,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.9.1')
+    st.header('🏈 Resumen Inteligente NFL 1.9.2')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
