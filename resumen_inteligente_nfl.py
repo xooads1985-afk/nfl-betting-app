@@ -1,5 +1,4 @@
-"""Resumen Inteligente NFL 1.2: vista compacta y descriptiva para móvil."""
-from datetime import date
+"""Resumen Inteligente NFL 1.4: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -33,8 +32,8 @@ def _proximo_partido(cal, equipo, temporada):
     pendientes = d[d.home_score.isna() | d.away_score.isna()]
     if not terminados.empty:
         pendientes = pendientes[pendientes.gameday > terminados.gameday.max()]
-    if int(temporada) >= date.today().year:
-        pendientes = pendientes[pendientes.gameday.dt.date >= date.today()]
+    # El calendario puede publicarse con fechas UTC; no descartamos juegos pendientes
+    # por comparación con el reloj del servidor. La última fecha jugada basta.
     if pendientes.empty:
         return None
     juego = pendientes.iloc[0]
@@ -93,7 +92,7 @@ def _equipos(cal, temporada, elegidos):
             else:
                 st.caption('Estimación no disponible: faltan partidos registrados del equipo o rival.')
         else:
-            st.caption('No hay próximo partido confirmado en el calendario disponible.')
+            st.caption('No se encontró un próximo partido pendiente en los datos del calendario.')
 
 def _jugadores(temporada, elegidos, cal):
     try:
@@ -105,10 +104,7 @@ def _jugadores(temporada, elegidos, cal):
     if semanal.empty:
         st.info('Sin registros semanales disponibles.')
         return None, None, None
-    semanal = semanal[semanal.Equipo.isin(elegidos)].copy()
-    if semanal.empty:
-        st.info('Sin jugadores disponibles para estos equipos.')
-        return None, None, None
+    # Jugadores de los 32 equipos, independientemente de los equipos elegidos.
     pos = st.selectbox('Posición', ['Todas', 'QB', 'RB', 'WR', 'TE'], key='ri11_posicion')
     buscar = st.text_input('Buscar por nombre', placeholder='Ejemplo: Henry', key='ri11_buscar').strip().casefold()
     catalogo = semanal[['ID', 'Jugador', 'Equipo', 'Posición']].drop_duplicates('ID')
@@ -121,10 +117,15 @@ def _jugadores(temporada, elegidos, cal):
         st.info('No hay jugadores que coincidan con los filtros.')
         return semanal, metricas, None
     ids = catalogo.ID.tolist()
-    seleccionado = st.selectbox('Jugador', ids, format_func=lambda x: _etiqueta(catalogo, x), key='ri11_jugador')
-    d = semanal[semanal.ID.eq(seleccionado)].sort_values('Semana')
-    _ficha(d, metricas, cal, temporada)
-    return semanal, metricas, seleccionado
+    seleccionados = st.multiselect('Jugadores (máximo 3)', ids, max_selections=3,
+                                  format_func=lambda x: _etiqueta(catalogo, x),
+                                  key='ri14_jugadores')
+    for ident in seleccionados:
+        d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
+        _ficha(d, metricas, cal, temporada)
+    if not seleccionados:
+        st.info('Selecciona hasta tres jugadores para consultar sus datos.')
+    return semanal, metricas, seleccionados
 
 def _etiqueta(catalogo, ident):
     r = catalogo[catalogo.ID.eq(ident)].iloc[0]
@@ -140,11 +141,11 @@ def _ficha(d, metricas, cal, temporada):
     filas = []
     for nombre in _metricas_posicion(d, metricas):
         col = metricas[nombre]
-        temporada = pd.to_numeric(d[col], errors='coerce')
+        valores_temporada = pd.to_numeric(d[col], errors='coerce')
         reciente = pd.to_numeric(ult[col], errors='coerce')
-        if temporada.notna().sum() == 0:
+        if valores_temporada.notna().sum() == 0:
             continue
-        filas.append({'Estadística': nombre, 'Total temporada': round(float(temporada.sum()), 1),
+        filas.append({'Estadística': nombre, 'Total temporada': round(float(valores_temporada.sum()), 1),
                       'Promedio últimos 5': round(float(reciente.mean()), 1) if reciente.notna().any() else None})
     if filas:
         st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
@@ -163,38 +164,43 @@ def _ficha(d, metricas, cal, temporada):
             st.caption('Estimación de yardas no disponible: faltan al menos tres partidos '
                        'registrados o una métrica compatible.')
     else:
-        st.caption('No hay próximo partido confirmado para proyectar yardas.')
+        st.caption('No se encontró un próximo partido pendiente en los datos del calendario; verifica su actualización.')
 
-def _comparar(semanal, metricas, primero):
+def _comparar(semanal, metricas, seleccionados):
     if semanal is None or semanal.empty:
-        st.info('Primero consulta los jugadores.')
+        st.info('No hay registros de jugadores disponibles.')
         return
-    catalogo = semanal[['ID', 'Jugador', 'Equipo', 'Posición']].drop_duplicates('ID').sort_values(['Equipo', 'Posición', 'Jugador'])
-    ids = catalogo.ID.tolist()
-    if len(ids) < 2:
-        st.info('Se necesitan dos jugadores disponibles.')
+    if not seleccionados or len(seleccionados) < 2:
+        st.info('Selecciona dos o tres jugadores en la sección anterior para compararlos.')
         return
-    a = st.selectbox('Jugador A', ids, index=ids.index(primero) if primero in ids else 0,
-                     format_func=lambda x: _etiqueta(catalogo, x), key='ri11_a')
-    b_ids = [x for x in ids if x != a]
-    b = st.selectbox('Jugador B', b_ids, format_func=lambda x: _etiqueta(catalogo, x), key='ri11_b')
-    da = semanal[semanal.ID.eq(a)].sort_values('Semana').tail(5)
-    db = semanal[semanal.ID.eq(b)].sort_values('Semana').tail(5)
-    comunes = [m for m in _metricas_posicion(da, metricas) if m in _metricas_posicion(db, metricas)]
+    catalogo = semanal[['ID', 'Jugador', 'Equipo', 'Posición']].drop_duplicates('ID')
+    disponibles = set(catalogo.ID.tolist())
+    seleccionados = [ident for ident in seleccionados if ident in disponibles]
+    if len(seleccionados) < 2:
+        st.info('No hay suficientes jugadores seleccionados con datos.')
+        return
+    muestras = [semanal[semanal.ID.eq(ident)].sort_values('Semana').tail(5)
+                for ident in seleccionados]
+    comunes = _metricas_posicion(muestras[0], metricas)
+    for muestra in muestras[1:]:
+        compatibles = _metricas_posicion(muestra, metricas)
+        comunes = [m for m in comunes if m in compatibles]
     if not comunes:
-        st.info('Los jugadores tienen posiciones sin métricas comparables. Selecciona otros jugadores.')
+        st.info('Las posiciones elegidas no comparten una estadística comparable.')
         return
-    metrica = st.selectbox('Estadística', comunes, key='ri11_metrica')
-    col = metricas[metrica]
-    a_media = pd.to_numeric(da[col], errors='coerce').mean()
-    b_media = pd.to_numeric(db[col], errors='coerce').mean()
-    c1, c2 = st.columns(2)
-    c1.metric(str(da.Jugador.iloc[-1]), f'{a_media:.1f}' if pd.notna(a_media) else 'N/D')
-    c2.metric(str(db.Jugador.iloc[-1]), f'{b_media:.1f}' if pd.notna(b_media) else 'N/D')
-    st.caption('Promedios de hasta cinco partidos registrados por jugador. Sin gráficas.')
+    metrica = st.selectbox('Estadística para comparar', comunes, key='ri14_metrica')
+    columna = metricas[metrica]
+    filas = []
+    for muestra in muestras:
+        promedio = pd.to_numeric(muestra[columna], errors='coerce').mean()
+        filas.append({'Jugador': str(muestra.Jugador.iloc[-1]),
+                      'Equipo': str(muestra.Equipo.iloc[-1]),
+                      'Promedio últimos 5': round(float(promedio), 1) if pd.notna(promedio) else None})
+    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+    st.caption('Comparación de hasta cinco partidos registrados por jugador. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.2')
+    st.header('🏈 Resumen Inteligente NFL 1.4')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
@@ -210,18 +216,13 @@ def mostrar_resumen_inteligente_nfl():
     equipos = sorted(set(juegos.home_team.dropna()) | set(juegos.away_team.dropna()))
     elegidos = st.multiselect('Equipos (máximo 2)', equipos, max_selections=2, key='ri11_equipos')
     if not elegidos:
-        st.info('Selecciona uno o dos equipos para empezar.')
-        return
+        st.info('Selecciona uno o dos equipos para ver su resumen. Puedes consultar jugadores de cualquier equipo.')
     with st.expander('🏈 1. Resumen de equipos', expanded=True):
-        _equipos(juegos, temporada, elegidos)
+        if elegidos:
+            _equipos(juegos, temporada, elegidos)
+        else:
+            st.info('Selecciona un equipo arriba.')
     with st.expander('⭐ 2. Jugadores', expanded=False):
-        semanal, metricas, seleccionado = _jugadores(temporada, elegidos, juegos)
-    # Carga independiente para que la comparación funcione aun con la sección de jugadores cerrada.
+        semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
-        try:
-            bruto = cargar_jugadores_nfl_v39(temporada)
-            semanal, metricas = _preparar_rendimiento_v49(bruto)
-            semanal = semanal[semanal.Equipo.isin(elegidos)] if not semanal.empty else semanal
-            _comparar(semanal, metricas, st.session_state.get('ri11_jugador'))
-        except Exception as exc:
-            st.error(f'No se pudo preparar la comparación: {type(exc).__name__}: {exc}')
+        _comparar(semanal, metricas, seleccionados)
