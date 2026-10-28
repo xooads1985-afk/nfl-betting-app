@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.7: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.8: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -66,6 +66,44 @@ def _estimacion_yardas(d, metricas):
         return principal, None
     estimado = 0.70 * serie.tail(5).mean() + 0.30 * serie.mean()
     return principal, max(0.0, float(estimado))
+
+
+
+def _participacion(d):
+    """Usa exclusivamente porcentaje real de snaps, nunca yardas como sustituto."""
+    nombres = {str(c).lower().replace(' ', '_'): c for c in d.columns}
+    candidatos = ('offense_pct', 'offense_snap_pct', 'offensive_snap_pct',
+                  'offense_snap_percentage', 'offensive_snap_percentage',
+                  'snap_pct', 'snap_percentage')
+    columna = next((nombres[k] for k in candidatos if k in nombres), None)
+    if columna is None:
+        return '⚪ Participación no disponible', 'No hay porcentajes de snaps ofensivos en los datos.'
+    valores = pd.to_numeric(d[columna], errors='coerce').dropna().tail(5)
+    if valores.empty:
+        return '⚪ Participación no disponible', 'No hay snaps ofensivos registrados.'
+    # Algunos proveedores expresan 0-1 y otros 0-100.
+    if valores.max() <= 1:
+        valores = valores * 100
+    valores = valores[(valores >= 0) & (valores <= 100)]
+    if valores.empty:
+        return '⚪ Participación no disponible', 'Los porcentajes de snaps no son válidos.'
+    promedio = float(valores.mean())
+    if promedio >= 65:
+        nivel = '🟢 Alta'
+    elif promedio >= 30:
+        nivel = '🟡 Variable / intermedia'
+    else:
+        nivel = '🔴 Baja'
+    return f'{nivel} · {promedio:.0f}% de snaps', f'Promedio de {len(valores)} partidos con datos de snaps.'
+
+
+def _partidos_con_datos(d, metricas):
+    posicion = str(d['Posición'].iloc[-1]).upper()
+    principal = {'QB': 'Yardas de pase', 'RB': 'Yardas terrestres',
+                 'WR': 'Yardas recibidas', 'TE': 'Yardas recibidas'}.get(posicion)
+    if not principal or principal not in metricas:
+        return 0
+    return int(pd.to_numeric(d[metricas[principal]], errors='coerce').notna().sum())
 
 def _equipos(cal, temporada, elegidos):
     for equipo in elegidos:
@@ -180,6 +218,11 @@ def _metricas_posicion(d, metricas):
     return [x for x in POSICIONES.get(posicion, ['Yardas terrestres', 'Yardas recibidas', 'Recepciones', 'Yardas de pase']) if x in metricas]
 
 def _ficha(d, metricas, cal, temporada):
+    nivel, detalle = _participacion(d)
+    st.caption(f'**Participación:** {nivel}')
+    st.caption(detalle)
+    n_partidos = _partidos_con_datos(d, metricas)
+    st.caption(f'**Base estadística:** {n_partidos} partidos con registro de yardas.')
     ult = d.tail(5)
     filas = []
     for nombre in _metricas_posicion(d, metricas):
@@ -249,7 +292,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.7')
+    st.header('🏈 Resumen Inteligente NFL 1.8')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
