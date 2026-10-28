@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.6: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.7: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -104,7 +104,16 @@ def _jugadores(temporada, elegidos, cal):
     if semanal.empty:
         st.info('Sin registros semanales disponibles.')
         return None, None, None
-    # Catálogo completo para que un cambio de posición no borre selecciones.
+    # El catálogo sigue a los equipos del partido, no a toda la NFL.
+    if not elegidos:
+        st.info('Selecciona primero uno o dos equipos para consultar sus jugadores.')
+        return semanal.iloc[0:0].copy(), metricas, []
+    semanal = semanal[semanal['Equipo'].isin(elegidos)].copy()
+    if semanal.empty:
+        st.info('No hay jugadores registrados de los equipos seleccionados.')
+        st.session_state['ri15_jugadores_guardados'] = []
+        return semanal, metricas, []
+    # Conservar jugadores de distintas posiciones al cambiar el filtro.
     completo = (semanal[['ID', 'Jugador', 'Equipo', 'Posición']]
                 .drop_duplicates('ID').sort_values(['Equipo', 'Posición', 'Jugador']))
     todos_ids = completo.ID.tolist()
@@ -113,8 +122,10 @@ def _jugadores(temporada, elegidos, cal):
     if st.session_state.get(clave_temporada) != temporada:
         st.session_state[clave] = []
         st.session_state[clave_temporada] = temporada
+    # Eliminar selecciones de equipos que ya no están en el enfrentamiento.
     guardados = [x for x in st.session_state.get(clave, []) if x in todos_ids]
     st.session_state[clave] = guardados
+    st.caption('Jugadores disponibles: ' + ' vs. '.join(elegidos))
 
     pos = st.selectbox('Filtrar posición para agregar', ['Todas', 'QB', 'RB', 'WR', 'TE'],
                        key='ri15_posicion')
@@ -238,7 +249,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.6')
+    st.header('🏈 Resumen Inteligente NFL 1.7')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
@@ -254,7 +265,7 @@ def mostrar_resumen_inteligente_nfl():
     equipos = sorted(set(juegos.home_team.dropna()) | set(juegos.away_team.dropna()))
     elegidos = st.multiselect('Equipos (máximo 2)', equipos, max_selections=2, key='ri11_equipos')
     if not elegidos:
-        st.info('Selecciona uno o dos equipos para ver su resumen. Puedes consultar jugadores de cualquier equipo.')
+        st.info('Selecciona uno o dos equipos para analizar sus jugadores y estadísticas.')
     with st.expander('🏈 1. Resumen de equipos', expanded=True):
         if elegidos:
             _equipos(juegos, temporada, elegidos)
