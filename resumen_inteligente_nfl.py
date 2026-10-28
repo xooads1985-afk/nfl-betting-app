@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.9.3: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.9.4: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import unicodedata
 import re
@@ -248,14 +248,17 @@ def _jugadores(temporada, elegidos, cal):
             d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
             if d.empty:
                 continue
-            # En móviles Streamlit apila las columnas: un solo botón mantiene
-            # el nombre y la X en la MISMA línea, sin una fila extra.
-            if st.button(f'✕  {_etiqueta(completo, ident)}',
-                         key=f'ri16_quitar_{ident}',
-                         help='Quitar este jugador de la selección',
-                         use_container_width=True):
-                st.session_state[clave] = [x for x in seleccionados if x != ident]
-                st.rerun()
+            # Encabezado compacto: nombre a la izquierda y botón a la derecha.
+            # El CSS mantiene ambas columnas en una fila también en móvil.
+            with st.container(key=f'ri194_fila_{seleccionados.index(ident)}'):
+                nombre_col, quitar_col = st.columns([5, 1], gap='small', vertical_alignment='center')
+                with nombre_col:
+                    st.markdown(f'**{_etiqueta(completo, ident)}**')
+                with quitar_col:
+                    if st.button('✕', key=f'ri194_quitar_{ident}',
+                                 help='Quitar jugador', use_container_width=False):
+                        st.session_state[clave] = [x for x in seleccionados if x != ident]
+                        st.rerun()
             _ficha(d, metricas, cal, temporada, snaps)
             st.divider()
     else:
@@ -354,7 +357,31 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.9.3')
+    st.header('🏈 Resumen Inteligente NFL 1.9.4')
+    st.markdown("""
+    <style>
+    /* Solo los encabezados de jugadores: conservar la fila en pantallas estrechas. */
+    [class*="st-key-ri194_fila_"] [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 0.35rem !important;
+    }
+    [class*="st-key-ri194_fila_"] [data-testid="stColumn"]:first-child {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+    [class*="st-key-ri194_fila_"] [data-testid="stColumn"]:last-child {
+        flex: 0 0 auto !important;
+        min-width: 2.5rem !important;
+        width: auto !important;
+    }
+    [class*="st-key-ri194_fila_"] [data-testid="stColumn"]:last-child button {
+        min-height: 2.25rem;
+        padding: 0.2rem 0.65rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
