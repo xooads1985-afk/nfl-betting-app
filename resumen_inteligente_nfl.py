@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.4: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.5: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -104,27 +104,56 @@ def _jugadores(temporada, elegidos, cal):
     if semanal.empty:
         st.info('Sin registros semanales disponibles.')
         return None, None, None
-    # Jugadores de los 32 equipos, independientemente de los equipos elegidos.
-    pos = st.selectbox('Posición', ['Todas', 'QB', 'RB', 'WR', 'TE'], key='ri11_posicion')
-    buscar = st.text_input('Buscar por nombre', placeholder='Ejemplo: Henry', key='ri11_buscar').strip().casefold()
-    catalogo = semanal[['ID', 'Jugador', 'Equipo', 'Posición']].drop_duplicates('ID')
+    # Catálogo completo para que un cambio de posición no borre selecciones.
+    completo = (semanal[['ID', 'Jugador', 'Equipo', 'Posición']]
+                .drop_duplicates('ID').sort_values(['Equipo', 'Posición', 'Jugador']))
+    todos_ids = completo.ID.tolist()
+    clave = 'ri15_jugadores_guardados'
+    clave_temporada = 'ri15_temporada_guardada'
+    if st.session_state.get(clave_temporada) != temporada:
+        st.session_state[clave] = []
+        st.session_state[clave_temporada] = temporada
+    guardados = [x for x in st.session_state.get(clave, []) if x in todos_ids]
+    st.session_state[clave] = guardados
+
+    pos = st.selectbox('Filtrar posición para agregar', ['Todas', 'QB', 'RB', 'WR', 'TE'],
+                       key='ri15_posicion')
+    buscar = st.text_input('Buscar por nombre para agregar', placeholder='Ejemplo: Henry',
+                           key='ri15_buscar').strip().casefold()
+    candidatos = completo[~completo.ID.isin(guardados)]
     if pos != 'Todas':
-        catalogo = catalogo[catalogo['Posición'].str.upper().eq(pos)]
+        candidatos = candidatos[candidatos['Posición'].str.upper().eq(pos)]
     if buscar:
-        catalogo = catalogo[catalogo.Jugador.str.casefold().str.contains(buscar, regex=False, na=False)]
-    catalogo = catalogo.sort_values(['Equipo', 'Posición', 'Jugador'])
-    if catalogo.empty:
-        st.info('No hay jugadores que coincidan con los filtros.')
-        return semanal, metricas, None
-    ids = catalogo.ID.tolist()
-    seleccionados = st.multiselect('Jugadores (máximo 3)', ids, max_selections=3,
-                                  format_func=lambda x: _etiqueta(catalogo, x),
-                                  key='ri14_jugadores')
-    for ident in seleccionados:
-        d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
-        _ficha(d, metricas, cal, temporada)
-    if not seleccionados:
-        st.info('Selecciona hasta tres jugadores para consultar sus datos.')
+        candidatos = candidatos[candidatos.Jugador.str.casefold().str.contains(
+            buscar, regex=False, na=False)]
+    opciones = candidatos.ID.tolist()
+    if len(guardados) < 3 and opciones:
+        nuevo = st.selectbox('Agregar jugador', [None] + opciones,
+                             format_func=lambda x: 'Selecciona un jugador…' if x is None
+                             else _etiqueta(completo, x), key='ri15_agregar')
+        if nuevo is not None and st.button('➕ Agregar a la selección', key='ri15_boton'):
+            st.session_state[clave] = guardados + [nuevo]
+            st.rerun()
+    elif len(guardados) >= 3:
+        st.caption('Ya seleccionaste tres jugadores. Quita uno para agregar otro.')
+    else:
+        st.caption('No hay jugadores que coincidan con la búsqueda.')
+
+    seleccionados = st.session_state[clave]
+    if seleccionados:
+        st.caption(f'Seleccionados: {len(seleccionados)} de 3')
+        for i, ident in enumerate(seleccionados):
+            c1, c2 = st.columns([5, 1])
+            c1.markdown(f'**{_etiqueta(completo, ident)}**')
+            if c2.button('✕', key=f'ri15_quitar_{i}', help='Quitar jugador'):
+                st.session_state[clave] = [x for x in seleccionados if x != ident]
+                st.rerun()
+        for ident in seleccionados:
+            d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
+            if not d.empty:
+                _ficha(d, metricas, cal, temporada)
+    else:
+        st.info('Agrega hasta tres jugadores para consultar sus estadísticas.')
     return semanal, metricas, seleccionados
 
 def _etiqueta(catalogo, ident):
@@ -148,8 +177,12 @@ def _ficha(d, metricas, cal, temporada):
         filas.append({'Estadística': nombre, 'Total temporada': round(float(valores_temporada.sum()), 1),
                       'Promedio últimos 5': round(float(reciente.mean()), 1) if reciente.notna().any() else None})
     if filas:
-        st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
-    st.caption('Promedios de hasta cinco partidos con registro; no se inventan partidos ausentes.')
+        st.caption('**Temporada | Promedio últimos 5 partidos**')
+        for fila in filas:
+            promedio = fila['Promedio últimos 5']
+            valor = f'{promedio:g}' if promedio is not None else 'N/D'
+            st.markdown(f"**{fila['Estadística']}**: {fila['Total temporada']:g} · {valor}")
+
     equipo = str(d.Equipo.iloc[-1])
     proximo = _proximo_partido(cal, equipo, temporada)
     if proximo:
@@ -158,8 +191,7 @@ def _ficha(d, metricas, cal, temporada):
         metrica, estimado = _estimacion_yardas(d, metricas)
         if estimado is not None:
             st.metric(f'🎯 {metrica} estimadas · próximo partido', f'{estimado:.1f}')
-            st.caption('Estimación orientativa: 70 % promedio últimos cinco partidos '
-                       'y 30 % promedio de temporada. No incorpora lesiones ni disponibilidad.')
+            st.caption('Estimación orientativa basada en los registros disponibles.')
         else:
             st.caption('Estimación de yardas no disponible: faltan al menos tres partidos '
                        'registrados o una métrica compatible.')
@@ -186,7 +218,10 @@ def _comparar(semanal, metricas, seleccionados):
         compatibles = _metricas_posicion(muestra, metricas)
         comunes = [m for m in comunes if m in compatibles]
     if not comunes:
-        st.info('Las posiciones elegidas no comparten una estadística comparable.')
+        comunes = [m for m in ['Yardas terrestres', 'Yardas recibidas', 'Recepciones',
+                               'Yardas de pase'] if m in metricas]
+    if not comunes:
+        st.info('No hay estadísticas comparables disponibles.')
         return
     metrica = st.selectbox('Estadística para comparar', comunes, key='ri14_metrica')
     columna = metricas[metrica]
@@ -197,10 +232,10 @@ def _comparar(semanal, metricas, seleccionados):
                       'Equipo': str(muestra.Equipo.iloc[-1]),
                       'Promedio últimos 5': round(float(promedio), 1) if pd.notna(promedio) else None})
     st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
-    st.caption('Comparación de hasta cinco partidos registrados por jugador. Sin gráficas.')
+    st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.4')
+    st.header('🏈 Resumen Inteligente NFL 1.5')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
