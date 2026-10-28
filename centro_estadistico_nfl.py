@@ -14,6 +14,7 @@ def mostrar_centro_estadistico_nfl():
             "Estadísticas NFL",
             "Comparador de jugadores",
             "Promedios y diferencias",
+            "🏠 Resumen Inteligente NFL",
         ],
         horizontal=False,
         key="centro_nfl_vista",
@@ -25,5 +26,9 @@ def mostrar_centro_estadistico_nfl():
     elif vista == "Comparador de jugadores":
         mostrar_comparador()
 
-    else:
+    elif vista == "Promedios y diferencias":
         mostrar_promedios_diferencias()
+
+    elif vista == "🏠 Resumen Inteligente NFL":
+        from resumen_inteligente_nfl import mostrar_resumen_inteligente_nfl
+        mostrar_resumen_inteligente_nfl()
