@@ -1,5 +1,7 @@
-"""Resumen Inteligente NFL 1.8: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.9: vista compacta y descriptiva para móvil."""
 import pandas as pd
+import unicodedata
+import re
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
 
@@ -69,32 +71,69 @@ def _estimacion_yardas(d, metricas):
 
 
 
-def _participacion(d):
-    """Usa exclusivamente porcentaje real de snaps, nunca yardas como sustituto."""
-    nombres = {str(c).lower().replace(' ', '_'): c for c in d.columns}
-    candidatos = ('offense_pct', 'offense_snap_pct', 'offensive_snap_pct',
-                  'offense_snap_percentage', 'offensive_snap_percentage',
-                  'snap_pct', 'snap_percentage')
-    columna = next((nombres[k] for k in candidatos if k in nombres), None)
-    if columna is None:
-        return '⚪ Participación no disponible', 'No hay porcentajes de snaps ofensivos en los datos.'
-    valores = pd.to_numeric(d[columna], errors='coerce').dropna().tail(5)
-    if valores.empty:
-        return '⚪ Participación no disponible', 'No hay snaps ofensivos registrados.'
-    # Algunos proveedores expresan 0-1 y otros 0-100.
-    if valores.max() <= 1:
-        valores = valores * 100
-    valores = valores[(valores >= 0) & (valores <= 100)]
-    if valores.empty:
-        return '⚪ Participación no disponible', 'Los porcentajes de snaps no son válidos.'
-    promedio = float(valores.mean())
-    if promedio >= 65:
-        nivel = '🟢 Alta'
-    elif promedio >= 30:
-        nivel = '🟡 Variable / intermedia'
-    else:
-        nivel = '🔴 Baja'
-    return f'{nivel} · {promedio:.0f}% de snaps', f'Promedio de {len(valores)} partidos con datos de snaps.'
+@st.cache_data(ttl=21600, show_spinner=False)
+def _cargar_snaps_resumen(temporada):
+    """Carga snaps NFLverse por temporada, sin modificar modulo_nfl.py."""
+    import nflreadpy as nfl
+    tabla = nfl.load_snap_counts(int(temporada))
+    datos = tabla.to_pandas() if hasattr(tabla, 'to_pandas') else pd.DataFrame(tabla)
+    datos.columns = [str(c).lower().strip() for c in datos.columns]
+    necesarias = {'player', 'team', 'position', 'week', 'offense_pct'}
+    faltan = necesarias - set(datos.columns)
+    if faltan:
+        raise ValueError('Columnas de snaps ausentes: ' + ', '.join(sorted(faltan)))
+    datos['week'] = pd.to_numeric(datos['week'], errors='coerce')
+    datos['offense_pct'] = pd.to_numeric(datos['offense_pct'], errors='coerce')
+    if 'season' in datos.columns:
+        datos = datos[pd.to_numeric(datos['season'], errors='coerce').eq(int(temporada))].copy()
+    porcentajes = datos['offense_pct'].dropna()
+    if not porcentajes.empty and porcentajes.quantile(.95) > 1.01:
+        datos['offense_pct'] /= 100.0
+    datos.loc[~datos['offense_pct'].between(0, 1), 'offense_pct'] = float('nan')
+    datos = datos.dropna(subset=['week']).copy()
+    for campo in ['player', 'team', 'position']:
+        datos[campo] = datos[campo].fillna('').astype(str).str.strip()
+    return datos
+
+
+def _nombre_normalizado(nombre):
+    nombre = unicodedata.normalize('NFKD', str(nombre))
+    nombre = ''.join(c for c in nombre if not unicodedata.combining(c))
+    nombre = re.sub(r'[^a-z0-9 ]', ' ', nombre.casefold())
+    partes = [p for p in nombre.split() if p not in ('jr', 'sr', 'ii', 'iii', 'iv')]
+    return ' '.join(partes)
+
+
+def _participacion(d, snaps, error_snaps=None):
+    """Cruce conservador por nombre completo, equipo y posición; nunca por yardas."""
+    if snaps is None or snaps.empty:
+        return '⚪ No disponible', 'Snaps no publicados o no accesibles para esta temporada.'
+    nombre = _nombre_normalizado(d['Jugador'].iloc[-1])
+    equipo = str(d['Equipo'].iloc[-1]).upper().strip()
+    posicion = str(d['Posición'].iloc[-1]).upper().strip()
+    if not nombre or not equipo or not posicion:
+        return '⚪ No disponible', 'Identidad del jugador incompleta.'
+    candidatos = snaps[
+        snaps['team'].str.upper().eq(equipo) &
+        snaps['position'].str.upper().eq(posicion)
+    ].copy()
+    if candidatos.empty:
+        return '⚪ No disponible', 'Sin registros de snaps para este jugador y equipo.'
+    candidatos['_nombre'] = candidatos['player'].map(_nombre_normalizado)
+    candidatos = candidatos[candidatos['_nombre'].eq(nombre)]
+    if candidatos.empty:
+        return '⚪ No disponible', 'No se encontró coincidencia exacta de nombre, equipo y posición.'
+    # Si la fuente expone IDs distintos bajo el mismo nombre, no mezclar jugadores.
+    if 'pfr_player_id' in candidatos.columns and candidatos['pfr_player_id'].dropna().astype(str).nunique() > 1:
+        return '⚪ No disponible', 'Coincidencia ambigua entre identificadores de jugador.'
+    candidatos = candidatos.sort_values('week').drop_duplicates(['week', 'team'], keep='last')
+    validos = candidatos.dropna(subset=['offense_pct']).tail(5)
+    if validos.empty:
+        return '⚪ No disponible', 'No hay porcentajes válidos de snaps ofensivos.'
+    promedio = float(validos['offense_pct'].mean()) * 100
+    nivel = '🟢 Alta' if promedio >= 65 else '🟡 Intermedia' if promedio >= 30 else '🔴 Baja'
+    aviso = ' · muestra pequeña' if len(validos) < 3 else ''
+    return f'{nivel} · {promedio:.1f}%', f'Snaps ofensivos: promedio de {len(validos)} partidos recientes{aviso}.'
 
 
 def _partidos_con_datos(d, metricas):
@@ -151,6 +190,15 @@ def _jugadores(temporada, elegidos, cal):
         st.info('No hay jugadores registrados de los equipos seleccionados.')
         st.session_state['ri15_jugadores_guardados'] = []
         return semanal, metricas, []
+    # Cargar snaps solo una vez por temporada, con caché; un fallo no detiene estadísticas.
+    try:
+        snaps = _cargar_snaps_resumen(temporada)
+        error_snaps = None
+    except Exception as exc:
+        snaps = None
+        error_snaps = f'{type(exc).__name__}: {exc}'
+    if error_snaps:
+        st.caption('⚪ Participación no disponible: fuente de snaps inaccesible. ' + error_snaps)
     # Conservar jugadores de distintas posiciones al cambiar el filtro.
     completo = (semanal[['ID', 'Jugador', 'Equipo', 'Posición']]
                 .drop_duplicates('ID').sort_values(['Equipo', 'Posición', 'Jugador']))
@@ -203,7 +251,7 @@ def _jugadores(temporada, elegidos, cal):
                 if st.button('✕', key=f'ri16_quitar_{ident}', help='Quitar jugador'):
                     st.session_state[clave] = [x for x in seleccionados if x != ident]
                     st.rerun()
-            _ficha(d, metricas, cal, temporada)
+            _ficha(d, metricas, cal, temporada, snaps)
             st.divider()
     else:
         st.info('Agrega hasta tres jugadores para consultar sus estadísticas.')
@@ -217,12 +265,12 @@ def _metricas_posicion(d, metricas):
     posicion = str(d['Posición'].iloc[-1]).upper()
     return [x for x in POSICIONES.get(posicion, ['Yardas terrestres', 'Yardas recibidas', 'Recepciones', 'Yardas de pase']) if x in metricas]
 
-def _ficha(d, metricas, cal, temporada):
+def _ficha(d, metricas, cal, temporada, snaps):
     nivel, detalle = _participacion(d)
     st.caption(f'**Participación:** {nivel}')
     st.caption(detalle)
     n_partidos = _partidos_con_datos(d, metricas)
-    st.caption(f'**Base estadística:** {n_partidos} partidos con registro de yardas.')
+    st.caption(f'**Base estadística:** {n_partidos} partidos con estadística de yardas registrada.')
     ult = d.tail(5)
     filas = []
     for nombre in _metricas_posicion(d, metricas):
@@ -292,7 +340,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.8')
+    st.header('🏈 Resumen Inteligente NFL 1.9')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
@@ -318,3 +366,4 @@ def mostrar_resumen_inteligente_nfl():
         semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         _comparar(semanal, metricas, seleccionados)
+
