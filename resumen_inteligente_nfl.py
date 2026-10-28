@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.5: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.6: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import streamlit as st
 from modulo_nfl import TEMPORADAS, cargar_calendario_rapido_v40, cargar_jugadores_nfl_v39, _preparar_rendimiento_v49
@@ -142,16 +142,20 @@ def _jugadores(temporada, elegidos, cal):
     seleccionados = st.session_state[clave]
     if seleccionados:
         st.caption(f'Seleccionados: {len(seleccionados)} de 3')
-        for i, ident in enumerate(seleccionados):
-            c1, c2 = st.columns([5, 1])
-            c1.markdown(f'**{_etiqueta(completo, ident)}**')
-            if c2.button('✕', key=f'ri15_quitar_{i}', help='Quitar jugador'):
-                st.session_state[clave] = [x for x in seleccionados if x != ident]
-                st.rerun()
         for ident in seleccionados:
             d = semanal[semanal.ID.eq(ident)].sort_values('Semana')
-            if not d.empty:
-                _ficha(d, metricas, cal, temporada)
+            if d.empty:
+                continue
+            # Nombre y botón en la misma fila; sin repetir encabezado en la ficha.
+            nombre_col, quitar_col = st.columns([0.84, 0.16], vertical_alignment='center')
+            with nombre_col:
+                st.markdown(f'**{_etiqueta(completo, ident)}**')
+            with quitar_col:
+                if st.button('✕', key=f'ri16_quitar_{ident}', help='Quitar jugador'):
+                    st.session_state[clave] = [x for x in seleccionados if x != ident]
+                    st.rerun()
+            _ficha(d, metricas, cal, temporada)
+            st.divider()
     else:
         st.info('Agrega hasta tres jugadores para consultar sus estadísticas.')
     return semanal, metricas, seleccionados
@@ -165,7 +169,6 @@ def _metricas_posicion(d, metricas):
     return [x for x in POSICIONES.get(posicion, ['Yardas terrestres', 'Yardas recibidas', 'Recepciones', 'Yardas de pase']) if x in metricas]
 
 def _ficha(d, metricas, cal, temporada):
-    st.markdown(f'**{d.Jugador.iloc[-1]} · {d.Equipo.iloc[-1]} · {d["Posición"].iloc[-1]}**')
     ult = d.tail(5)
     filas = []
     for nombre in _metricas_posicion(d, metricas):
@@ -235,7 +238,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.5')
+    st.header('🏈 Resumen Inteligente NFL 1.6')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
