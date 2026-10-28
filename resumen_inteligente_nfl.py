@@ -1,4 +1,4 @@
-"""Resumen Inteligente NFL 1.9: vista compacta y descriptiva para móvil."""
+"""Resumen Inteligente NFL 1.9.1: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import unicodedata
 import re
@@ -266,7 +266,7 @@ def _metricas_posicion(d, metricas):
     return [x for x in POSICIONES.get(posicion, ['Yardas terrestres', 'Yardas recibidas', 'Recepciones', 'Yardas de pase']) if x in metricas]
 
 def _ficha(d, metricas, cal, temporada, snaps):
-    nivel, detalle = _participacion(d)
+    nivel, detalle = _participacion(d, snaps)
     st.caption(f'**Participación:** {nivel}')
     st.caption(detalle)
     n_partidos = _partidos_con_datos(d, metricas)
@@ -340,7 +340,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.9')
+    st.header('🏈 Resumen Inteligente NFL 1.9.1')
     st.caption('Datos observados y estimaciones orientativas para el próximo partido.')
     try:
         cal = cargar_calendario_rapido_v40()
@@ -366,4 +366,3 @@ def mostrar_resumen_inteligente_nfl():
         semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         _comparar(semanal, metricas, seleccionados)
-
