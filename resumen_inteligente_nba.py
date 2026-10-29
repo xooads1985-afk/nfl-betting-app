@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.9'
+VERSION = '1.6.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -218,6 +218,7 @@ def _diagnostico_cuartos_historicos(partidos, fecha_limite, detalles):
     completos_uno = sum(len(completos.get(fila['id'], set())) == 1
                         for _, fila in base.iterrows())
     consultados = sum(ident in detalles for ident in ids_base)
+    sin_consulta = len(base) - consultados
     elegibles = 0
     con_objetivo = 0
     sin_antecedentes = 0
@@ -244,7 +245,7 @@ def _diagnostico_cuartos_historicos(partidos, fecha_limite, detalles):
                                  'Previos local': cantidades[local],
                                  'Previos visitante': cantidades[visita]})
     return {'historicos': len(base), 'consultados': consultados,
-            'sin_consulta': len(base) - consultados,
+            'sin_consulta': sin_consulta,
             'completos_ambos': completos_ambos, 'completos_uno': completos_uno,
             'consultados_sin_ambos': consultados - completos_ambos,
             'con_objetivo': con_objetivo, 'sin_antecedentes': sin_antecedentes,
@@ -262,23 +263,42 @@ def _panel_validacion_historica(partidos, partido):
             return
         clave = f"ri_nba_validacion_detalles_{partido['id']}"
         detalles = st.session_state.get(clave)
+        # Para una evaluación cronológica hacen falta partidos antiguos:
+        # consultar únicamente los 35 MÁS RECIENTES sesga la cobertura.
+        base = partidos.loc[partidos['finalizado'].eq(True)].copy()
+        base['fecha_dt'] = pd.to_datetime(base['fecha_utc'], utc=True, errors='coerce')
+        base = base.dropna(subset=['fecha_dt'])
+        base = base.loc[base['fecha_dt'].lt(fecha)].sort_values(['fecha_dt', 'id'])
+        base['id'] = base['id'].astype(str)
+        base = base.drop_duplicates('id')
+        cantidad = st.selectbox(
+            'Cobertura de detalles históricos (consultas máximas)',
+            [35, 70, 100], index=1, key='ri_nba_validacion_cantidad',
+            help='Se priorizan partidos antiguos para poder evaluar encuentros posteriores. '
+                 'Una cobertura mayor puede tardar y recibir límites de ESPN.')
+        disponibles = len(base)
+        st.caption(f'Calendario disponible: {disponibles} partidos anteriores al encuentro. '
+                   'Se consultarán primero los más antiguos, sin usar partidos futuros.')
         if st.button('📥 Consultar períodos para validación histórica',
                      key='ri_nba_validacion_btn'):
-            base = partidos.loc[partidos['finalizado'].eq(True)].copy()
-            base['fecha_dt'] = pd.to_datetime(base['fecha_utc'], utc=True, errors='coerce')
-            base = base.loc[base['fecha_dt'].lt(fecha)].drop_duplicates('id')
-            # Limitar las llamadas para proteger el proveedor; sin datos falsos.
-            base = base.sort_values('fecha_dt').tail(35)
-            detalles = {}
+            seleccion = base.head(cantidad)
+            # Reutilizar los resultados previamente recuperados y no repetir solicitudes.
+            detalles = dict(detalles) if isinstance(detalles, dict) else {}
             fallos = 0
+            nuevos = 0
             with st.spinner('Consultando períodos históricos disponibles...'):
-                for identificador in base['id'].astype(str):
+                for identificador in seleccion['id']:
+                    if identificador in detalles and detalles[identificador]:
+                        continue
                     try:
-                        detalles[identificador] = _puntos_periodos(cargar_detalle(identificador))
+                        datos_periodos = _puntos_periodos(cargar_detalle(identificador))
+                        detalles[identificador] = datos_periodos
+                        nuevos += 1
                     except Exception:
                         fallos += 1
             st.session_state[clave] = detalles
             st.session_state[clave + '_fallos'] = fallos
+            st.session_state[clave + '_nuevos'] = nuevos
         if detalles is not None:
             with st.expander('🔎 Diagnóstico de cobertura por cuartos', expanded=True):
                 diag = _diagnostico_cuartos_historicos(partidos, fecha, detalles)
@@ -297,8 +317,20 @@ def _panel_validacion_historica(partidos, partido):
                         st.caption('Ejemplos de objetivos sin antecedentes suficientes:')
                         st.dataframe(pd.DataFrame(diag['ejemplos']), hide_index=True,
                                      use_container_width=True)
-                    st.caption('Se reutilizan los detalles ya consultados; no se hacen nuevas peticiones. '
-                               'El límite de 35 detalles y la ventana de 10 partidos pueden reducir la cobertura.')
+                    if diag['elegibles'] == 0:
+                        if diag['sin_antecedentes']:
+                            st.warning('Todavía no hay 3 partidos anteriores con cuartos completos '
+                                       'para ambos equipos de un mismo encuentro evaluable. '
+                                       'Al inicio de temporada puede ser normal; amplía el período '
+                                       'del calendario y/o la cobertura de detalles.')
+                        elif diag['sin_consulta']:
+                            st.warning('Hay partidos anteriores sin consultar. Aumenta la cobertura '
+                                       'de detalles históricos para intentar recuperar antecedentes.')
+                        else:
+                            st.info('No hay objetivos elegibles con los datos disponibles. '
+                                    'No se calculará un MAE artificial.')
+                    st.caption('La evaluación utiliza únicamente datos anteriores al partido. '
+                               'La ventana de 10 partidos y el calendario consultado limitan la cobertura.')
         resultados = _validacion_historica_equipos(partidos, fecha, detalles)
         if resultados.empty:
             st.info('Aún no hay partidos con suficiente historial previo para validar los métodos.')
