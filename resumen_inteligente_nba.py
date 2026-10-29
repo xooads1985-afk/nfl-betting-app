@@ -154,7 +154,12 @@ def _mostrar_proyeccion_equipos(partidos, partido):
             st.session_state[clave] = {'muestras': muestras, 'errores': errores}
         guardado = st.session_state.get(clave)
         if guardado:
+            st.markdown('### 🏀 Estimación de puntos para el próximo partido')
+            st.markdown(f'**{visita} 🆚 {local}**')
+            st.caption(f"📅 Fecha programada: {str(partido['fecha_utc'])[:16]} UTC")
+            st.markdown('**📊 Estimación estadística por cuartos, mitades y final reglamentario**')
             muestras = guardado['muestras']
+            st.caption(f"Muestra de períodos: {len(muestras[local])} partidos de {local} · {len(muestras[visita])} de {visita}.")
             st.caption(f"Partidos con consulta fallida: {guardado['errores']}. No se sustituyen valores ausentes.")
             periodos = [('1.er cuarto', [1]), ('2.º cuarto', [2]), ('Primera mitad', [1,2]),
                         ('3.er cuarto', [3]), ('4.º cuarto', [4]), ('Segunda mitad', [3,4]),
@@ -172,7 +177,7 @@ def _mostrar_proyeccion_equipos(partidos, partido):
                               'Total': round(a['media']+b['media'],1) if a and b else 'N/D',
                               'N local': len(muestras[local]), 'N visita': len(muestras[visita])})
             st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
-            st.caption('N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
+            st.caption('Estimaciones basadas en partidos anteriores: no son marcadores confirmados ni resultados garantizados. N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
         else:
             st.info('Pulsa el botón para recuperar los puntos por cuarto; no se estiman sin marcadores reales por período.')
 
