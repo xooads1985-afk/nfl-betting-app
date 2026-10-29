@@ -9,8 +9,9 @@ import streamlit as st
 
 from modulo_nba import cargar_partidos
 from comparador_jugadores_nba import _historial, METRICAS
+from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -72,8 +73,30 @@ def _mostrar_jugadores(partidos, equipo, limite):
         return
     finales = finales.sort_values('fecha_utc', ascending=False).head(limite)
     ids = tuple((str(r.id), str(r.fecha_utc)[:10]) for r in finales.itertuples(index=False))
-    with st.spinner('Cargando boxscores observados...'):
-        datos, errores = _historial(ids)
+    modo = st.radio('Origen de estadísticas individuales',
+                    ['Consultar boxscores del período', 'Utilizar historial ya cargado'],
+                    key='ri_nba_origen')
+    if modo == 'Utilizar historial ya cargado':
+        datos, cobertura = obtener_historial_compartido(equipo=equipo)
+        if not cobertura.get('disponible'):
+            st.warning(cobertura.get('motivo', 'No hay historial disponible.'))
+            st.info('Entra en «📚 Historial de jugadores NBA», selecciona el equipo y carga los bloques primero.')
+            return
+        if datos.empty:
+            st.info('El historial cargado no contiene registros individuales.')
+            return
+        if equipo == 'Todos':
+            st.caption(f"Historial cargado del equipo: {cobertura['equipo']}.")
+        if not cobertura['completo'] or cobertura['errores']:
+            st.warning('Historial parcial o con incidencias; los promedios NO representan necesariamente toda la temporada.')
+        else:
+            st.caption('Todos los bloques solicitados fueron consultados; la cobertura de ESPN no está garantizada.')
+        st.caption(f"Período del historial: {cobertura['desde']} a {cobertura['hasta']} · "
+                   f"Bloques consultados: {cobertura['bloques']}")
+        errores = []
+    else:
+        with st.spinner('Cargando boxscores observados...'):
+            datos, errores = _historial(ids)
     if errores:
         st.warning(f'{len(errores)} boxscores no pudieron procesarse; cobertura parcial.')
         with st.expander('Detalles de cobertura'):
@@ -108,6 +131,25 @@ def _mostrar_jugadores(partidos, equipo, limite):
             cols[i].metric(f'{m}/partido', f'{serie.mean():.1f}' if serie.notna().any() else 'N/D')
         tabla = d[['fecha', 'equipo'] + disponibles].copy()
         st.dataframe(tabla.tail(10).iloc[::-1], hide_index=True, use_container_width=True)
+    st.markdown('**📈 Ventanas recientes por jugador**')
+    ventanas = []
+    for nombre in seleccion:
+        orden = seleccionados.loc[seleccionados['jugador'].eq(nombre)].sort_values(['fecha', 'partido_id'])
+        if 'Minutos' in orden:
+            minutos = pd.to_numeric(orden['Minutos'], errors='coerce')
+            orden = orden.loc[minutos.isna() | minutos.gt(0)]
+        for n in (5, 10, 20):
+            reciente = orden.tail(n)
+            fila = {'Jugador': nombre, 'Ventana': f'Últimos {n} recuperados', 'PJ': reciente['partido_id'].nunique()}
+            for metrica_nombre in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
+                if metrica_nombre in reciente:
+                    valores = pd.to_numeric(reciente[metrica_nombre], errors='coerce')
+                    fila[metrica_nombre] = round(float(valores.mean()), 2) if valores.notna().any() else None
+            if 'titular' in reciente:
+                fila['Titularidades'] = int(reciente['titular'].fillna(False).sum())
+            ventanas.append(fila)
+    st.dataframe(pd.DataFrame(ventanas), hide_index=True, use_container_width=True)
+    st.caption('Cada ventana usa como máximo N registros disponibles del jugador; PJ permite detectar muestras pequeñas.')
     resumen = seleccionados.groupby('jugador', as_index=False).agg(
         **{m: (m, 'mean') for m in disponibles}, PJ=('partido_id', 'nunique'))
     st.markdown('**Comparación de promedios observados**')
@@ -190,3 +232,4 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
+
