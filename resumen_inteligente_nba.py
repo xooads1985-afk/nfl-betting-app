@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.5.2.
+"""Resumen Inteligente NBA v1.5.3.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.2'
+VERSION = '1.5.3'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -90,6 +90,27 @@ def _puntos_periodos(detalle):
         if all(i in valores for i in (1, 2, 3, 4)):
             salida[equipo] = valores
     return salida
+
+
+def _abreviatura_equipo(nombre):
+    """Etiqueta corta de tabla; no modifica nombres de origen ni cálculos."""
+    codigos = {
+        'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN',
+        'Charlotte Hornets': 'CHA', 'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE',
+        'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN', 'Detroit Pistons': 'DET',
+        'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND',
+        'LA Clippers': 'LAC', 'Los Angeles Clippers': 'LAC',
+        'Los Angeles Lakers': 'LAL', 'Memphis Grizzlies': 'MEM', 'Miami Heat': 'MIA',
+        'Milwaukee Bucks': 'MIL', 'Minnesota Timberwolves': 'MIN',
+        'New Orleans Pelicans': 'NOP', 'New York Knicks': 'NYK',
+        'Oklahoma City Thunder': 'OKC', 'Orlando Magic': 'ORL',
+        'Philadelphia 76ers': 'PHI', 'Phoenix Suns': 'PHX',
+        'Portland Trail Blazers': 'POR', 'Sacramento Kings': 'SAC',
+        'San Antonio Spurs': 'SAS', 'Toronto Raptors': 'TOR',
+        'Utah Jazz': 'UTA', 'Washington Wizards': 'WAS',
+    }
+    nombre = str(nombre).strip()
+    return codigos.get(nombre, nombre[:3].upper())
 
 
 def _mostrar_proyeccion_equipos(partidos, partido):
@@ -170,6 +191,12 @@ def _mostrar_proyeccion_equipos(partidos, partido):
             periodos = [('1.er cuarto', [1]), ('2.º cuarto', [2]), ('Primera mitad', [1,2]),
                         ('3.er cuarto', [3]), ('4.º cuarto', [4]), ('Segunda mitad', [3,4]),
                         ('Final reglamentario', [1,2,3,4])]
+            # Encabezados breves para móvil; los nombres completos permanecen arriba.
+            col_local = _abreviatura_equipo(local)
+            col_visita = _abreviatura_equipo(visita)
+            if col_local == col_visita:
+                col_local, col_visita = 'Local', 'Visita'
+            st.caption(f'{col_local} = {local} (local) · {col_visita} = {visita} (visitante)')
             filas = []
             for etiqueta, cuartos in periodos:
                 resultados = {}
@@ -178,10 +205,9 @@ def _mostrar_proyeccion_equipos(partidos, partido):
                     resultados[e] = _media_rango(observados)
                 a, b = resultados[local], resultados[visita]
                 filas.append({'Período': etiqueta,
-                              local: round(a['media'],1) if a else 'N/D',
-                              visita: round(b['media'],1) if b else 'N/D',
-                              'Total': round(a['media']+b['media'],1) if a and b else 'N/D',
-                              'N local': len(muestras[local]), 'N visita': len(muestras[visita])})
+                              col_local: round(a['media'],1) if a else 'N/D',
+                              col_visita: round(b['media'],1) if b else 'N/D',
+                              'Total': round(a['media']+b['media'],1) if a and b else 'N/D'})
             st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
             st.caption('Estimaciones basadas en partidos anteriores: no son marcadores confirmados ni resultados garantizados. N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
         else:
