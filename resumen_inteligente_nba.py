@@ -296,7 +296,14 @@ def _mostrar_proyeccion_equipos(partidos, partido):
         st.caption('Media simple del ataque reciente de cada equipo y puntos recibidos por el rival (máximo 10 juegos). No es una predicción calibrada. Los marcadores finales históricos pueden incluir prórrogas.')
     else:
         st.info('Se requieren al menos 3 partidos con marcadores completos de cada equipo para estimar puntos del partido.')
-    _panel_validacion_historica(partidos, partido)
+    # La validación es auxiliar: un error no debe interrumpir el resumen de equipos.
+    try:
+        _panel_validacion_historica(partidos, partido)
+    except (KeyError, ValueError, TypeError, IndexError) as exc:
+        with st.expander('🧪 Validación histórica de equipos · diagnóstico'):
+            st.warning('No fue posible completar la validación histórica. Las demás estadísticas siguen disponibles.')
+            st.code(f'{type(exc).__name__}: {exc}', language='text')
+            st.caption('Comparte este mensaje para identificar la causa exacta; no se inventan resultados.')
     with st.expander('⏱️ Cuartos y mitades · datos reales'):
         st.caption('Consulta opcional de hasta 10 partidos finalizados distintos por equipo. Puede tardar y ESPN puede limitar las consultas.')
         clave = f"ri_nba_periodos_{partido['id']}"
@@ -729,5 +736,4 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
-
 
