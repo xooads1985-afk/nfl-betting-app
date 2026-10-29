@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.8'
+VERSION = '1.5.9'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -186,6 +186,71 @@ def _validacion_historica_equipos(partidos, fecha_limite, detalles=None):
     return pd.DataFrame(filas, columns=columnas)
 
 
+def _diagnostico_cuartos_historicos(partidos, fecha_limite, detalles):
+    """Cuenta cobertura y elegibilidad sin solicitar nuevos datos ni cambiar estimaciones."""
+    requeridas = {'id', 'local', 'visitante', 'fecha_utc', 'finalizado',
+                  'puntos_local', 'puntos_visitante'}
+    if partidos.empty or not requeridas.issubset(partidos.columns):
+        return {'error': 'Calendario vacío o sin columnas requeridas.'}
+    base = partidos.loc[partidos['finalizado'].eq(True)].copy()
+    base['fecha_dt'] = pd.to_datetime(base['fecha_utc'], utc=True, errors='coerce')
+    base = base.dropna(subset=['fecha_dt'])
+    base = base.loc[base['fecha_dt'].lt(fecha_limite)].sort_values(['fecha_dt', 'id'])
+    base['id'] = base['id'].astype(str)
+    base = base.drop_duplicates('id')
+    detalles = detalles or {}
+    ids_base = set(base['id'])
+    completos = {}
+    for _, fila in base.iterrows():
+        ident = fila['id']
+        dato = detalles.get(ident, {})
+        local, visita = str(fila['local']), str(fila['visitante'])
+        if not isinstance(dato, dict):
+            continue
+        equipos_validos = set()
+        for nombre in (local, visita):
+            periodos = dato.get(nombre)
+            if isinstance(periodos, dict) and all(q in periodos for q in (1, 2, 3, 4)):
+                equipos_validos.add(nombre)
+        completos[ident] = equipos_validos
+    completos_ambos = sum(len(completos.get(fila['id'], set())) == 2
+                         for _, fila in base.iterrows())
+    completos_uno = sum(len(completos.get(fila['id'], set())) == 1
+                        for _, fila in base.iterrows())
+    consultados = sum(ident in detalles for ident in ids_base)
+    elegibles = 0
+    con_objetivo = 0
+    sin_antecedentes = 0
+    ejemplos = []
+    for _, juego in base.iterrows():
+        ident = juego['id']
+        local, visita = str(juego['local']), str(juego['visitante'])
+        if len(completos.get(ident, set())) != 2:
+            continue
+        con_objetivo += 1
+        anteriores = base.loc[base['fecha_dt'].lt(juego['fecha_dt'])]
+        cantidades = {}
+        for equipo in (local, visita):
+            previos = anteriores.loc[(anteriores['local'].eq(equipo)) |
+                                     (anteriores['visitante'].eq(equipo))].tail(10)
+            cantidades[equipo] = sum(equipo in completos.get(i, set()) for i in previos['id'])
+        if min(cantidades.values()) >= 3:
+            elegibles += 1
+        else:
+            sin_antecedentes += 1
+            if len(ejemplos) < 5:
+                ejemplos.append({'Partido': f'{visita} @ {local}',
+                                 'Fecha': str(juego['fecha_dt'])[:10],
+                                 'Previos local': cantidades[local],
+                                 'Previos visitante': cantidades[visita]})
+    return {'historicos': len(base), 'consultados': consultados,
+            'sin_consulta': len(base) - consultados,
+            'completos_ambos': completos_ambos, 'completos_uno': completos_uno,
+            'consultados_sin_ambos': consultados - completos_ambos,
+            'con_objetivo': con_objetivo, 'sin_antecedentes': sin_antecedentes,
+            'elegibles': elegibles, 'ejemplos': ejemplos}
+
+
 def _panel_validacion_historica(partidos, partido):
     with st.expander('🧪 Validación histórica de equipos · sin datos futuros'):
         st.caption('Cada evaluación usa únicamente partidos anteriores al encuentro evaluado. '
@@ -214,6 +279,26 @@ def _panel_validacion_historica(partidos, partido):
                         fallos += 1
             st.session_state[clave] = detalles
             st.session_state[clave + '_fallos'] = fallos
+        if detalles is not None:
+            with st.expander('🔎 Diagnóstico de cobertura por cuartos', expanded=True):
+                diag = _diagnostico_cuartos_historicos(partidos, fecha, detalles)
+                if 'error' in diag:
+                    st.warning(diag['error'])
+                else:
+                    st.write(f"Partidos históricos en el calendario: **{diag['historicos']}**")
+                    st.write(f"Partidos con detalle consultado: **{diag['consultados']}** · sin consultar: **{diag['sin_consulta']}**")
+                    st.write(f"Cuatro cuartos completos de ambos equipos: **{diag['completos_ambos']}**")
+                    st.write(f"Cuatro cuartos completos de un solo equipo: **{diag['completos_uno']}**")
+                    st.write(f"Consultados sin los cuatro cuartos de ambos: **{diag['consultados_sin_ambos']}**")
+                    st.write(f"Objetivos con marcador reglamentario verificable: **{diag['con_objetivo']}**")
+                    st.write(f"Objetivos sin 3 antecedentes por equipo: **{diag['sin_antecedentes']}**")
+                    st.write(f"Objetivos elegibles para validar cuartos: **{diag['elegibles']}**")
+                    if diag['ejemplos']:
+                        st.caption('Ejemplos de objetivos sin antecedentes suficientes:')
+                        st.dataframe(pd.DataFrame(diag['ejemplos']), hide_index=True,
+                                     use_container_width=True)
+                    st.caption('Se reutilizan los detalles ya consultados; no se hacen nuevas peticiones. '
+                               'El límite de 35 detalles y la ventana de 10 partidos pueden reducir la cobertura.')
         resultados = _validacion_historica_equipos(partidos, fecha, detalles)
         if resultados.empty:
             st.info('Aún no hay partidos con suficiente historial previo para validar los métodos.')
