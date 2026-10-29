@@ -12,13 +12,13 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.6'
+VERSION = '1.5.8'
 
 
 def _equipo_resultados(partidos, equipo):
     """Devuelve únicamente juegos finalizados con marcadores verificables."""
     if partidos.empty:
-        return pd.DataFrame()
+        return partidos.copy()
     d = partidos.loc[(partidos['local'].eq(equipo) | partidos['visitante'].eq(equipo)) &
                      partidos['finalizado'].eq(True)].copy()
     d = d.dropna(subset=['puntos_local', 'puntos_visitante'])
@@ -53,7 +53,14 @@ def _mostrar_equipo(partidos, equipo):
 
 
 def _historial_equipo(partidos, equipo, antes=None):
+    """Historial cronológico; conserva el esquema aun cuando no haya filas."""
     d = _equipo_resultados(partidos, equipo)
+    # En la validación retrospectiva los primeros juegos pueden carecer
+    # de antecedentes. No intentar acceder a columnas de un marco vacío.
+    if d.empty:
+        return d
+    if 'fecha_utc' not in d.columns:
+        return d.iloc[0:0].copy()
     if antes is not None:
         fechas = pd.to_datetime(d['fecha_utc'], utc=True, errors='coerce')
         d = d.loc[fechas.lt(antes)].copy()
@@ -736,4 +743,5 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
+
 
