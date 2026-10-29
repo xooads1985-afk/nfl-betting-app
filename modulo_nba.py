@@ -16,6 +16,54 @@ def _json(endpoint, params=None):
         raise ValueError('Respuesta de datos inesperada')
     return data
 
+def _normalizar_partidos(df):
+    """Depura partidos por ID y por encuentro real; preserva auditoría."""
+    if df.empty:
+        df.attrs['auditoria_duplicados'] = {'recibidos': 0, 'descartados_id': 0,
+                                            'descartados_encuentro': 0, 'unicos': 0}
+        return df
+    trabajo = df.copy()
+    recibidos = len(trabajo)
+    # Evitar agrupar por un ID vacío: no identifica un encuentro.
+    trabajo['id'] = trabajo['id'].fillna('').astype(str).str.strip()
+    trabajo['_instante'] = pd.to_datetime(trabajo['fecha_utc'], utc=True, errors='coerce')
+    trabajo['_fecha_minuto'] = trabajo['_instante'].dt.strftime('%Y-%m-%dT%H:%MZ')
+    # La clave secundaria exige ambos equipos y hora de inicio. No usar solo la fecha.
+    local = trabajo['local_id'].fillna('').astype(str).str.strip()
+    visita = trabajo['visitante_id'].fillna('').astype(str).str.strip()
+    local = local.where(local.ne(''), trabajo['local'].fillna('').astype(str).str.casefold().str.strip())
+    visita = visita.where(visita.ne(''), trabajo['visitante'].fillna('').astype(str).str.casefold().str.strip())
+    valida = trabajo['_fecha_minuto'].notna() & local.ne('') & visita.ne('')
+    trabajo['_clave_encuentro'] = None
+    trabajo.loc[valida, '_clave_encuentro'] = (
+        trabajo.loc[valida, '_fecha_minuto'] + '|' + local.loc[valida] + '|' + visita.loc[valida]
+    )
+    # Elegir registro finalizado y con marcador antes que una versión parcial.
+    trabajo['_prioridad'] = (trabajo['finalizado'].fillna(False).astype(int) * 10
+        + trabajo['puntos_local'].notna().astype(int)
+        + trabajo['puntos_visitante'].notna().astype(int))
+    trabajo['_orden'] = range(len(trabajo))
+    trabajo = trabajo.sort_values(['_prioridad', '_orden'], ascending=[False, False], kind='stable')
+    ids_validos = trabajo['id'].ne('')
+    por_id = trabajo.loc[ids_validos].drop_duplicates('id', keep='first')
+    sin_id = trabajo.loc[~ids_validos]
+    descartados_id = len(trabajo) - len(por_id) - len(sin_id)
+    trabajo = pd.concat([por_id, sin_id], ignore_index=True)
+    claves_validas = trabajo['_clave_encuentro'].notna()
+    por_encuentro = trabajo.loc[claves_validas].drop_duplicates('_clave_encuentro', keep='first')
+    sin_clave = trabajo.loc[~claves_validas]
+    descartados_encuentro = len(trabajo) - len(por_encuentro) - len(sin_clave)
+    trabajo = pd.concat([por_encuentro, sin_clave], ignore_index=True)
+    trabajo = trabajo.sort_values('fecha_utc', kind='stable').drop(
+        columns=['_instante', '_fecha_minuto', '_clave_encuentro', '_prioridad', '_orden']
+    ).reset_index(drop=True)
+    trabajo.attrs['auditoria_duplicados'] = {
+        'recibidos': recibidos, 'descartados_id': descartados_id,
+        'descartados_encuentro': descartados_encuentro, 'unicos': len(trabajo)
+    }
+    return trabajo
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def cargar_partidos(desde, hasta):
     inicio, fin = date.fromisoformat(str(desde)), date.fromisoformat(str(hasta))
@@ -46,8 +94,7 @@ def cargar_partidos(desde, hasta):
         except (requests.RequestException, ValueError, KeyError) as exc:
             errores.append(f'{dia}: {type(exc).__name__}: {exc}')
     df = pd.DataFrame(registros)
-    if not df.empty:
-        df = df.drop_duplicates('id').sort_values('fecha_utc').reset_index(drop=True)
+    df = _normalizar_partidos(df)
     return df, errores
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -170,6 +217,15 @@ def mostrar_modulo_nba():
         st.info('No se encontraron partidos en las fechas seleccionadas.')
         return
     st.caption('Horarios mostrados en la zona America/Mazatlan (Sinaloa).')
+    auditoria = partidos.attrs.get('auditoria_duplicados', {})
+    with st.expander('🔍 Control de duplicados y cobertura'):
+        st.write('Registros recibidos:', auditoria.get('recibidos', 'No disponible'))
+        st.write('Descartados por ID repetido:', auditoria.get('descartados_id', 'No disponible'))
+        st.write('Descartados por mismo partido (fecha, hora y equipos):',
+                 auditoria.get('descartados_encuentro', 'No disponible'))
+        st.write('Partidos únicos mostrados:', len(partidos))
+        st.caption('Se comparan fechas de inicio UTC al minuto y equipos local/visitante. '
+                   'No se garantiza cobertura total ni exactitud de la fuente.')
     vistas = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏀 Enfrentamientos',
               '🏀 Centro por partido', '📊 Puntos históricos', '👥 Jugadores por partido',
               '📈 Rendimiento de jugadores', '🧠 Rendimiento avanzado', '👥 Jugadores',
@@ -255,7 +311,10 @@ def mostrar_modulo_nba():
         st.caption('La hora de consulta no demuestra que la fuente haya publicado datos nuevos. Caché de calendario: 30 minutos.')
     elif vista == '🧪 Auditorías y análisis':
         fallas = []
-        if partidos.id.duplicated().any(): fallas.append('IDs duplicados')
+        if partidos.id[partidos.id.ne('')].duplicated().any(): fallas.append('IDs duplicados')
+        if auditoria.get('descartados_id', 0) or auditoria.get('descartados_encuentro', 0):
+            st.info(f"Duplicados descartados: {auditoria.get('descartados_id', 0)} por ID y "
+                    f"{auditoria.get('descartados_encuentro', 0)} por fecha/hora/equipos.")
         if partidos.id.eq('').any(): fallas.append('Partidos sin identificador')
         if partidos.fecha_utc.eq('').any(): fallas.append('Partidos sin fecha')
         if (partidos.local==partidos.visitante).any(): fallas.append('Local y visitante idénticos')
@@ -275,3 +334,4 @@ def mostrar_modulo_nba():
 
 if __name__ == '__main__':
     mostrar_modulo_nba()
+
