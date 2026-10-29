@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.3.0.
+"""Resumen Inteligente NBA v1.5.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -7,11 +7,11 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from modulo_nba import cargar_partidos
+from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.4.0'
+VERSION = '1.5.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -49,6 +49,150 @@ def _mostrar_equipo(partidos, equipo):
     st.dataframe(ultimos[['Fecha', 'Rival', 'Sede', 'PF', 'PC', 'Resultado']],
                  hide_index=True, use_container_width=True)
 
+
+
+def _historial_equipo(partidos, equipo, antes=None):
+    d = _equipo_resultados(partidos, equipo)
+    if antes is not None:
+        fechas = pd.to_datetime(d['fecha_utc'], utc=True, errors='coerce')
+        d = d.loc[fechas.lt(antes)].copy()
+    return d.sort_values('fecha_utc')
+
+
+def _media_rango(serie, minimo=3):
+    x = pd.to_numeric(pd.Series(serie), errors='coerce').dropna().tail(10)
+    if len(x) < minimo:
+        return None
+    media = float(x.mean())
+    sd = float(x.std(ddof=1)) if len(x) > 1 else 0.
+    return {'media': media, 'bajo': max(0., media-sd), 'alto': media+sd, 'n': len(x)}
+
+
+def _puntos_periodos(detalle):
+    """Cuartos observados en ESPN summary, sin inventar desgloses."""
+    comps = (detalle.get('header', {}).get('competitions') or [{}])[0].get('competitors', [])
+    salida = {}
+    for c in comps:
+        equipo = c.get('team', {}).get('displayName')
+        if not equipo:
+            continue
+        valores = {}
+        for i, linea in enumerate(c.get('linescores') or []):
+            numero = linea.get('period') or linea.get('periodNumber') or i + 1
+            try:
+                numero = int(numero)
+                valor = float(linea.get('value', linea.get('displayValue')))
+            except (ValueError, TypeError):
+                continue
+            if 1 <= numero <= 4 and valor >= 0:
+                valores[numero] = valor
+        if all(i in valores for i in (1, 2, 3, 4)):
+            salida[equipo] = valores
+    return salida
+
+
+def _mostrar_proyeccion_equipos(partidos, partido):
+    """Estimaciones descriptivas por equipo, total y períodos con datos reales."""
+    local, visita = str(partido['local']), str(partido['visitante'])
+    fecha = pd.to_datetime(partido['fecha_utc'], utc=True, errors='coerce')
+    st.markdown(f'### 🏀 Próximo encuentro: {visita} @ {local}')
+    st.caption(f"Calendario consultado: {str(partido['fecha_utc'])[:16]} UTC. Solo se consideran resultados anteriores al encuentro.")
+    datos = {e: _historial_equipo(partidos, e, fecha) for e in (local, visita)}
+    for e in (local, visita):
+        d = datos[e]
+        st.markdown(f'**{e} · {len(d)} partidos disponibles**')
+        if d.empty:
+            st.info('Sin resultados anteriores en el período consultado.')
+            continue
+        c1, c2, c3 = st.columns(3)
+        c1.metric('Victorias', int(d['Resultado'].eq('V').sum()))
+        c2.metric('PF/PJ', f"{d['PF'].mean():.1f}")
+        c3.metric('PC/PJ', f"{d['PC'].mean():.1f}")
+        with st.expander(f'📈 Forma reciente · {e}'):
+            for n in (5, 10, 20):
+                ult = d.tail(n)
+                st.write(f'Últimos {len(ult)} (ventana {n}): PF {ult["PF"].mean():.1f} · PC {ult["PC"].mean():.1f} · V {int(ult["Resultado"].eq("V").sum())}')
+            sede = 'Local' if e == local else 'Visitante'
+            ds = d[d['Sede'].eq(sede)]
+            st.write(f'{sede}: {len(ds)} partidos · PF {ds["PF"].mean():.1f}' if len(ds) else f'{sede}: sin muestra')
+    # Media de ataque y defensa del oponente, sin introducir datos futuros.
+    estim = {}
+    for e, rival in ((local, visita), (visita, local)):
+        propios = _media_rango(datos[e]['PF']) if not datos[e].empty else None
+        recibidos = _media_rango(datos[rival]['PC']) if not datos[rival].empty else None
+        if propios and recibidos:
+            estim[e] = {'media': (propios['media']+recibidos['media'])/2,
+                        'n': min(propios['n'], recibidos['n'])}
+    st.markdown('#### 📊 Puntos descriptivos · partido completo')
+    if len(estim) == 2:
+        c1, c2, c3 = st.columns(3)
+        c1.metric('Local', f"{estim[local]['media']:.1f}")
+        c2.metric('Visitante', f"{estim[visita]['media']:.1f}")
+        c3.metric('Total', f"{sum(x['media'] for x in estim.values()):.1f}")
+        st.caption('Media simple del ataque reciente de cada equipo y puntos recibidos por el rival (máximo 10 juegos). No es una predicción calibrada. Los marcadores finales históricos pueden incluir prórrogas.')
+    else:
+        st.info('Se requieren al menos 3 partidos con marcadores completos de cada equipo para estimar puntos del partido.')
+    with st.expander('⏱️ Cuartos y mitades · datos reales'):
+        st.caption('Consulta opcional de hasta 10 partidos finalizados distintos por equipo. Puede tardar y ESPN puede limitar las consultas.')
+        clave = f"ri_nba_periodos_{partido['id']}"
+        if st.button('📥 Consultar cuartos reales', key='ri_nba_cuartos_btn'):
+            juegos = {}
+            for e, d in datos.items():
+                for fila in d.tail(10).itertuples(index=False):
+                    juegos[str(fila.id)] = fila
+            muestras = {e: [] for e in (local, visita)}
+            errores = 0
+            with st.spinner('Consultando desglose de cuartos en ESPN...'):
+                for identificador, fila in juegos.items():
+                    try:
+                        info = _puntos_periodos(cargar_detalle(identificador))
+                        for e in muestras:
+                            if e in info:
+                                muestras[e].append(info[e])
+                    except Exception:
+                        errores += 1
+            st.session_state[clave] = {'muestras': muestras, 'errores': errores}
+        guardado = st.session_state.get(clave)
+        if guardado:
+            muestras = guardado['muestras']
+            st.caption(f"Partidos con consulta fallida: {guardado['errores']}. No se sustituyen valores ausentes.")
+            periodos = [('1.er cuarto', [1]), ('2.º cuarto', [2]), ('Primera mitad', [1,2]),
+                        ('3.er cuarto', [3]), ('4.º cuarto', [4]), ('Segunda mitad', [3,4]),
+                        ('Final reglamentario', [1,2,3,4])]
+            filas = []
+            for etiqueta, cuartos in periodos:
+                resultados = {}
+                for e in (local, visita):
+                    observados = [sum(x[q] for q in cuartos) for x in muestras[e] if all(q in x for q in cuartos)]
+                    resultados[e] = _media_rango(observados)
+                a, b = resultados[local], resultados[visita]
+                filas.append({'Período': etiqueta,
+                              'Local': round(a['media'],1) if a else 'N/D',
+                              'Visitante': round(b['media'],1) if b else 'N/D',
+                              'Total': round(a['media']+b['media'],1) if a and b else 'N/D',
+                              'N local': len(muestras[local]), 'N visita': len(muestras[visita])})
+            st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+            st.caption('N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
+        else:
+            st.info('Pulsa el botón para recuperar los puntos por cuarto; no se estiman sin marcadores reales por período.')
+
+
+def _panel_equipos(partidos, elegidos):
+    st.markdown('### 🏟️ Comparación y próximos encuentros')
+    proximos = {}
+    for nombre in elegidos:
+        _mostrar_equipo(partidos, nombre)
+        proximo = _proximo_partido(partidos, nombre)
+        if proximo is not None:
+            proximos[str(proximo['id'])] = proximo
+            rival = proximo['visitante'] if proximo['local'] == nombre else proximo['local']
+            st.caption(f"Próximo partido listado: {str(proximo['fecha_utc'])[:16]} UTC · vs. {rival}")
+    if proximos:
+        opciones = {f"{p['visitante']} @ {p['local']} · {str(p['fecha_utc'])[:10]}": p for p in proximos.values()}
+        elegido = st.selectbox('Partido para análisis de puntos', list(opciones), key='ri_nba_partido_equipos')
+        _mostrar_proyeccion_equipos(partidos, opciones[elegido])
+    elif elegidos:
+        st.info('No hay próximo encuentro programado para los equipos seleccionados en el período consultado.')
 
 def _proximo_partido(partidos, equipo):
     if partidos.empty:
@@ -363,13 +507,9 @@ def mostrar_resumen_inteligente_nba():
         elegidos = st.multiselect('Comparar hasta tres equipos', equipos,
                                  default=[equipo] if equipo != 'Todos' else [],
                                  max_selections=3, key='ri_nba_equipos')
-        for nombre in elegidos:
-            _mostrar_equipo(partidos, nombre)
-            proximo = _proximo_partido(partidos, nombre)
-            if proximo is not None:
-                rival = proximo['visitante'] if proximo['local'] == nombre else proximo['local']
-                st.caption(f"Próximo partido listado: {str(proximo['fecha_utc'])[:16]} UTC · vs. {rival}")
-        if not elegidos:
+        if elegidos:
+            _panel_equipos(partidos, elegidos)
+        else:
             st.info('Selecciona uno, dos o tres equipos.')
     elif vista == '👥 Jugadores':
         finales = partidos.loc[partidos['finalizado'].eq(True)]
