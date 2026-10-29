@@ -2,19 +2,80 @@
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import requests
+import json
+import sqlite3
+import time
+from pathlib import Path
+from urllib.parse import urlencode
 import pandas as pd
 import streamlit as st
 
 BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 
+# Copia local de respuestas exitosas. El almacenamiento puede ser efímero en Streamlit Cloud.
+_CACHE_DB = Path(__file__).resolve().parent / '.nba_respuestas_cache.sqlite3'
+_CACHE_MAX_AGE = 72 * 3600  # Sólo rescate temporal; siempre se avisa al usuario.
+
+
+def _cache_guardar(clave, datos):
+    try:
+        with sqlite3.connect(_CACHE_DB, timeout=3) as con:
+            con.execute('CREATE TABLE IF NOT EXISTS respuestas (clave TEXT PRIMARY KEY, guardado REAL NOT NULL, contenido TEXT NOT NULL)')
+            con.execute('INSERT OR REPLACE INTO respuestas VALUES (?, ?, ?)',
+                        (clave, time.time(), json.dumps(datos, ensure_ascii=False)))
+    except (OSError, sqlite3.Error):
+        pass  # Si el disco es de sólo lectura, el módulo sigue funcionando.
+
+
+def _cache_recuperar(clave):
+    try:
+        with sqlite3.connect(_CACHE_DB, timeout=3) as con:
+            fila = con.execute('SELECT guardado, contenido FROM respuestas WHERE clave=?', (clave,)).fetchone()
+        if fila and 0 <= time.time() - fila[0] <= _CACHE_MAX_AGE:
+            datos = json.loads(fila[1])
+            if isinstance(datos, dict):
+                return datos, round((time.time() - fila[0]) / 60)
+    except (OSError, sqlite3.Error, ValueError, TypeError):
+        pass
+    return None, None
+
+
 @st.cache_data(ttl=900, show_spinner=False)
 def _json(endpoint, params=None):
-    r = requests.get(f'{BASE}/{endpoint}', params=params, timeout=18)
-    r.raise_for_status()
-    data = r.json()
-    if not isinstance(data, dict):
-        raise ValueError('Respuesta de datos inesperada')
-    return data
+    """Consulta ESPN; no reintenta 403 y recupera caché identificada si existe."""
+    params = params or {}
+    clave = endpoint + '?' + urlencode(sorted((str(k), str(v)) for k, v in params.items()))
+    error = None
+    for intento in range(2):
+        try:
+            r = requests.get(f'{BASE}/{endpoint}', params=params, timeout=18)
+            r.raise_for_status()
+            datos = r.json()
+            if not isinstance(datos, dict):
+                raise ValueError('Respuesta de datos inesperada')
+            _cache_guardar(clave, datos)
+            return datos
+        except requests.HTTPError as exc:
+            error = exc
+            codigo = exc.response.status_code if exc.response is not None else None
+            if codigo not in (429, 500, 502, 503, 504) or intento == 1:
+                break
+            time.sleep(1.0)
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            error = exc
+            if intento == 1:
+                break
+            time.sleep(1.0)
+    # La caché NO disfraza una consulta fallida: la UI muestra la incidencia.
+    if endpoint == 'scoreboard':
+        datos, edad = _cache_recuperar(clave)
+        if datos is not None:
+            datos = dict(datos)
+            datos['_nba_cache_rescate'] = {'minutos': edad, 'motivo': str(error)}
+            return datos
+    if error is not None:
+        raise error
+    raise RuntimeError('No fue posible consultar la fuente')
 
 def _normalizar_partidos(df):
     """Depura partidos por ID y por encuentro real; preserva auditoría."""
@@ -115,6 +176,9 @@ def cargar_partidos(desde, hasta):
         dia = inicio + timedelta(days=i)
         try:
             datos = _json('scoreboard', {'dates': dia.strftime('%Y%m%d'), 'limit': 100})
+            rescate = datos.get('_nba_cache_rescate')
+            if rescate:
+                errores.append(f"{dia}: fuente no disponible; copia local de hace {rescate['minutos']} min. Motivo: {rescate['motivo']}")
             for evento in datos.get('events', []):
                 competicion = (evento.get('competitions') or [{}])[0]
                 equipos = competicion.get('competitors', [])
@@ -254,7 +318,7 @@ def mostrar_modulo_nba():
         st.error(f'No fue posible cargar NBA: {exc}')
         return
     if errores:
-        st.warning(f'Hubo problemas de consulta en {len(errores)} día(s); el período está incompleto.')
+        st.warning(f'Incidencias en {len(errores)} día(s). Algunas fechas pueden usar copias locales; verifica los detalles. La cobertura puede ser parcial.')
         with st.expander('Ver errores de consulta'):
             st.code('\n'.join(errores))
     if partidos.empty:
@@ -370,7 +434,7 @@ def mostrar_modulo_nba():
         st.metric('Partidos únicos recuperados',len(partidos))
         st.metric('Partidos programados o en curso',len(partidos)-len(finalizados))
         st.metric('Partidos con resultado completo',len(finalizados[finalizados.puntos_local.notna() & finalizados.puntos_visitante.notna()]))
-        st.caption('La hora de consulta no demuestra que la fuente haya publicado datos nuevos. Caché de calendario: 30 minutos.')
+        st.caption('La hora de consulta no demuestra que la fuente haya publicado datos nuevos. Caché en memoria: 15 minutos. Rescate local: máximo 72 horas, identificado como incidencia.')
     elif vista == '🧪 Auditorías y análisis':
         fallas = []
         if partidos.id[partidos.id.ne('')].duplicated().any(): fallas.append('IDs duplicados')
@@ -396,3 +460,4 @@ def mostrar_modulo_nba():
 
 if __name__ == '__main__':
     mostrar_modulo_nba()
+
