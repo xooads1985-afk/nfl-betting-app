@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.0.0.
+"""Resumen Inteligente NBA v1.3.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -11,7 +11,7 @@ from modulo_nba import cargar_partidos
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -62,6 +62,90 @@ def _proximo_partido(partidos, equipo):
     ahora = pd.Timestamp.now(tz='UTC')
     pendientes = pendientes.loc[pendientes['fecha_dt'].ge(ahora)].sort_values('fecha_dt')
     return pendientes.iloc[0] if not pendientes.empty else None
+
+
+
+
+def _auditar_participacion(datos):
+    """Devuelve registros anotados y válidos sin transformar ausencias en ceros."""
+    d = datos.copy()
+    d['partido_id'] = d['partido_id'].astype(str)
+    d = d.drop_duplicates(['jugador', 'equipo', 'partido_id'], keep='last')
+    metricas = [m for m in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos', 'Robos', 'Tapones', 'Pérdidas') if m in d]
+    for m in metricas:
+        d[m] = pd.to_numeric(d[m], errors='coerce')
+    if 'Minutos' in d:
+        mins = d['Minutos']
+        otros = [m for m in metricas if m != 'Minutos']
+        con_estadisticas = d[otros].notna().any(axis=1) if otros else pd.Series(False, index=d.index)
+        # Un cero explícito en minutos no acredita participación, aunque exista otra estadística.
+        d['Motivo'] = 'Incluido'
+        d.loc[mins.eq(0), 'Motivo'] = '0 minutos registrados'
+        d.loc[mins.isna() & ~con_estadisticas, 'Motivo'] = 'Minutos y estadísticas ausentes'
+        d.loc[mins.isna() & con_estadisticas, 'Motivo'] = 'Minutos ausentes; estadísticas observadas'
+    else:
+        d['Motivo'] = 'Minutos ausentes; revisar estadísticas'
+    d['Incluido'] = ~d['Motivo'].isin(['0 minutos registrados', 'Minutos y estadísticas ausentes'])
+    return d, d.loc[d['Incluido']].copy(), metricas
+
+
+def _proyectar_puntos(historial, partidos, equipo):
+    """Estimación descriptiva simple, no calibrada, basada en registros anteriores."""
+    if 'Puntos' not in historial:
+        return {'error': 'No hay columna de puntos.'}
+    d = historial.copy()
+    d['fecha_dt'] = pd.to_datetime(d['fecha'], utc=True, errors='coerce')
+    d = d.sort_values(['fecha_dt', 'partido_id'])
+    puntos = pd.to_numeric(d['Puntos'], errors='coerce').dropna()
+    if len(puntos) < 5:
+        return {'error': f'Muestra insuficiente: {len(puntos)} registros con puntos (mínimo 5).'}
+    proximo = _proximo_partido(partidos, equipo) if equipo != 'Todos' else None
+    if proximo is not None:
+        fecha_prox = pd.to_datetime(proximo['fecha_utc'], utc=True, errors='coerce')
+        if pd.notna(fecha_prox):
+            d = d.loc[d['fecha_dt'].lt(fecha_prox)]
+            puntos = pd.to_numeric(d['Puntos'], errors='coerce').dropna()
+    if len(puntos) < 5:
+        return {'error': 'No hay cinco partidos anteriores al próximo encuentro.'}
+    # Ventana reciente; intervalo descriptivo calculado de variabilidad observada.
+    recientes = puntos.tail(min(10, len(puntos)))
+    centro = float(recientes.mean())
+    dispersion = float(recientes.std(ddof=1)) if len(recientes) > 1 else 0.0
+    # Rango descriptivo de +/- 1 desviación estándar, no intervalo de confianza.
+    return {'centro': centro, 'bajo': max(0., centro-dispersion), 'alto': centro+dispersion,
+            'n': len(recientes), 'total': len(puntos), 'proximo': proximo}
+
+
+def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, partidos, equipo):
+    st.markdown('### 🧪 Auditoría de participación')
+    st.caption('Los registros sin minutos pero con estadísticas observadas se incluyen con advertencia; los ceros explícitos de minutos se excluyen.')
+    for nombre in seleccion:
+        todos = original.loc[original['jugador'].eq(nombre)].copy()
+        d = validos.loc[validos['jugador'].eq(nombre)].copy()
+        if todos.empty:
+            continue
+        with st.expander(f'🔎 {nombre}: incluidos {len(d)} / recuperados {len(todos)}'):
+            for motivo, cantidad in todos['Motivo'].value_counts().items():
+                st.write(f'{motivo}: {cantidad}')
+            columnas = [c for c in ['fecha', 'partido_id', 'Minutos', 'Puntos', 'Rebotes', 'Asistencias', 'Motivo', 'Incluido'] if c in todos]
+            st.dataframe(todos[columnas].sort_values('fecha', ascending=False), hide_index=True, use_container_width=True)
+            st.caption('Cobertura de cada promedio (valores numéricos disponibles):')
+            st.write(' · '.join(f'{m}: {int(d[m].notna().sum())}/{len(d)}' for m in metricas))
+        st.markdown(f'#### 🏀 Puntos posibles en el siguiente partido · {nombre}')
+        r = _proyectar_puntos(d, partidos, equipo if equipo != 'Todos' else str(d['equipo'].iloc[-1]) if not d.empty else 'Todos')
+        if 'error' in r:
+            st.info(r['error'])
+            continue
+        c1, c2 = st.columns(2)
+        c1.metric('Estimación central', f"{r['centro']:.1f} pts")
+        c2.metric('Rango descriptivo', f"{r['bajo']:.0f}–{r['alto']:.0f} pts")
+        if r['proximo'] is not None:
+            partido = r['proximo']
+            rival = partido['visitante'] if partido['local'] == (equipo if equipo != 'Todos' else str(d['equipo'].iloc[-1])) else partido['local']
+            st.caption(f"Próximo rival en calendario consultado: {rival} · {str(partido['fecha_utc'])[:16]} UTC")
+        else:
+            st.caption('Próximo rival no disponible en el calendario consultado; no se ajusta por rival.')
+        st.caption(f"Basado en los últimos {r['n']} partidos con puntos válidos ({r['total']} disponibles). Rango = media ± 1 desviación estándar; no es un intervalo probabilístico calibrado ni garantiza el resultado. No incorpora lesiones, alineaciones ni defensa rival.")
 
 
 def _mostrar_jugadores(partidos, equipo, limite):
@@ -116,26 +200,20 @@ def _mostrar_jugadores(partidos, equipo, limite):
         st.info('Selecciona de uno a tres jugadores.')
         return
     seleccionados = datos.loc[datos['jugador'].isin(seleccion)].copy()
-    seleccionados['partido_id'] = seleccionados['partido_id'].astype(str)
-    seleccionados = seleccionados.drop_duplicates(['jugador', 'equipo', 'partido_id'], keep='last')
-    metricas = [m for m in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos', 'Robos', 'Tapones', 'Pérdidas')
-                if m in seleccionados.columns]
-    for m in metricas:
-        seleccionados[m] = pd.to_numeric(seleccionados[m], errors='coerce')
+    auditoria, seleccionados, metricas = _auditar_participacion(seleccionados)
     if not metricas or not any(seleccionados[m].notna().any() for m in metricas):
         st.warning('No se encontraron estadísticas numéricas válidas.')
         return
-    # Excluir registros con cero minutos; si faltan los minutos, no asumir que jugó.
-    if 'Minutos' in seleccionados:
-        minutos = seleccionados['Minutos']
-        participo = minutos.gt(0) | (minutos.isna() & seleccionados[[m for m in metricas if m != 'Minutos']].notna().any(axis=1))
-        excluidos = int((~participo).sum())
-        seleccionados = seleccionados.loc[participo].copy()
-        if excluidos:
-            st.caption(f'{excluidos} registros con participación no acreditada o 0 minutos excluidos.')
+    excluidos = int((~auditoria['Incluido']).sum())
+    if excluidos:
+        st.caption(f'{excluidos} registros excluidos por participación no acreditada.')
+    pendientes = int(auditoria['Motivo'].eq('Minutos ausentes; estadísticas observadas').sum())
+    if pendientes:
+        st.warning(f'{pendientes} registros tienen estadísticas pero no minutos; revisar la auditoría.')
     if seleccionados.empty:
         st.info('No hay partidos con participación verificable para los jugadores seleccionados.')
         return
+    _mostrar_auditoria_y_proyeccion(auditoria, seleccionados, metricas, seleccion, partidos, equipo)
     st.markdown('### 👥 Tarjetas de jugadores')
     resumen_filas = []
     for nombre in seleccion:
