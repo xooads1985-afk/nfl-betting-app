@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.3'
+VERSION = '1.5.4'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -120,6 +120,22 @@ def _mostrar_proyeccion_equipos(partidos, partido):
     st.markdown(f'### 🏀 Próximo encuentro: {visita} @ {local}')
     st.caption(f"Calendario consultado: {str(partido['fecha_utc'])[:16]} UTC. Solo se consideran resultados anteriores al encuentro.")
     datos = {e: _historial_equipo(partidos, e, fecha) for e in (local, visita)}
+    # Auditoría informativa: no cambia las muestras ni las fórmulas existentes.
+    with st.expander('🧪 Auditoría de datos de equipos'):
+        for nombre in (local, visita):
+            base = partidos.loc[(partidos['local'].eq(nombre) | partidos['visitante'].eq(nombre)) &
+                                partidos['finalizado'].eq(True)].copy()
+            fechas_base = pd.to_datetime(base['fecha_utc'], utc=True, errors='coerce')
+            base = base.loc[fechas_base.lt(fecha)].copy()
+            ids = base['id'].astype(str) if 'id' in base else pd.Series(dtype=str)
+            duplicados_id = int(ids.duplicated().sum())
+            columnas = ['fecha_utc', 'local', 'visitante']
+            duplicados_encuentro = int(base.duplicated(subset=columnas).sum()) if all(c in base for c in columnas) else 0
+            sin_marcador = int(base[['puntos_local', 'puntos_visitante']].isna().any(axis=1).sum())
+            st.write(f'**{nombre}** · registros finalizados: {len(base)} · IDs repetidos: {duplicados_id} · coincidencias fecha/equipos: {duplicados_encuentro} · sin marcador: {sin_marcador}')
+            if duplicados_id or duplicados_encuentro or sin_marcador:
+                st.warning('Se detectaron incidencias en el calendario consultado. La auditoría no modifica automáticamente los registros.')
+        st.caption('Esta revisión solo cubre el intervalo consultado; no certifica que ESPN incluya todos los partidos de la temporada.')
     for e in (local, visita):
         d = datos[e]
         st.markdown(f'**{e} · {len(d)} partidos disponibles**')
@@ -209,6 +225,25 @@ def _mostrar_proyeccion_equipos(partidos, partido):
                               col_visita: round(b['media'],1) if b else 'N/D',
                               'Total': round(a['media']+b['media'],1) if a and b else 'N/D'})
             st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+            with st.expander('🧪 Auditoría de estimaciones y cobertura'):
+                st.write(f'Partidos con cuartos completos: {local} = {len(muestras[local])}; {visita} = {len(muestras[visita])}.')
+                st.write(f'Consultas fallidas de detalle: {guardado["errores"]}.')
+                st.caption('La tabla por cuartos utiliza medias de puntos observados en períodos reglamentarios; el cálculo de partido completo combina ataque y defensa y puede incluir prórrogas en los marcadores históricos.')
+                if len(estim) == 2:
+                    total_completo = sum(x['media'] for x in estim.values())
+                    ult = filas[-1]
+                    total_periodos = ult.get('Total')
+                    if isinstance(total_periodos, (float, int)):
+                        diferencia = total_completo - total_periodos
+                        st.metric('Diferencia: cálculo completo menos suma de cuartos', f'{diferencia:+.1f} pts')
+                        st.write(f'Partido completo (ataque/defensa): {total_completo:.1f} pts · Cuartos 1–4: {total_periodos:.1f} pts.')
+                        st.caption('La diferencia no demuestra un error: las metodologías y las muestras son distintas. No se promedian ni se sustituyen entre sí.')
+                    else:
+                        st.info('No hay suficientes períodos observados para comparar los dos totales.')
+                else:
+                    st.info('No hay datos suficientes para comparar las dos estimaciones de partido completo.')
+                if min(len(muestras[local]), len(muestras[visita])) < 10:
+                    st.warning('Muestra limitada: los promedios pueden variar considerablemente con nuevos partidos.')
             st.caption('Estimaciones basadas en partidos anteriores: no son marcadores confirmados ni resultados garantizados. N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
         else:
             st.info('Pulsa el botón para recuperar los puntos por cuarto; no se estiman sin marcadores reales por período.')
