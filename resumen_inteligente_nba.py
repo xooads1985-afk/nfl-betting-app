@@ -11,7 +11,7 @@ from modulo_nba import cargar_partidos
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.3.0'
+VERSION = '1.4.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -90,30 +90,57 @@ def _auditar_participacion(datos):
 
 
 def _proyectar_puntos(historial, partidos, equipo):
-    """Estimación descriptiva simple, no calibrada, basada en registros anteriores."""
+    """Resumen descriptivo, sin garantía predictiva ni información futura."""
     if 'Puntos' not in historial:
         return {'error': 'No hay columna de puntos.'}
     d = historial.copy()
     d['fecha_dt'] = pd.to_datetime(d['fecha'], utc=True, errors='coerce')
-    d = d.sort_values(['fecha_dt', 'partido_id'])
-    puntos = pd.to_numeric(d['Puntos'], errors='coerce').dropna()
-    if len(puntos) < 5:
-        return {'error': f'Muestra insuficiente: {len(puntos)} registros con puntos (mínimo 5).'}
+    d = d.dropna(subset=['fecha_dt']).sort_values(['fecha_dt', 'partido_id'])
     proximo = _proximo_partido(partidos, equipo) if equipo != 'Todos' else None
     if proximo is not None:
         fecha_prox = pd.to_datetime(proximo['fecha_utc'], utc=True, errors='coerce')
         if pd.notna(fecha_prox):
-            d = d.loc[d['fecha_dt'].lt(fecha_prox)]
-            puntos = pd.to_numeric(d['Puntos'], errors='coerce').dropna()
-    if len(puntos) < 5:
-        return {'error': 'No hay cinco partidos anteriores al próximo encuentro.'}
-    # Ventana reciente; intervalo descriptivo calculado de variabilidad observada.
+            d = d.loc[d['fecha_dt'].lt(fecha_prox)].copy()
+    d['Puntos'] = pd.to_numeric(d['Puntos'], errors='coerce')
+    d = d.dropna(subset=['Puntos'])
+    if len(d) < 5:
+        return {'error': f'Muestra insuficiente: {len(d)} partidos con puntos (mínimo 5).'}
+    puntos = d['Puntos']
     recientes = puntos.tail(min(10, len(puntos)))
     centro = float(recientes.mean())
     dispersion = float(recientes.std(ddof=1)) if len(recientes) > 1 else 0.0
-    # Rango descriptivo de +/- 1 desviación estándar, no intervalo de confianza.
+    ventanas = {n: {'media': float(puntos.tail(n).mean()), 'n': min(n, len(puntos))}
+                for n in (5, 10, 20)}
+    minutos = None
+    if 'Minutos' in d:
+        m = pd.to_numeric(d['Minutos'], errors='coerce').dropna()
+        if not m.empty:
+            minutos = {'reciente': float(m.tail(5).mean()),
+                       'historico': float(m.mean()), 'n': len(m)}
+    # Validación cronológica: cada predicción usa únicamente partidos previos.
+    errores = []
+    valores = puntos.to_numpy(dtype=float)
+    for i in range(5, len(valores)):
+        estimado = float(valores[max(0, i-10):i].mean())
+        errores.append(abs(estimado - float(valores[i])))
+    validacion = {'n': len(errores), 'mae': float(sum(errores)/len(errores)) if errores else None}
+    rival_info = None
+    if proximo is not None:
+        rival = str(proximo['visitante'] if proximo['local'] == equipo else proximo['local'])
+        if not partidos.empty and {'finalizado', 'local', 'visitante', 'puntos_local', 'puntos_visitante'}.issubset(partidos.columns):
+            anteriores = partidos.loc[partidos['finalizado'].eq(True) &
+                (partidos['local'].eq(rival) | partidos['visitante'].eq(rival))].copy()
+            fecha_prox = pd.to_datetime(proximo['fecha_utc'], utc=True, errors='coerce')
+            anteriores['fecha_dt'] = pd.to_datetime(anteriores['fecha_utc'], utc=True, errors='coerce')
+            anteriores = anteriores.loc[anteriores['fecha_dt'].lt(fecha_prox)].sort_values('fecha_dt')
+            contra = anteriores['puntos_visitante'].where(anteriores['local'].eq(rival), anteriores['puntos_local'])
+            contra = pd.to_numeric(contra, errors='coerce').dropna().tail(10)
+            if not contra.empty:
+                rival_info = {'rival': rival, 'media_recibida': float(contra.mean()), 'n': len(contra)}
     return {'centro': centro, 'bajo': max(0., centro-dispersion), 'alto': centro+dispersion,
-            'n': len(recientes), 'total': len(puntos), 'proximo': proximo}
+            'n': len(recientes), 'total': len(puntos), 'proximo': proximo,
+            'ventanas': ventanas, 'minutos': minutos, 'validacion': validacion,
+            'rival_info': rival_info}
 
 
 def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, partidos, equipo):
@@ -145,7 +172,28 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
             st.caption(f"Próximo rival en calendario consultado: {rival} · {str(partido['fecha_utc'])[:16]} UTC")
         else:
             st.caption('Próximo rival no disponible en el calendario consultado; no se ajusta por rival.')
-        st.caption(f"Basado en los últimos {r['n']} partidos con puntos válidos ({r['total']} disponibles). Rango = media ± 1 desviación estándar; no es un intervalo probabilístico calibrado ni garantiza el resultado. No incorpora lesiones, alineaciones ni defensa rival.")
+        st.caption(f"Basado en los últimos {r['n']} partidos con puntos válidos ({r['total']} disponibles). Rango = media ± 1 desviación estándar: descriptivo, no calibrado ni garantizado. No incorpora lesiones ni alineaciones.")
+        with st.expander('📊 Ventanas, minutos y calidad de datos'):
+            for n, v in r['ventanas'].items():
+                st.write(f"Últimos {n}: {v['media']:.1f} puntos/PJ · {v['n']} partidos")
+            if r['minutos']:
+                m = r['minutos']
+                st.write(f"Minutos: últimos 5 = {m['reciente']:.1f} · historial = {m['historico']:.1f} ({m['n']} registros)")
+            else:
+                st.info('Minutos no disponibles para esta muestra.')
+            if r['rival_info']:
+                v = r['rival_info']
+                st.write(f"{v['rival']}: puntos de equipo recibidos por partido = {v['media_recibida']:.1f} ({v['n']} partidos consultados). No es defensa individual ni ajusta la estimación.")
+            else:
+                st.caption('Sin muestra verificable del rival en el calendario consultado.')
+            st.write(f"Cobertura de puntos: {r['total']} partidos válidos. Historial parcial posible.")
+        with st.expander('🧪 Validación retrospectiva sin datos futuros'):
+            v = r['validacion']
+            if v['n']:
+                st.metric('Error absoluto medio histórico', f"{v['mae']:.1f} pts")
+                st.caption(f"{v['n']} evaluaciones cronológicas; cada estimación usa solo los 5–10 partidos anteriores. Es una prueba descriptiva sobre la muestra disponible, no una validación externa.")
+            else:
+                st.info('Se necesitan al menos 6 partidos con puntos válidos para evaluar errores históricos.')
 
 
 def _mostrar_jugadores(partidos, equipo, limite):
