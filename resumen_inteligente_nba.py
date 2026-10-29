@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.5.3.
+"""Resumen Inteligente NBA v1.5.5.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.4'
+VERSION = '1.5.5'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -113,6 +113,120 @@ def _abreviatura_equipo(nombre):
     return codigos.get(nombre, nombre[:3].upper())
 
 
+
+
+def _validacion_historica_equipos(partidos, fecha_limite, detalles=None):
+    """Walk-forward por partido; solo encuentros previos a cada fecha objetivo."""
+    if partidos.empty:
+        return pd.DataFrame()
+    d = partidos.loc[partidos['finalizado'].eq(True)].copy()
+    d['fecha_dt'] = pd.to_datetime(d['fecha_utc'], utc=True, errors='coerce')
+    d = d.dropna(subset=['fecha_dt', 'puntos_local', 'puntos_visitante'])
+    d = d.loc[d['fecha_dt'].lt(fecha_limite)].sort_values(['fecha_dt', 'id'])
+    # Un mismo evento solo puede evaluarse una vez.
+    d = d.drop_duplicates(subset=['id'], keep='first')
+    filas = []
+    for _, juego in d.iterrows():
+        local, visita = str(juego['local']), str(juego['visitante'])
+        fecha = juego['fecha_dt']
+        anteriores = d.loc[d['fecha_dt'].lt(fecha)]
+        historicos = {e: _historial_equipo(anteriores, e, fecha) for e in (local, visita)}
+        pred = {}
+        for equipo, rival in ((local, visita), (visita, local)):
+            propio = _media_rango(historicos[equipo]['PF']) if not historicos[equipo].empty else None
+            recibido = _media_rango(historicos[rival]['PC']) if not historicos[rival].empty else None
+            if propio and recibido:
+                pred[equipo] = (propio['media'] + recibido['media']) / 2
+        ident = str(juego['id'])
+        fila = {'Fecha': fecha.strftime('%Y-%m-%d'), 'Partido': f'{visita} @ {local}',
+                'id': ident, 'ataque': None, 'cuartos': None,
+                'real_completo': float(juego['puntos_local'] + juego['puntos_visitante']),
+                'real_reglamentario': None}
+        if len(pred) == 2:
+            fila['ataque'] = pred[local] + pred[visita]
+        # Solo evaluar cuartos si existen marcadores reales de ambos equipos
+        # para el juego objetivo Y para sus juegos históricos.
+        if detalles and ident in detalles:
+            actual = detalles[ident]
+            if local in actual and visita in actual:
+                fila['real_reglamentario'] = sum(actual[local].values()) + sum(actual[visita].values())
+                pron = {}
+                for equipo in (local, visita):
+                    observados = []
+                    for _, ant in historicos[equipo].tail(10).iterrows():
+                        par = detalles.get(str(ant['id']), {})
+                        if equipo in par:
+                            observados.append(sum(par[equipo].values()))
+                    media = _media_rango(observados)
+                    if media:
+                        pron[equipo] = media['media']
+                if len(pron) == 2:
+                    fila['cuartos'] = pron[local] + pron[visita]
+        if fila['ataque'] is not None or fila['cuartos'] is not None:
+            filas.append(fila)
+    return pd.DataFrame(filas)
+
+
+def _panel_validacion_historica(partidos, partido):
+    with st.expander('🧪 Validación histórica de equipos · sin datos futuros'):
+        st.caption('Cada evaluación usa únicamente partidos anteriores al encuentro evaluado. '
+                   'Se requieren al menos 3 partidos anteriores por equipo. '
+                   'La evaluación se limita al calendario consultado.')
+        fecha = pd.to_datetime(partido['fecha_utc'], utc=True, errors='coerce')
+        if pd.isna(fecha):
+            st.info('No hay fecha verificable para la evaluación.')
+            return
+        clave = f"ri_nba_validacion_detalles_{partido['id']}"
+        detalles = st.session_state.get(clave)
+        if st.button('📥 Consultar períodos para validación histórica',
+                     key='ri_nba_validacion_btn'):
+            base = partidos.loc[partidos['finalizado'].eq(True)].copy()
+            base['fecha_dt'] = pd.to_datetime(base['fecha_utc'], utc=True, errors='coerce')
+            base = base.loc[base['fecha_dt'].lt(fecha)].drop_duplicates('id')
+            # Limitar las llamadas para proteger el proveedor; sin datos falsos.
+            base = base.sort_values('fecha_dt').tail(35)
+            detalles = {}
+            fallos = 0
+            with st.spinner('Consultando períodos históricos disponibles...'):
+                for identificador in base['id'].astype(str):
+                    try:
+                        detalles[identificador] = _puntos_periodos(cargar_detalle(identificador))
+                    except Exception:
+                        fallos += 1
+            st.session_state[clave] = detalles
+            st.session_state[clave + '_fallos'] = fallos
+        resultados = _validacion_historica_equipos(partidos, fecha, detalles)
+        if resultados.empty:
+            st.info('Aún no hay partidos con suficiente historial previo para validar los métodos.')
+            return
+        for titulo, pred, real in (
+            ('Ataque y defensa · marcador completo', 'ataque', 'real_completo'),
+            ('Cuartos 1–4 · tiempo reglamentario', 'cuartos', 'real_reglamentario'),
+        ):
+            validos = resultados.dropna(subset=[pred, real]).copy()
+            st.markdown(f'**{titulo}**')
+            if validos.empty:
+                st.info('Sin evaluaciones suficientes para este método con los datos recuperados.')
+                continue
+            validos['Error'] = (validos[pred] - validos[real]).abs()
+            st.metric('Error absoluto medio (MAE)', f"{validos['Error'].mean():.1f} pts")
+            st.caption(f"{len(validos)} evaluaciones cronológicas · mediana del error: {validos['Error'].median():.1f} pts")
+            if len(validos) < 10:
+                st.warning('Muestra pequeña: todavía no permite conclusiones firmes sobre precisión.')
+            with st.expander(f'📋 Partidos evaluados · {titulo}'):
+                tabla = validos[['Fecha', 'Partido', pred, real, 'Error']].copy()
+                tabla.columns = ['Fecha', 'Partido', 'Estimado', 'Observado', 'Error']
+                st.dataframe(tabla.round(1), hide_index=True, use_container_width=True)
+        if detalles is None:
+            st.caption('Para evaluar el método por cuartos, pulsa el botón de consulta de períodos históricos.')
+        else:
+            st.caption(f"Detalles históricos consultados: {len(detalles)} · fallos: {st.session_state.get(clave + '_fallos', 0)}. "
+                       'Solo se utilizan períodos observados; cobertura parcial posible.')
+        st.caption('Los errores de ambos métodos pueden proceder de partidos y objetivos distintos '
+                   '(marcador completo frente a reglamentario). No son una comparación directa '
+                   'si las muestras no coinciden. Los resultados no garantizan desempeño futuro.')
+
+
 def _mostrar_proyeccion_equipos(partidos, partido):
     """Estimaciones descriptivas por equipo, total y períodos con datos reales."""
     local, visita = str(partido['local']), str(partido['visitante'])
@@ -170,6 +284,7 @@ def _mostrar_proyeccion_equipos(partidos, partido):
         st.caption('Media simple del ataque reciente de cada equipo y puntos recibidos por el rival (máximo 10 juegos). No es una predicción calibrada. Los marcadores finales históricos pueden incluir prórrogas.')
     else:
         st.info('Se requieren al menos 3 partidos con marcadores completos de cada equipo para estimar puntos del partido.')
+    _panel_validacion_historica(partidos, partido)
     with st.expander('⏱️ Cuartos y mitades · datos reales'):
         st.caption('Consulta opcional de hasta 10 partidos finalizados distintos por equipo. Puede tardar y ESPN puede limitar las consultas.')
         clave = f"ri_nba_periodos_{partido['id']}"
