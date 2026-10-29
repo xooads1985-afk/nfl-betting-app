@@ -1,5 +1,6 @@
 """Centro estadístico NBA independiente. Datos ESPN no oficiales; sin valores simulados."""
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import requests
 import pandas as pd
 import streamlit as st
@@ -89,6 +90,59 @@ def tabla_equipos(partidos):
         D=lambda x: x.PF-x.PC, **{'%V': lambda x: 100*x.V/x.PJ}
     ).sort_values(['V','D'], ascending=False).round(2)
 
+def _fecha_sinaloa(valor):
+    """Convierte fecha ISO UTC a hora de Sinaloa (sin DST desde 2022)."""
+    try:
+        ts = pd.to_datetime(valor, utc=True)
+        if pd.isna(ts):
+            return 'Fecha no disponible'
+        return ts.tz_convert(ZoneInfo('America/Mazatlan')).strftime('%d/%m/%Y · %H:%M')
+    except (ValueError, TypeError, OverflowError):
+        return 'Fecha no disponible'
+
+
+def _estado_partido(fila):
+    if bool(fila.finalizado):
+        return '✅ Finalizado'
+    texto = str(fila.estado or '').lower()
+    if any(x in texto for x in ('progress', 'live', 'halftime', 'quarter', 'in progress')):
+        return '🔴 En vivo'
+    if any(x in texto for x in ('postpon', 'cancel', 'delay', 'suspend')):
+        return '⚠️ ' + str(fila.estado)
+    if any(x in texto for x in ('scheduled', 'pre', 'not started')):
+        return '🗓️ Programado'
+    return 'ℹ️ ' + str(fila.estado)
+
+
+def _tarjetas_partidos(partidos, clave, limite=100):
+    """Tarjetas verticales aptas para pantallas pequeñas; preserva datos de origen."""
+    if partidos.empty:
+        st.info('No hay partidos para mostrar con estos filtros.')
+        return
+    ordenados = partidos.sort_values('fecha_utc', ascending=False)
+    if len(ordenados) > limite:
+        st.caption(f'Mostrando {limite} de {len(ordenados)} partidos. El CSV conserva todos.')
+    for fila in ordenados.head(limite).itertuples(index=False):
+        st.markdown(f'**🏀 {fila.visitante} @ {fila.local}**')
+        st.caption(f'📅 {_fecha_sinaloa(fila.fecha_utc)} · Sinaloa  |  {_estado_partido(fila)}')
+        if fila.finalizado and pd.notna(fila.puntos_visitante) and pd.notna(fila.puntos_local):
+            st.markdown(f'**{int(fila.puntos_visitante)} – {int(fila.puntos_local)}**  (visitante – local)')
+        elif pd.notna(fila.puntos_visitante) and pd.notna(fila.puntos_local) and 'En vivo' in _estado_partido(fila):
+            st.write(f'Marcador parcial: {int(fila.puntos_visitante)} – {int(fila.puntos_local)}')
+        else:
+            st.caption('Sin marcador final disponible')
+        st.divider()
+
+
+def _tabla_partidos_legible(partidos):
+    columnas = ['fecha_utc','visitante','local','puntos_visitante','puntos_local','estado']
+    tabla = partidos[columnas].copy()
+    tabla.insert(0, 'fecha_sinaloa', tabla.fecha_utc.map(_fecha_sinaloa))
+    tabla = tabla.rename(columns={'fecha_sinaloa':'Fecha · Sinaloa', 'visitante':'Visitante',
+        'local':'Local', 'puntos_visitante':'Pts visita', 'puntos_local':'Pts local', 'estado':'Estado'})
+    return tabla.drop(columns='fecha_utc')
+
+
 def mostrar_modulo_nba():
     st.title('🏀 Centro Estadístico NBA')
     st.caption('Datos consultados en ESPN (interfaz no oficial). Sin cifras de demostración. Los promedios se calculan únicamente sobre el período seleccionado.')
@@ -115,6 +169,7 @@ def mostrar_modulo_nba():
     if partidos.empty:
         st.info('No se encontraron partidos en las fechas seleccionadas.')
         return
+    st.caption('Horarios mostrados en la zona America/Mazatlan (Sinaloa).')
     vistas = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏀 Enfrentamientos',
               '🏀 Centro por partido', '📊 Puntos históricos', '👥 Jugadores por partido',
               '📈 Rendimiento de jugadores', '🧠 Rendimiento avanzado', '👥 Jugadores',
@@ -123,14 +178,21 @@ def mostrar_modulo_nba():
     finalizados = partidos[partidos.finalizado].copy()
     tabla = tabla_equipos(partidos)
     if vista == '🏠 Inicio':
-        c1,c2,c3 = st.columns(3)
-        c1.metric('Partidos',len(partidos)); c2.metric('Finalizados',len(finalizados)); c3.metric('Equipos',len(tabla))
-        st.dataframe(partidos[['fecha_utc','visitante','local','puntos_visitante','puntos_local','estado']], use_container_width=True, hide_index=True)
+        st.metric('Partidos recuperados', len(partidos))
+        c1,c2 = st.columns(2)
+        c1.metric('Finalizados', len(finalizados))
+        c2.metric('Equipos con resultados', len(tabla))
+        st.caption('Partidos recuperados = registros únicos devueltos por la fuente; no garantiza cobertura completa.')
+        _tarjetas_partidos(partidos, 'nba_inicio')
+        with st.expander('📋 Ver tabla completa'):
+            st.dataframe(_tabla_partidos_legible(partidos), use_container_width=True, hide_index=True)
     elif vista == '📅 Partidos':
         equipos = sorted(set(partidos.local) | set(partidos.visitante))
         eq = st.selectbox('Filtrar equipo', ['Todos']+equipos, key='nba_filtro_eq')
         ver = partidos if eq == 'Todos' else partidos[(partidos.local == eq)|(partidos.visitante == eq)]
-        st.dataframe(ver[['fecha_utc','visitante','local','puntos_visitante','puntos_local','estado']], use_container_width=True, hide_index=True)
+        _tarjetas_partidos(ver, 'nba_partidos')
+        with st.expander('📋 Ver tabla completa'):
+            st.dataframe(_tabla_partidos_legible(ver), use_container_width=True, hide_index=True)
         st.download_button('📥 Descargar partidos', ver.to_csv(index=False).encode('utf-8-sig'), 'nba_partidos.csv', 'text/csv')
     elif vista in ['🏟️ Equipos','📊 Comparar equipos','🧠 Rendimiento avanzado']:
         if tabla.empty:
@@ -152,7 +214,7 @@ def mostrar_modulo_nba():
         y = st.selectbox('Equipo B', [e for e in equipos if e != x], key='nba_h2h_b') if len(equipos)>1 else None
         if y:
             h = partidos[((partidos.local==x)&(partidos.visitante==y))|((partidos.local==y)&(partidos.visitante==x))]
-            st.dataframe(h[['fecha_utc','visitante','local','puntos_visitante','puntos_local','estado']], use_container_width=True, hide_index=True)
+            _tarjetas_partidos(h, 'nba_h2h')
     elif vista in ['🏀 Centro por partido','👥 Jugadores por partido','📈 Rendimiento de jugadores','👥 Jugadores']:
         opciones = {f"{g.fecha_utc[:10]} · {g.visitante} @ {g.local} · {g.estado} [{g.id}]":g.id for g in partidos.itertuples(index=False)}
         etiqueta = st.selectbox('Partido',list(opciones),key='nba_partido_detalle')
@@ -187,11 +249,15 @@ def mostrar_modulo_nba():
         st.write('Consulta UTC:', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
         st.write('Período consultado:', str(inicio), 'a', str(fin))
         st.metric('Días con error de consulta',len(errores))
+        st.metric('Partidos únicos recuperados',len(partidos))
+        st.metric('Partidos programados o en curso',len(partidos)-len(finalizados))
         st.metric('Partidos con resultado completo',len(finalizados[finalizados.puntos_local.notna() & finalizados.puntos_visitante.notna()]))
         st.caption('La hora de consulta no demuestra que la fuente haya publicado datos nuevos. Caché de calendario: 30 minutos.')
     elif vista == '🧪 Auditorías y análisis':
         fallas = []
         if partidos.id.duplicated().any(): fallas.append('IDs duplicados')
+        if partidos.id.eq('').any(): fallas.append('Partidos sin identificador')
+        if partidos.fecha_utc.eq('').any(): fallas.append('Partidos sin fecha')
         if (partidos.local==partidos.visitante).any(): fallas.append('Local y visitante idénticos')
         if (partidos[['puntos_local','puntos_visitante']]<0).any().any(): fallas.append('Puntos negativos')
         incompletos = finalizados[finalizados[['puntos_local','puntos_visitante']].isna().any(axis=1)]
@@ -209,3 +275,4 @@ def mostrar_modulo_nba():
 
 if __name__ == '__main__':
     mostrar_modulo_nba()
+
