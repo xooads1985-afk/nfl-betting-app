@@ -1,4 +1,4 @@
-"""Centro estadístico NBA independiente. Datos ESPN no oficiales; sin valores simulados."""
+"""Centro estadístico NBA independiente v1.5. Datos ESPN no oficiales; sin valores simulados."""
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import requests
@@ -15,6 +15,8 @@ BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba'
 # Copia local de respuestas exitosas. El almacenamiento puede ser efímero en Streamlit Cloud.
 _CACHE_DB = Path(__file__).resolve().parent / '.nba_respuestas_cache.sqlite3'
 _CACHE_MAX_AGE = 72 * 3600  # Sólo rescate temporal; siempre se avisa al usuario.
+_COLUMNAS_PARTIDOS = ['id', 'fecha_utc', 'local', 'visitante', 'local_id', 'visitante_id',
+                     'puntos_local', 'puntos_visitante', 'estado', 'finalizado']
 
 
 def _cache_guardar(clave, datos):
@@ -23,7 +25,7 @@ def _cache_guardar(clave, datos):
             con.execute('CREATE TABLE IF NOT EXISTS respuestas (clave TEXT PRIMARY KEY, guardado REAL NOT NULL, contenido TEXT NOT NULL)')
             con.execute('INSERT OR REPLACE INTO respuestas VALUES (?, ?, ?)',
                         (clave, time.time(), json.dumps(datos, ensure_ascii=False)))
-    except (OSError, sqlite3.Error):
+    except (OSError, sqlite3.Error, TypeError, ValueError):
         pass  # Si el disco es de sólo lectura, el módulo sigue funcionando.
 
 
@@ -67,7 +69,7 @@ def _json(endpoint, params=None):
                 break
             time.sleep(1.0)
     # La caché NO disfraza una consulta fallida: la UI muestra la incidencia.
-    if endpoint == 'scoreboard':
+    if endpoint in ('scoreboard', 'summary'):
         datos, edad = _cache_recuperar(clave)
         if datos is not None:
             datos = dict(datos)
@@ -80,6 +82,7 @@ def _json(endpoint, params=None):
 def _normalizar_partidos(df):
     """Depura partidos por ID y por encuentro real; preserva auditoría."""
     if df.empty:
+        df = pd.DataFrame(columns=_COLUMNAS_PARTIDOS)
         df.attrs['auditoria_duplicados'] = {'recibidos': 0, 'descartados_id': 0,
                                             'descartados_encuentro': 0, 'unicos': 0}
         return df
@@ -179,7 +182,12 @@ def cargar_partidos(desde, hasta):
             rescate = datos.get('_nba_cache_rescate')
             if rescate:
                 errores.append(f"{dia}: fuente no disponible; copia local de hace {rescate['minutos']} min. Motivo: {rescate['motivo']}")
-            for evento in datos.get('events', []):
+            eventos = datos.get('events', [])
+            if not isinstance(eventos, list):
+                raise ValueError('ESPN devolvió eventos en formato inesperado')
+            for evento in eventos:
+                if not isinstance(evento, dict):
+                    continue
                 competicion = (evento.get('competitions') or [{}])[0]
                 equipos = competicion.get('competitors', [])
                 local = next((x for x in equipos if x.get('homeAway') == 'home'), {})
@@ -198,7 +206,7 @@ def cargar_partidos(desde, hasta):
                 })
         except (requests.RequestException, ValueError, KeyError) as exc:
             errores.append(f'{dia}: {type(exc).__name__}: {exc}')
-    df_bruto = pd.DataFrame(registros)
+    df_bruto = pd.DataFrame(registros, columns=_COLUMNAS_PARTIDOS)
     diagnostico, resumen = _diagnostico_coincidencias(df_bruto)
     df = _normalizar_partidos(df_bruto)
     df.attrs['diagnostico_coincidencias'] = diagnostico
@@ -231,7 +239,8 @@ def extraer_jugadores(detalle):
 def tabla_equipos(partidos):
     if partidos.empty:
         return pd.DataFrame()
-    fin = partidos[partidos.finalizado & partidos.puntos_local.notna() & partidos.puntos_visitante.notna()]
+    fin = partidos[partidos.finalizado & partidos.puntos_local.notna() & partidos.puntos_visitante.notna()
+                   & (partidos.puntos_local >= 0) & (partidos.puntos_visitante >= 0)]
     filas = []
     for g in fin.itertuples(index=False):
         filas += [
@@ -307,6 +316,12 @@ def mostrar_modulo_nba():
         inicio = st.date_input('Desde', value=hoy-timedelta(days=6), key='nba_fecha_desde')
     with b:
         fin = st.date_input('Hasta', value=hoy, key='nba_fecha_hasta')
+    if inicio > fin:
+        st.error('La fecha inicial no puede ser posterior a la fecha final.')
+        return
+    if (fin - inicio).days > 31:
+        st.error('Selecciona un intervalo máximo de 32 días por consulta.')
+        return
     if st.button('🔄 Actualizar datos NBA', use_container_width=True):
         cargar_partidos.clear()
         _json.clear()
@@ -322,7 +337,7 @@ def mostrar_modulo_nba():
         with st.expander('Ver errores de consulta'):
             st.code('\n'.join(errores))
     if partidos.empty:
-        st.info('No se encontraron partidos en las fechas seleccionadas.')
+        st.info('No se recuperaron partidos en las fechas seleccionadas. Si hubo errores de consulta, no significa que no se hayan disputado encuentros.')
         return
     st.caption('Horarios mostrados en la zona America/Mazatlan (Sinaloa).')
     auditoria = partidos.attrs.get('auditoria_duplicados', {})
@@ -357,7 +372,9 @@ def mostrar_modulo_nba():
               '📈 Rendimiento de jugadores', '🧠 Rendimiento avanzado', '👥 Jugadores',
               '🛰️ Estado', '🧪 Auditorías y análisis', '🧪 Pruebas']
     vista = st.selectbox('Sección NBA', vistas, key='nba_vista')
-    finalizados = partidos[partidos.finalizado].copy()
+    finalizados = partidos[partidos.finalizado & partidos.puntos_local.notna()
+                           & partidos.puntos_visitante.notna()
+                           & (partidos.puntos_local >= 0) & (partidos.puntos_visitante >= 0)].copy()
     tabla = tabla_equipos(partidos)
     if vista == '🏠 Inicio':
         st.metric('Partidos recuperados', len(partidos))
@@ -402,6 +419,9 @@ def mostrar_modulo_nba():
         etiqueta = st.selectbox('Partido',list(opciones),key='nba_partido_detalle')
         try:
             detalle = cargar_detalle(opciones[etiqueta])
+            if detalle.get('_nba_cache_rescate'):
+                rescate = detalle['_nba_cache_rescate']
+                st.warning(f"Detalle recuperado de copia local ({rescate['minutos']} min de antigüedad); ESPN no respondió.")
             jugadores = extraer_jugadores(detalle)
             if vista == '🏀 Centro por partido':
                 st.subheader(etiqueta)
@@ -415,7 +435,7 @@ def mostrar_modulo_nba():
                 st.dataframe(ver, use_container_width=True, hide_index=True)
                 st.download_button('📥 Descargar boxscore',ver.to_csv(index=False).encode('utf-8-sig'),'nba_boxscore.csv','text/csv')
             if vista in ['📈 Rendimiento de jugadores','👥 Jugadores']:
-                st.caption('Vista inicial por partido. El historial multijuego se habilitará al completar el motor de recopilación y validación de boxscores.')
+                st.caption('Esta sección presenta el boxscore del partido seleccionado. El historial multijuego se consulta en el módulo independiente Historial de jugadores NBA.')
         except Exception as exc:
             st.error(f'No se pudo cargar el detalle: {exc}')
     elif vista == '📊 Puntos históricos':
@@ -433,7 +453,7 @@ def mostrar_modulo_nba():
         st.metric('Días con error de consulta',len(errores))
         st.metric('Partidos únicos recuperados',len(partidos))
         st.metric('Partidos programados o en curso',len(partidos)-len(finalizados))
-        st.metric('Partidos con resultado completo',len(finalizados[finalizados.puntos_local.notna() & finalizados.puntos_visitante.notna()]))
+        st.metric('Partidos con resultado completo',len(finalizados))
         st.caption('La hora de consulta no demuestra que la fuente haya publicado datos nuevos. Caché en memoria: 15 minutos. Rescate local: máximo 72 horas, identificado como incidencia.')
     elif vista == '🧪 Auditorías y análisis':
         fallas = []
@@ -445,7 +465,7 @@ def mostrar_modulo_nba():
         if partidos.fecha_utc.eq('').any(): fallas.append('Partidos sin fecha')
         if (partidos.local==partidos.visitante).any(): fallas.append('Local y visitante idénticos')
         if (partidos[['puntos_local','puntos_visitante']]<0).any().any(): fallas.append('Puntos negativos')
-        incompletos = finalizados[finalizados[['puntos_local','puntos_visitante']].isna().any(axis=1)]
+        incompletos = partidos[partidos.finalizado & partidos[['puntos_local','puntos_visitante']].isna().any(axis=1)]
         if not incompletos.empty: fallas.append(f'{len(incompletos)} finalizados sin marcador completo')
         if errores: fallas.append(f'{len(errores)} días con fallas de consulta')
         if fallas:
