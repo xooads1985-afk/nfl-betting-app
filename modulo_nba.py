@@ -275,4 +275,3 @@ def mostrar_modulo_nba():
 
 if __name__ == '__main__':
     mostrar_modulo_nba()
-
