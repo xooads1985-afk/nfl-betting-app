@@ -64,6 +64,47 @@ def _normalizar_partidos(df):
     return trabajo
 
 
+def _diagnostico_coincidencias(df):
+    """Auditoría no destructiva: mismo enfrentamiento y fecha local, aun con IDs distintos."""
+    columnas = ['id', 'fecha_utc', 'fecha_sinaloa', 'visitante', 'local',
+                'puntos_visitante', 'puntos_local', 'estado', 'finalizado',
+                'diferencia_minutos', 'tipo_coincidencia']
+    if df.empty:
+        return pd.DataFrame(columns=columnas), {'grupos': 0, 'registros': 0, 'ids_distintos': 0}
+    t = df.copy()
+    ts = pd.to_datetime(t['fecha_utc'], utc=True, errors='coerce')
+    local_ts = ts.dt.tz_convert('America/Mazatlan')
+    t['fecha_sinaloa'] = local_ts.dt.strftime('%d/%m/%Y %H:%M').fillna('Sin fecha')
+    t['_dia'] = local_ts.dt.strftime('%Y-%m-%d')
+    t['_minuto'] = ts.dt.floor('min')
+    t['_visita'] = t['visitante'].fillna('').astype(str).str.casefold().str.strip()
+    t['_local'] = t['local'].fillna('').astype(str).str.casefold().str.strip()
+    t = t[t['_dia'].notna() & t['_visita'].ne('') & t['_local'].ne('')].copy()
+    resultados = []
+    grupos = 0
+    ids_distintos = 0
+    for _, grupo in t.groupby(['_dia', '_visita', '_local'], sort=False):
+        if len(grupo) < 2:
+            continue
+        grupos += 1
+        if grupo['id'].astype(str).nunique() > 1:
+            ids_distintos += 1
+        dif = (grupo['_minuto'].max() - grupo['_minuto'].min()).total_seconds() / 60
+        exacto = grupo['_minuto'].nunique() == 1
+        clase = ('Misma hora, equipos y día' if exacto else
+                 'Mismos equipos y día; horarios distintos')
+        for _, fila in grupo.iterrows():
+            resultados.append({c: fila.get(c) for c in columnas if c not in
+                               ('diferencia_minutos', 'tipo_coincidencia')}
+                              | {'diferencia_minutos': round(dif, 1),
+                                 'tipo_coincidencia': clase})
+    tabla = pd.DataFrame(resultados, columns=columnas)
+    if not tabla.empty:
+        tabla = tabla.sort_values(['fecha_sinaloa', 'visitante', 'local', 'id'])
+    return tabla, {'grupos': grupos, 'registros': len(tabla),
+                   'ids_distintos': ids_distintos}
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def cargar_partidos(desde, hasta):
     inicio, fin = date.fromisoformat(str(desde)), date.fromisoformat(str(hasta))
@@ -93,8 +134,11 @@ def cargar_partidos(desde, hasta):
                 })
         except (requests.RequestException, ValueError, KeyError) as exc:
             errores.append(f'{dia}: {type(exc).__name__}: {exc}')
-    df = pd.DataFrame(registros)
-    df = _normalizar_partidos(df)
+    df_bruto = pd.DataFrame(registros)
+    diagnostico, resumen = _diagnostico_coincidencias(df_bruto)
+    df = _normalizar_partidos(df_bruto)
+    df.attrs['diagnostico_coincidencias'] = diagnostico
+    df.attrs['resumen_coincidencias'] = resumen
     return df, errores
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -226,6 +270,24 @@ def mostrar_modulo_nba():
         st.write('Partidos únicos mostrados:', len(partidos))
         st.caption('Se comparan fechas de inicio UTC al minuto y equipos local/visitante. '
                    'No se garantiza cobertura total ni exactitud de la fuente.')
+    with st.expander('🧪 Auditoría avanzada NBA v1.4 — coincidencias'):
+        st.caption('Análisis diagnóstico de los registros originales, ANTES de eliminar duplicados. '
+                   'No elimina partidos adicionales ni altera los cálculos.')
+        resumen = partidos.attrs.get('resumen_coincidencias', {})
+        coincidencias = partidos.attrs.get('diagnostico_coincidencias', pd.DataFrame())
+        st.metric('Grupos con mismos equipos y fecha local', resumen.get('grupos', 0))
+        st.metric('Registros involucrados', resumen.get('registros', 0))
+        st.metric('Grupos con IDs diferentes', resumen.get('ids_distintos', 0))
+        if coincidencias.empty:
+            st.success('No se encontraron coincidencias por equipos y día local en los datos recibidos.')
+        else:
+            st.warning('Coincidencias para revisar: NO son duplicados confirmados.')
+            st.dataframe(coincidencias, hide_index=True, use_container_width=True)
+            st.download_button('📥 Descargar diagnóstico CSV',
+                coincidencias.to_csv(index=False).encode('utf-8-sig'),
+                'nba_v1_4_diagnostico.csv', 'text/csv', key='nba_v14_csv')
+            st.caption('Revisa ID, horario UTC, marcador y estado. Dos partidos del mismo día '
+                       'no deben eliminarse automáticamente sin verificar la fuente.')
     vistas = ['🏠 Inicio', '📅 Partidos', '🏟️ Equipos', '📊 Comparar equipos', '🏀 Enfrentamientos',
               '🏀 Centro por partido', '📊 Puntos históricos', '👥 Jugadores por partido',
               '📈 Rendimiento de jugadores', '🧠 Rendimiento avanzado', '👥 Jugadores',
@@ -334,4 +396,3 @@ def mostrar_modulo_nba():
 
 if __name__ == '__main__':
     mostrar_modulo_nba()
-
