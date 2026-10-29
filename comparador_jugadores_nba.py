@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -36,6 +36,18 @@ def _columna(df, alternativas):
     return next((col for col in alternativas if col in df.columns), None)
 
 
+def _identidades_detalle(detalle):
+    """Extrae ID de ESPN siguiendo el orden de las filas de extraer_jugadores."""
+    identidades = []
+    for equipo in detalle.get('boxscore', {}).get('players', []):
+        for bloque in equipo.get('statistics', []):
+            for jugador in bloque.get('athletes', []):
+                if isinstance(jugador, dict):
+                    atleta = jugador.get('athlete') or {}
+                    identidades.append(str(atleta.get('id') or '').strip())
+    return identidades
+
+
 @st.cache_data(ttl=1800, show_spinner=False)
 def _historial(ids_y_fechas):
     registros, errores = [], []
@@ -46,12 +58,18 @@ def _historial(ids_y_fechas):
             if df.empty or 'jugador' not in df.columns:
                 errores.append(f'{fecha} · {id_partido}: sin boxscore de jugadores')
                 continue
-            for _, fila in df.iterrows():
+            identidades = _identidades_detalle(detalle)
+            for posicion, (_, fila) in enumerate(df.iterrows()):
                 nombre = str(fila.get('jugador', '')).strip()
                 if not nombre or nombre == 'Desconocido':
                     continue
+                equipo = str(fila.get('equipo', '')).strip()
+                atleta_id = identidades[posicion] if posicion < len(identidades) else ''
+                # Sin ID, nombre + equipo evitan mezclar homónimos de equipos distintos.
+                clave = 'id:' + atleta_id if atleta_id else 'nombre_equipo:' + nombre.casefold() + '|' + equipo.casefold()
                 registro = {'fecha': fecha, 'partido_id': id_partido,
-                            'jugador': nombre, 'equipo': str(fila.get('equipo', ''))}
+                            'jugador_id': atleta_id, 'clave_jugador': clave,
+                            'jugador': nombre, 'equipo': equipo}
                 for etiqueta, alternativas in METRICAS.items():
                     columna = _columna(df, alternativas)
                     registro[etiqueta] = _numero(fila.get(columna)) if columna else float('nan')
@@ -88,14 +106,19 @@ def mostrar_comparador():
     if partidos.empty:
         st.info('No hay partidos registrados para este período.')
         return
-    completos = partidos[partidos['finalizado'] == True].copy()
+    completos = partidos[(partidos['finalizado'] == True) &
+                         partidos['puntos_local'].notna() &
+                         partidos['puntos_visitante'].notna()].copy()
     if completos.empty:
         st.info('No hay partidos finalizados con estadísticas disponibles.')
         return
-    # Máximo de 35 boxscores por consulta, para proteger la velocidad en celular.
+    # Consultas limitadas para proteger la experiencia móvil; ampliar es opcional.
     completos = completos.sort_values('fecha_utc', ascending=False)
-    limite = st.slider('Partidos finalizados a consultar', 1, min(35, len(completos)),
-                       min(12, len(completos)), key='comp_nba_limite')
+    maximo = min(100, len(completos))
+    limite = st.slider('Partidos finalizados a consultar', 1, maximo,
+                       min(12, maximo), key='comp_nba_limite')
+    st.caption(f'Cobertura elegida: {limite} de {len(completos)} partidos con marcador completo. '
+               'Aumentar el límite puede tardar más; el máximo por consulta es 100.')
     seleccion = completos.head(limite)
     ids = tuple((str(row.id), str(row.fecha_utc)[:10]) for row in seleccion.itertuples(index=False))
     with st.spinner('Consultando estadísticas por partido...'):
@@ -112,43 +135,65 @@ def mostrar_comparador():
     equipo = st.selectbox('Filtrar equipo', ['Todos'] + equipos, key='comp_nba_equipo')
     if equipo != 'Todos':
         datos = datos[datos['equipo'] == equipo].copy()
-    opciones = sorted(datos['jugador'].dropna().unique().tolist())
+    catalogo = (datos[['clave_jugador', 'jugador', 'equipo', 'jugador_id']]
+                .drop_duplicates('clave_jugador').sort_values(['jugador', 'equipo']))
+    opciones = catalogo['clave_jugador'].tolist()
     if not opciones:
         st.info('No se encontraron jugadores para este filtro.')
         return
+    etiquetas = {}
+    for fila in catalogo.itertuples(index=False):
+        etiquetas[fila.clave_jugador] = (f'{fila.jugador} · {fila.equipo}' +
+                                        (f' · ID {fila.jugador_id}' if fila.jugador_id else ' · sin ID ESPN'))
     elegidos = st.multiselect('Selecciona hasta 3 jugadores', opciones,
-                              max_selections=3, key='comp_nba_jugadores')
+                              max_selections=3, format_func=lambda x: etiquetas.get(x, x),
+                              key='comp_nba_jugadores')
     if not elegidos:
         st.info('Selecciona uno, dos o tres jugadores para comenzar la comparación.')
         return
-    filtrados = datos[datos['jugador'].isin(elegidos)].copy()
+    filtrados = datos[datos['clave_jugador'].isin(elegidos)].copy()
+    # Una sola observación por jugador/partido. No duplicar filas de la fuente.
+    duplicados = int(filtrados.duplicated(['clave_jugador', 'partido_id']).sum())
+    filtrados = filtrados.drop_duplicates(['clave_jugador', 'partido_id'], keep='first')
+    filtrados['Jugador'] = filtrados['clave_jugador'].map(etiquetas)
     metricas = [m for m in METRICAS if filtrados[m].notna().any()]
     if not metricas:
         st.warning('No hay métricas numéricas comparables en estos boxscores.')
         return
-    resumen = filtrados.groupby('jugador', as_index=False).agg(
+    if duplicados:
+        st.warning(f'Se encontraron {duplicados} registros repetidos por jugador y partido; '
+                   'se conservaron una sola vez para la comparación.')
+    resumen = filtrados.groupby('Jugador', as_index=False).agg(
         PJ=('partido_id', 'nunique'), **{m: (m, 'mean') for m in metricas}
     ).round(2)
+    cobertura = filtrados.groupby('Jugador', as_index=False).agg(
+        **{f'N {m}': (m, 'count') for m in metricas}
+    )
     st.subheader('📊 Promedio por partido')
     st.dataframe(resumen, hide_index=True, use_container_width=True)
+    st.caption('PJ = partidos con registro; N = partidos con valor válido para cada estadística.')
+    with st.expander('🔍 Cobertura de cada promedio'):
+        st.dataframe(cobertura, hide_index=True, use_container_width=True)
     metrica = st.selectbox('Métrica para comparar', metricas, key='comp_nba_metrica')
-    st.bar_chart(resumen.set_index('jugador')[[metrica]])
+    st.bar_chart(resumen.set_index('Jugador')[[metrica]])
     st.subheader('📈 Evolución por partido')
-    serie = filtrados.pivot_table(index='fecha', columns='jugador', values=metrica, aggfunc='mean')
+    # Usar fecha + ID para no fusionar dos partidos distintos del mismo día.
+    filtrados['Partido'] = filtrados['fecha'].astype(str) + ' · ' + filtrados['partido_id'].astype(str)
+    serie = filtrados.pivot_table(index='Partido', columns='Jugador', values=metrica, aggfunc='first')
     if not serie.empty:
         st.line_chart(serie)
     with st.expander('📋 Estadísticas por partido'):
-        columnas = ['fecha', 'jugador', 'equipo'] + metricas
+        columnas = ['fecha', 'partido_id', 'Jugador', 'equipo'] + metricas
         st.dataframe(filtrados[columnas].sort_values('fecha', ascending=False),
                      hide_index=True, use_container_width=True)
     st.download_button('📥 Exportar comparación CSV',
                        filtrados.to_csv(index=False).encode('utf-8-sig'),
                        'comparador_jugadores_nba.csv', 'text/csv',
                        key='comp_nba_exportar', use_container_width=True)
-    st.caption(f'Cobertura: {len(seleccion)} partidos consultados de {len(completos)} '
-               'finalizados en el período. PJ indica partidos con registros, no toda la temporada. '
-               'Los promedios excluyen métricas faltantes; un valor ausente no equivale a cero. '
-               'Los nombres iguales pueden agrupar jugadores homónimos.')
+    st.caption(f'Cobertura: {len(seleccion)} partidos seleccionados de {len(completos)} '
+               'finalizados con marcador completo en el período. No equivale a toda la temporada. '
+               'Las ausencias no se convierten en cero. Cuando ESPN no proporciona ID, '
+               'se utiliza nombre y equipo; aún pueden existir homónimos dentro del mismo equipo.')
 
 
 if __name__ == '__main__':
