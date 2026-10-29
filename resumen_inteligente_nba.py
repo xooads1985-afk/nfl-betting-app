@@ -1,9 +1,10 @@
-"""Resumen Inteligente NBA v1.5.0.
+"""Resumen Inteligente NBA v1.5.2.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
 """
 from datetime import date, timedelta
+from zoneinfo import ZoneInfo
 import pandas as pd
 import streamlit as st
 
@@ -11,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.0'
+VERSION = '1.5.2'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -156,7 +157,12 @@ def _mostrar_proyeccion_equipos(partidos, partido):
         if guardado:
             st.markdown('### 🏀 Estimación de puntos para el próximo partido')
             st.markdown(f'**{visita} 🆚 {local}**')
-            st.caption(f"📅 Fecha programada: {str(partido['fecha_utc'])[:16]} UTC")
+            fecha_utc = pd.to_datetime(partido['fecha_utc'], utc=True, errors='coerce')
+            if pd.notna(fecha_utc):
+                fecha_local = fecha_utc.tz_convert(ZoneInfo('America/Mazatlan'))
+                st.caption(f"📅 Fecha programada: {fecha_local.strftime('%d/%m/%Y · %H:%M')} (Sinaloa) · {fecha_utc.strftime('%d/%m/%Y · %H:%M')} UTC")
+            else:
+                st.caption('📅 Fecha programada no disponible')
             st.markdown('**📊 Estimación estadística por cuartos, mitades y final reglamentario**')
             muestras = guardado['muestras']
             st.caption(f"Muestra de períodos: {len(muestras[local])} partidos de {local} · {len(muestras[visita])} de {visita}.")
@@ -172,8 +178,8 @@ def _mostrar_proyeccion_equipos(partidos, partido):
                     resultados[e] = _media_rango(observados)
                 a, b = resultados[local], resultados[visita]
                 filas.append({'Período': etiqueta,
-                              'Local': round(a['media'],1) if a else 'N/D',
-                              'Visitante': round(b['media'],1) if b else 'N/D',
+                              local: round(a['media'],1) if a else 'N/D',
+                              visita: round(b['media'],1) if b else 'N/D',
                               'Total': round(a['media']+b['media'],1) if a and b else 'N/D',
                               'N local': len(muestras[local]), 'N visita': len(muestras[visita])})
             st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
@@ -535,3 +541,4 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
+
