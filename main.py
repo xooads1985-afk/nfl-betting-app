@@ -11,6 +11,7 @@ import streamlit as st
 # Importar tus módulos especializados
 from centro_estadistico_nfl import mostrar_centro_estadistico_nfl
 from comparador_jugadores_nfl import mostrar_comparador
+from centro_estadistico_nba import mostrar_centro_estadistico_nba
 
 # Configuración global de la página
 st.set_page_config(
@@ -102,21 +103,7 @@ if modulo_seleccionado == "🏈 Centro Deportivo NFL":
 # 2. MÓDULO NBA
 # ---------------------------------------------------------
 elif modulo_seleccionado == "🏀 Módulo Pro NBA":
-  st.title(f"🏀 **Módulo Pro NBA Élite [{fecha_hoy}]**")
-  st.markdown("---")
-  st.info("Panel de análisis avanzado de NBA (Ratings ofensivos/defensivos, Pace y descanso B2B).")
-  
-  col1, col2 = st.columns(2)
-  with col1:
-    eq_nba_l = st.text_input("Equipo Local (NBA):", value="Boston Celtics")
-    ort_l = st.number_input("Offensive Rating Local:", value=118.5)
-  with col2:
-    eq_nba_v = st.text_input("Equipo Visita (NBA):", value="Los Angeles Lakers")
-    ort_v = st.number_input("Offensive Rating Visita:", value=114.2)
-    
-  if st.button("🚀 Calcular Proyección NBA", use_container_width=True):
-    st.success(f"📊 Proyección calculada para: **{eq_nba_v} @ {eq_nba_l}**")
-    st.metric("Total Proyectado Estimado", "228.5 Puntos")
+  mostrar_centro_estadistico_nba()
 
 # ---------------------------------------------------------
 # 3. MÓDULO NHL
