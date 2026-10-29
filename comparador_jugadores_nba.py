@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -177,11 +177,31 @@ def mostrar_comparador():
     metrica = st.selectbox('Métrica para comparar', metricas, key='comp_nba_metrica')
     st.bar_chart(resumen.set_index('Jugador')[[metrica]])
     st.subheader('📈 Evolución por partido')
-    # Usar fecha + ID para no fusionar dos partidos distintos del mismo día.
-    filtrados['Partido'] = filtrados['fecha'].astype(str) + ' · ' + filtrados['partido_id'].astype(str)
-    serie = filtrados.pivot_table(index='Partido', columns='Jugador', values=metrica, aggfunc='first')
-    if not serie.empty:
-        st.line_chart(serie)
+    # Cada jugador puede disputar partidos en fechas diferentes. Un gráfico de líneas
+    # con huecos no dibuja segmentos cuando sólo hay puntos aislados. Los puntos
+    # individuales preservan los datos reales sin rellenar fechas ni inventar valores.
+    evolucion = filtrados[['fecha', 'partido_id', 'Jugador', metrica]].copy()
+    evolucion['Fecha'] = pd.to_datetime(evolucion['fecha'], errors='coerce')
+    evolucion[metrica] = pd.to_numeric(evolucion[metrica], errors='coerce')
+    evolucion = evolucion.dropna(subset=['Fecha', metrica]).sort_values(['Fecha', 'partido_id'])
+    if evolucion.empty:
+        st.info('No hay valores válidos para representar esta métrica.')
+    else:
+        # Etiquetas cortas en la gráfica; el ID sigue disponible en la tabla detallada.
+        etiquetas_cortas = {}
+        for clave in elegidos:
+            filas_jugador = filtrados[filtrados['clave_jugador'] == clave]
+            if not filas_jugador.empty:
+                nombre = str(filas_jugador['jugador'].iloc[0])
+                repetido = sum(str(filtrados.loc[filtrados['clave_jugador'] == otro, 'jugador'].iloc[0]) == nombre
+                               for otro in elegidos if (filtrados['clave_jugador'] == otro).any()) > 1
+                etiquetas_cortas[etiquetas[clave]] = nombre + (f' · {clave}' if repetido else '')
+        evolucion['Jugador'] = evolucion['Jugador'].replace(etiquetas_cortas)
+        st.scatter_chart(evolucion, x='Fecha', y=metrica, color='Jugador',
+                         use_container_width=True)
+        st.caption('Cada punto representa un partido real. Los jugadores pueden jugar '
+                   'en fechas distintas; no se inventan valores para completar líneas. '
+                   'Consulta la tabla inferior para identificar cada partido por su ID.')
     with st.expander('📋 Estadísticas por partido'):
         columnas = ['fecha', 'partido_id', 'Jugador', 'equipo'] + metricas
         st.dataframe(filtrados[columnas].sort_values('fecha', ascending=False),
