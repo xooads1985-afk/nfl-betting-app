@@ -1,6 +1,6 @@
 """Centro Estadístico NBA.
 
-Enrutador independiente para los cuatro módulos NBA.
+Enrutador independiente para los cinco módulos NBA.
 No importa ni modifica archivos NFL y no altera main.py.
 """
 
@@ -12,6 +12,7 @@ VISTAS_NBA = {
     "📊 Estadísticas NBA": ("modulo_nba", "mostrar_modulo_nba"),
     "👥 Comparador de jugadores": ("comparador_jugadores_nba", "mostrar_comparador"),
     "📈 Promedios y diferencias": ("promedios_diferencias_nba", "mostrar_promedios_diferencias"),
+    "📚 Historial de jugadores NBA": ("historial_jugadores_nba", "mostrar_historial_jugadores_nba"),
     "🏠 Resumen Inteligente NBA": (
         "resumen_inteligente_nba", "mostrar_resumen_inteligente_nba"
     ),
