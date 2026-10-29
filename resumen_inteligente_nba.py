@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.5.5'
+VERSION = '1.5.6'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -116,46 +116,58 @@ def _abreviatura_equipo(nombre):
 
 
 def _validacion_historica_equipos(partidos, fecha_limite, detalles=None):
-    """Walk-forward por partido; solo encuentros previos a cada fecha objetivo."""
+    """Validación cronológica con controles de datos y esquema estable."""
+    columnas = ['Fecha', 'Partido', 'id', 'ataque', 'cuartos',
+                'real_completo', 'real_reglamentario']
     if partidos.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=columnas)
+    necesarias = {'id', 'local', 'visitante', 'fecha_utc', 'finalizado',
+                  'puntos_local', 'puntos_visitante'}
+    if not necesarias.issubset(partidos.columns):
+        return pd.DataFrame(columns=columnas)
     d = partidos.loc[partidos['finalizado'].eq(True)].copy()
     d['fecha_dt'] = pd.to_datetime(d['fecha_utc'], utc=True, errors='coerce')
+    d['puntos_local'] = pd.to_numeric(d['puntos_local'], errors='coerce')
+    d['puntos_visitante'] = pd.to_numeric(d['puntos_visitante'], errors='coerce')
     d = d.dropna(subset=['fecha_dt', 'puntos_local', 'puntos_visitante'])
     d = d.loc[d['fecha_dt'].lt(fecha_limite)].sort_values(['fecha_dt', 'id'])
-    # Un mismo evento solo puede evaluarse una vez.
     d = d.drop_duplicates(subset=['id'], keep='first')
     filas = []
     for _, juego in d.iterrows():
         local, visita = str(juego['local']), str(juego['visitante'])
         fecha = juego['fecha_dt']
         anteriores = d.loc[d['fecha_dt'].lt(fecha)]
-        historicos = {e: _historial_equipo(anteriores, e, fecha) for e in (local, visita)}
+        historicos = {e: _historial_equipo(anteriores, e, fecha)
+                      for e in (local, visita)}
         pred = {}
         for equipo, rival in ((local, visita), (visita, local)):
-            propio = _media_rango(historicos[equipo]['PF']) if not historicos[equipo].empty else None
-            recibido = _media_rango(historicos[rival]['PC']) if not historicos[rival].empty else None
+            propio_hist = historicos[equipo]
+            rival_hist = historicos[rival]
+            propio = (_media_rango(propio_hist['PF'])
+                      if not propio_hist.empty and 'PF' in propio_hist else None)
+            recibido = (_media_rango(rival_hist['PC'])
+                        if not rival_hist.empty and 'PC' in rival_hist else None)
             if propio and recibido:
                 pred[equipo] = (propio['media'] + recibido['media']) / 2
         ident = str(juego['id'])
-        fila = {'Fecha': fecha.strftime('%Y-%m-%d'), 'Partido': f'{visita} @ {local}',
-                'id': ident, 'ataque': None, 'cuartos': None,
+        fila = {'Fecha': fecha.strftime('%Y-%m-%d'),
+                'Partido': f'{visita} @ {local}', 'id': ident,
+                'ataque': None, 'cuartos': None,
                 'real_completo': float(juego['puntos_local'] + juego['puntos_visitante']),
                 'real_reglamentario': None}
         if len(pred) == 2:
             fila['ataque'] = pred[local] + pred[visita]
-        # Solo evaluar cuartos si existen marcadores reales de ambos equipos
-        # para el juego objetivo Y para sus juegos históricos.
         if detalles and ident in detalles:
             actual = detalles[ident]
-            if local in actual and visita in actual:
-                fila['real_reglamentario'] = sum(actual[local].values()) + sum(actual[visita].values())
+            if isinstance(actual, dict) and local in actual and visita in actual:
+                fila['real_reglamentario'] = (sum(actual[local].values()) +
+                                             sum(actual[visita].values()))
                 pron = {}
                 for equipo in (local, visita):
                     observados = []
                     for _, ant in historicos[equipo].tail(10).iterrows():
                         par = detalles.get(str(ant['id']), {})
-                        if equipo in par:
+                        if isinstance(par, dict) and equipo in par:
                             observados.append(sum(par[equipo].values()))
                     media = _media_rango(observados)
                     if media:
@@ -164,7 +176,7 @@ def _validacion_historica_equipos(partidos, fecha_limite, detalles=None):
                     fila['cuartos'] = pron[local] + pron[visita]
         if fila['ataque'] is not None or fila['cuartos'] is not None:
             filas.append(fila)
-    return pd.DataFrame(filas)
+    return pd.DataFrame(filas, columns=columnas)
 
 
 def _panel_validacion_historica(partidos, partido):
@@ -717,4 +729,5 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
+
 
