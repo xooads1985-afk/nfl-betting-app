@@ -11,7 +11,7 @@ from modulo_nba import cargar_partidos
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -116,53 +116,85 @@ def _mostrar_jugadores(partidos, equipo, limite):
         st.info('Selecciona de uno a tres jugadores.')
         return
     seleccionados = datos.loc[datos['jugador'].isin(seleccion)].copy()
-    disponibles = [m for m in METRICAS if m in seleccionados and seleccionados[m].notna().any()]
-    if not disponibles:
-        st.warning('No hay métricas numéricas disponibles para estos jugadores.')
+    seleccionados['partido_id'] = seleccionados['partido_id'].astype(str)
+    seleccionados = seleccionados.drop_duplicates(['jugador', 'equipo', 'partido_id'], keep='last')
+    metricas = [m for m in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos', 'Robos', 'Tapones', 'Pérdidas')
+                if m in seleccionados.columns]
+    for m in metricas:
+        seleccionados[m] = pd.to_numeric(seleccionados[m], errors='coerce')
+    if not metricas or not any(seleccionados[m].notna().any() for m in metricas):
+        st.warning('No se encontraron estadísticas numéricas válidas.')
         return
-    metrica = st.selectbox('Métrica para la evolución', disponibles, key='ri_nba_metrica')
+    # Excluir registros con cero minutos; si faltan los minutos, no asumir que jugó.
+    if 'Minutos' in seleccionados:
+        minutos = seleccionados['Minutos']
+        participo = minutos.gt(0) | (minutos.isna() & seleccionados[[m for m in metricas if m != 'Minutos']].notna().any(axis=1))
+        excluidos = int((~participo).sum())
+        seleccionados = seleccionados.loc[participo].copy()
+        if excluidos:
+            st.caption(f'{excluidos} registros con participación no acreditada o 0 minutos excluidos.')
+    if seleccionados.empty:
+        st.info('No hay partidos con participación verificable para los jugadores seleccionados.')
+        return
+    st.markdown('### 👥 Tarjetas de jugadores')
+    resumen_filas = []
     for nombre in seleccion:
         d = seleccionados.loc[seleccionados['jugador'].eq(nombre)].sort_values(['fecha', 'partido_id'])
-        st.markdown(f'**{nombre}**')
-        cols = st.columns(3)
-        cols[0].metric('PJ con registro', d['partido_id'].nunique())
-        for i, m in enumerate(['Puntos', 'Rebotes'], start=1):
-            serie = pd.to_numeric(d[m], errors='coerce') if m in d else pd.Series(dtype=float)
-            cols[i].metric(f'{m}/partido', f'{serie.mean():.1f}' if serie.notna().any() else 'N/D')
-        tabla = d[['fecha', 'equipo'] + disponibles].copy()
-        st.dataframe(tabla.tail(10).iloc[::-1], hide_index=True, use_container_width=True)
-    st.markdown('**📈 Ventanas recientes por jugador**')
-    ventanas = []
-    for nombre in seleccion:
-        orden = seleccionados.loc[seleccionados['jugador'].eq(nombre)].sort_values(['fecha', 'partido_id'])
-        if 'Minutos' in orden:
-            minutos = pd.to_numeric(orden['Minutos'], errors='coerce')
-            orden = orden.loc[minutos.isna() | minutos.gt(0)]
+        if d.empty:
+            st.warning(f'{nombre}: sin partidos válidos recuperados.')
+            continue
+        pj = d['partido_id'].nunique()
+        st.markdown(f'**🏀 {nombre}**')
+        st.caption(f'{pj} partidos recuperados · {d["fecha"].min()} a {d["fecha"].max()}')
+        cols = st.columns(2)
+        for i, m in enumerate(('Puntos', 'Rebotes', 'Asistencias', 'Minutos')):
+            serie = d[m] if m in d else pd.Series(dtype=float)
+            valido = int(serie.notna().sum())
+            cols[i % 2].metric(m + '/PJ', f'{serie.mean():.1f}' if valido else 'N/D')
+            if valido < len(d):
+                st.caption(f'{m}: {valido}/{len(d)} registros con valor disponible.')
+        if 'titular' in d:
+            conocidos = d['titular'].dropna()
+            st.caption(f'Titularidades registradas: {int(conocidos.eq(True).sum())} / {len(conocidos)} datos disponibles')
         for n in (5, 10, 20):
-            reciente = orden.tail(n)
-            fila = {'Jugador': nombre, 'Ventana': f'Últimos {n} recuperados', 'PJ': reciente['partido_id'].nunique()}
-            for metrica_nombre in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
-                if metrica_nombre in reciente:
-                    valores = pd.to_numeric(reciente[metrica_nombre], errors='coerce')
-                    fila[metrica_nombre] = round(float(valores.mean()), 2) if valores.notna().any() else None
-            if 'titular' in reciente:
-                fila['Titularidades'] = int(reciente['titular'].fillna(False).sum())
-            ventanas.append(fila)
-    st.dataframe(pd.DataFrame(ventanas), hide_index=True, use_container_width=True)
-    st.caption('Cada ventana usa como máximo N registros disponibles del jugador; PJ permite detectar muestras pequeñas.')
-    resumen = seleccionados.groupby('jugador', as_index=False).agg(
-        **{m: (m, 'mean') for m in disponibles}, PJ=('partido_id', 'nunique'))
-    st.markdown('**Comparación de promedios observados**')
-    st.dataframe(resumen.round(2), hide_index=True, use_container_width=True)
-    grafica = seleccionados.pivot_table(index='fecha', columns='jugador', values=metrica,
-                                       aggfunc='mean').sort_index()
+            ult = d.tail(n)
+            fila = {'Jugador': nombre, 'Ventana': f'Últimos {n}', 'PJ': ult['partido_id'].nunique()}
+            for m in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
+                if m in ult:
+                    serie = ult[m]
+                    fila[m] = round(float(serie.mean()), 2) if serie.notna().any() else None
+                    fila[f'N {m}'] = int(serie.notna().sum())
+            resumen_filas.append(fila)
+        base = d['Puntos'].mean() if 'Puntos' in d else float('nan')
+        recientes = d.tail(5)['Puntos'].mean() if 'Puntos' in d else float('nan')
+        if pd.notna(base) and pd.notna(recientes):
+            st.caption(f'Tendencia puntos últimos 5 vs historial recuperado: {recientes-base:+.1f} pts/PJ')
+        with st.expander(f'📋 Partidos de {nombre}'):
+            cols_tabla = ['fecha', 'equipo', 'partido_id'] + metricas
+            st.dataframe(d[cols_tabla].tail(20).iloc[::-1], hide_index=True, use_container_width=True)
+    if not resumen_filas:
+        return
+    st.markdown('### 📈 Ventanas recientes')
+    st.caption('Cada ventana usa hasta N partidos recuperados. N Puntos/Rebotes/etc. indica cuántos valores válidos entraron al promedio.')
+    for fila in resumen_filas:
+        with st.expander(f"{fila['Jugador']} · {fila['Ventana']} · {fila['PJ']} PJ"):
+            for m in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
+                if m in fila:
+                    st.write(f"{m}: {fila[m] if fila[m] is not None else 'N/D'} · datos válidos: {fila.get('N '+m, 0)}")
+    st.markdown('### 📊 Comparación')
+    comparacion = seleccionados.groupby('jugador', as_index=False).agg(
+        **{m: (m, 'mean') for m in metricas}, PJ=('partido_id', 'nunique'))
+    st.dataframe(comparacion.round(2), hide_index=True, use_container_width=True)
+    disponibles = [m for m in metricas if seleccionados[m].notna().any()]
+    metrica = st.selectbox('Métrica de evolución', disponibles, key='ri_nba_metrica')
+    grafica = seleccionados.pivot_table(index='fecha', columns='jugador', values=metrica, aggfunc='mean').sort_index()
     if not grafica.empty:
         st.line_chart(grafica)
     st.download_button('⬇️ Exportar comparación CSV',
-                       resumen.to_csv(index=False).encode('utf-8-sig'),
+                       comparacion.to_csv(index=False).encode('utf-8-sig'),
                        'resumen_inteligente_nba.csv', 'text/csv',
                        key='ri_nba_export', use_container_width=True)
-    st.caption('PJ y promedios corresponden solo a los boxscores recuperados, no a toda la temporada.')
+    st.caption('Solo boxscores recuperados. Los datos faltantes no se sustituyen por cero; las ventanas no garantizan temporada completa.')
 
 
 def mostrar_resumen_inteligente_nba():
@@ -232,4 +264,3 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
-
