@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -78,6 +78,40 @@ def _unir_historial(actual, nuevo):
         return actual.copy()
     junto = pd.concat([actual, nuevo], ignore_index=True) if not actual.empty else nuevo.copy()
     return junto.drop_duplicates(['partido_id', 'equipo', 'jugador'], keep='last').reset_index(drop=True)
+
+
+def obtener_historial_compartido(equipo=None, desde=None, hasta=None):
+    """Devuelve una COPIA de los boxscores ya cargados en la vista Historial.
+
+    Nunca consulta automáticamente la red ni mezcla equipos/períodos distintos.
+    Devuelve (datos, cobertura), donde cobertura contiene el progreso real.
+    """
+    firma = st.session_state.get('hist_nba_firma')
+    vacio = pd.DataFrame()
+    if not firma or len(firma) != 3:
+        return vacio, {'disponible': False, 'motivo': 'Aún no se ha cargado el historial.'}
+    ini, fin, nombre_equipo = firma
+    if equipo not in (None, 'Todos', nombre_equipo):
+        return vacio, {'disponible': False, 'motivo': 'El historial cargado corresponde a otro equipo.'}
+    if desde is not None and ini > str(desde):
+        return vacio, {'disponible': False, 'motivo': 'El historial no cubre el inicio solicitado.'}
+    if hasta is not None and fin < str(hasta):
+        return vacio, {'disponible': False, 'motivo': 'El historial no cubre el final solicitado.'}
+    datos = st.session_state.get('hist_nba_datos', vacio)
+    if not isinstance(datos, pd.DataFrame):
+        datos = vacio
+    datos = datos.copy()
+    if not datos.empty and desde is not None:
+        datos = datos.loc[datos['fecha'].astype(str).ge(str(desde))]
+    if not datos.empty and hasta is not None:
+        datos = datos.loc[datos['fecha'].astype(str).le(str(hasta))]
+    return datos, {
+        'disponible': True, 'equipo': nombre_equipo, 'desde': ini, 'hasta': fin,
+        'bloques': int(st.session_state.get('hist_nba_bloques', 0)),
+        'siguiente': st.session_state.get('hist_nba_siguiente'),
+        'errores': len(st.session_state.get('hist_nba_errores', [])),
+        'completo': st.session_state.get('hist_nba_siguiente', date.fromisoformat(ini)) > date.fromisoformat(fin),
+    }
 
 
 def mostrar_historial_jugadores_nba():
