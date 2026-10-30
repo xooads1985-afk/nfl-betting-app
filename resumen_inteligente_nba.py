@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v2.0.0.
+"""Resumen Inteligente NBA v2.1.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '2.0.0'
+VERSION = '2.1.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -804,8 +804,9 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
                 st.info('Se necesitan al menos 6 partidos con puntos válidos para evaluar errores históricos.')
 
 
-def _mostrar_jugadores(partidos, equipo, limite):
-    finales = partidos.loc[partidos['finalizado'].eq(True)].copy()
+def _mostrar_jugadores(partidos, equipo, limite, historico=None):
+    fuente_historial = historico if historico is not None else partidos
+    finales = fuente_historial.loc[fuente_historial['finalizado'].eq(True)].copy()
     if equipo != 'Todos':
         finales = finales.loc[finales['local'].eq(equipo) | finales['visitante'].eq(equipo)]
     if finales.empty:
@@ -921,6 +922,25 @@ def _mostrar_jugadores(partidos, equipo, limite):
     st.caption('Solo boxscores recuperados. Los datos faltantes no se sustituyen por cero; las ventanas no garantizan temporada completa.')
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _calendario_proximos_nba(desde_iso, hasta_iso):
+    """Consulta separada del calendario futuro; no altera el historial."""
+    return cargar_partidos(desde_iso, hasta_iso)
+
+
+def _combinar_calendarios_nba(historico, futuro):
+    """Conserva juegos históricos y añade futuros sin repetir IDs."""
+    if futuro is None or futuro.empty:
+        return historico.copy()
+    if historico is None or historico.empty:
+        return futuro.copy()
+    combinado = pd.concat([historico, futuro], ignore_index=True)
+    if 'id' in combinado.columns:
+        combinado['id'] = combinado['id'].astype(str)
+        combinado = combinado.drop_duplicates(subset=['id'], keep='first')
+    return combinado
+
+
 def mostrar_resumen_inteligente_nba():
     """Punto de entrada del Resumen Inteligente NBA."""
     st.title('🏠 Resumen Inteligente NBA')
@@ -951,9 +971,26 @@ def mostrar_resumen_inteligente_nba():
         with st.expander('Ver incidencias'):
             st.text('\n'.join(map(str, errores)))
     if partidos.empty:
-        st.info('No hay partidos disponibles en las fechas seleccionadas.')
-        return
-    equipos = sorted(set(partidos['local'].dropna()) | set(partidos['visitante'].dropna()))
+        st.info('No hay partidos históricos en las fechas seleccionadas; se buscarán próximos encuentros.')
+    # El historial conserva el período elegido. Los próximos encuentros se
+    # buscan por separado desde hoy, sin imponer cambios al selector de fechas.
+    fecha_hoy = date.today()
+    fin_futuro = fecha_hoy + timedelta(days=14)
+    errores_futuro = []
+    try:
+        with st.spinner('Buscando próximos encuentros NBA...'):
+            futuros, errores_futuro = _calendario_proximos_nba(
+                fecha_hoy.isoformat(), fin_futuro.isoformat())
+    except Exception as exc:
+        futuros = pd.DataFrame(columns=partidos.columns)
+        errores_futuro = [f'{type(exc).__name__}: {exc}']
+    partidos_completos = _combinar_calendarios_nba(partidos, futuros)
+    if errores_futuro:
+        st.caption(f'Calendario futuro con incidencias ({len(errores_futuro)}); '
+                   'el historial consultado permanece disponible.')
+    st.caption('Historial: intervalo seleccionado · Próximos partidos: '
+               'consulta automática de los siguientes 14 días (si ESPN los publica).')
+    equipos = sorted(set(partidos_completos['local'].dropna()) | set(partidos_completos['visitante'].dropna()))
     equipo = st.selectbox('Equipo', ['Todos'] + equipos, key='ri_nba_equipo')
     vista = st.radio('Vista', ['🏟️ Equipos', '👥 Jugadores', '📅 Calendario'],
                     key='ri_nba_vista', horizontal=False)
@@ -962,7 +999,7 @@ def mostrar_resumen_inteligente_nba():
                                  default=[equipo] if equipo != 'Todos' else [],
                                  max_selections=3, key='ri_nba_equipos')
         if elegidos:
-            _panel_equipos(partidos, elegidos)
+            _panel_equipos(partidos_completos, elegidos)
         else:
             st.info('Selecciona uno, dos o tres equipos.')
     elif vista == '👥 Jugadores':
@@ -973,7 +1010,7 @@ def mostrar_resumen_inteligente_nba():
         else:
             limite = st.slider('Máximo de boxscores a consultar', 1, maximo,
                                min(12, maximo), key='ri_nba_limite')
-            _mostrar_jugadores(partidos, equipo, limite)
+            _mostrar_jugadores(partidos_completos, equipo, limite, historico=partidos)
     else:
         vista_cal = partidos.copy()
         if equipo != 'Todos':
@@ -984,6 +1021,5 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
-
 
 
