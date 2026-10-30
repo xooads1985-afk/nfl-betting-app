@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.5.5.
+"""Resumen Inteligente NBA v1.7.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.6.0'
+VERSION = '1.7.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -429,25 +429,33 @@ def _mostrar_proyeccion_equipos(partidos, partido):
             st.code(f'{type(exc).__name__}: {exc}', language='text')
             st.caption('Comparte este mensaje para identificar la causa exacta; no se inventan resultados.')
     with st.expander('⏱️ Cuartos y mitades · datos reales'):
-        st.caption('Consulta opcional de hasta 10 partidos finalizados distintos por equipo. Puede tardar y ESPN puede limitar las consultas.')
+        st.caption('Consulta automática de hasta 10 partidos finalizados por equipo; resultados reutilizados en esta sesión. ESPN puede limitar las consultas.')
         clave = f"ri_nba_periodos_{partido['id']}"
-        if st.button('📥 Consultar cuartos reales', key='ri_nba_cuartos_btn'):
-            juegos = {}
-            for e, d in datos.items():
-                for fila in d.tail(10).itertuples(index=False):
-                    juegos[str(fila.id)] = fila
-            muestras = {e: [] for e in (local, visita)}
-            errores = 0
-            with st.spinner('Consultando desglose de cuartos en ESPN...'):
-                for identificador, fila in juegos.items():
+        # Recuperación automática, limitada y compartida entre partidos de la sesión.
+        juegos = {}
+        for e, d in datos.items():
+            for fila in d.tail(10).itertuples(index=False):
+                juegos[str(fila.id)] = fila
+        cache = st.session_state.setdefault('ri_nba_cache_cuartos_v17', {})
+        pendientes = [ident for ident in juegos if ident not in cache]
+        if pendientes:
+            with st.spinner(f'Recuperando automáticamente {len(pendientes)} boxscores de cuartos...'):
+                for identificador in pendientes:
                     try:
-                        info = _puntos_periodos(cargar_detalle(identificador))
-                        for e in muestras:
-                            if e in info:
-                                muestras[e].append(info[e])
+                        cache[identificador] = _puntos_periodos(cargar_detalle(identificador))
                     except Exception:
-                        errores += 1
-            st.session_state[clave] = {'muestras': muestras, 'errores': errores}
+                        cache[identificador] = None
+        muestras = {e: [] for e in (local, visita)}
+        errores = 0
+        for identificador in juegos:
+            info = cache.get(identificador)
+            if not isinstance(info, dict) or not info:
+                errores += 1
+                continue
+            for e in muestras:
+                if e in info:
+                    muestras[e].append(info[e])
+        st.session_state[clave] = {'muestras': muestras, 'errores': errores}
         guardado = st.session_state.get(clave)
         if guardado:
             st.markdown('### 🏀 Estimación de puntos para el próximo partido')
@@ -504,7 +512,7 @@ def _mostrar_proyeccion_equipos(partidos, partido):
                     st.warning('Muestra limitada: los promedios pueden variar considerablemente con nuevos partidos.')
             st.caption('Estimaciones basadas en partidos anteriores: no son marcadores confirmados ni resultados garantizados. N/D = menos de 3 partidos con cuartos observados. Las medias por cuarto son descriptivas; la suma de medias no garantiza un marcador. Prórrogas excluidas de los cuartos 1–4.')
         else:
-            st.info('Pulsa el botón para recuperar los puntos por cuarto; no se estiman sin marcadores reales por período.')
+            st.info('No hay períodos completos suficientes para estimar cuartos; no se sustituyen valores ausentes.')
 
 
 def _panel_equipos(partidos, elegidos):
@@ -647,6 +655,25 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
         else:
             st.caption('Próximo rival no disponible en el calendario consultado; no se ajusta por rival.')
         st.caption(f"Basado en los últimos {r['n']} partidos con puntos válidos ({r['total']} disponibles). Rango = media ± 1 desviación estándar: descriptivo, no calibrado ni garantizado. No incorpora lesiones ni alineaciones.")
+        # Resumen automático de otras métricas observadas; nunca rellena NaN con cero.
+        extras = []
+        historial_ordenado = d.copy()
+        if 'fecha' in historial_ordenado:
+            historial_ordenado = historial_ordenado.sort_values(['fecha', 'partido_id'])
+        for metrica_extra in ('Rebotes', 'Asistencias', 'Minutos'):
+            if metrica_extra not in historial_ordenado:
+                continue
+            serie = pd.to_numeric(historial_ordenado[metrica_extra], errors='coerce').dropna().tail(10)
+            if len(serie) >= 5:
+                extras.append({'Métrica': metrica_extra, 'Media últimos 10': round(float(serie.mean()), 1),
+                               'Mín. descriptivo': round(max(0.0, float(serie.mean()-serie.std(ddof=1))), 1),
+                               'Máx. descriptivo': round(float(serie.mean()+serie.std(ddof=1)), 1),
+                               'Partidos válidos': len(serie)})
+        if extras:
+            st.markdown('**📊 Rebotes, asistencias y minutos · estimaciones descriptivas**')
+            st.dataframe(pd.DataFrame(extras), hide_index=True, use_container_width=True)
+            st.caption('Rangos = media ± desviación estándar; no son intervalos de confianza calibrados.')
+
         with st.expander('📊 Ventanas, minutos y calidad de datos'):
             for n, v in r['ventanas'].items():
                 st.write(f"Últimos {n}: {v['media']:.1f} puntos/PJ · {v['n']} partidos")
@@ -679,30 +706,20 @@ def _mostrar_jugadores(partidos, equipo, limite):
         return
     finales = finales.sort_values('fecha_utc', ascending=False).head(limite)
     ids = tuple((str(r.id), str(r.fecha_utc)[:10]) for r in finales.itertuples(index=False))
-    modo = st.radio('Origen de estadísticas individuales',
-                    ['Consultar boxscores del período', 'Utilizar historial ya cargado'],
-                    key='ri_nba_origen')
-    if modo == 'Utilizar historial ya cargado':
-        datos, cobertura = obtener_historial_compartido(equipo=equipo)
-        if not cobertura.get('disponible'):
-            st.warning(cobertura.get('motivo', 'No hay historial disponible.'))
-            st.info('Entra en «📚 Historial de jugadores NBA», selecciona el equipo y carga los bloques primero.')
-            return
-        if datos.empty:
-            st.info('El historial cargado no contiene registros individuales.')
-            return
-        if equipo == 'Todos':
-            st.caption(f"Historial cargado del equipo: {cobertura['equipo']}.")
-        if not cobertura['completo'] or cobertura['errores']:
-            st.warning('Historial parcial o con incidencias; los promedios NO representan necesariamente toda la temporada.')
-        else:
-            st.caption('Todos los bloques solicitados fueron consultados; la cobertura de ESPN no está garantizada.')
-        st.caption(f"Período del historial: {cobertura['desde']} a {cobertura['hasta']} · "
-                   f"Bloques consultados: {cobertura['bloques']}")
+    # Reutiliza automáticamente el historial ya recuperado, sin duplicar consultas.
+    datos_compartidos, cobertura = obtener_historial_compartido(equipo=equipo)
+    if cobertura.get('disponible') and not datos_compartidos.empty:
+        datos = datos_compartidos.copy()
         errores = []
+        st.success('Historial de jugadores reutilizado automáticamente.')
+        st.caption(f"Cobertura: {cobertura.get('desde', '?')} a {cobertura.get('hasta', '?')} · "
+                   f"bloques: {cobertura.get('bloques', 0)}")
+        if not cobertura.get('completo', False) or cobertura.get('errores', 0):
+            st.warning('Historial parcial: las estimaciones solo representan registros disponibles.')
     else:
-        with st.spinner('Cargando boxscores observados...'):
+        with st.spinner('Recuperando automáticamente boxscores del calendario seleccionado...'):
             datos, errores = _historial(ids)
+        st.caption(f'Boxscores consultados: {len(ids)} · límite de consulta: {limite}.')
     if errores:
         st.warning(f'{len(errores)} boxscores no pudieron procesarse; cobertura parcial.')
         with st.expander('Detalles de cobertura'):
@@ -800,7 +817,8 @@ def _mostrar_jugadores(partidos, equipo, limite):
 def mostrar_resumen_inteligente_nba():
     """Punto de entrada del Resumen Inteligente NBA."""
     st.title('🏠 Resumen Inteligente NBA')
-    st.caption(f'v{VERSION} · Vista compacta · Fuente ESPN no oficial · Sin datos simulados')
+    st.caption('Motor estadístico automático: elige equipos o jugadores; los detalles disponibles se consultan y reutilizan sin botones adicionales.')
+    st.caption(f'v{VERSION} · Consulta automática · Fuente ESPN no oficial · Sin datos simulados')
     hoy = date.today()
     c1, c2 = st.columns(2)
     with c1:
@@ -811,11 +829,10 @@ def mostrar_resumen_inteligente_nba():
         st.warning('Elige un intervalo válido de hasta 32 días inclusive.')
         return
     periodo = (desde.isoformat(), hasta.isoformat())
-    if st.button('🔄 Consultar datos NBA', key='ri_nba_consultar', use_container_width=True):
+    if st.button('🔄 Actualizar datos NBA', key='ri_nba_consultar', use_container_width=True):
         st.session_state['ri_nba_periodo'] = periodo
     if st.session_state.get('ri_nba_periodo') != periodo:
-        st.info('Pulsa «Consultar datos NBA» para cargar el período seleccionado.')
-        return
+        st.session_state['ri_nba_periodo'] = periodo
     try:
         with st.spinner('Consultando calendario NBA...'):
             partidos, errores = cargar_partidos(*periodo)
