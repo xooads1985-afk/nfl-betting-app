@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '2.1.0'
+VERSION = '2.2.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -730,6 +730,35 @@ def _panel_proximo_jugador(historial, partidos, nombre):
                        'Sin ajuste por lesiones o disponibilidad no confirmadas.')
 
 
+def _auditoria_periodos_individuales(historial, nombre):
+    """Comprueba cobertura de períodos individuales sin atribuir puntos del equipo al jugador."""
+    if historial.empty:
+        return
+    with st.expander(f'⏱️ Cuartos y mitades individuales · {nombre}'):
+        st.caption('Se inspeccionan únicamente columnas reales del historial recuperado.')
+        # Columnas de períodos individuales: las del boxscore del jugador, no las
+        # líneas por cuarto del equipo ni distribuciones proporcionales inventadas.
+        periodos = {
+            '1.er cuarto': ('Puntos_Q1', 'PTS_Q1', 'puntos_q1'),
+            '2.º cuarto': ('Puntos_Q2', 'PTS_Q2', 'puntos_q2'),
+            '3.er cuarto': ('Puntos_Q3', 'PTS_Q3', 'puntos_q3'),
+            '4.º cuarto': ('Puntos_Q4', 'PTS_Q4', 'puntos_q4'),
+        }
+        filas = []
+        for etiqueta, variantes in periodos.items():
+            columna = next((c for c in variantes if c in historial.columns), None)
+            valores = pd.to_numeric(historial[columna], errors='coerce').dropna() if columna else pd.Series(dtype=float)
+            filas.append({'Período': etiqueta, 'Registros válidos': len(valores),
+                          'Promedio observado': round(float(valores.mean()), 1) if len(valores) else 'N/D',
+                          'Estimación': round(float(valores.tail(10).mean()), 1) if len(valores) >= 5 else 'N/D'})
+        st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+        st.info('Los boxscores individuales recuperados no incluyen necesariamente puntos por cuarto. '
+                'Si figura N/D, falta un desglose individual verificable; no se reparte el total '
+                'del jugador entre cuartos ni se utilizan los cuartos del equipo como si fueran suyos.')
+        st.caption('Una futura integración de eventos individuales por período requerirá verificar '
+                   'identificadores, minutos y cobertura antes de habilitar estimaciones por mitades.')
+
+
 def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, partidos, equipo):
     st.markdown('### 🧪 Auditoría de participación')
     st.caption('Los registros sin minutos pero con estadísticas observadas se incluyen con advertencia; los ceros explícitos de minutos se excluyen.')
@@ -747,6 +776,7 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
             st.write(' · '.join(f'{m}: {int(d[m].notna().sum())}/{len(d)}' for m in metricas))
         _diagnostico_y_validacion_individual(original, validos, nombre)
         _panel_proximo_jugador(d, partidos, nombre)
+        _auditoria_periodos_individuales(d, nombre)
         st.markdown(f'#### 🏀 Puntos posibles en el siguiente partido · {nombre}')
         r = _proyectar_puntos(d, partidos, equipo if equipo != 'Todos' else str(d['equipo'].iloc[-1]) if not d.empty else 'Todos')
         if 'error' in r:
