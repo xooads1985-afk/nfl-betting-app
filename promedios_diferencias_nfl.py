@@ -191,4 +191,3 @@ def mostrar_promedios_diferencias():
 
 if __name__ == '__main__':
     mostrar_promedios_diferencias()
-
