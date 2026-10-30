@@ -5,12 +5,13 @@ exclusivamente de los partidos finalizados consultados a ESPN (API no oficial).
 """
 from datetime import date, timedelta
 import pandas as pd
+import altair as alt
 import streamlit as st
 
 from modulo_nba import cargar_partidos
 from comparador_jugadores_nba import _historial, METRICAS
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 
 def calcular_promedios(datos, jugadores, metrica, ventana=5):
@@ -132,8 +133,31 @@ def mostrar_promedios_diferencias():
     st.caption('N reciente y N anterior muestran cuántos partidos válidos sustentan cada tramo. '
                'Cuando faltan partidos anteriores se usan los disponibles; sin tramo anterior, '
                'la diferencia queda vacía. No es una predicción.')
-    grafico = resumen.set_index('Jugador')[['Promedio período', 'Promedio reciente']]
-    st.bar_chart(grafico)
+    # Barras agrupadas, no apiladas: evita sumar visualmente dos promedios.
+    grafico = resumen[['Jugador', 'Promedio período', 'Promedio reciente']].melt(
+        id_vars='Jugador', var_name='Tipo de promedio', value_name='Promedio'
+    )
+    grafico['Promedio'] = pd.to_numeric(grafico['Promedio'], errors='coerce')
+    grafico = grafico.dropna(subset=['Promedio'])
+    if not grafico.empty:
+        grafico['Jugador corto'] = grafico['Jugador'].astype(str).str.split(' · ', regex=False).str[0]
+        # Si hay homónimos, conservamos el nombre completo para distinguirlos.
+        nombres = grafico[['Jugador', 'Jugador corto']].drop_duplicates()
+        duplicados = nombres['Jugador corto'].duplicated(keep=False)
+        mapa = dict(zip(nombres['Jugador'], nombres['Jugador corto']))
+        for jugador in nombres.loc[duplicados, 'Jugador']:
+            mapa[jugador] = jugador
+        grafico['Jugador corto'] = grafico['Jugador'].map(mapa)
+        barras = alt.Chart(grafico).mark_bar().encode(
+            x=alt.X('Jugador corto:N', title='Jugador', axis=alt.Axis(labelAngle=0, labelLimit=135)),
+            xOffset=alt.XOffset('Tipo de promedio:N'),
+            y=alt.Y('Promedio:Q', title=f'Promedio de {metrica.lower()}', scale=alt.Scale(zero=True)),
+            color=alt.Color('Tipo de promedio:N', title='Serie'),
+            tooltip=[alt.Tooltip('Jugador:N'), alt.Tooltip('Tipo de promedio:N'),
+                     alt.Tooltip('Promedio:Q', format='.2f')],
+        ).properties(height=320)
+        st.altair_chart(barras, use_container_width=True)
+        st.caption('Barras independientes: los promedios del período y reciente no se suman.')
     st.subheader('📈 Historial observado')
     detalle = datos.loc[datos['clave_jugador'].isin(elegidos)].copy()
     detalle[metrica] = pd.to_numeric(detalle[metrica], errors='coerce')
