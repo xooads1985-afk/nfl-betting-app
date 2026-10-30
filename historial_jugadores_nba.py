@@ -9,7 +9,7 @@ import altair as alt
 import streamlit as st
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -37,7 +37,8 @@ def _extraer_partido(id_partido, fecha, equipo):
     box = extraer_jugadores(cargar_detalle(str(id_partido)))
     if box.empty or 'jugador' not in box.columns or 'equipo' not in box.columns:
         return []
-    box = box.loc[box['equipo'].eq(equipo)]
+    if equipo != 'Todos':
+        box = box.loc[box['equipo'].eq(equipo)]
     filas = []
     for _, atleta in box.iterrows():
         nombre = str(atleta.get('jugador', '')).strip()
@@ -47,7 +48,7 @@ def _extraer_partido(id_partido, fecha, equipo):
         id_atleta = next((atleta.get(c) for c in ('jugador_id', 'athlete_id', 'player_id', 'id_jugador', 'id')
                           if c in box.columns and pd.notna(atleta.get(c)) and str(atleta.get(c)).strip()), None)
         id_atleta = str(id_atleta).strip() if id_atleta is not None else ''
-        fila = {'partido_id': str(id_partido), 'fecha': fecha, 'equipo': equipo,
+        fila = {'partido_id': str(id_partido), 'fecha': fecha, 'equipo': str(atleta.get('equipo', equipo)),
                 'jugador': nombre, 'titular': bool(atleta.get('titular', False)),
                 'jugador_id': id_atleta}
         for nombre_metrica, nombres_fuente in METRICAS.items():
@@ -58,21 +59,21 @@ def _extraer_partido(id_partido, fecha, equipo):
 
 
 def _consultar_bloque(desde, hasta, equipo):
-    """Solo boxscores de partidos finalizados del equipo seleccionado."""
+    """Consulta una sola vez cada boxscore, de un equipo o de todos."""
     partidos, errores = cargar_partidos(desde.isoformat(), hasta.isoformat())
     if partidos.empty:
         return pd.DataFrame(), list(errores), 0
-    juegos = partidos.loc[
-        partidos['finalizado'].eq(True)
-        & (partidos['local'].eq(equipo) | partidos['visitante'].eq(equipo))
-    ].drop_duplicates('id').sort_values('fecha_utc')
+    filtro = partidos['finalizado'].eq(True)
+    if equipo != 'Todos':
+        filtro = filtro & (partidos['local'].eq(equipo) | partidos['visitante'].eq(equipo))
+    juegos = partidos.loc[filtro].drop_duplicates('id').sort_values('fecha_utc')
     filas = []
     errores = list(errores)
     for juego in juegos.itertuples(index=False):
         try:
             extraidas = _extraer_partido(juego.id, str(juego.fecha_utc)[:10], equipo)
             if not extraidas:
-                errores.append(f'{juego.id}: sin estadísticas individuales del equipo')
+                errores.append(f'{juego.id}: sin estadísticas individuales disponibles')
             filas.extend(extraidas)
         except Exception as exc:
             errores.append(f'{juego.id}: {type(exc).__name__}: {exc}')
@@ -103,8 +104,10 @@ def obtener_historial_compartido(equipo=None, desde=None, hasta=None):
     if not firma or len(firma) != 3:
         return vacio, {'disponible': False, 'motivo': 'Aún no se ha cargado el historial.'}
     ini, fin, nombre_equipo = firma
-    if equipo not in (None, 'Todos', nombre_equipo):
+    if equipo not in (None, 'Todos', nombre_equipo) and nombre_equipo != 'Todos':
         return vacio, {'disponible': False, 'motivo': 'El historial cargado corresponde a otro equipo.'}
+    if equipo == 'Todos' and nombre_equipo != 'Todos':
+        return vacio, {'disponible': False, 'motivo': 'Solo se cargó un equipo; no se dispone de todos.'}
     if desde is not None and ini > str(desde):
         return vacio, {'disponible': False, 'motivo': 'El historial no cubre el inicio solicitado.'}
     if hasta is not None and fin < str(hasta):
@@ -113,12 +116,14 @@ def obtener_historial_compartido(equipo=None, desde=None, hasta=None):
     if not isinstance(datos, pd.DataFrame):
         datos = vacio
     datos = datos.copy()
+    if not datos.empty and equipo not in (None, 'Todos'):
+        datos = datos.loc[datos['equipo'].eq(equipo)].copy()
     if not datos.empty and desde is not None:
         datos = datos.loc[datos['fecha'].astype(str).ge(str(desde))]
     if not datos.empty and hasta is not None:
         datos = datos.loc[datos['fecha'].astype(str).le(str(hasta))]
     return datos, {
-        'disponible': True, 'equipo': nombre_equipo, 'desde': ini, 'hasta': fin,
+        'disponible': True, 'equipo': equipo if equipo not in (None, 'Todos') else nombre_equipo, 'desde': ini, 'hasta': fin,
         'bloques': int(st.session_state.get('hist_nba_bloques', 0)),
         'siguiente': st.session_state.get('hist_nba_siguiente'),
         'errores': len(st.session_state.get('hist_nba_errores', [])),
@@ -155,7 +160,8 @@ def mostrar_historial_jugadores_nba():
     if not equipos:
         st.info('No hay equipos identificados en el calendario.')
         return
-    equipo = st.selectbox('Equipo', equipos, key='hist_nba_equipo')
+    equipo = st.selectbox('Equipos a consultar', ['Todos'] + equipos, key='hist_nba_equipo')
+    st.caption('Elige «Todos» para comparar hasta 3 jugadores de distintos equipos. Cada partido se consulta una sola vez. Para periodos largos, carga los bloques progresivamente.')
     firma = (desde.isoformat(), hasta.isoformat(), equipo)
     if st.session_state.get('hist_nba_firma') != firma:
         st.session_state['hist_nba_firma'] = firma
@@ -171,7 +177,7 @@ def mostrar_historial_jugadores_nba():
         cierre = min(siguiente + timedelta(days=30), hasta)
         st.caption(f'Próximo bloque: {siguiente:%d/%m/%Y} a {cierre:%d/%m/%Y}')
         if st.button('📥 Cargar siguiente bloque', key='hist_nba_cargar', use_container_width=True):
-            with st.spinner('Consultando partidos finalizados y boxscores del equipo...'):
+            with st.spinner('Consultando partidos finalizados y boxscores sin repetir encuentros...'):
                 try:
                     nuevos, fallas, cantidad = _consultar_bloque(siguiente, cierre, equipo)
                 except Exception as exc:
@@ -223,7 +229,7 @@ def mostrar_historial_jugadores_nba():
     st.metric('Partidos finalizados consultados', st.session_state['hist_nba_juegos'])
     st.metric('Registros individuales', len(datos))
     st.metric('Partidos con incidencia pendiente', len(pendientes))
-    st.caption('Bloques consultados ≠ cobertura completa. Los errores de calendario pueden impedir detectar partidos; revisa las incidencias.')
+    st.caption('Bloques consultados ≠ cobertura completa. Los errores de calendario pueden impedir detectar partidos; revisa las incidencias. Con «Todos», se recuperan jugadores de ambos equipos por partido.')
     if fallas_iniciales or errores:
         st.warning(f'Datos potencialmente incompletos: {len(fallas_iniciales) + len(errores)} incidencias de consulta.')
         with st.expander('🔍 Incidencias de cobertura'):
