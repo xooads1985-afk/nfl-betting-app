@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.7.0'
+VERSION = '1.8.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -625,6 +625,53 @@ def _proyectar_puntos(historial, partidos, equipo):
             'rival_info': rival_info}
 
 
+def _diagnostico_y_validacion_individual(original, validos, nombre):
+    """Cobertura por métrica y prueba cronológica, sin usar resultados futuros."""
+    todos = original.loc[original['jugador'].eq(nombre)].copy()
+    d = validos.loc[validos['jugador'].eq(nombre)].copy()
+    if todos.empty:
+        return
+    st.markdown(f"**🔎 Cobertura y validación · {nombre}**")
+    st.caption(f"Recuperados: {len(todos)} · participación válida: {len(d)} · excluidos: {len(todos)-len(d)}")
+    filas = []
+    for metrica in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
+        if metrica not in d.columns:
+            continue
+        orden = d.sort_values(['fecha', 'partido_id']) if {'fecha', 'partido_id'}.issubset(d.columns) else d
+        serie = pd.to_numeric(orden[metrica], errors='coerce').dropna()
+        n = len(serie)
+        if n >= 5:
+            ultimos = serie.tail(10)
+            media = float(ultimos.mean())
+            desv = float(ultimos.std(ddof=1))
+            errores = [
+                abs(float(serie.iloc[i-10:i].mean()) - float(serie.iloc[i]))
+                for i in range(5, n)
+            ]
+            filas.append({
+                'Métrica': metrica, 'Válidos': n,
+                'Media reciente': round(media, 1),
+                'Rango bajo': round(max(0., media-desv), 1),
+                'Rango alto': round(media+desv, 1),
+                'MAE histórico': round(sum(errores)/len(errores), 1) if errores else None,
+                'Evaluaciones': len(errores),
+            })
+        else:
+            filas.append({'Métrica': metrica, 'Válidos': n,
+                          'Media reciente': None, 'Rango bajo': None,
+                          'Rango alto': None, 'MAE histórico': None,
+                          'Evaluaciones': 0})
+    if filas:
+        st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+        if any(f['Válidos'] < 5 for f in filas):
+            st.info('Las métricas con menos de 5 registros válidos quedan sin estimación; sus promedios observados siguen disponibles en las tarjetas.')
+        st.caption('Rango = media ± 1 desviación estándar (descriptivo, no intervalo calibrado). MAE = error medio al estimar cada partido con los 5–10 anteriores; requiere al menos 6 registros. Sin datos futuros.')
+        csv = pd.DataFrame(filas).to_csv(index=False).encode('utf-8-sig')
+        st.download_button('⬇️ Exportar diagnóstico CSV', csv,
+                           f"diagnostico_nba_{str(nombre).replace(' ', '_')}.csv",
+                           'text/csv', key=f"ri_nba_diag_{str(nombre)}")
+
+
 def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, partidos, equipo):
     st.markdown('### 🧪 Auditoría de participación')
     st.caption('Los registros sin minutos pero con estadísticas observadas se incluyen con advertencia; los ceros explícitos de minutos se excluyen.')
@@ -640,6 +687,7 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
             st.dataframe(todos[columnas].sort_values('fecha', ascending=False), hide_index=True, use_container_width=True)
             st.caption('Cobertura de cada promedio (valores numéricos disponibles):')
             st.write(' · '.join(f'{m}: {int(d[m].notna().sum())}/{len(d)}' for m in metricas))
+        _diagnostico_y_validacion_individual(original, validos, nombre)
         st.markdown(f'#### 🏀 Puntos posibles en el siguiente partido · {nombre}')
         r = _proyectar_puntos(d, partidos, equipo if equipo != 'Todos' else str(d['equipo'].iloc[-1]) if not d.empty else 'Todos')
         if 'error' in r:
