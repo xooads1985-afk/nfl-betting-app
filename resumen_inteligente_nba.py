@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.9.0.
+"""Resumen Inteligente NBA v2.0.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.9.0'
+VERSION = '2.0.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -688,6 +688,48 @@ def _diagnostico_y_validacion_individual(original, validos, nombre):
                            'text/csv', key=f"ri_nba_diag_{str(nombre)}")
 
 
+def _panel_proximo_jugador(historial, partidos, nombre):
+    """Contexto del próximo encuentro con datos observados; no usa información futura."""
+    if historial.empty or not {'equipo', 'fecha', 'partido_id'}.issubset(historial.columns):
+        return
+    d = historial.copy()
+    d['fecha_dt'] = pd.to_datetime(d['fecha'], utc=True, errors='coerce')
+    d = d.dropna(subset=['fecha_dt']).sort_values(['fecha_dt', 'partido_id'])
+    if d.empty:
+        return
+    equipo = str(d['equipo'].iloc[-1])
+    proximo = _proximo_partido(partidos, equipo)
+    with st.expander(f'🗓️ Próximo encuentro · {nombre}', expanded=True):
+        if proximo is None:
+            st.info('No hay próximo encuentro futuro del equipo en el calendario consultado.')
+        else:
+            rival = str(proximo['visitante'] if str(proximo['local']) == equipo else proximo['local'])
+            fecha = pd.to_datetime(proximo['fecha_utc'], utc=True, errors='coerce')
+            if pd.notna(fecha):
+                d = d.loc[d['fecha_dt'].lt(fecha)].copy()
+            st.write(f'**{equipo} vs. {rival}**')
+            st.caption(f"Fecha del encuentro: {str(proximo['fecha_utc'])[:16]} UTC")
+        if d.empty:
+            st.info('No hay antecedentes válidos anteriores al próximo encuentro.')
+            return
+        filas = []
+        for metrica in ('Puntos', 'Rebotes', 'Asistencias', 'Minutos'):
+            if metrica not in d:
+                continue
+            valores = pd.to_numeric(d[metrica], errors='coerce').dropna()
+            ult = valores.tail(10)
+            filas.append({'Estadística': metrica,
+                          'Registros': len(valores),
+                          'Últimos 5': round(float(valores.tail(5).mean()), 1) if len(valores) else None,
+                          'Últimos 10': round(float(ult.mean()), 1) if len(ult) else None,
+                          'Estimación descriptiva': round(float(ult.mean()), 1) if len(ult) >= 5 else None})
+        if filas:
+            st.dataframe(pd.DataFrame(filas).fillna('N/D'), hide_index=True, use_container_width=True)
+            st.caption('Las estimaciones requieren 5 registros válidos por métrica. '
+                       'Los promedios no son probabilidades ni garantizan resultados. '
+                       'Sin ajuste por lesiones o disponibilidad no confirmadas.')
+
+
 def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, partidos, equipo):
     st.markdown('### 🧪 Auditoría de participación')
     st.caption('Los registros sin minutos pero con estadísticas observadas se incluyen con advertencia; los ceros explícitos de minutos se excluyen.')
@@ -704,6 +746,7 @@ def _mostrar_auditoria_y_proyeccion(original, validos, metricas, seleccion, part
             st.caption('Cobertura de cada promedio (valores numéricos disponibles):')
             st.write(' · '.join(f'{m}: {int(d[m].notna().sum())}/{len(d)}' for m in metricas))
         _diagnostico_y_validacion_individual(original, validos, nombre)
+        _panel_proximo_jugador(d, partidos, nombre)
         st.markdown(f'#### 🏀 Puntos posibles en el siguiente partido · {nombre}')
         r = _proyectar_puntos(d, partidos, equipo if equipo != 'Todos' else str(d['equipo'].iloc[-1]) if not d.empty else 'Todos')
         if 'error' in r:
@@ -941,5 +984,6 @@ def mostrar_resumen_inteligente_nba():
         st.dataframe(vista_cal[columnas], hide_index=True, use_container_width=True)
     st.caption('Las estadísticas se limitan a las fechas y partidos consultados. '
                'La disponibilidad depende del proveedor externo.')
+
 
 
