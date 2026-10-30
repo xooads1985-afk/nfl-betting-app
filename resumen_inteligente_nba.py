@@ -1,4 +1,4 @@
-"""Resumen Inteligente NBA v1.7.0.
+"""Resumen Inteligente NBA v1.9.0.
 
 Módulo independiente de NFL. Depende de modulo_nba.py y
 comparador_jugadores_nba.py; fuente ESPN no oficial. No simula datos.
@@ -12,7 +12,7 @@ from modulo_nba import cargar_partidos, cargar_detalle
 from comparador_jugadores_nba import _historial, METRICAS
 from historial_jugadores_nba import obtener_historial_compartido
 
-VERSION = '1.8.0'
+VERSION = '1.9.0'
 
 
 def _equipo_resultados(partidos, equipo):
@@ -346,6 +346,11 @@ def _panel_validacion_historica(partidos, partido):
                 continue
             validos['Error'] = (validos[pred] - validos[real]).abs()
             st.metric('Error absoluto medio (MAE)', f"{validos['Error'].mean():.1f} pts")
+            sesgo = float((validos[pred] - validos[real]).mean())
+            st.metric('Sesgo promedio (estimado − observado)', f'{sesgo:+.1f} pts')
+            st.caption('Sesgo positivo: sobreestimación promedio; negativo: subestimación. MAE no equivale a probabilidad de acierto.')
+            if len(validos) < 20:
+                st.info('Precisión provisional: menos de 20 evaluaciones históricas comparables.')
             st.caption(f"{len(validos)} evaluaciones cronológicas · mediana del error: {validos['Error'].median():.1f} pts")
             if len(validos) < 10:
                 st.warning('Muestra pequeña: todavía no permite conclusiones firmes sobre precisión.')
@@ -662,7 +667,18 @@ def _diagnostico_y_validacion_individual(original, validos, nombre):
                           'Rango alto': None, 'MAE histórico': None,
                           'Evaluaciones': 0})
     if filas:
-        st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+        evaluadas = [f for f in filas if f['Evaluaciones'] >= 5 and f['MAE histórico'] is not None]
+        with st.expander('📐 Calidad y precisión de las estimaciones', expanded=True):
+            st.caption('La calidad de muestra y el error retrospectivo no garantizan resultados futuros.')
+            st.write(f'Métricas con estimación habilitada: **{sum(f["Válidos"] >= 5 for f in filas)}/{len(filas)}**.')
+            st.write(f'Métricas con al menos 5 evaluaciones retrospectivas: **{len(evaluadas)}/{len(filas)}**.')
+            if evaluadas:
+                for f in evaluadas:
+                    st.write(f'{f["Métrica"]}: MAE {f["MAE histórico"]:.1f} · {f["Evaluaciones"]} evaluaciones.')
+            else:
+                st.info('Precisión todavía no evaluable: se necesitan al menos 10 registros válidos para reunir 5 comparaciones cronológicas.')
+            st.caption('MAE = distancia absoluta media entre estimación histórica y resultado real; no es una probabilidad de acierto.')
+        st.dataframe(pd.DataFrame(filas).fillna('N/D'), hide_index=True, use_container_width=True)
         if any(f['Válidos'] < 5 for f in filas):
             st.info('Las métricas con menos de 5 registros válidos quedan sin estimación; sus promedios observados siguen disponibles en las tarjetas.')
         st.caption('Rango = media ± 1 desviación estándar (descriptivo, no intervalo calibrado). MAE = error medio al estimar cada partido con los 5–10 anteriores; requiere al menos 6 registros. Sin datos futuros.')
