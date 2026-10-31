@@ -83,3 +83,38 @@ def respaldo_sqlite():
             )
             conn.commit()
         return destino.read_bytes()
+
+
+def auditar_cobertura_equipos(calendario, desde, hasta, minimo_jugadores=8):
+    """Diagnóstico conservador por partido y equipo, sin afirmar cobertura completa.
+
+    Un mínimo de jugadores es solo una señal orientativa; no prueba integridad.
+    """
+    columnas = ['partido_id', 'fecha_utc', 'equipo', 'jugadores_archivados',
+                'jugadores_con_minutos', 'estado_cobertura']
+    if calendario is None or calendario.empty:
+        return pd.DataFrame(columns=columnas)
+    archivados = leer_jugadores('Todos', desde, hasta)
+    if archivados.empty:
+        archivados = pd.DataFrame(columns=['partido_id', 'equipo', 'Minutos', 'jugador_id', 'jugador'])
+    if 'Minutos' not in archivados:
+        archivados['Minutos'] = float('nan')
+    minutos = archivados['Minutos'].astype(str).str.split(':').str[0]
+    archivados = archivados.copy()
+    archivados['_minutos_validos'] = pd.to_numeric(minutos, errors='coerce').gt(0)
+    registros = []
+    finales = calendario.loc[calendario['finalizado'].eq(True)].drop_duplicates('id')
+    for partido in finales.itertuples(index=False):
+        for equipo in (str(partido.local), str(partido.visitante)):
+            filas = archivados.loc[archivados['partido_id'].astype(str).eq(str(partido.id)) &
+                                   archivados['equipo'].astype(str).eq(equipo)]
+            n = len(filas)
+            con_minutos = int(filas['_minutos_validos'].sum())
+            estado = ('Sin registros' if n == 0 else
+                      'Revisión prioritaria: pocos jugadores' if n < minimo_jugadores else
+                      'Registros presentes; integridad no certificada')
+            registros.append({'partido_id': str(partido.id),
+                              'fecha_utc': str(partido.fecha_utc), 'equipo': equipo,
+                              'jugadores_archivados': n, 'jugadores_con_minutos': con_minutos,
+                              'estado_cobertura': estado})
+    return pd.DataFrame(registros, columns=columnas)
