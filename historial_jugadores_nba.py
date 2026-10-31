@@ -11,7 +11,7 @@ from nba_archivo_temporada import guardar_jugadores, leer_jugadores, registrar_c
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 from nba_control_cobertura import comparar_bloque
 
-VERSION = '1.3.4 · Supabase · cobertura incremental'
+VERSION = '1.3.5 · Supabase · control de calidad'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -33,6 +33,24 @@ def _numero(valor):
         except (ValueError, TypeError):
             return float('nan')
     return pd.to_numeric(s.replace(',', ''), errors='coerce')
+
+
+
+
+def _clasificar_calidad(datos):
+    """Clasifica sin modificar las estadísticas originales ni inferir ausencias."""
+    salida = datos.copy()
+    for metrica in METRICAS:
+        if metrica not in salida.columns:
+            salida[metrica] = float('nan')
+        salida[metrica] = salida[metrica].map(_numero)
+    minutos = salida['Minutos']
+    hay_estadisticas = salida[[m for m in METRICAS if m != 'Minutos']].notna().any(axis=1)
+    salida['estado_calidad'] = 'Pendiente: sin minutos ni estadísticas'
+    salida.loc[minutos.eq(0), 'estado_calidad'] = 'Revisar: cero minutos'
+    salida.loc[minutos.isna() & hay_estadisticas, 'estado_calidad'] = 'Revisar: estadísticas sin minutos'
+    salida.loc[minutos.gt(0), 'estado_calidad'] = 'Participación confirmada'
+    return salida
 
 
 def _ids_desde_detalle(detalle):
@@ -344,7 +362,12 @@ def mostrar_historial_jugadores_nba():
     if 'jugador_id' not in datos:
         datos['jugador_id'] = ''
     datos['jugador_id'] = datos['jugador_id'].fillna('').astype(str)
+    datos = _clasificar_calidad(datos)
     datos['_clave'] = datos.apply(lambda r: 'id:' + r['jugador_id'] if r['jugador_id'] else 'nombre:' + str(r['jugador']), axis=1)
+    with st.expander('🧪 Calidad de datos del historial visible'):
+        conteos = datos['estado_calidad'].value_counts().rename_axis('Clasificación').reset_index(name='Registros')
+        st.dataframe(conteos, hide_index=True, use_container_width=True)
+        st.caption('La clasificación no modifica Supabase. Sin minutos no equivale a ausencia confirmada; los casos pendientes requieren contrastar ESPN.')
     etiquetas = {}
     for clave, grupo in datos.groupby('_clave'):
         nombre = str(grupo.iloc[-1]['jugador'])
@@ -360,17 +383,25 @@ def mostrar_historial_jugadores_nba():
     seleccion['fecha'] = pd.to_datetime(seleccion['fecha'], errors='coerce')
     seleccion = seleccion.sort_values(['_clave', 'fecha', 'partido_id'])
     ventana = st.selectbox('Partidos recientes por jugador', ['Todos los recuperados', 5, 10, 20], key='hist_nba_ventana')
+    # La ventana de partidos jugados se aplica después de comprobar participación.
+    # Los DNP o registros incompletos no desplazan partidos efectivamente jugados.
+    jugados = seleccion.loc[seleccion['estado_calidad'].eq('Participación confirmada')].copy()
     if isinstance(ventana, int):
-        seleccion = seleccion.groupby('_clave', group_keys=False).tail(ventana)
-    metricas = [m for m in METRICAS if m in seleccion and seleccion[m].notna().any()]
-    if not metricas:
-        st.warning('No hay estadísticas numéricas válidas en los boxscores consultados.')
-        return
-    # Solo se cuentan participaciones comprobadas por minutos positivos.
-    # Si ESPN no proporciona minutos, se conserva el registro en el CSV sin inferir participación.
-    jugados = seleccion.loc[seleccion['Minutos'].gt(0)].copy()
-    if jugados.empty:
-        st.info('No hay partidos con participación comprobable para los jugadores seleccionados.')
+        jugados = jugados.groupby('_clave', group_keys=False).tail(ventana)
+    st.caption('Calidad de los jugadores seleccionados (en todo el período recuperado):')
+    st.dataframe(seleccion['estado_calidad'].value_counts().rename_axis('Clasificación').reset_index(name='Registros'),
+                 hide_index=True, use_container_width=True)
+    casos_revision = seleccion.loc[seleccion['estado_calidad'].ne('Participación confirmada')]
+    if not casos_revision.empty:
+        with st.expander(f'⚠️ Registros por verificar ({len(casos_revision)})'):
+            cols = ['fecha', 'jugador', 'equipo', 'partido_id', 'estado_calidad', 'Minutos', 'Puntos', 'Rebotes', 'Asistencias']
+            st.dataframe(casos_revision[cols], hide_index=True, use_container_width=True)
+            st.caption('No se eliminan registros ni se convierten valores faltantes en cero.')
+    metricas = [m for m in METRICAS if m in jugados and jugados[m].notna().any()]
+    if jugados.empty or not metricas:
+        st.info('No hay partidos con participación y estadísticas comprobables para los jugadores seleccionados.')
+        st.download_button('📥 Descargar historial CSV', datos.drop(columns=['_clave'], errors='ignore').to_csv(index=False).encode('utf-8-sig'),
+                           'historial_jugadores_nba.csv', 'text/csv', key='hist_nba_csv')
         return
     resumen = jugados.groupby('_etiqueta').agg(
         PJ=('partido_id', 'nunique'), Titularidades=('titular', 'sum'),
@@ -378,7 +409,7 @@ def mostrar_historial_jugadores_nba():
     ).round(2).reset_index().rename(columns={'_etiqueta': 'Jugador'})
     st.subheader('📊 Promedios de partidos recuperados')
     st.dataframe(resumen, hide_index=True, use_container_width=True)
-    st.caption('PJ es el número de partidos recuperados con registro del jugador, no necesariamente toda su temporada. Los valores ausentes no se convierten en cero.')
+    st.caption('PJ cuenta únicamente partidos recuperados con minutos positivos. La ventana 5/10/20 se aplica a partidos jugados, no a registros sin participación comprobada. Los valores ausentes no se convierten en cero.')
     metrica = st.selectbox('Métrica de evolución', metricas, key='hist_nba_metrica')
     grafico = jugados.dropna(subset=['fecha', metrica]).copy()
     if not grafico.empty:
@@ -392,10 +423,6 @@ def mostrar_historial_jugadores_nba():
         ).properties(height=310)
         st.altair_chart(puntos, use_container_width=True)
         st.caption('Cada punto es un partido observado. No se unen fechas sin partidos ni se inventan registros.')
-    sin_participacion = int(seleccion['Minutos'].eq(0).sum())
-    sin_confirmar = int(seleccion['Minutos'].isna().sum())
-    if sin_participacion or sin_confirmar:
-        st.caption(f'Registros con 0 minutos: {sin_participacion} · Sin minutos verificables: {sin_confirmar}. No se incluyen en los promedios de partidos jugados.')
     with st.expander('📋 Historial por partido'):
         columnas = ['fecha', 'jugador', 'equipo', 'partido_id', 'titular'] + metricas
         tabla = jugados[columnas].sort_values('fecha', ascending=False).copy()
