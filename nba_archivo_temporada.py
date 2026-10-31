@@ -89,6 +89,8 @@ def _texto(valor):
 
 
 def _insertar(tabla, registros, columnas_conflicto):
+    if not registros:
+        return 0
     for inicio in range(0, len(registros), 50):
         _solicitud(tabla, 'POST', {'on_conflict': columnas_conflicto}, registros[inicio:inicio + 50])
     return len(registros)
@@ -98,7 +100,7 @@ def _leer_todo(tabla, columnas='payload', filtros=None):
     resultados = []
     offset = 0
     while True:
-        params = {'select': columnas}
+        params = {'select': columnas, 'order': 'id.asc' if tabla == 'partidos' else ('partido_id.asc,equipo.asc,identidad.asc' if tabla == 'jugadores' else 'desde.asc,hasta.asc,equipo.asc')}
         if filtros:
             params.update(filtros)
         bloque = _solicitud(tabla, parametros=params, rango=(offset, offset + 999))
@@ -124,7 +126,12 @@ def guardar_partidos(df):
 
 
 def leer_partidos(desde=None, hasta=None):
-    filas = [json.loads(f['payload']) for f in _leer_todo('partidos')]
+    filtros = {}
+    if desde is not None:
+        filtros['fecha'] = 'gte.' + str(desde)
+    if hasta is not None and desde is None:
+        filtros['fecha'] = 'lte.' + str(hasta)
+    filas = [json.loads(f['payload']) for f in _leer_todo('partidos', filtros=filtros)]
     df = pd.DataFrame(filas)
     if df.empty:
         return df
@@ -155,6 +162,11 @@ def guardar_jugadores(df):
         registros.append({'partido_id': partido, 'equipo': equipo, 'identidad': identidad,
                           'fecha': _texto(fila.get('fecha')),
                           'payload': json.dumps(limpio, ensure_ascii=False, default=str)})
+    # No sobreescribir registros históricos con filas que no contienen ninguna métrica.
+    # Una auditoría de cobertura independiente debe verificar la integridad del partido.
+    metricas = ('Puntos', 'Rebotes', 'Asistencias', 'Robos', 'Tapones', 'Pérdidas', 'Minutos')
+    registros = [r for r in registros if any(
+        _limpiar(json.loads(r['payload']).get(m)) is not None for m in metricas)]
     return _insertar('jugadores', registros, 'partido_id,equipo,identidad')
 
 
