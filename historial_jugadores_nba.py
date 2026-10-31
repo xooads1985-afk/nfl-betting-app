@@ -9,9 +9,9 @@ import altair as alt
 import streamlit as st
 from nba_archivo_temporada import guardar_jugadores, leer_jugadores, registrar_consulta, leer_consultas, resumen_archivo
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
-from nba_control_cobertura import comparar_bloque, respaldo_sqlite
+from nba_control_cobertura import comparar_bloque
 
-VERSION = '1.3.3 · cobertura incremental'
+VERSION = '1.3.4 · Supabase · cobertura incremental'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -122,7 +122,7 @@ def obtener_historial_compartido(equipo=None, desde=None, hasta=None):
     Nunca consulta automáticamente la red ni mezcla equipos/períodos distintos.
     Devuelve (datos, cobertura), donde cobertura contiene el progreso real.
     """
-    # El archivo local puede reutilizar registros de otras sesiones; no afirma cobertura total.
+    # El archivo persistente puede reutilizar registros de otras sesiones; no afirma cobertura total.
     try:
         archivados = leer_jugadores(equipo, desde, hasta)
     except Exception:
@@ -130,7 +130,7 @@ def obtener_historial_compartido(equipo=None, desde=None, hasta=None):
     firma = st.session_state.get('hist_nba_firma')
     vacio = pd.DataFrame()
     if not firma or len(firma) != 3:
-        return archivados, {'disponible': not archivados.empty, 'completo': False, 'origen': 'archivo local parcial'}
+        return archivados, {'disponible': not archivados.empty, 'completo': False, 'origen': 'archivo persistente parcial'}
     ini, fin, nombre_equipo = firma
     if equipo not in (None, 'Todos', nombre_equipo) and nombre_equipo != 'Todos':
         return vacio, {'disponible': False, 'motivo': 'El historial cargado corresponde a otro equipo.'}
@@ -218,8 +218,8 @@ def mostrar_historial_jugadores_nba():
                         guardar_jugadores(nuevos)
                     except Exception as exc:
                         guardado_ok = False
-                        fallas.append(f'Archivo SQLite: {type(exc).__name__}: {exc}')
-                        st.warning(f'No se pudo guardar el archivo local: {type(exc).__name__}: {exc}')
+                        fallas.append(f'Supabase: {type(exc).__name__}: {exc}')
+                        st.warning(f'No se pudo guardar en Supabase: {type(exc).__name__}: {exc}')
                     st.session_state['hist_nba_datos'] = _unir_historial(st.session_state['hist_nba_datos'], nuevos)
                     try:
                         registrar_consulta(siguiente.isoformat(), cierre.isoformat(), equipo,
@@ -272,21 +272,21 @@ def mostrar_historial_jugadores_nba():
             st.rerun()
     datos = st.session_state['hist_nba_datos']
     errores = st.session_state['hist_nba_errores']
-    st.caption('Archivo SQLite local incremental: puede perderse al reiniciar un alojamiento efímero. Exporta CSV como respaldo; no se considera cobertura completa por sí solo.')
-    st.caption('Los contadores de consulta se reinician con la sesión; los del archivo reflejan lo recuperable en este servidor.')
+    st.caption('Historial persistente en Supabase. La existencia de registros no demuestra cobertura completa; revisa incidencias y auditoría.')
+    st.caption('Los contadores de sesión se reinician al recargar; los del archivo reflejan los registros persistidos.')
     st.metric('Bloques consultados en esta sesión', st.session_state['hist_nba_bloques'])
     st.metric('Partidos consultados en esta sesión', st.session_state['hist_nba_juegos'])
     try:
         almacen = resumen_archivo(equipo, desde, hasta)
-        st.metric('Partidos con jugadores guardados en SQLite', almacen['partidos_con_jugadores'])
-        st.metric('Registros individuales guardados en SQLite', almacen['registros'])
+        st.metric('Partidos con jugadores guardados en Supabase', almacen['partidos_con_jugadores'])
+        st.metric('Registros individuales guardados en Supabase', almacen['registros'])
         consultas = leer_consultas(desde, hasta, equipo)
         if not consultas.empty:
             with st.expander('🧪 Auditoría de bloques archivados'):
                 st.dataframe(consultas.drop(columns=['incidencias']), hide_index=True, use_container_width=True)
                 st.caption('Sin incidencias reportadas NO equivale a cobertura completa verificada.')
     except Exception as exc:
-        st.warning(f'No se pudo consultar el estado del archivo SQLite: {exc}')
+        st.warning(f'No se pudo consultar el estado del archivo Supabase: {exc}')
     # Auditoría del bloque inicial que se ha consultado para poblar el selector.
     # No extrapolar esta cobertura a fechas fuera de ese bloque.
     with st.expander('🔎 Cobertura y recuperación incremental (primer bloque)'):
@@ -328,16 +328,8 @@ def mostrar_historial_jugadores_nba():
                         st.code('\n'.join(errores_incrementales))
         except Exception as exc:
             st.warning(f'No se pudo comprobar cobertura: {type(exc).__name__}: {exc}')
-    with st.expander('💾 Respaldo del historial NBA'):
-        st.caption('Descarga una copia consistente de la base local. Guárdala fuera de Streamlit; '
-                   'no se realiza ninguna subida automática a servicios externos.')
-        try:
-            copia_sqlite = respaldo_sqlite()
-            st.download_button('📥 Descargar respaldo SQLite', copia_sqlite,
-                               'nba_temporada_respaldo.sqlite3', 'application/octet-stream',
-                               key='hist_nba_respaldo_sqlite', use_container_width=True)
-        except Exception as exc:
-            st.info(f'El respaldo todavía no está disponible: {exc}')
+    with st.expander('💾 Exportación del historial NBA'):
+        st.caption('El historial se almacena en Supabase. Puedes exportar los registros visibles en CSV desde la sección inferior. No se genera un respaldo SQLite local.')
     st.metric('Registros visibles (sesión + archivo)', len(datos))
     st.metric('Partidos con incidencia pendiente', len(pendientes))
     st.caption('Bloques consultados ≠ cobertura completa. Los errores de calendario pueden impedir detectar partidos; revisa las incidencias. Con «Todos», se recuperan jugadores de ambos equipos por partido.')
