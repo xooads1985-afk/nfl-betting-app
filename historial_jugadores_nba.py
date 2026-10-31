@@ -11,7 +11,7 @@ from nba_archivo_temporada import guardar_jugadores, leer_jugadores, registrar_c
 from modulo_nba import cargar_partidos, cargar_detalle, extraer_jugadores
 from nba_control_cobertura import comparar_bloque
 
-VERSION = '1.3.5 · Supabase · control de calidad'
+VERSION = '1.3.6 · Supabase · control de calidad'
 METRICAS = {
     'Puntos': ('PTS', 'points'), 'Rebotes': ('REB', 'rebounds'),
     'Asistencias': ('AST', 'assists'), 'Robos': ('STL', 'steals'),
@@ -207,7 +207,11 @@ def mostrar_historial_jugadores_nba():
     equipo = st.selectbox('Equipos a consultar', ['Todos'] + equipos, key='hist_nba_equipo')
     st.caption('Elige «Todos» para comparar hasta 3 jugadores de distintos equipos. Cada partido se consulta una sola vez. Para periodos largos, carga los bloques progresivamente.')
     firma = (desde.isoformat(), hasta.isoformat(), equipo)
-    if st.session_state.get('hist_nba_firma') != firma:
+    claves_sesion = ('hist_nba_datos', 'hist_nba_siguiente', 'hist_nba_errores',
+                     'hist_nba_juegos', 'hist_nba_bloques', 'hist_nba_pendientes',
+                     'hist_nba_correctos')
+    if (st.session_state.get('hist_nba_firma') != firma
+            or any(clave not in st.session_state for clave in claves_sesion)):
         st.session_state['hist_nba_firma'] = firma
         try:
             st.session_state['hist_nba_datos'] = leer_jugadores(equipo, desde, hasta)
@@ -434,3 +438,4 @@ def mostrar_historial_jugadores_nba():
 
 if __name__ == '__main__':
     mostrar_historial_jugadores_nba()
+
