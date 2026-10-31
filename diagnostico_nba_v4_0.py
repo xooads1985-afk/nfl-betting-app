@@ -1,4 +1,4 @@
-"""NBA 4.1: diagnóstico de solo lectura para archivo histórico Supabase.
+"""NBA 4.2: diagnóstico de solo lectura para archivo histórico Supabase.
 
 Usar desde centro_estadistico_nba.py o ejecutar independientemente.
 Requiere nba_archivo_temporada.py (v3.9) y secretos Supabase existentes.
@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 from nba_archivo_temporada import leer_partidos, leer_jugadores, leer_consultas
 
-VERSION = '4.1.0'
+VERSION = '4.2.0'
 METRICAS = ('Puntos', 'Rebotes', 'Asistencias', 'Minutos')
 
 
@@ -52,7 +52,7 @@ def _clasificar_jugador(fila):
     minutos = fila.get('Minutos')
     tiene_stats = any(pd.notna(fila.get(m)) for m in ('Puntos', 'Rebotes', 'Asistencias', 'Robos', 'Tapones', 'Pérdidas'))
     if pd.notna(minutos) and minutos > 0 and tiene_stats:
-        return 'Participación confirmada · métricas presentes'
+        return 'Métricas presentes y minutos positivos (participación inferida)'
     if pd.notna(minutos) and minutos > 0:
         return 'Revisar · minutos positivos sin estadísticas'
     # Señales explícitas opcionales: si el archivo no las guarda, no inventarlas.
@@ -99,11 +99,43 @@ def analizar_archivo(partidos, jugadores, consultas=None, minimo_jugadores=8):
     j_ids = set(j.loc[j['partido_id'].ne(''), 'partido_id'])
     sin_jugadores = p.loc[p['id'].ne('') & ~p['id'].isin(j_ids)].copy()
     sin_partido = j.loc[j['partido_id'].ne('') & ~j['partido_id'].isin(p_ids)].copy()
-    j['clasificacion_4_1'] = j.apply(_clasificar_jugador, axis=1)
-    clasificacion = (j['clasificacion_4_1'].value_counts().rename_axis('Clasificación')
+    j['clasificacion_4_2'] = j.apply(_clasificar_jugador, axis=1)
+    clasificacion = (j['clasificacion_4_2'].value_counts().rename_axis('Clasificación')
                      .reset_index(name='Registros'))
-    sin_jugadores['estado_partido_4_1'] = sin_jugadores.apply(_estado_partido, axis=1)
-    sin_jugadores_finalizados = sin_jugadores.loc[sin_jugadores['estado_partido_4_1'].eq('Finalizado')].copy()
+    sin_jugadores['estado_partido_4_2'] = sin_jugadores.apply(_estado_partido, axis=1)
+    sin_jugadores_finalizados = sin_jugadores.loc[sin_jugadores['estado_partido_4_2'].eq('Finalizado')].copy()
+    # NBA 4.2: resumen de evidencia sin convertir ausencias en cero.
+    grupos_calidad = (j.groupby(['partido_id', 'equipo'], dropna=False)
+                     .agg(registros=('jugador', 'size'),
+                          minutos_positivos=('Minutos', lambda x: int(x.gt(0).sum())),
+                          minutos_ausentes=('Minutos', lambda x: int(x.isna().sum())),
+                          minutos_cero=('Minutos', lambda x: int(x.eq(0).sum())),
+                          puntos_disponibles=('Puntos', lambda x: int(x.notna().sum())),
+                          clasificacion_desconocida=('clasificacion_4_2', lambda x: int(x.str.startswith('Participación desconocida').sum())),
+                          requiere_revision=('clasificacion_4_2', lambda x: int(x.str.startswith('Revisar').sum())))
+                     .reset_index()) if not j.empty else pd.DataFrame(columns=[
+                         'partido_id','equipo','registros','minutos_positivos',
+                         'minutos_ausentes','minutos_cero','puntos_disponibles',
+                         'clasificacion_desconocida','requiere_revision'])
+    grupos_calidad['porcentaje_minutos_positivos'] = grupos_calidad.apply(
+        lambda x: round(100 * x['minutos_positivos'] / x['registros'], 1) if x['registros'] else 0.0, axis=1)
+    grupos_calidad['evaluacion'] = grupos_calidad.apply(
+        lambda x: 'Revisar: sin jugadores con minutos positivos' if x['minutos_positivos'] == 0
+        else ('Revisar: estadísticas/minutos inconsistentes' if x['requiere_revision'] > 0
+              else 'Sin inconsistencias detectadas (no certifica cobertura)'), axis=1)
+    resumen_equipos = (grupos_calidad.groupby('equipo', dropna=False)
+                       .agg(partidos=('partido_id', 'nunique'),
+                            registros=('registros', 'sum'),
+                            minutos_positivos=('minutos_positivos', 'sum'),
+                            minutos_ausentes=('minutos_ausentes', 'sum'),
+                            participacion_desconocida=('clasificacion_desconocida', 'sum'),
+                            requiere_revision=('requiere_revision', 'sum'))
+                       .reset_index()) if not grupos_calidad.empty else pd.DataFrame()
+    # Los partidos programados o sin estado confirmado no se marcan como fallos.
+    sin_jugadores['prioridad_4_2'] = sin_jugadores['estado_partido_4_2'].map(
+        lambda x: 'Alta: finalizado sin jugadores' if x == 'Finalizado'
+        else ('Informativo: todavía no corresponde exigir boxscore' if x.startswith('Programado')
+              else 'Pendiente: comprobar estado en origen'))
     grupos = (j.groupby(['partido_id', 'equipo'], dropna=False)
               .agg(registros=('jugador', 'size'),
                    con_minutos=('Minutos', lambda s: int(s.gt(0).sum())),
@@ -143,8 +175,8 @@ def analizar_archivo(partidos, jugadores, consultas=None, minimo_jugadores=8):
         'Registros de jugadores sin partido archivado': len(sin_partido),
         'Consultas auditadas': len(c),
         'Finalizados sin jugadores (confirmados)': len(sin_jugadores_finalizados),
-        'Sin jugadores, programados o pospuestos': int(sin_jugadores['estado_partido_4_1'].str.startswith('Programado').sum()),
-        'Sin jugadores, estado no confirmado': int(sin_jugadores['estado_partido_4_1'].eq('Estado no confirmado').sum()),
+        'Sin jugadores, programados o pospuestos': int(sin_jugadores['estado_partido_4_2'].str.startswith('Programado').sum()),
+        'Sin jugadores, estado no confirmado': int(sin_jugadores['estado_partido_4_2'].eq('Estado no confirmado').sum()),
     }
     if indicadores['Filas duplicadas potenciales']:
         alertas.append('Existen identidades repetidas dentro del mismo partido y equipo.')
@@ -162,11 +194,12 @@ def analizar_archivo(partidos, jugadores, consultas=None, minimo_jugadores=8):
             'cobertura': cobertura_df, 'sin_jugadores': sin_jugadores,
             'sin_partido': sin_partido, 'duplicados': j.loc[duplicados].drop(columns=['_identidad']),
             'calidad': j.loc[sin_metrica | stats_sin_minutos | negativas | sin_identidad].drop(columns=['_identidad']),
-            'clasificacion': clasificacion, 'finalizados_sin_jugadores': sin_jugadores_finalizados}
+            'clasificacion': clasificacion, 'finalizados_sin_jugadores': sin_jugadores_finalizados,
+            'calidad_por_partido_equipo': grupos_calidad, 'calidad_por_equipo': resumen_equipos}
 
 
 def mostrar_diagnostico_nba():
-    st.title('🏀 NBA 4.1 · Diagnóstico del archivo')
+    st.title('🏀 NBA 4.2 · Diagnóstico del archivo')
     st.caption('Versión ' + VERSION + ' · Solo lectura · Supabase · Sin alterar registros')
     hoy = date.today()
     a, b = st.columns(2)
@@ -191,9 +224,12 @@ def mostrar_diagnostico_nba():
             st.error(f'No se pudo consultar Supabase: {type(exc).__name__}: {exc}')
             return
     resultado = analizar_archivo(partidos, jugadores, consultas, minimo)
-    st.subheader('🧭 Clasificación de registros NBA 4.1')
+    st.subheader('🧭 Clasificación de registros NBA 4.2')
     st.dataframe(resultado['clasificacion'], hide_index=True, use_container_width=True)
     st.caption('Sin una señal explícita de no participación, los registros vacíos se clasifican como desconocidos, no como DNP. Los ceros no confirman participación.')
+    st.subheader('🧪 Calidad por partido y equipo · NBA 4.2')
+    st.caption('Minutos positivos y métricas disponibles son señales observadas, no una verificación independiente del boxscore. Los registros sin datos permanecen como desconocidos.')
+    st.dataframe(resultado['calidad_por_partido_equipo'], hide_index=True, use_container_width=True)
     st.subheader('📊 Indicadores del período')
     tabla = pd.DataFrame([{'Indicador': k, 'Valor': v} for k, v in resultado['indicadores'].items()])
     st.dataframe(tabla, hide_index=True, use_container_width=True)
@@ -205,6 +241,8 @@ def mostrar_diagnostico_nba():
         st.success('Sin señales de alerta en las comprobaciones disponibles. La cobertura total NO está certificada.')
     for titulo, clave in [('🏟️ Cobertura por partido y equipo', 'cobertura'),
                           ('👥 Registros por partido y equipo', 'grupos'),
+                          ('🏀 Resumen de calidad por equipo · NBA 4.2', 'calidad_por_equipo'),
+                          ('🧬 Calidad por partido y equipo · CSV', 'calidad_por_partido_equipo'),
                           ('🗓️ Partidos sin jugadores · clasificados por estado', 'sin_jugadores'),
                           ('🔴 Finalizados sin jugadores · confirmados', 'finalizados_sin_jugadores'),
                           ('🔎 Duplicados potenciales', 'duplicados'),
@@ -219,10 +257,10 @@ def mostrar_diagnostico_nba():
                                    f'diagnostico_nba_{clave}.csv', 'text/csv', key='diag_nba_' + clave)
     st.download_button('📥 Exportar indicadores CSV', tabla.to_csv(index=False).encode('utf-8-sig'),
                        'diagnostico_nba_indicadores.csv', 'text/csv', use_container_width=True)
-    st.caption('Diagnóstico 4.1: las clasificaciones indican evidencia disponible, no una certificación de participación ni de cobertura. Los estados históricos dependen de lo archivado.')
+    st.caption('Diagnóstico 4.2: las clasificaciones indican evidencia disponible, no una certificación de participación ni de cobertura. Los estados históricos dependen de lo archivado.')
     st.caption('Los resultados se basan en los registros disponibles en Supabase. No prueban que ESPN haya publicado todos los partidos o jugadores. Las consultas de las tablas no forman una instantánea transaccional.')
 
 
 if __name__ == '__main__':
-    st.set_page_config(page_title='NBA 4.1 · Salud del archivo', page_icon='🏀', layout='wide')
+    st.set_page_config(page_title='NBA 4.2 · Salud del archivo', page_icon='🏀', layout='wide')
     mostrar_diagnostico_nba()
