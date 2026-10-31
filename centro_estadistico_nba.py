@@ -1,6 +1,6 @@
 """Centro Estadístico NBA.
 
-Enrutador independiente para los cinco módulos NBA.
+Enrutador independiente para seis módulos NBA.
 No importa ni modifica archivos NFL y no altera main.py.
 """
 
@@ -16,6 +16,7 @@ VISTAS_NBA = {
     "🏠 Resumen Inteligente NBA": (
         "resumen_inteligente_nba", "mostrar_resumen_inteligente_nba"
     ),
+    "🩺 Diagnóstico NBA 4.0": ("diagnostico_nba_v4_0", "mostrar_diagnostico_nba"),
 }
 
 
@@ -47,3 +48,4 @@ def mostrar_centro_estadistico_nba():
 if __name__ == "__main__":
     st.set_page_config(page_title="Centro Estadístico NBA", page_icon="🏀")
     mostrar_centro_estadistico_nba()
+
