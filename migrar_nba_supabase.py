@@ -54,8 +54,15 @@ def count(table):
 
 
 def main():
+    print('Comprobando archivos visibles en el bucket privado...')
+    listing_raw, _ = request('POST', f'/storage/v1/object/list/{BUCKET}', {'prefix': '', 'limit': 100, 'offset': 0})
+    listing = json.loads(listing_raw.decode('utf-8'))
+    names = [item.get('name', '') for item in listing if isinstance(item, dict)]
+    print('Archivos visibles:', ', '.join(names) if names else '(ninguno)')
+    if OBJECT not in names:
+        raise RuntimeError('No se encuentra el respaldo esperado en la raíz del bucket. No se ha importado nada.')
     print('Descargando respaldo desde almacenamiento PRIVADO de Supabase...')
-    data, _ = request('GET', f'/storage/v1/object/authenticated/{BUCKET}/{quote(OBJECT)}')
+    data, _ = request('GET', f'/storage/v1/object/{BUCKET}/{quote(OBJECT)}')
     with tempfile.TemporaryDirectory() as tmp:
         dbpath = os.path.join(tmp, 'nba.sqlite3')
         with open(dbpath, 'wb') as f:
