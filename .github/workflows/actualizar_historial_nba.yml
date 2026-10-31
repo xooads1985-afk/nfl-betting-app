@@ -1,7 +1,10 @@
-name: Actualizar historial NBA (prueba manual)
+name: Actualizar historial NBA (diario)
 
 on:
   workflow_dispatch:
+  schedule:
+    # 13:00 UTC = 06:00 en Sinaloa (America/Mazatlan, UTC-7).
+    - cron: "0 13 * * *"
 
 permissions:
   contents: read
