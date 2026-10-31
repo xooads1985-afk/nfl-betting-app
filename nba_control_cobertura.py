@@ -1,19 +1,25 @@
-"""Auditoría de cobertura del bloque visible y respaldo consistente SQLite NBA."""
+"""Auditoría NBA y exportación SQLite compatible desde el archivo Supabase.
+
+No utiliza SQLite como almacenamiento principal. La exportación SQLite se crea
+únicamente cuando el usuario solicita descargar un respaldo.
+"""
 from pathlib import Path
 import sqlite3
 import tempfile
+
 import pandas as pd
-from nba_archivo_temporada import DB, leer_jugadores
+from nba_archivo_temporada import leer_jugadores, _leer_todo
 
 
 def comparar_bloque(calendario, equipo, desde, hasta):
-    """Compara IDs finalizados del calendario entregado con boxscores archivados.
+    """Compara juegos finalizados visibles con jugadores archivados en Supabase.
 
-    No certifica que el calendario ESPN contenga todos los partidos reales.
+    No certifica que el calendario externo contenga todos los juegos reales.
     """
     cols = ['id', 'fecha_utc', 'visitante', 'local']
     if calendario is None or calendario.empty:
-        return pd.DataFrame(columns=cols), pd.DataFrame(columns=cols), 0
+        vacio = pd.DataFrame(columns=cols)
+        return vacio.copy(), vacio.copy(), 0
     df = calendario.copy()
     df = df.loc[df['finalizado'].eq(True)].copy()
     if equipo not in (None, 'Todos'):
@@ -28,13 +34,52 @@ def comparar_bloque(calendario, equipo, desde, hasta):
 
 
 def respaldo_sqlite():
-    """Copia coherente de la base usando SQLite backup API, sin modificar el original."""
-    ruta = Path(DB)
-    if not ruta.exists():
-        raise FileNotFoundError('Aún no existe el archivo histórico SQLite')
+    """Exporta las tres tablas de Supabase a un archivo SQLite descargable.
+
+    La exportación no altera Supabase ni escribe una base SQLite permanente.
+    Las tablas se consultan secuencialmente, no como snapshot transaccional.
+    """
+    partidos = _leer_todo('partidos', columnas='id,fecha,payload')
+    jugadores = _leer_todo('jugadores', columnas='partido_id,equipo,identidad,fecha,payload')
+    consultas = _leer_todo(
+        'consultas',
+        columnas='desde,hasta,equipo,consultado_utc,partidos,registros,incidencias,estado',
+    )
     with tempfile.TemporaryDirectory() as carpeta:
         destino = Path(carpeta) / 'nba_temporada_respaldo.sqlite3'
-        with sqlite3.connect(f'file:{ruta}?mode=ro', uri=True, timeout=10) as origen:
-            with sqlite3.connect(destino, timeout=10) as copia:
-                origen.backup(copia)
+        with sqlite3.connect(destino) as conn:
+            conn.executescript('''
+                CREATE TABLE partidos (
+                    id TEXT PRIMARY KEY, fecha TEXT, payload TEXT NOT NULL
+                );
+                CREATE TABLE jugadores (
+                    partido_id TEXT NOT NULL, equipo TEXT NOT NULL,
+                    identidad TEXT NOT NULL, fecha TEXT, payload TEXT NOT NULL,
+                    PRIMARY KEY(partido_id, equipo, identidad)
+                );
+                CREATE TABLE consultas (
+                    desde TEXT NOT NULL, hasta TEXT NOT NULL, equipo TEXT NOT NULL,
+                    consultado_utc TEXT NOT NULL, partidos INTEGER NOT NULL,
+                    registros INTEGER NOT NULL, incidencias TEXT NOT NULL,
+                    estado TEXT NOT NULL, PRIMARY KEY(desde, hasta, equipo)
+                );
+            ''')
+            conn.executemany(
+                'INSERT INTO partidos (id,fecha,payload) VALUES (?,?,?)',
+                [(r['id'], r.get('fecha'), r['payload']) for r in partidos],
+            )
+            conn.executemany(
+                'INSERT INTO jugadores (partido_id,equipo,identidad,fecha,payload) '
+                'VALUES (?,?,?,?,?)',
+                [(r['partido_id'], r['equipo'], r['identidad'], r.get('fecha'), r['payload'])
+                 for r in jugadores],
+            )
+            conn.executemany(
+                'INSERT INTO consultas (desde,hasta,equipo,consultado_utc,partidos,'
+                'registros,incidencias,estado) VALUES (?,?,?,?,?,?,?,?)',
+                [(r['desde'], r['hasta'], r['equipo'], r['consultado_utc'],
+                  r['partidos'], r['registros'], r['incidencias'], r['estado'])
+                 for r in consultas],
+            )
+            conn.commit()
         return destino.read_bytes()
