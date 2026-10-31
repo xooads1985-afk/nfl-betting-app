@@ -1,3 +1,4 @@
+import html
 """Resumen Inteligente NFL 1.9.4: vista compacta y descriptiva para móvil."""
 import pandas as pd
 import unicodedata
@@ -162,11 +163,36 @@ def _ri_edge(proyeccion, referencia):
     return round(float(proyeccion) - float(referencia), 1)
 
 
-def _ri_tabla(filas, nota=None):
+def _ri_tarjetas(filas):
+    """Presentación adaptable a móvil sin desplazamiento horizontal de tablas."""
     if not filas:
         st.info('N/D: faltan registros históricos suficientes.')
         return
-    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+    for fila in filas:
+        etiqueta = fila.get('Estadística', fila.get('Jugador', 'Resultado'))
+        detalles = [(clave, valor) for clave, valor in fila.items()
+                    if clave not in ('Estadística', 'Jugador')]
+        celdas = ''.join(
+            '<div style="min-width:0;flex:1 1 76px;padding:6px 4px;">'
+            '<div style="font-size:.72rem;color:#9ca3af;">{}</div>'
+            '<div style="font-size:.94rem;font-weight:600;overflow-wrap:anywhere;">{}</div>'
+            '</div>'.format(html.escape(str(clave)),
+                            html.escape('N/D' if pd.isna(valor) else str(valor)))
+            for clave, valor in detalles
+        )
+        st.markdown(
+            '<div style="border:1px solid #374151;border-radius:10px;'
+            'padding:10px 12px;margin:8px 0;background:#161b24;">'
+            '<div style="font-weight:700;font-size:1rem;margin-bottom:5px;'
+            'overflow-wrap:anywhere;">{}</div>'
+            '<div style="display:flex;flex-wrap:wrap;gap:2px 8px;">{}</div>'
+            '</div>'.format(html.escape(str(etiqueta)), celdas),
+            unsafe_allow_html=True
+        )
+
+
+def _ri_tabla(filas, nota=None):
+    _ri_tarjetas(filas)
     st.caption(nota or 'Edge descriptivo = proyección − referencia histórica; no indica probabilidad ni precisión.')
 
 
@@ -183,7 +209,7 @@ def _ri_validacion(resumen, titulo='📐 Validación histórica'):
         if resumen is None:
             st.info('No hay suficientes partidos previos para validar.')
         else:
-            st.dataframe(pd.DataFrame([resumen]), hide_index=True, use_container_width=True)
+            _ri_tarjetas([resumen])
             st.caption('MAE = error absoluto promedio. Sesgo = proyección − resultado. '
                        'Cada evaluación utiliza únicamente datos anteriores al partido evaluado.')
 
@@ -518,7 +544,7 @@ def _comparar(semanal, metricas, seleccionados):
         filas.append({'Jugador': str(muestra.Jugador.iloc[-1]),
                       'Equipo': str(muestra.Equipo.iloc[-1]),
                       'Promedio últimos 5': round(float(promedio), 1) if pd.notna(promedio) else None})
-    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+    _ri_tarjetas(filas)
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
