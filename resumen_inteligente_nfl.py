@@ -154,6 +154,166 @@ def _partidos_con_datos(d, metricas):
         return 0
     return int(pd.to_numeric(d[metricas[principal]], errors='coerce').notna().sum())
 
+
+# --- Extensión NFL: análisis descriptivo, sin alterar estimadores originales ---
+def _ri_edge(proyeccion, referencia):
+    if proyeccion is None or referencia is None or pd.isna(proyeccion) or pd.isna(referencia):
+        return None
+    return round(float(proyeccion) - float(referencia), 1)
+
+
+def _ri_tabla(filas, nota=None):
+    if not filas:
+        st.info('N/D: faltan registros históricos suficientes.')
+        return
+    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+    st.caption(nota or 'Edge descriptivo = proyección − referencia histórica; no indica probabilidad ni precisión.')
+
+
+def _ri_error(errores):
+    if not errores:
+        return None
+    serie = pd.Series(errores, dtype='float64')
+    return {'Partidos': len(serie), 'MAE': round(float(serie.abs().mean()), 1),
+            'Sesgo': round(float(serie.mean()), 1)}
+
+
+def _ri_validacion(resumen, titulo='📐 Validación histórica'):
+    with st.expander(titulo, expanded=False):
+        if resumen is None:
+            st.info('No hay suficientes partidos previos para validar.')
+        else:
+            st.dataframe(pd.DataFrame([resumen]), hide_index=True, use_container_width=True)
+            st.caption('MAE = error absoluto promedio. Sesgo = proyección − resultado. '
+                       'Cada evaluación utiliza únicamente datos anteriores al partido evaluado.')
+
+
+def _ri_validar_equipo(cal, equipo, temporada):
+    d = _partidos(cal, equipo, temporada)
+    errores = []
+    fechas = pd.to_datetime(cal['gameday'], errors='coerce')
+    for fila in d.itertuples(index=False):
+        fecha = pd.to_datetime(fila.gameday, errors='coerce')
+        if pd.isna(fecha):
+            continue
+        previo = cal.loc[fechas < fecha]
+        estimado = _estimacion_puntos(previo, equipo, temporada, fila.Rival)
+        if estimado is not None and pd.notna(fila.PF):
+            errores.append(float(estimado) - float(fila.PF))
+    return _ri_error(errores)
+
+
+def _ri_estimar_metrica(d, columna):
+    serie = pd.to_numeric(d.sort_values('Semana')[columna], errors='coerce').dropna()
+    if len(serie) < 3:
+        return None, None, len(serie)
+    proyeccion = max(0.0, 0.70 * float(serie.tail(5).mean()) + 0.30 * float(serie.mean()))
+    referencia = float(serie.tail(5).mean())
+    return proyeccion, referencia, len(serie)
+
+
+def _ri_validar_jugador(d, columna):
+    ordenado = d.sort_values('Semana')
+    errores = []
+    for i in range(1, len(ordenado)):
+        pred, _, _ = _ri_estimar_metrica(ordenado.iloc[:i], columna)
+        real = pd.to_numeric(ordenado.iloc[i][columna], errors='coerce')
+        if pred is not None and pd.notna(real):
+            errores.append(float(pred) - float(real))
+    return _ri_error(errores)
+
+
+def _ri_panel_jugador(d, metricas):
+    filas = []
+    for nombre in _metricas_posicion(d, metricas):
+        proy, ref, n = _ri_estimar_metrica(d, metricas[nombre])
+        if proy is None:
+            continue
+        filas.append({'Estadística': nombre, 'Proy.': round(proy, 1),
+                      'Ref.': round(ref, 1), 'Edge': _ri_edge(proy, ref), 'N': n})
+    st.markdown('**📊 Proyecciones y Edge descriptivo por estadística**')
+    _ri_tabla(filas, 'Ref. = promedio de hasta 5 partidos recientes; N = registros válidos. '
+              'Las métricas adicionales usan ponderación histórica 70/30. '
+              'La proyección principal de yardas conserva su función original.')
+    with st.expander('📐 Validación histórica por estadística', expanded=False):
+        validaciones = []
+        for nombre in _metricas_posicion(d, metricas):
+            resumen = _ri_validar_jugador(d, metricas[nombre])
+            if resumen:
+                validaciones.append({'Estadística': nombre, **resumen})
+        _ri_tabla(validaciones, 'Evaluación cronológica de las nuevas proyecciones; '
+                  'no constituye validación independiente fuera de muestra.')
+
+
+def _ri_periodos(cal, equipo, temporada, rival):
+    # Solo utiliza columnas parciales verificables si están publicadas en calendario.
+    nombres = [('Q1', 'q1'), ('Q2', 'q2'), ('Q3', 'q3'), ('Q4', 'q4')]
+    def campo(prefijo, cuarto):
+        opciones = [f'{prefijo}_{cuarto}', f'{prefijo}_score_{cuarto}',
+                    f'{prefijo}_points_{cuarto}']
+        return next((x for x in opciones if x in cal.columns), None)
+    d = _partidos(cal, equipo, temporada)
+    o = _partidos(cal, rival, temporada)
+    if len(d) < 3 or len(o) < 3:
+        return []
+    filas = []
+    for etiqueta, cuarto in nombres:
+        hc, ac = campo('home', cuarto), campo('away', cuarto)
+        if not hc or not ac:
+            return []
+        def puntaje(df, lado):
+            casa = df.home_team.eq(lado)
+            return pd.to_numeric(df[hc].where(casa, df[ac]), errors='coerce')
+        def permitidos(df, lado):
+            casa = df.home_team.eq(lado)
+            return pd.to_numeric(df[ac].where(casa, df[hc]), errors='coerce')
+        a = puntaje(d, equipo).dropna()
+        b = permitidos(o, rival).dropna()
+        if len(a) < 3 or len(b) < 3:
+            return []
+        proy = .50 * a.tail(5).mean() + .25 * a.mean() + .25 * b.tail(5).mean()
+        ref = a.tail(5).mean()
+        filas.append((etiqueta, float(proy), float(ref)))
+    for etiqueta, indices in [('1.ª mitad', (0, 1)), ('2.ª mitad', (2, 3))]:
+        filas.append((etiqueta, sum(filas[i][1] for i in indices),
+                      sum(filas[i][2] for i in indices)))
+    return [{'Período': nombre, 'Proy.': round(proy, 1), 'Ref.': round(ref, 1),
+             'Edge': _ri_edge(proy, ref)} for nombre, proy, ref in filas]
+
+
+def _ri_total_enfrentamiento(cal, temporada, elegidos):
+    if len(elegidos) != 2:
+        return
+    a, b = elegidos
+    prox_a = _proximo_partido(cal, a, temporada)
+    prox_b = _proximo_partido(cal, b, temporada)
+    if not prox_a or not prox_b or prox_a['rival'] != b or prox_b['rival'] != a:
+        return
+    pa = _estimacion_puntos(cal, a, temporada, b)
+    pb = _estimacion_puntos(cal, b, temporada, a)
+    if pa is None or pb is None:
+        return
+    da, db = _partidos(cal, a, temporada), _partidos(cal, b, temporada)
+    ra, rb = float(da.PF.tail(5).mean()), float(db.PF.tail(5).mean())
+    st.markdown('**🏈 Proyección del enfrentamiento**')
+    _ri_tabla([{'Equipo': a, 'Proy.': round(pa, 1), 'Ref.': round(ra, 1), 'Edge': _ri_edge(pa, ra)},
+               {'Equipo': b, 'Proy.': round(pb, 1), 'Ref.': round(rb, 1), 'Edge': _ri_edge(pb, rb)},
+               {'Equipo': 'TOTAL', 'Proy.': round(pa + pb, 1),
+                'Ref.': round(ra + rb, 1), 'Edge': _ri_edge(pa + pb, ra + rb)}])
+    st.markdown('**⏱️ Cuartos y mitades**')
+    fa = _ri_periodos(cal, a, temporada, b)
+    fb = _ri_periodos(cal, b, temporada, a)
+    if not fa or not fb:
+        st.info('N/D: el calendario disponible no proporciona puntuaciones parciales '
+                'verificables para calcular cuartos y mitades. No se estiman artificialmente.')
+    else:
+        filas = []
+        for x, y in zip(fa, fb):
+            p, r = x['Proy.'] + y['Proy.'], x['Ref.'] + y['Ref.']
+            filas.append({'Período': x['Período'], 'Proy.': round(p, 1),
+                          'Ref.': round(r, 1), 'Edge': _ri_edge(p, r)})
+        _ri_tabla(filas)
+
 def _equipos(cal, temporada, elegidos):
     for equipo in elegidos:
         d = _partidos(cal, equipo, temporada)
@@ -174,6 +334,10 @@ def _equipos(cal, temporada, elegidos):
             estimado = _estimacion_puntos(cal, equipo, temporada, proximo['rival'])
             if estimado is not None:
                 st.metric('🎯 Puntos estimados · próximo partido', f'{estimado:.1f}')
+                ref = float(d.PF.tail(5).mean())
+                _ri_tabla([{'Estadística': 'Puntos', 'Proy.': round(estimado, 1),
+                            'Ref.': round(ref, 1), 'Edge': _ri_edge(estimado, ref)}])
+                _ri_validacion(_ri_validar_equipo(cal, equipo, temporada))
                 st.caption('Estimación orientativa: anotación reciente y de temporada, '
                            'más puntos permitidos recientemente por el rival.')
             else:
@@ -260,6 +424,7 @@ def _jugadores(temporada, elegidos, cal):
                         st.session_state[clave] = [x for x in seleccionados if x != ident]
                         st.rerun()
             _ficha(d, metricas, cal, temporada, snaps)
+            _ri_panel_jugador(d, metricas)
             st.divider()
     else:
         st.info('Agrega hasta tres jugadores para consultar sus estadísticas.')
@@ -357,7 +522,7 @@ def _comparar(semanal, metricas, seleccionados):
     st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
-    st.header('🏈 Resumen Inteligente NFL 1.9.4')
+    st.header('🏈 Resumen Inteligente NFL 1.9.4 · Edge ampliado')
     st.markdown("""
     <style>
     /* Solo los encabezados de jugadores: conservar la fila en pantallas estrechas. */
@@ -403,7 +568,9 @@ def mostrar_resumen_inteligente_nfl():
             _equipos(juegos, temporada, elegidos)
         else:
             st.info('Selecciona un equipo arriba.')
+    _ri_total_enfrentamiento(juegos, temporada, elegidos)
     with st.expander('⭐ 2. Jugadores', expanded=False):
         semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         _comparar(semanal, metricas, seleccionados)
+
