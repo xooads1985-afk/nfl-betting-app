@@ -163,6 +163,16 @@ def _ri_edge(proyeccion, referencia):
     return round(float(proyeccion) - float(referencia), 1)
 
 
+def _ri_valor_visible(valor):
+    """Normaliza cero negativo solamente al mostrarlo; no cambia cálculos."""
+    if valor is None or pd.isna(valor):
+        return 'N/D'
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        if float(valor) == 0 or (isinstance(valor, float) and abs(valor) < 0.05):
+            return '0.0' if isinstance(valor, float) else '0'
+    return str(valor)
+
+
 def _ri_tarjetas(filas):
     """Presentación adaptable a móvil sin desplazamiento horizontal de tablas."""
     if not filas:
@@ -173,19 +183,19 @@ def _ri_tarjetas(filas):
         detalles = [(clave, valor) for clave, valor in fila.items()
                     if clave not in ('Estadística', 'Jugador')]
         celdas = ''.join(
-            '<div style="min-width:0;flex:1 1 76px;padding:6px 4px;">'
+            '<div style="min-width:0;flex:1 1 76px;padding:3px 3px;">'
             '<div style="font-size:.72rem;color:#9ca3af;">{}</div>'
             '<div style="font-size:.94rem;font-weight:600;overflow-wrap:anywhere;">{}</div>'
             '</div>'.format(html.escape(str(clave)),
-                            html.escape('N/D' if pd.isna(valor) else str(valor)))
+                            html.escape(_ri_valor_visible(valor)))
             for clave, valor in detalles
         )
         st.markdown(
             '<div style="border:1px solid #374151;border-radius:10px;'
-            'padding:10px 12px;margin:8px 0;background:#161b24;">'
-            '<div style="font-weight:700;font-size:1rem;margin-bottom:5px;'
+            'padding:8px 10px;margin:5px 0;background:#161b24;">'
+            '<div style="font-weight:700;font-size:1rem;margin-bottom:3px;'
             'overflow-wrap:anywhere;">{}</div>'
-            '<div style="display:flex;flex-wrap:wrap;gap:2px 8px;">{}</div>'
+            '<div style="display:flex;flex-wrap:wrap;gap:0px 7px;">{}</div>'
             '</div>'.format(html.escape(str(etiqueta)), celdas),
             unsafe_allow_html=True
         )
@@ -599,4 +609,3 @@ def mostrar_resumen_inteligente_nfl():
         semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         _comparar(semanal, metricas, seleccionados)
-
