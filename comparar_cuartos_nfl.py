@@ -1,4 +1,4 @@
-"""Comparación cronológica independiente: distribución ajustada vs. sin ajustar.
+"""Comparación cronológica independiente: distribución por equipo vs. mezcla con liga.
 No importa Streamlit ni modifica los módulos de la aplicación.
 Uso: python comparar_cuartos_nfl.py 2026
 Dependencias: pandas, nflreadpy, validacion_historica_nfl.py
@@ -28,7 +28,21 @@ def comparar(datos):
                 bases.append(max(0.,float(.50*anotados.tail(5).mean()+.25*anotados.mean()+.25*permitidos.tail(5).mean())))
             if sum(bases) <= 0:
                 continue
-            metodos = {'Sin ajustar': bases, 'Ajustado al total': [total*b/sum(bases) for b in bases]}
+            # Referencia alternativa genuinamente diferente: suavizado hacia la
+            # distribución de puntos por cuarto observada en toda la liga ANTES
+            # del partido. No usa el partido evaluado ni información posterior.
+            anteriores = datos[datos.gameday < juego.gameday]
+            totales_liga = [float(anteriores[f'home_q{q}'].sum() +
+                                   anteriores[f'away_q{q}'].sum()) for q in range(1, 5)]
+            suma_liga = sum(totales_liga)
+            if suma_liga <= 0:
+                continue
+            participaciones = [v / suma_liga for v in totales_liga]
+            # Peso 70/30 fijado de antemano; NO optimizado con los resultados.
+            mezcla = [.70*b + .30*total*participaciones[i]
+                      for i,b in enumerate(bases)]
+            metodos = {'Historico por equipo': bases,
+                       'Mezcla 70% equipo 30% liga': mezcla}
             reales = [getattr(juego, f'{lado}_q{i}') for i in range(1,5)]
             bloques = [(f'Q{i}', [i-1]) for i in range(1,5)] + [('1.ª mitad',[0,1]), ('2.ª mitad',[2,3]), ('Partido completo',[0,1,2,3])]
             for metodo, valores in metodos.items():
