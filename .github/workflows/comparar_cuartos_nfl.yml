@@ -1,0 +1,35 @@
+name: Comparar cuartos NFL
+
+on:
+  workflow_dispatch:
+
+jobs:
+  comparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: python -m pip install 'pandas>=2.0,<3' 'nflreadpy>=0.1'
+
+      - name: Comparar proyecciones de cuartos
+        run: python comparar_cuartos_nfl.py 2026
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparacion-cuartos-nfl-2026
+          path: |
+            comparacion_cuartos_nfl_2026_detalle.csv
+            comparacion_cuartos_nfl_2026_resumen.csv
+          if-no-files-found: warn
