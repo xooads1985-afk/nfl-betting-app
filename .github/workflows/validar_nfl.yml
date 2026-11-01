@@ -1,0 +1,23 @@
+name: Validar NFL historicamente
+on:
+  workflow_dispatch:
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: pip install pandas nflreadpy pyarrow
+      - name: Ejecutar validacion
+        run: python validacion_historica_nfl_v2.py 2026
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validacion-nfl-2026
+          path: validacion_nfl_2026_*.csv
+          if-no-files-found: warn
+
