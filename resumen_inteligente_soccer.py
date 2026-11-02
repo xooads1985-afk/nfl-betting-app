@@ -8,9 +8,6 @@ from statistics import mean
 import requests
 import streamlit as st
 
-st.set_page_config(page_title="Resumen Inteligente Soccer", page_icon="⚽", layout="centered")
-st.title("⚽ Resumen Inteligente Soccer")
-st.caption("Prototipo independiente · Optimizado para móvil")
 DATA = {
     "Atlético Azul": {"goles": [2, 1, 3, 0, 2], "contra": [1, 0, 1, 2, 1], "corners": [6, 4, 7, 3, 5], "goles_1t": [1, 0, 2, 0, 1], "corners_1t": [3, 2, 4, 1, 2]},
     "Deportivo Verde": {"goles": [1, 2, 1, 2, 0], "contra": [1, 2, 0, 1, 2], "corners": [5, 6, 4, 5, 3], "goles_1t": [0, 1, 1, 1, 0], "corners_1t": [2, 3, 1, 3, 1]},
@@ -38,51 +35,57 @@ def fetch(endpoint, params, key):
     if result.get("errors"):
         raise RuntimeError(str(result["errors"]))
     return result
-mode = st.radio("Fuente", ["Demostración", "API-Football"], horizontal=True)
-if mode == "Demostración":
-    st.warning("Todos los equipos, jugadores y datos de esta sección son ficticios.")
-    st.selectbox("Liga", ["Liga de demostración"])
-    home = st.selectbox("Local", list(DATA))
-    away = st.selectbox("Visitante", [t for t in DATA if t != home])
-    a, b = DATA[home], DATA[away]
-    h_proj = (mean(a["goles"]) + mean(b["contra"])) / 2
-    v_proj = (mean(b["goles"]) + mean(a["contra"])) / 2
-    c1, c2 = st.columns(2)
-    c1.metric(home, f"{h_proj:.2f} goles")
-    c2.metric(away, f"{v_proj:.2f} goles")
-    st.caption("Modelo base: promedio de goles anotados y recibidos. No indica probabilidad de victoria.")
-    for team in [home, away]:
-        with st.expander("📊 " + team):
-            d = DATA[team]
-            st.dataframe([
-                {"Métrica": "Goles / partido", "Promedio": round(mean(d["goles"]), 2)},
-                {"Métrica": "Goles 1.ª mitad", "Promedio": round(mean(d["goles_1t"]), 2)},
-                {"Métrica": "Goles 2.ª mitad", "Promedio": round(mean(d["goles"]) - mean(d["goles_1t"]), 2)},
-                {"Métrica": "Córners 1.ª mitad", "Promedio": round(mean(d["corners_1t"]), 2)},
-                {"Métrica": "Córners 2.ª mitad", "Promedio": round(mean(d["corners"]) - mean(d["corners_1t"]), 2)},
-            ], hide_index=True, use_container_width=True)
-            st.write("Validación cronológica de goles:", validation(d["goles"]))
-    st.subheader("👥 Comparador de jugadores")
-    choices = {f"{team} · {name}": (team, name, stats) for team in [home, away] for name, stats in PLAYERS[team].items()}
-    selected = st.multiselect("Hasta dos jugadores", list(choices), max_selections=2)
-    if selected:
-        st.dataframe([{"Jugador": choices[s][1], "Minutos promedio": round(mean(choices[s][2]["min"]), 1),
-                       "Goles promedio": round(mean(choices[s][2]["goles"]), 2)} for s in selected],
-                     hide_index=True, use_container_width=True)
-else:
-    key = secret_key()
-    if not key:
-        st.info("Configura API_FOOTBALL_KEY en los Secrets de Streamlit. No publiques la clave en GitHub.")
+
+
+def mostrar_resumen_inteligente_soccer():
+    """Muestra el módulo Soccer dentro de la aplicación principal."""
+    st.title("⚽ Resumen Inteligente Soccer")
+    st.caption("Prototipo inicial · Optimizado para móvil")
+    mode = st.radio("Fuente", ["Demostración", "API-Football"], horizontal=True)
+    if mode == "Demostración":
+        st.warning("Todos los equipos, jugadores y datos de esta sección son ficticios.")
+        st.selectbox("Liga", ["Liga de demostración"])
+        home = st.selectbox("Local", list(DATA))
+        away = st.selectbox("Visitante", [t for t in DATA if t != home])
+        a, b = DATA[home], DATA[away]
+        h_proj = (mean(a["goles"]) + mean(b["contra"])) / 2
+        v_proj = (mean(b["goles"]) + mean(a["contra"])) / 2
+        c1, c2 = st.columns(2)
+        c1.metric(home, f"{h_proj:.2f} goles")
+        c2.metric(away, f"{v_proj:.2f} goles")
+        st.caption("Modelo base: promedio de goles anotados y recibidos. No indica probabilidad de victoria.")
+        for team in [home, away]:
+            with st.expander("📊 " + team):
+                d = DATA[team]
+                st.dataframe([
+                    {"Métrica": "Goles / partido", "Promedio": round(mean(d["goles"]), 2)},
+                    {"Métrica": "Goles 1.ª mitad", "Promedio": round(mean(d["goles_1t"]), 2)},
+                    {"Métrica": "Goles 2.ª mitad", "Promedio": round(mean(d["goles"]) - mean(d["goles_1t"]), 2)},
+                    {"Métrica": "Córners 1.ª mitad", "Promedio": round(mean(d["corners_1t"]), 2)},
+                    {"Métrica": "Córners 2.ª mitad", "Promedio": round(mean(d["corners"]) - mean(d["corners_1t"]), 2)},
+                ], hide_index=True, use_container_width=True)
+                st.write("Validación cronológica de goles:", validation(d["goles"]))
+        st.subheader("👥 Comparador de jugadores")
+        choices = {f"{team} · {name}": (team, name, stats) for team in [home, away] for name, stats in PLAYERS[team].items()}
+        selected = st.multiselect("Hasta dos jugadores", list(choices), max_selections=2)
+        if selected:
+            st.dataframe([{"Jugador": choices[s][1], "Minutos promedio": round(mean(choices[s][2]["min"]), 1),
+                           "Goles promedio": round(mean(choices[s][2]["goles"]), 2)} for s in selected],
+                         hide_index=True, use_container_width=True)
     else:
-        st.warning("Los datos disponibles dependen del plan. Consultas manuales y caché de 1 hora.")
-        if st.button("Consultar ligas disponibles"):
-            try:
-                response = fetch("leagues", {}, key).get("response", [])
-                st.success(f"Ligas recibidas: {len(response)}")
-                st.dataframe([{"Liga": x.get("league", {}).get("name"),
-                               "País": x.get("country", {}).get("name")} for x in response[:30]],
-                             hide_index=True, use_container_width=True)
-            except Exception as error:
-                st.error(f"Error de consulta: {error}")
-st.divider()
-st.caption("Versión inicial: sin tarjetas. Las proyecciones y la validación de demostración NO son resultados reales.")
+        key = secret_key()
+        if not key:
+            st.info("Configura API_FOOTBALL_KEY en los Secrets de Streamlit. No publiques la clave en GitHub.")
+        else:
+            st.warning("Los datos disponibles dependen del plan. Consultas manuales y caché de 1 hora.")
+            if st.button("Consultar ligas disponibles"):
+                try:
+                    response = fetch("leagues", {}, key).get("response", [])
+                    st.success(f"Ligas recibidas: {len(response)}")
+                    st.dataframe([{"Liga": x.get("league", {}).get("name"),
+                                   "País": x.get("country", {}).get("name")} for x in response[:30]],
+                                 hide_index=True, use_container_width=True)
+                except Exception as error:
+                    st.error(f"Error de consulta: {error}")
+    st.divider()
+    st.caption("Versión inicial: sin tarjetas. Las proyecciones y la validación de demostración NO son resultados reales.")
