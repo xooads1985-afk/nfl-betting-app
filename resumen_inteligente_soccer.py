@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 import csv
 import requests
+import pandas as pd
 import streamlit as st
 
 COMPETICIONES = {
@@ -176,9 +177,23 @@ def _estadisticas_equipo(partidos, equipo_id, cantidad, condicion):
     }
 
 
+def _grafica_evolucion(stats, nombre):
+    """Gráficas descriptivas en orden cronológico, sin extrapolaciones."""
+    historial = list(reversed(stats['Historial']))
+    if len(historial) < 2:
+        st.caption(f'{nombre}: se requieren al menos dos partidos para mostrar evolución.')
+        return
+    grafica = pd.DataFrame({
+        'Goles anotados': [x['GF'] for x in historial],
+        'Goles recibidos': [x['GC'] for x in historial],
+    }, index=[f"{x['Fecha UTC']} · {i + 1}" for i, x in enumerate(historial)])
+    st.line_chart(grafica, use_container_width=True)
+    st.caption(f'{nombre}: evolución cronológica de goles en los partidos seleccionados.')
+
+
 def _comparador_equipos(datos):
-    st.subheader('⚽ Comparador de equipos · Etapa 4')
-    st.caption('Solo se analizan resultados finalizados de la competición y temporada cargadas. No se consulta otra API.')
+    st.subheader('⚽ Comparador de equipos · Etapa 5')
+    st.caption('Datos reales de la competición y temporada cargadas; no se realizan consultas adicionales.')
     equipos = _equipos_desde_partidos(datos)
     if len(equipos) < 2:
         st.info('No hay suficientes equipos identificados en los partidos cargados.')
@@ -188,14 +203,22 @@ def _comparador_equipos(datos):
     alternativas = [i for i in opciones if i != izquierda]
     derecha = st.selectbox('Equipo B', alternativas, format_func=lambda i: equipos[i], key='soc_eq_b_v4')
     cantidad = st.selectbox('Últimos partidos', [5, 10, 20], key='soc_n_v4')
-    condicion = st.selectbox('Condición del historial', ['Todos', 'Local', 'Visitante'], key='soc_cond_v4')
-    a = _estadisticas_equipo(datos, izquierda, cantidad, condicion)
-    b = _estadisticas_equipo(datos, derecha, cantidad, condicion)
+    st.markdown('**Condición independiente por equipo**')
+    condicion_a = st.selectbox(f'Condición · {equipos[izquierda]}', ['Local', 'Visitante', 'Todos'], key='soc_cond_a_v5')
+    condicion_b = st.selectbox(f'Condición · {equipos[derecha]}', ['Visitante', 'Local', 'Todos'], key='soc_cond_b_v5')
+    a = _estadisticas_equipo(datos, izquierda, cantidad, condicion_a)
+    b = _estadisticas_equipo(datos, derecha, cantidad, condicion_b)
+    st.caption(f"Muestra: {equipos[izquierda]} ({condicion_a}) {a['N']}/{cantidad} · {equipos[derecha]} ({condicion_b}) {b['N']}/{cantidad}.")
     if not a['N'] or not b['N']:
-        st.warning('Uno o ambos equipos no tienen resultados suficientes para este filtro. Prueba «Todos» o una temporada anterior.')
-    st.caption(f"Partidos disponibles en la muestra: {equipos[izquierda]} {a['N']}/{cantidad} · {equipos[derecha]} {b['N']}/{cantidad}.")
+        st.warning('Uno o ambos equipos no tienen partidos finalizados para la condición elegida.')
+    elif min(a['N'], b['N']) < 5:
+        st.warning('Muestra pequeña: al menos uno de los equipos tiene menos de cinco partidos disponibles.')
+    elif a['N'] < cantidad or b['N'] < cantidad:
+        st.info('La muestra es menor a la solicitada; se utilizan únicamente los partidos disponibles.')
+
     def mostrar(valor):
         return f'{valor:.2f}' if valor is not None else 'N/D'
+
     tabla = []
     for nombre, campo in [
         ('Partidos analizados', 'N'), ('Victorias', 'Victorias'), ('Empates', 'Empates'),
@@ -208,14 +231,20 @@ def _comparador_equipos(datos):
         fmt = str if campo in ('N', 'Victorias', 'Empates', 'Derrotas', 'N mitades') else mostrar
         tabla.append({'Métrica': nombre, equipos[izquierda]: fmt(a[campo]), equipos[derecha]: fmt(b[campo])})
     st.dataframe(tabla, hide_index=True, use_container_width=True)
-    st.caption('Los promedios por mitades usan solo partidos con ambos marcadores al descanso; pueden tener una muestra menor.')
+    st.caption('Los promedios por mitades solo utilizan encuentros con marcadores válidos al descanso.')
+
+    st.subheader('📈 Evolución de goles')
+    for identificador, stats in ((izquierda, a), (derecha, b)):
+        with st.expander(f"📈 {equipos[identificador]} · gráfica ({stats['N']} partidos)"):
+            _grafica_evolucion(stats, equipos[identificador])
     for identificador, stats in ((izquierda, a), (derecha, b)):
         with st.expander(f"📋 Historial: {equipos[identificador]} ({stats['N']} partidos)"):
             if stats['Historial']:
                 st.dataframe(stats['Historial'], hide_index=True, use_container_width=True)
             else:
                 st.info('No hay partidos finalizados para el filtro seleccionado.')
-    st.info('Comparación descriptiva: estos promedios no garantizan resultados futuros. Córners y jugadores requieren datos adicionales verificados.')
+    st.info('Comparación histórica descriptiva; no predice resultados futuros. Córners y jugadores requieren fuentes adicionales verificadas.')
+
 
 def _archivo_csv():
     st.subheader('📂 Archivo histórico CSV (opcional)')
@@ -251,7 +280,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 4 · Comparador de equipos · Diseño móvil · Sin API-Football')
+    st.caption('Etapa 5 · Filtros independientes y evolución · Diseño móvil · Sin API-Football')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
