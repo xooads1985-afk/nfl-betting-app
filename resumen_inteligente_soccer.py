@@ -96,6 +96,127 @@ def _resumen(rows):
         st.info('La fuente no devolvió marcadores por mitades para estos partidos.')
 
 
+
+def _terminados(datos):
+    """Solo partidos finalizados, con fecha y marcadores válidos."""
+    validos = []
+    for x in datos:
+        if not isinstance(x, dict) or x.get('status') != 'FINISHED':
+            continue
+        full = (x.get('score') or {}).get('fullTime') or {}
+        if not all(type(full.get(lado)) is int for lado in ('home', 'away')):
+            continue
+        if not (x.get('homeTeam') or {}).get('id') or not (x.get('awayTeam') or {}).get('id'):
+            continue
+        validos.append(x)
+    return sorted(validos, key=lambda x: (x.get('utcDate') or '', x.get('id') or 0))
+
+
+def _equipos_desde_partidos(datos):
+    equipos = {}
+    for partido in datos:
+        for campo in ('homeTeam', 'awayTeam'):
+            equipo = partido.get(campo) or {}
+            identificador = equipo.get('id')
+            if identificador is not None:
+                equipos[identificador] = equipo.get('shortName') or equipo.get('name') or str(identificador)
+    return equipos
+
+
+def _estadisticas_equipo(partidos, equipo_id, cantidad, condicion):
+    """Historial por equipo; condicion: Todos, Local o Visitante."""
+    filtrados = []
+    for partido in _terminados(partidos):
+        local = (partido.get('homeTeam') or {}).get('id') == equipo_id
+        visita = (partido.get('awayTeam') or {}).get('id') == equipo_id
+        if not (local or visita):
+            continue
+        if condicion == 'Local' and not local:
+            continue
+        if condicion == 'Visitante' and not visita:
+            continue
+        filtrados.append(partido)
+    muestra = list(reversed(filtrados[-cantidad:]))
+    gf, gc, victorias, empates, derrotas = [], [], 0, 0, 0
+    mitades = []
+    historial = []
+    for partido in muestra:
+        local = (partido.get('homeTeam') or {}).get('id') == equipo_id
+        rival = partido.get('awayTeam') if local else partido.get('homeTeam')
+        marcador = (partido.get('score') or {}).get('fullTime') or {}
+        propios = marcador['home' if local else 'away']
+        ajenos = marcador['away' if local else 'home']
+        gf.append(propios)
+        gc.append(ajenos)
+        resultado = 'Victoria' if propios > ajenos else 'Empate' if propios == ajenos else 'Derrota'
+        victorias += resultado == 'Victoria'
+        empates += resultado == 'Empate'
+        derrotas += resultado == 'Derrota'
+        half = (partido.get('score') or {}).get('halfTime') or {}
+        if type(half.get('home')) is int and type(half.get('away')) is int:
+            propios_1t = half['home' if local else 'away']
+            ajenos_1t = half['away' if local else 'home']
+            if propios_1t <= propios and ajenos_1t <= ajenos:
+                mitades.append((propios_1t, propios - propios_1t))
+        historial.append({
+            'Fecha UTC': (partido.get('utcDate') or '')[:10],
+            'Condición': 'Local' if local else 'Visitante',
+            'Rival': (rival or {}).get('shortName') or (rival or {}).get('name') or 'N/D',
+            'GF': propios, 'GC': ajenos, 'Resultado': resultado,
+        })
+    n = len(muestra)
+    return {
+        'N': n, 'GF': sum(gf) / n if n else None,
+        'GC': sum(gc) / n if n else None,
+        'Diferencia': (sum(gf) - sum(gc)) / n if n else None,
+        'Victorias': victorias, 'Empates': empates, 'Derrotas': derrotas,
+        '1T': sum(x[0] for x in mitades) / len(mitades) if mitades else None,
+        '2T': sum(x[1] for x in mitades) / len(mitades) if mitades else None,
+        'N mitades': len(mitades), 'Historial': historial,
+    }
+
+
+def _comparador_equipos(datos):
+    st.subheader('⚽ Comparador de equipos · Etapa 4')
+    st.caption('Solo se analizan resultados finalizados de la competición y temporada cargadas. No se consulta otra API.')
+    equipos = _equipos_desde_partidos(datos)
+    if len(equipos) < 2:
+        st.info('No hay suficientes equipos identificados en los partidos cargados.')
+        return
+    opciones = sorted(equipos, key=lambda identificador: (equipos[identificador].casefold(), identificador))
+    izquierda = st.selectbox('Equipo A', opciones, format_func=lambda i: equipos[i], key='soc_eq_a_v4')
+    alternativas = [i for i in opciones if i != izquierda]
+    derecha = st.selectbox('Equipo B', alternativas, format_func=lambda i: equipos[i], key='soc_eq_b_v4')
+    cantidad = st.selectbox('Últimos partidos', [5, 10, 20], key='soc_n_v4')
+    condicion = st.selectbox('Condición del historial', ['Todos', 'Local', 'Visitante'], key='soc_cond_v4')
+    a = _estadisticas_equipo(datos, izquierda, cantidad, condicion)
+    b = _estadisticas_equipo(datos, derecha, cantidad, condicion)
+    if not a['N'] or not b['N']:
+        st.warning('Uno o ambos equipos no tienen resultados suficientes para este filtro. Prueba «Todos» o una temporada anterior.')
+    st.caption(f"Partidos disponibles en la muestra: {equipos[izquierda]} {a['N']}/{cantidad} · {equipos[derecha]} {b['N']}/{cantidad}.")
+    def mostrar(valor):
+        return f'{valor:.2f}' if valor is not None else 'N/D'
+    tabla = []
+    for nombre, campo in [
+        ('Partidos analizados', 'N'), ('Victorias', 'Victorias'), ('Empates', 'Empates'),
+        ('Derrotas', 'Derrotas'), ('Goles a favor / partido', 'GF'),
+        ('Goles en contra / partido', 'GC'), ('Diferencia / partido', 'Diferencia'),
+        ('Goles a favor 1.ª mitad / partido', '1T'),
+        ('Goles a favor 2.ª mitad / partido', '2T'),
+        ('Partidos con datos por mitades', 'N mitades'),
+    ]:
+        fmt = str if campo in ('N', 'Victorias', 'Empates', 'Derrotas', 'N mitades') else mostrar
+        tabla.append({'Métrica': nombre, equipos[izquierda]: fmt(a[campo]), equipos[derecha]: fmt(b[campo])})
+    st.dataframe(tabla, hide_index=True, use_container_width=True)
+    st.caption('Los promedios por mitades usan solo partidos con ambos marcadores al descanso; pueden tener una muestra menor.')
+    for identificador, stats in ((izquierda, a), (derecha, b)):
+        with st.expander(f"📋 Historial: {equipos[identificador]} ({stats['N']} partidos)"):
+            if stats['Historial']:
+                st.dataframe(stats['Historial'], hide_index=True, use_container_width=True)
+            else:
+                st.info('No hay partidos finalizados para el filtro seleccionado.')
+    st.info('Comparación descriptiva: estos promedios no garantizan resultados futuros. Córners y jugadores requieren datos adicionales verificados.')
+
 def _archivo_csv():
     st.subheader('📂 Archivo histórico CSV (opcional)')
     st.caption('Puedes consultar un CSV propio sin utilizar ninguna API. Se muestran las columnas originales, sin inventar datos.')
@@ -130,7 +251,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 3 · Estadísticas reales · Diseño móvil · Sin API-Football')
+    st.caption('Etapa 4 · Comparador de equipos · Diseño móvil · Sin API-Football')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
@@ -170,6 +291,7 @@ def mostrar_resumen_inteligente_soccer():
             st.caption(f'Se muestran {min(100, len(rows_view))} de {len(rows_view)} partidos. Horario UTC.')
             st.subheader('📊 Estadísticas históricas')
             _resumen(rows)
+            _comparador_equipos(saved[2])
         else:
             st.info('La API no devolvió partidos para la competición y temporada elegidas.')
     if st.button('👥 Cargar equipos', key='soc_teams_v3'):
