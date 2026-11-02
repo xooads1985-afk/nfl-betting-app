@@ -1,4 +1,4 @@
-"""Resumen Inteligente Soccer - Etapa 3, fuente football-data.org y CSV.
+"""Resumen Inteligente Soccer - Etapa 6, fuente football-data.org y CSV.
 Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
@@ -191,8 +191,111 @@ def _grafica_evolucion(stats, nombre):
     st.caption(f'{nombre}: evolución cronológica de goles en los partidos seleccionados.')
 
 
+
+
+def _historial_cronologico(datos, equipo_id, condicion):
+    """Serie histórica válida, ordenada; la condición se aplica antes de evaluar."""
+    serie = []
+    for partido in _terminados(datos):
+        local = (partido.get('homeTeam') or {}).get('id') == equipo_id
+        visita = (partido.get('awayTeam') or {}).get('id') == equipo_id
+        if not (local or visita):
+            continue
+        if condicion == 'Local' and not local:
+            continue
+        if condicion == 'Visitante' and not visita:
+            continue
+        marcador = (partido.get('score') or {}).get('fullTime') or {}
+        gf = marcador['home' if local else 'away']
+        gc = marcador['away' if local else 'home']
+        serie.append({'Fecha': (partido.get('utcDate') or '')[:10],
+                      'GF': gf, 'GC': gc, 'ID': partido.get('id')})
+    return serie
+
+
+def _validacion_cronologica(serie, ventana=5, minimo=3):
+    """Backtest descriptivo: promedio móvil exclusivamente de partidos previos."""
+    registros = []
+    for i in range(minimo, len(serie)):
+        previos = serie[max(0, i - ventana):i]
+        if len(previos) < minimo:
+            continue
+        estimado_gf = sum(p['GF'] for p in previos) / len(previos)
+        estimado_gc = sum(p['GC'] for p in previos) / len(previos)
+        actual = serie[i]
+        registros.append({
+            'Fecha': actual['Fecha'], 'N previos': len(previos),
+            'GF estimados': round(estimado_gf, 2), 'GF reales': actual['GF'],
+            'GC estimados': round(estimado_gc, 2), 'GC reales': actual['GC'],
+            '_error_gf': estimado_gf - actual['GF'],
+            '_error_gc': estimado_gc - actual['GC'],
+        })
+    if not registros:
+        return {'N': 0, 'MAE GF': None, 'Sesgo GF': None,
+                'MAE GC': None, 'Sesgo GC': None, 'Detalle': []}
+    n = len(registros)
+    return {'N': n,
+            'MAE GF': sum(abs(x['_error_gf']) for x in registros) / n,
+            'Sesgo GF': sum(x['_error_gf'] for x in registros) / n,
+            'MAE GC': sum(abs(x['_error_gc']) for x in registros) / n,
+            'Sesgo GC': sum(x['_error_gc'] for x in registros) / n,
+            'Detalle': [{k: v for k, v in r.items() if not k.startswith('_')}
+                        for r in registros]}
+
+
+def _panel_validacion(datos, selecciones, ventana):
+    st.subheader('🧪 Validación histórica · Etapa 6')
+    st.caption('Promedio móvil evaluado partido a partido. Para cada fecha se usan '
+               'exclusivamente resultados anteriores de la misma competición, '
+               'temporada y condición. No se hacen consultas adicionales.')
+    filas = []
+    for equipo_id, nombre, condicion in selecciones:
+        serie = _historial_cronologico(datos, equipo_id, condicion)
+        prueba = _validacion_cronologica(serie, ventana=ventana)
+        reciente = serie[-ventana:]
+        n_total = len(serie)
+        def promedio(partidos, campo):
+            return sum(x[campo] for x in partidos) / len(partidos) if partidos else None
+        def formato(valor):
+            return f'{valor:.2f}' if valor is not None else 'N/D'
+        filas.append({
+            'Equipo': nombre, 'Condición': condicion, 'Partidos': n_total,
+            'Evaluados': prueba['N'], 'MAE GF': formato(prueba['MAE GF']),
+            'Sesgo GF': formato(prueba['Sesgo GF']),
+            'MAE GC': formato(prueba['MAE GC']),
+            'Sesgo GC': formato(prueba['Sesgo GC']),
+        })
+        with st.expander(f'🔎 {nombre} · validación y tendencias'):
+            st.caption(f'Historial: {n_total} partidos · evaluaciones: {prueba["N"]} · '
+                       f'ventana: hasta {ventana} partidos previos · mínimo inicial: 3.')
+            if prueba['N'] < 3:
+                st.warning('Validación insuficiente: se necesitan más partidos '
+                           'para interpretar el error con estabilidad.')
+            else:
+                st.metric('MAE goles anotados', formato(prueba['MAE GF']))
+                st.metric('MAE goles recibidos', formato(prueba['MAE GC']))
+                st.caption('Sesgo = estimado − real. Positivo: sobreestima; '
+                           'negativo: subestima. MAE más bajo indica menor error histórico.')
+            st.markdown('**Rendimiento reciente frente al de la temporada cargada**')
+            st.dataframe([
+                {'Métrica': 'Goles anotados / partido',
+                 f'Últimos {len(reciente)}': formato(promedio(reciente, 'GF')),
+                 'Temporada': formato(promedio(serie, 'GF'))},
+                {'Métrica': 'Goles recibidos / partido',
+                 f'Últimos {len(reciente)}': formato(promedio(reciente, 'GC')),
+                 'Temporada': formato(promedio(serie, 'GC'))},
+            ], hide_index=True, use_container_width=True)
+            if prueba['Detalle']:
+                st.dataframe(prueba['Detalle'][-20:], hide_index=True,
+                             use_container_width=True)
+                st.caption('Se muestran hasta 20 evaluaciones, en orden cronológico.')
+    st.dataframe(filas, hide_index=True, use_container_width=True)
+    st.info('Validación retrospectiva de un promedio móvil sencillo; no demuestra '
+            'capacidad de anticipar partidos futuros. Las muestras pequeñas y '
+            'las temporadas incompletas limitan las conclusiones.')
+
 def _comparador_equipos(datos):
-    st.subheader('⚽ Comparador de equipos · Etapa 5')
+    st.subheader('⚽ Comparador de equipos · Etapa 6')
     st.caption('Datos reales de la competición y temporada cargadas; no se realizan consultas adicionales.')
     equipos = _equipos_desde_partidos(datos)
     if len(equipos) < 2:
@@ -243,6 +346,8 @@ def _comparador_equipos(datos):
                 st.dataframe(stats['Historial'], hide_index=True, use_container_width=True)
             else:
                 st.info('No hay partidos finalizados para el filtro seleccionado.')
+    _panel_validacion(datos, [(izquierda, equipos[izquierda], condicion_a),
+                              (derecha, equipos[derecha], condicion_b)], cantidad)
     st.info('Comparación histórica descriptiva; no predice resultados futuros. Córners y jugadores requieren fuentes adicionales verificadas.')
 
 
@@ -280,7 +385,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 5 · Filtros independientes y evolución · Diseño móvil · Sin API-Football')
+    st.caption('Etapa 6 · Validación cronológica · Diseño móvil · Sin API-Football')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
