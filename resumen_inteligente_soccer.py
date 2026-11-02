@@ -392,12 +392,17 @@ def _panel_probabilidades(datos, equipo_a, equipo_b, nombre_a, nombre_b,
     finalizados = _terminados(datos)
     serie_a = _historial_cronologico(datos, equipo_a, condicion_a)
     serie_b = _historial_cronologico(datos, equipo_b, condicion_b)
-    recientes_a = serie_a[-ventana:]
-    recientes_b = serie_b[-ventana:]
-    if len(recientes_a) < 10 or len(recientes_b) < 10:
+    # La ventana del comparador puede ser 5; la muestra minima de este
+    # panel es independiente para evitar un bloqueo artificial.
+    ventana_modelo = max(10, ventana)
+    recientes_a = serie_a[-ventana_modelo:]
+    recientes_b = serie_b[-ventana_modelo:]
+    if len(serie_a) < 10 or len(serie_b) < 10:
         st.warning('Muestra insuficiente para comparar probabilidades: '
                    'se requieren al menos 10 partidos por equipo con los filtros elegidos.')
         return
+    st.caption(f'Muestra del modelo: {len(recientes_a)} partidos de {nombre_a} y '
+               f'{len(recientes_b)} de {nombre_b}; mínimo 10 por equipo.')
     # Se interpreta A como local y B como visitante. No es un fixture real.
     if condicion_a != 'Local' or condicion_b != 'Visitante':
         st.info('Para este ejercicio selecciona Local para el equipo A '
