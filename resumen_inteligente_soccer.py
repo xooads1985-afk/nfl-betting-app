@@ -1,225 +1,191 @@
-"""Resumen Inteligente Soccer - prototipo independiente.
-Ejecutar: streamlit run resumen_inteligente_soccer.py
-Clave opcional en Streamlit Secrets: API_FOOTBALL_KEY
+"""Resumen Inteligente Soccer - Etapa 3, fuente football-data.org y CSV.
+Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
-from datetime import datetime, timezone, timedelta
-from statistics import mean
+from datetime import datetime, timezone
+from io import BytesIO
+import csv
 import requests
 import streamlit as st
 
-DATA = {
-    "Atlético Azul": {"goles": [2, 1, 3, 0, 2], "contra": [1, 0, 1, 2, 1], "corners": [6, 4, 7, 3, 5], "goles_1t": [1, 0, 2, 0, 1], "corners_1t": [3, 2, 4, 1, 2]},
-    "Deportivo Verde": {"goles": [1, 2, 1, 2, 0], "contra": [1, 2, 0, 1, 2], "corners": [5, 6, 4, 5, 3], "goles_1t": [0, 1, 1, 1, 0], "corners_1t": [2, 3, 1, 3, 1]},
-    "Unión Roja": {"goles": [0, 2, 2, 1, 3], "contra": [2, 1, 1, 0, 2], "corners": [3, 5, 6, 4, 7], "goles_1t": [0, 1, 1, 0, 2], "corners_1t": [1, 2, 3, 2, 4]}
+COMPETICIONES = {
+    '🇬🇧 Premier League': 'PL',
+    '🇪🇸 LaLiga': 'PD',
+    '🇮🇹 Serie A': 'SA',
+    '🇩🇪 Bundesliga': 'BL1',
+    '🇫🇷 Ligue 1': 'FL1',
+    '🏆 UEFA Champions League': 'CL',
 }
-PLAYERS = {
-    "Atlético Azul": {"Delantero Azul": {"min": [83, 90, 72, 88, 85], "goles": [1, 0, 2, 0, 1]}, "Medio Azul": {"min": [90, 76, 84, 90, 80], "goles": [0, 0, 0, 0, 1]}},
-    "Deportivo Verde": {"Delantero Verde": {"min": [90, 65, 80, 90, 75], "goles": [1, 0, 0, 1, 0]}},
-    "Unión Roja": {"Delantero Rojo": {"min": [90, 85, 90, 70, 90], "goles": [0, 1, 1, 0, 2]}}
-}
-def validation(values):
-    errors = [mean(values[:i]) - values[i] for i in range(3, len(values))]
-    return {"N": len(errors), "MAE": round(mean(map(abs, errors)), 2), "Sesgo": round(mean(errors), 2)} if errors else {"N": 0, "MAE": "N/D", "Sesgo": "N/D"}
-def secret_key():
-    """Obtiene la clave sin mostrarla; devuelve (clave, diagnóstico seguro)."""
+BASE = 'https://api.football-data.org/v4'
+
+
+def _token():
     try:
-        value = st.secrets.get("API_FOOTBALL_KEY")
-    except Exception as exc:
-        # Nunca mostrar el texto de la excepción: podría contener datos privados.
-        env_value = os.environ.get("API_FOOTBALL_KEY", "").strip()
-        if env_value:
-            return env_value, "Clave encontrada en variable de entorno."
-        return "", ("No se pudieron leer los Secrets de esta aplicación "
-                    f"({type(exc).__name__}). Comprueba Settings → Secrets.")
-
-    if isinstance(value, str) and value.strip():
-        return value.strip(), "Clave encontrada en Secrets de esta aplicación."
-    if value is not None and not isinstance(value, str):
-        return "", "API_FOOTBALL_KEY existe, pero debe ser texto entre comillas."
-
-    env_value = os.environ.get("API_FOOTBALL_KEY", "").strip()
-    if env_value:
-        return env_value, "Clave encontrada en variable de entorno."
-    return "", ("API_FOOTBALL_KEY no está disponible para esta aplicación. "
-                "Revisa el nombre y guarda los Secrets de esta app.")
-
-
-class SoccerAPIError(Exception):
-    """Error seguro de mostrar en pantalla; nunca incluye credenciales."""
-
-
-def mensaje_api(exc):
-    """Diagnóstico sin exponer tokens ni cuerpos de respuesta."""
-    if isinstance(exc, SoccerAPIError):
-        return str(exc)
-    if isinstance(exc, requests.exceptions.Timeout):
-        return "La API tardó demasiado en responder. Intenta más tarde."
-    if isinstance(exc, requests.exceptions.ConnectionError):
-        return "No fue posible conectar con API-Football. Comprueba la conexión e intenta más tarde."
-    return f"Error inesperado ({type(exc).__name__}). Revisa los logs privados de Streamlit."
+        value = st.secrets.get('FOOTBALL_DATA_KEY', '')
+    except Exception:
+        value = ''
+    return (value if isinstance(value, str) else '').strip() or os.getenv('FOOTBALL_DATA_KEY', '').strip()
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def fetch(endpoint, params, key):
+def _consulta(ruta, token, temporada=None):
+    params = {'season': int(temporada)} if temporada else {}
     try:
-        response = requests.get(
-            "https://v3.football.api-sports.io/" + endpoint,
-            headers={"x-apisports-key": key}, params=params, timeout=20,
-        )
-    except requests.exceptions.RequestException as exc:
-        raise SoccerAPIError(mensaje_api(exc)) from None
-
-    if response.status_code == 429:
-        raise SoccerAPIError("Demasiadas solicitudes (HTTP 429). Espera antes de volver a consultar.")
-    if response.status_code in (401, 403):
-        raise SoccerAPIError(f"Acceso no autorizado (HTTP {response.status_code}). Revisa la clave y el plan de API-Football.")
-    if response.status_code >= 400:
-        raise SoccerAPIError(f"La API respondió con HTTP {response.status_code}. Revisa el estado del servicio.")
-
+        r = requests.get(BASE + ruta, headers={'X-Auth-Token': token}, params=params, timeout=20)
+    except requests.RequestException:
+        raise ValueError('No se pudo conectar con el servidor. Comprueba la conexión e inténtalo más tarde.') from None
+    if r.status_code == 401:
+        raise ValueError('Clave no autorizada. Revisa FOOTBALL_DATA_KEY en Streamlit Secrets.')
+    if r.status_code == 403:
+        raise ValueError('Esta competición, temporada o consulta no está habilitada para tu plan.')
+    if r.status_code == 404:
+        raise ValueError('La competición o temporada solicitada no está disponible.')
+    if r.status_code == 429:
+        raise ValueError('Se alcanzó el límite temporal de solicitudes. Espera antes de volver a consultar.')
+    if r.status_code >= 400:
+        raise ValueError(f'El servidor rechazó la consulta (HTTP {r.status_code}).')
     try:
-        result = response.json()
+        payload = r.json()
     except ValueError:
-        raise SoccerAPIError("La API devolvió una respuesta que no es JSON válido.") from None
+        raise ValueError('El servidor devolvió datos no válidos.') from None
+    if not isinstance(payload, dict):
+        raise ValueError('La respuesta no tiene el formato esperado.')
+    return payload
 
-    errors = result.get("errors")
-    if errors:
-        # Solo mostramos categorías conocidas. Nunca el texto crudo, que podría contener secretos.
-        detail = str(errors).lower()
-        if any(word in detail for word in ("limit", "quota", "requests", "rate")):
-            msg = "API-Football informa de un límite de solicitudes o cuota. Revisa tu panel de consumo."
-        elif any(word in detail for word in ("plan", "subscription", "access", "free")):
-            msg = "La consulta no está disponible con el plan actual de API-Football."
-        elif any(word in detail for word in ("key", "token", "auth")):
-            msg = "API-Football rechazó la autenticación. Verifica la clave configurada en Streamlit."
-        else:
-            msg = "API-Football devolvió un error de aplicación. Revisa tu panel de API-Football."
-        raise SoccerAPIError(msg)
-    return result
+
+def _partidos(datos):
+    rows = []
+    for x in datos:
+        home = x.get('homeTeam') or {}
+        away = x.get('awayTeam') or {}
+        score = x.get('score') or {}
+        full = score.get('fullTime') or {}
+        half = score.get('halfTime') or {}
+        rows.append({
+            'Fecha UTC': (x.get('utcDate') or '')[:16].replace('T', ' '),
+            'Local': home.get('shortName') or home.get('name') or 'N/D',
+            'Visitante': away.get('shortName') or away.get('name') or 'N/D',
+            'Estado': x.get('status', 'N/D'),
+            'Goles local': full.get('home'),
+            'Goles visitante': full.get('away'),
+            '1T local': half.get('home'),
+            '1T visitante': half.get('away'),
+        })
+    return rows
+
+
+def _resumen(rows):
+    finalizados = [x for x in rows if x['Estado'] == 'FINISHED'
+                   and isinstance(x['Goles local'], int) and isinstance(x['Goles visitante'], int)]
+    if not finalizados:
+        st.info('Todavía no hay resultados finalizados con marcadores completos en los datos cargados.')
+        return
+    total = sum(x['Goles local'] + x['Goles visitante'] for x in finalizados)
+    a, b = st.columns(2)
+    a.metric('Partidos finalizados', len(finalizados))
+    b.metric('Goles por partido', f'{total / len(finalizados):.2f}')
+    mitades = [x for x in finalizados if isinstance(x['1T local'], int) and isinstance(x['1T visitante'], int)]
+    if mitades:
+        g1 = sum(x['1T local'] + x['1T visitante'] for x in mitades)
+        gfull = sum(x['Goles local'] + x['Goles visitante'] for x in mitades)
+        a, b = st.columns(2)
+        a.metric('Goles 1.ª mitad / partido', f'{g1 / len(mitades):.2f}')
+        b.metric('Goles 2.ª mitad / partido', f'{(gfull-g1) / len(mitades):.2f}')
+        st.caption(f'Promedios descriptivos sobre {len(mitades)} partidos con datos de ambas mitades; no son predicciones.')
+    else:
+        st.info('La fuente no devolvió marcadores por mitades para estos partidos.')
+
+
+def _archivo_csv():
+    st.subheader('📂 Archivo histórico CSV (opcional)')
+    st.caption('Puedes consultar un CSV propio sin utilizar ninguna API. Se muestran las columnas originales, sin inventar datos.')
+    archivo = st.file_uploader('Selecciona un archivo CSV', type=['csv'], key='soc_csv')
+    if archivo is None:
+        return
+    if archivo.size > 5 * 1024 * 1024:
+        st.error('El archivo supera 5 MB. Selecciona uno más pequeño.')
+        return
+    try:
+        raw = archivo.getvalue().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        try:
+            raw = archivo.getvalue().decode('latin-1')
+        except UnicodeError:
+            st.error('No se pudo leer la codificación del archivo.')
+            return
+    try:
+        dialect = csv.Sniffer().sniff(raw[:4096], delimiters=',;\t')
+        reader = csv.DictReader(raw.splitlines(), dialect=dialect)
+        rows = list(reader)
+    except (csv.Error, ValueError):
+        st.error('El CSV no tiene un formato válido.')
+        return
+    if not rows:
+        st.warning('El archivo no contiene registros.')
+        return
+    st.success(f'Registros cargados: {len(rows)}')
+    st.dataframe(rows[:200], hide_index=True, use_container_width=True)
+    st.caption('Vista limitada a 200 registros. Las estadísticas automáticas se habilitarán tras validar las columnas disponibles.')
 
 
 def mostrar_resumen_inteligente_soccer():
-    """Muestra el módulo Soccer dentro de la aplicación principal."""
-    st.title("⚽ Resumen Inteligente Soccer")
-    st.caption("Prototipo inicial · Optimizado para móvil")
-    mode = st.radio("Fuente", ["Demostración", "API-Football"], horizontal=True)
-    if mode == "Demostración":
-        st.warning("Todos los equipos, jugadores y datos de esta sección son ficticios.")
-        st.selectbox("Liga", ["Liga de demostración"])
-        home = st.selectbox("Local", list(DATA))
-        away = st.selectbox("Visitante", [t for t in DATA if t != home])
-        a, b = DATA[home], DATA[away]
-        h_proj = (mean(a["goles"]) + mean(b["contra"])) / 2
-        v_proj = (mean(b["goles"]) + mean(a["contra"])) / 2
-        c1, c2 = st.columns(2)
-        c1.metric(home, f"{h_proj:.2f} goles")
-        c2.metric(away, f"{v_proj:.2f} goles")
-        st.caption("Modelo base: promedio de goles anotados y recibidos. No indica probabilidad de victoria.")
-        for team in [home, away]:
-            with st.expander("📊 " + team):
-                d = DATA[team]
-                st.dataframe([
-                    {"Métrica": "Goles / partido", "Promedio": round(mean(d["goles"]), 2)},
-                    {"Métrica": "Goles 1.ª mitad", "Promedio": round(mean(d["goles_1t"]), 2)},
-                    {"Métrica": "Goles 2.ª mitad", "Promedio": round(mean(d["goles"]) - mean(d["goles_1t"]), 2)},
-                    {"Métrica": "Córners 1.ª mitad", "Promedio": round(mean(d["corners_1t"]), 2)},
-                    {"Métrica": "Córners 2.ª mitad", "Promedio": round(mean(d["corners"]) - mean(d["corners_1t"]), 2)},
-                ], hide_index=True, use_container_width=True)
-                st.write("Validación cronológica de goles:", validation(d["goles"]))
-        st.subheader("👥 Comparador de jugadores")
-        choices = {f"{team} · {name}": (team, name, stats) for team in [home, away] for name, stats in PLAYERS[team].items()}
-        selected = st.multiselect("Hasta dos jugadores", list(choices), max_selections=2)
-        if selected:
-            st.dataframe([{"Jugador": choices[s][1], "Minutos promedio": round(mean(choices[s][2]["min"]), 1),
-                           "Goles promedio": round(mean(choices[s][2]["goles"]), 2)} for s in selected],
-                         hide_index=True, use_container_width=True)
-    else:
-        key, diagnostico = secret_key()
-        if not key:
-            st.warning(diagnostico)
-            st.caption("Revisa Settings → Secrets de esta aplicación. Nunca compartas tu clave.")
-        else:
-            st.success("Conexión configurada. " + diagnostico)
-            st.caption("Consultas solo al pulsar botones · caché de 1 hora. Los datos dependen de tu plan.")
-            st.info("Etapa 2: explorar ligas, equipos y partidos reales. No se generan proyecciones todavía.")
-
-            if st.button("1 · Cargar ligas", key="soc_ligas"):
-                try:
-                    leagues = fetch("leagues", {}, key).get("response", [])
-                    st.session_state["soc_leagues"] = leagues
-                    st.success(f"Ligas recibidas: {len(leagues)}")
-                except Exception as exc:
-                    st.error("No se pudieron consultar las ligas: " + mensaje_api(exc))
-
-            leagues = st.session_state.get("soc_leagues", [])
-            if leagues:
-                # Filtrar para facilitar la selección en pantallas pequeñas.
-                countries = sorted({(x.get("country") or {}).get("name") or "Sin país" for x in leagues})
-                country = st.selectbox("País o región", countries, key="soc_country")
-                choices = [x for x in leagues if ((x.get("country") or {}).get("name") or "Sin país") == country]
-                # Se conserva el ID: puede haber ligas con nombres iguales.
-                options = {f"{(x.get('league') or {}).get('name', 'Liga')} · ID {(x.get('league') or {}).get('id')}": x for x in choices}
-                label = st.selectbox("Competición", list(options), key="soc_league")
-                chosen = options[label]
-                league_id = (chosen.get("league") or {}).get("id")
-                seasons = [x.get("year") for x in chosen.get("seasons", []) if x.get("year") is not None]
-                if seasons:
-                    season = st.selectbox("Temporada", sorted(set(seasons), reverse=True), key="soc_season")
-                    st.caption("Elige la temporada correspondiente al calendario de la competición.")
-                    if st.button("2 · Consultar equipos", key="soc_teams_button"):
-                        try:
-                            data = fetch("teams", {"league": league_id, "season": season}, key)
-                            teams = data.get("response", [])
-                            st.session_state["soc_teams_data"] = (league_id, season, teams)
-                            st.success(f"Equipos recibidos: {len(teams)}")
-                        except Exception as exc:
-                            st.error("No se pudieron consultar equipos: " + mensaje_api(exc))
-                    team_data = st.session_state.get("soc_teams_data")
-                    if team_data and team_data[:2] == (league_id, season):
-                        teams = team_data[2]
-                        if teams:
-                            st.dataframe([{"Equipo": (x.get("team") or {}).get("name"),
-                                           "Ciudad": (x.get("venue") or {}).get("city") or "N/D"}
-                                          for x in teams], hide_index=True)
-                            st.caption("La lista de equipos procede de la API; aún no se calculan estadísticas.")
-                        else:
-                            st.info("No hay equipos disponibles para esta liga y temporada en tu plan.")
-
-                    if st.button("3 · Consultar partidos de la temporada", key="soc_fixtures_button"):
-                        try:
-                            data = fetch("fixtures", {"league": league_id, "season": season}, key)
-                            fixtures = data.get("response", [])
-                            st.session_state["soc_fixtures_data"] = (league_id, season, fixtures)
-                            st.success(f"Partidos recibidos: {len(fixtures)}")
-                        except Exception as exc:
-                            st.error("No se pudieron consultar partidos: " + mensaje_api(exc))
-                    fixture_data = st.session_state.get("soc_fixtures_data")
-                    if fixture_data and fixture_data[:2] == (league_id, season):
-                        fixtures = fixture_data[2]
-                        if fixtures:
-                            now = datetime.now(timezone.utc)
-                            future = [x for x in fixtures if (x.get("fixture") or {}).get("date", "")[:10] >= now.date().isoformat()
-                                      and (x.get("fixture") or {}).get("status", {}).get("short") in ("NS", "TBD")]
-                            completed = [x for x in fixtures if (x.get("fixture") or {}).get("status", {}).get("short") in ("FT", "AET", "PEN")]
-                            view = st.radio("Mostrar", ["Próximos", "Finalizados"], horizontal=True, key="soc_fixture_view")
-                            selected = sorted(future if view == "Próximos" else completed,
-                                              key=lambda x: (x.get("fixture") or {}).get("date", ""),
-                                              reverse=view == "Finalizados")[:25]
-                            if selected:
-                                st.dataframe([{"Fecha (UTC)": (x.get("fixture") or {}).get("date", "")[:16].replace("T", " "),
-                                               "Local": (x.get("teams") or {}).get("home", {}).get("name"),
-                                               "Visitante": (x.get("teams") or {}).get("away", {}).get("name"),
-                                               "Marcador": (f"{(x.get('goals') or {}).get('home')} - {(x.get('goals') or {}).get('away')}"
-                                                            if view == "Finalizados" else "Pendiente")}
-                                              for x in selected], hide_index=True)
-                            else:
-                                st.info("No hay partidos en esta categoría para la temporada seleccionada.")
-                            st.caption("Se muestran hasta 25 partidos. Las fechas están en UTC.")
-                        else:
-                            st.info("No se encontraron partidos para esta competición y temporada.")
-                else:
-                    st.info("Esta liga no ofrece temporadas en la respuesta recibida.")
+    st.title('⚽ Resumen Inteligente Soccer')
+    st.caption('Etapa 3 · Estadísticas reales · Diseño móvil · Sin API-Football')
+    fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
+    if fuente == 'CSV local':
+        _archivo_csv()
+        return
+    token = _token()
+    if not token:
+        st.warning('Falta configurar FOOTBALL_DATA_KEY en los Secrets de esta aplicación.')
+        st.info('Obtén una clave gratuita en football-data.org y guárdala en Streamlit Cloud → Settings → Secrets como FOOTBALL_DATA_KEY = "tu_clave". No compartas tu clave.')
+        st.caption('Puedes usar «CSV local» mientras configuras la nueva fuente.')
+        return
+    st.success('Nueva fuente configurada. Clave detectada sin mostrar su valor.')
+    st.caption('Consultas únicamente al pulsar botones; caché de una hora. La cobertura depende del plan y la temporada.')
+    nombre = st.selectbox('Competición', list(COMPETICIONES), key='soc_comp_v3')
+    codigo = COMPETICIONES[nombre]
+    temporada = st.selectbox('Temporada (año de inicio)', [2026, 2025, 2024, 2023], key='soc_season_v3')
+    st.caption('La Champions League utiliza el código CL. Algunas temporadas o competiciones pueden estar restringidas.')
+    if st.button('📅 Cargar partidos', key='soc_matches_v3'):
+        try:
+            data = _consulta(f'/competitions/{codigo}/matches', token, temporada)
+            st.session_state['soc_partidos_v3'] = (codigo, temporada, data.get('matches', []))
+            st.success(f"Partidos recibidos: {len(data.get('matches', []))}")
+        except ValueError as exc:
+            st.error(str(exc))
+    saved = st.session_state.get('soc_partidos_v3')
+    if saved and saved[:2] == (codigo, temporada):
+        rows = _partidos(saved[2])
+        if rows:
+            estados = ['Todos', 'Finalizados', 'Programados']
+            vista = st.selectbox('Mostrar partidos', estados, key='soc_vista_v3')
+            if vista == 'Finalizados':
+                rows_view = [x for x in rows if x['Estado'] == 'FINISHED']
+            elif vista == 'Programados':
+                rows_view = [x for x in rows if x['Estado'] in ('SCHEDULED', 'TIMED')]
             else:
-                st.caption("Pulsa «Cargar ligas» para empezar. Cada endpoint nuevo puede consumir una solicitud.")
+                rows_view = rows
+            st.dataframe(rows_view[:100], hide_index=True, use_container_width=True)
+            st.caption(f'Se muestran {min(100, len(rows_view))} de {len(rows_view)} partidos. Horario UTC.')
+            st.subheader('📊 Estadísticas históricas')
+            _resumen(rows)
+        else:
+            st.info('La API no devolvió partidos para la competición y temporada elegidas.')
+    if st.button('👥 Cargar equipos', key='soc_teams_v3'):
+        try:
+            data = _consulta(f'/competitions/{codigo}/teams', token, temporada)
+            st.session_state['soc_equipos_v3'] = (codigo, temporada, data.get('teams', []))
+            st.success(f"Equipos recibidos: {len(data.get('teams', []))}")
+        except ValueError as exc:
+            st.error(str(exc))
+    teams = st.session_state.get('soc_equipos_v3')
+    if teams and teams[:2] == (codigo, temporada):
+        st.dataframe([{'Equipo': x.get('name', 'N/D'), 'País': x.get('area', {}).get('name', 'N/D')}
+                      for x in teams[2]], hide_index=True, use_container_width=True)
     st.divider()
-    st.caption("Versión inicial: sin tarjetas. Las proyecciones y la validación de demostración NO son resultados reales.")
+    st.caption('Córners y estadísticas individuales: pendientes de fuente verificada. No se muestran cifras inventadas.')
+
+
+if __name__ == '__main__':
+    mostrar_resumen_inteligente_soccer()
