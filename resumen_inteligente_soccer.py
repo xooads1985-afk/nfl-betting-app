@@ -3,7 +3,7 @@ Ejecutar: streamlit run resumen_inteligente_soccer.py
 Clave opcional en Streamlit Secrets: API_FOOTBALL_KEY
 """
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from statistics import mean
 import requests
 import streamlit as st
@@ -95,18 +95,89 @@ def mostrar_resumen_inteligente_soccer():
         key, diagnostico = secret_key()
         if not key:
             st.warning(diagnostico)
-            st.caption("Comprueba que editaste los Secrets de ESTA aplicación y reiníciala. Nunca compartas la clave.")
+            st.caption("Revisa Settings → Secrets de esta aplicación. Nunca compartas tu clave.")
         else:
-            st.success("Configuración detectada. " + diagnostico)
-            st.warning("Los datos disponibles dependen del plan. Consultas manuales y caché de 1 hora.")
-            if st.button("Consultar ligas disponibles"):
+            st.success("Conexión configurada. " + diagnostico)
+            st.caption("Consultas solo al pulsar botones · caché de 1 hora. Los datos dependen de tu plan.")
+            st.info("Etapa 2: explorar ligas, equipos y partidos reales. No se generan proyecciones todavía.")
+
+            if st.button("1 · Cargar ligas", key="soc_ligas"):
                 try:
-                    response = fetch("leagues", {}, key).get("response", [])
-                    st.success(f"Ligas recibidas: {len(response)}")
-                    st.dataframe([{"Liga": x.get("league", {}).get("name"),
-                                   "País": x.get("country", {}).get("name")} for x in response[:30]],
-                                 hide_index=True, use_container_width=True)
-                except Exception as error:
-                    st.error(f"Error de consulta: {error}")
+                    leagues = fetch("leagues", {}, key).get("response", [])
+                    st.session_state["soc_leagues"] = leagues
+                    st.success(f"Ligas recibidas: {len(leagues)}")
+                except Exception as exc:
+                    st.error(f"No se pudieron consultar las ligas: {type(exc).__name__}")
+
+            leagues = st.session_state.get("soc_leagues", [])
+            if leagues:
+                # Filtrar para facilitar la selección en pantallas pequeñas.
+                countries = sorted({(x.get("country") or {}).get("name") or "Sin país" for x in leagues})
+                country = st.selectbox("País o región", countries, key="soc_country")
+                choices = [x for x in leagues if ((x.get("country") or {}).get("name") or "Sin país") == country]
+                # Se conserva el ID: puede haber ligas con nombres iguales.
+                options = {f"{(x.get('league') or {}).get('name', 'Liga')} · ID {(x.get('league') or {}).get('id')}": x for x in choices}
+                label = st.selectbox("Competición", list(options), key="soc_league")
+                chosen = options[label]
+                league_id = (chosen.get("league") or {}).get("id")
+                seasons = [x.get("year") for x in chosen.get("seasons", []) if x.get("year") is not None]
+                if seasons:
+                    season = st.selectbox("Temporada", sorted(set(seasons), reverse=True), key="soc_season")
+                    st.caption("Elige la temporada correspondiente al calendario de la competición.")
+                    if st.button("2 · Consultar equipos", key="soc_teams_button"):
+                        try:
+                            data = fetch("teams", {"league": league_id, "season": season}, key)
+                            teams = data.get("response", [])
+                            st.session_state["soc_teams_data"] = (league_id, season, teams)
+                            st.success(f"Equipos recibidos: {len(teams)}")
+                        except Exception as exc:
+                            st.error(f"No se pudieron consultar equipos: {type(exc).__name__}")
+                    team_data = st.session_state.get("soc_teams_data")
+                    if team_data and team_data[:2] == (league_id, season):
+                        teams = team_data[2]
+                        if teams:
+                            st.dataframe([{"Equipo": (x.get("team") or {}).get("name"),
+                                           "Ciudad": (x.get("venue") or {}).get("city") or "N/D"}
+                                          for x in teams], hide_index=True)
+                            st.caption("La lista de equipos procede de la API; aún no se calculan estadísticas.")
+                        else:
+                            st.info("No hay equipos disponibles para esta liga y temporada en tu plan.")
+
+                    if st.button("3 · Consultar partidos de la temporada", key="soc_fixtures_button"):
+                        try:
+                            data = fetch("fixtures", {"league": league_id, "season": season}, key)
+                            fixtures = data.get("response", [])
+                            st.session_state["soc_fixtures_data"] = (league_id, season, fixtures)
+                            st.success(f"Partidos recibidos: {len(fixtures)}")
+                        except Exception as exc:
+                            st.error(f"No se pudieron consultar partidos: {type(exc).__name__}")
+                    fixture_data = st.session_state.get("soc_fixtures_data")
+                    if fixture_data and fixture_data[:2] == (league_id, season):
+                        fixtures = fixture_data[2]
+                        if fixtures:
+                            now = datetime.now(timezone.utc)
+                            future = [x for x in fixtures if (x.get("fixture") or {}).get("date", "")[:10] >= now.date().isoformat()
+                                      and (x.get("fixture") or {}).get("status", {}).get("short") in ("NS", "TBD")]
+                            completed = [x for x in fixtures if (x.get("fixture") or {}).get("status", {}).get("short") in ("FT", "AET", "PEN")]
+                            view = st.radio("Mostrar", ["Próximos", "Finalizados"], horizontal=True, key="soc_fixture_view")
+                            selected = sorted(future if view == "Próximos" else completed,
+                                              key=lambda x: (x.get("fixture") or {}).get("date", ""),
+                                              reverse=view == "Finalizados")[:25]
+                            if selected:
+                                st.dataframe([{"Fecha (UTC)": (x.get("fixture") or {}).get("date", "")[:16].replace("T", " "),
+                                               "Local": (x.get("teams") or {}).get("home", {}).get("name"),
+                                               "Visitante": (x.get("teams") or {}).get("away", {}).get("name"),
+                                               "Marcador": (f"{(x.get('goals') or {}).get('home')} - {(x.get('goals') or {}).get('away')}"
+                                                            if view == "Finalizados" else "Pendiente")}
+                                              for x in selected], hide_index=True)
+                            else:
+                                st.info("No hay partidos en esta categoría para la temporada seleccionada.")
+                            st.caption("Se muestran hasta 25 partidos. Las fechas están en UTC.")
+                        else:
+                            st.info("No se encontraron partidos para esta competición y temporada.")
+                else:
+                    st.info("Esta liga no ofrece temporadas en la respuesta recibida.")
+            else:
+                st.caption("Pulsa «Cargar ligas» para empezar. Cada endpoint nuevo puede consumir una solicitud.")
     st.divider()
     st.caption("Versión inicial: sin tarjetas. Las proyecciones y la validación de demostración NO son resultados reales.")
