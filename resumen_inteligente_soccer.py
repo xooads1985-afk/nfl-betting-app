@@ -1,4 +1,4 @@
-"""Resumen Inteligente Soccer - Etapa 6, fuente football-data.org y CSV.
+"""Resumen Inteligente Soccer - Etapa 7, fuente football-data.org y CSV.
 Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
@@ -164,6 +164,7 @@ def _estadisticas_equipo(partidos, equipo_id, cantidad, condicion):
             'Condición': 'Local' if local else 'Visitante',
             'Rival': (rival or {}).get('shortName') or (rival or {}).get('name') or 'N/D',
             'GF': propios, 'GC': ajenos, 'Resultado': resultado,
+            'Temporada': partido.get('_soc_temporada', 'N/D'),
         })
     n = len(muestra)
     return {
@@ -209,7 +210,8 @@ def _historial_cronologico(datos, equipo_id, condicion):
         gf = marcador['home' if local else 'away']
         gc = marcador['away' if local else 'home']
         serie.append({'Fecha': (partido.get('utcDate') or '')[:10],
-                      'GF': gf, 'GC': gc, 'ID': partido.get('id')})
+                      'GF': gf, 'GC': gc, 'ID': partido.get('id'),
+                      'Temporada': partido.get('_soc_temporada', 'N/D')})
     return serie
 
 
@@ -243,16 +245,17 @@ def _validacion_cronologica(serie, ventana=5, minimo=3):
                         for r in registros]}
 
 
-def _panel_validacion(datos, selecciones, ventana):
-    st.subheader('🧪 Validación histórica · Etapa 6')
+def _panel_validacion(datos, selecciones, ventana, temporada_actual=None):
+    st.subheader('🧪 Validación histórica · Etapa 7')
     st.caption('Promedio móvil evaluado partido a partido. Para cada fecha se usan '
-               'exclusivamente resultados anteriores de la misma competición, '
-               'temporada y condición. No se hacen consultas adicionales.')
+               'exclusivamente resultados anteriores de la misma competición y condición, '
+               'incluso si corresponden a otra temporada. No se hacen consultas adicionales.')
     filas = []
     for equipo_id, nombre, condicion in selecciones:
         serie = _historial_cronologico(datos, equipo_id, condicion)
         prueba = _validacion_cronologica(serie, ventana=ventana)
         reciente = serie[-ventana:]
+        temporada_serie = [x for x in serie if x.get('Temporada') == temporada_actual]
         n_total = len(serie)
         def promedio(partidos, campo):
             return sum(x[campo] for x in partidos) / len(partidos) if partidos else None
@@ -266,6 +269,11 @@ def _panel_validacion(datos, selecciones, ventana):
             'Sesgo GC': formato(prueba['Sesgo GC']),
         })
         with st.expander(f'🔎 {nombre} · validación y tendencias'):
+            por_temporada = {}
+            for encuentro in serie:
+                clave = str(encuentro.get('Temporada', 'N/D'))
+                por_temporada[clave] = por_temporada.get(clave, 0) + 1
+            st.caption('Partidos por temporada: ' + ', '.join(f'{k}: {v}' for k, v in sorted(por_temporada.items())))
             st.caption(f'Historial: {n_total} partidos · evaluaciones: {prueba["N"]} · '
                        f'ventana: hasta {ventana} partidos previos · mínimo inicial: 3.')
             if prueba['N'] < 3:
@@ -276,14 +284,16 @@ def _panel_validacion(datos, selecciones, ventana):
                 st.metric('MAE goles recibidos', formato(prueba['MAE GC']))
                 st.caption('Sesgo = estimado − real. Positivo: sobreestima; '
                            'negativo: subestima. MAE más bajo indica menor error histórico.')
-            st.markdown('**Rendimiento reciente frente al de la temporada cargada**')
+            st.markdown('**Rendimiento reciente frente a la temporada seleccionada**')
+            if not temporada_serie:
+                st.info('No hay partidos finalizados de este equipo en la temporada seleccionada.')
             st.dataframe([
                 {'Métrica': 'Goles anotados / partido',
                  f'Últimos {len(reciente)}': formato(promedio(reciente, 'GF')),
-                 'Temporada': formato(promedio(serie, 'GF'))},
+                 'Temporada actual': formato(promedio(temporada_serie, 'GF'))},
                 {'Métrica': 'Goles recibidos / partido',
                  f'Últimos {len(reciente)}': formato(promedio(reciente, 'GC')),
-                 'Temporada': formato(promedio(serie, 'GC'))},
+                 'Temporada actual': formato(promedio(temporada_serie, 'GC'))},
             ], hide_index=True, use_container_width=True)
             if prueba['Detalle']:
                 st.dataframe(prueba['Detalle'][-20:], hide_index=True,
@@ -294,9 +304,9 @@ def _panel_validacion(datos, selecciones, ventana):
             'capacidad de anticipar partidos futuros. Las muestras pequeñas y '
             'las temporadas incompletas limitan las conclusiones.')
 
-def _comparador_equipos(datos):
-    st.subheader('⚽ Comparador de equipos · Etapa 6')
-    st.caption('Datos reales de la competición y temporada cargadas; no se realizan consultas adicionales.')
+def _comparador_equipos(datos, temporada_actual=None):
+    st.subheader('⚽ Comparador de equipos · Etapa 7')
+    st.caption('Datos reales de la competición seleccionada. Si activas el historial ampliado, se incluyen temporadas anteriores identificadas; el comparador no realiza consultas adicionales.')
     equipos = _equipos_desde_partidos(datos)
     if len(equipos) < 2:
         st.info('No hay suficientes equipos identificados en los partidos cargados.')
@@ -347,7 +357,7 @@ def _comparador_equipos(datos):
             else:
                 st.info('No hay partidos finalizados para el filtro seleccionado.')
     _panel_validacion(datos, [(izquierda, equipos[izquierda], condicion_a),
-                              (derecha, equipos[derecha], condicion_b)], cantidad)
+                              (derecha, equipos[derecha], condicion_b)], cantidad, temporada_actual)
     st.info('Comparación histórica descriptiva; no predice resultados futuros. Córners y jugadores requieren fuentes adicionales verificadas.')
 
 
@@ -385,7 +395,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 6 · Validación cronológica · Diseño móvil · Sin API-Football')
+    st.caption('Etapa 7 · Historial ampliado y validación cronológica · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
@@ -425,7 +435,43 @@ def mostrar_resumen_inteligente_soccer():
             st.caption(f'Se muestran {min(100, len(rows_view))} de {len(rows_view)} partidos. Horario UTC.')
             st.subheader('📊 Estadísticas históricas')
             _resumen(rows)
-            _comparador_equipos(saved[2])
+            st.subheader('📚 Historial ampliado · Etapa 7')
+            st.caption('Opcional: consulta una temporada anterior de la misma competición. '
+                       'Solo se añaden partidos finalizados; las temporadas se mantienen identificadas.')
+            ampliar = st.checkbox('Incluir temporada anterior en el comparador', key='soc_ampliar_v7')
+            datos_comparador = [dict(x, _soc_temporada=temporada) for x in saved[2]]
+            if ampliar:
+                anterior = temporada - 1
+                st.caption(f'Temporada adicional solicitada: {anterior}. Puede estar restringida por el plan gratuito.')
+                if st.button(f'📚 Cargar temporada {anterior}', key='soc_prev_v7'):
+                    try:
+                        respuesta = _consulta(f'/competitions/{codigo}/matches', token, anterior)
+                        anteriores = respuesta.get('matches', [])
+                        if not isinstance(anteriores, list):
+                            raise ValueError('La respuesta no contiene una lista de partidos.')
+                        st.session_state['soc_historico_v7'] = (codigo, anterior, anteriores)
+                        st.success(f'Temporada {anterior}: {len(anteriores)} partidos recibidos.')
+                    except ValueError as exc:
+                        st.warning(f'No se pudo cargar la temporada {anterior}: {exc}')
+                previos = st.session_state.get('soc_historico_v7')
+                if previos and previos[:2] == (codigo, anterior):
+                    finalizados_previos = _terminados(previos[2])
+                    st.caption(f'Temporada {anterior}: {len(finalizados_previos)} partidos finalizados válidos.')
+                    ids = {x.get('id') for x in datos_comparador if x.get('id') is not None}
+                    for partido in finalizados_previos:
+                        if partido.get('id') not in ids:
+                            datos_comparador.append(dict(partido, _soc_temporada=anterior))
+                            ids.add(partido.get('id'))
+                else:
+                    st.info('Aún no se ha cargado la temporada anterior. Puedes seguir con los datos actuales.')
+            cuenta = {}
+            for partido in _terminados(datos_comparador):
+                t = partido.get('_soc_temporada', 'N/D')
+                cuenta[t] = cuenta.get(t, 0) + 1
+            st.caption('Partidos finalizados válidos por temporada: ' +
+                       ', '.join(f'{t}: {n}' for t, n in sorted(cuenta.items())) if cuenta
+                       else 'Todavía no hay partidos finalizados válidos.')
+            _comparador_equipos(datos_comparador, temporada)
         else:
             st.info('La API no devolvió partidos para la competición y temporada elegidas.')
     if st.button('👥 Cargar equipos', key='soc_teams_v3'):
