@@ -45,14 +45,56 @@ def secret_key():
                 "Revisa el nombre y guarda los Secrets de esta app.")
 
 
+class SoccerAPIError(Exception):
+    """Error seguro de mostrar en pantalla; nunca incluye credenciales."""
+
+
+def mensaje_api(exc):
+    """Diagnóstico sin exponer tokens ni cuerpos de respuesta."""
+    if isinstance(exc, SoccerAPIError):
+        return str(exc)
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "La API tardó demasiado en responder. Intenta más tarde."
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return "No fue posible conectar con API-Football. Comprueba la conexión e intenta más tarde."
+    return f"Error inesperado ({type(exc).__name__}). Revisa los logs privados de Streamlit."
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch(endpoint, params, key):
-    response = requests.get("https://v3.football.api-sports.io/" + endpoint,
-                            headers={"x-apisports-key": key}, params=params, timeout=20)
-    response.raise_for_status()
-    result = response.json()
-    if result.get("errors"):
-        raise RuntimeError(str(result["errors"]))
+    try:
+        response = requests.get(
+            "https://v3.football.api-sports.io/" + endpoint,
+            headers={"x-apisports-key": key}, params=params, timeout=20,
+        )
+    except requests.exceptions.RequestException as exc:
+        raise SoccerAPIError(mensaje_api(exc)) from None
+
+    if response.status_code == 429:
+        raise SoccerAPIError("Demasiadas solicitudes (HTTP 429). Espera antes de volver a consultar.")
+    if response.status_code in (401, 403):
+        raise SoccerAPIError(f"Acceso no autorizado (HTTP {response.status_code}). Revisa la clave y el plan de API-Football.")
+    if response.status_code >= 400:
+        raise SoccerAPIError(f"La API respondió con HTTP {response.status_code}. Revisa el estado del servicio.")
+
+    try:
+        result = response.json()
+    except ValueError:
+        raise SoccerAPIError("La API devolvió una respuesta que no es JSON válido.") from None
+
+    errors = result.get("errors")
+    if errors:
+        # Solo mostramos categorías conocidas. Nunca el texto crudo, que podría contener secretos.
+        detail = str(errors).lower()
+        if any(word in detail for word in ("limit", "quota", "requests", "rate")):
+            msg = "API-Football informa de un límite de solicitudes o cuota. Revisa tu panel de consumo."
+        elif any(word in detail for word in ("plan", "subscription", "access", "free")):
+            msg = "La consulta no está disponible con el plan actual de API-Football."
+        elif any(word in detail for word in ("key", "token", "auth")):
+            msg = "API-Football rechazó la autenticación. Verifica la clave configurada en Streamlit."
+        else:
+            msg = "API-Football devolvió un error de aplicación. Revisa tu panel de API-Football."
+        raise SoccerAPIError(msg)
     return result
 
 
@@ -107,7 +149,7 @@ def mostrar_resumen_inteligente_soccer():
                     st.session_state["soc_leagues"] = leagues
                     st.success(f"Ligas recibidas: {len(leagues)}")
                 except Exception as exc:
-                    st.error(f"No se pudieron consultar las ligas: {type(exc).__name__}")
+                    st.error("No se pudieron consultar las ligas: " + mensaje_api(exc))
 
             leagues = st.session_state.get("soc_leagues", [])
             if leagues:
@@ -131,7 +173,7 @@ def mostrar_resumen_inteligente_soccer():
                             st.session_state["soc_teams_data"] = (league_id, season, teams)
                             st.success(f"Equipos recibidos: {len(teams)}")
                         except Exception as exc:
-                            st.error(f"No se pudieron consultar equipos: {type(exc).__name__}")
+                            st.error("No se pudieron consultar equipos: " + mensaje_api(exc))
                     team_data = st.session_state.get("soc_teams_data")
                     if team_data and team_data[:2] == (league_id, season):
                         teams = team_data[2]
@@ -150,7 +192,7 @@ def mostrar_resumen_inteligente_soccer():
                             st.session_state["soc_fixtures_data"] = (league_id, season, fixtures)
                             st.success(f"Partidos recibidos: {len(fixtures)}")
                         except Exception as exc:
-                            st.error(f"No se pudieron consultar partidos: {type(exc).__name__}")
+                            st.error("No se pudieron consultar partidos: " + mensaje_api(exc))
                     fixture_data = st.session_state.get("soc_fixtures_data")
                     if fixture_data and fixture_data[:2] == (league_id, season):
                         fixtures = fixture_data[2]
