@@ -22,10 +22,29 @@ def validation(values):
     errors = [mean(values[:i]) - values[i] for i in range(3, len(values))]
     return {"N": len(errors), "MAE": round(mean(map(abs, errors)), 2), "Sesgo": round(mean(errors), 2)} if errors else {"N": 0, "MAE": "N/D", "Sesgo": "N/D"}
 def secret_key():
+    """Obtiene la clave sin mostrarla; devuelve (clave, diagnóstico seguro)."""
     try:
-        return st.secrets.get("API_FOOTBALL_KEY", os.getenv("API_FOOTBALL_KEY", ""))
-    except Exception:
-        return os.getenv("API_FOOTBALL_KEY", "")
+        value = st.secrets.get("API_FOOTBALL_KEY")
+    except Exception as exc:
+        # Nunca mostrar el texto de la excepción: podría contener datos privados.
+        env_value = os.environ.get("API_FOOTBALL_KEY", "").strip()
+        if env_value:
+            return env_value, "Clave encontrada en variable de entorno."
+        return "", ("No se pudieron leer los Secrets de esta aplicación "
+                    f"({type(exc).__name__}). Comprueba Settings → Secrets.")
+
+    if isinstance(value, str) and value.strip():
+        return value.strip(), "Clave encontrada en Secrets de esta aplicación."
+    if value is not None and not isinstance(value, str):
+        return "", "API_FOOTBALL_KEY existe, pero debe ser texto entre comillas."
+
+    env_value = os.environ.get("API_FOOTBALL_KEY", "").strip()
+    if env_value:
+        return env_value, "Clave encontrada en variable de entorno."
+    return "", ("API_FOOTBALL_KEY no está disponible para esta aplicación. "
+                "Revisa el nombre y guarda los Secrets de esta app.")
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch(endpoint, params, key):
     response = requests.get("https://v3.football.api-sports.io/" + endpoint,
@@ -73,10 +92,12 @@ def mostrar_resumen_inteligente_soccer():
                            "Goles promedio": round(mean(choices[s][2]["goles"]), 2)} for s in selected],
                          hide_index=True, use_container_width=True)
     else:
-        key = secret_key()
+        key, diagnostico = secret_key()
         if not key:
-            st.info("Configura API_FOOTBALL_KEY en los Secrets de Streamlit. No publiques la clave en GitHub.")
+            st.warning(diagnostico)
+            st.caption("Comprueba que editaste los Secrets de ESTA aplicación y reiníciala. Nunca compartas la clave.")
         else:
+            st.success("Configuración detectada. " + diagnostico)
             st.warning("Los datos disponibles dependen del plan. Consultas manuales y caché de 1 hora.")
             if st.button("Consultar ligas disponibles"):
                 try:
