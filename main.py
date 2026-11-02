@@ -12,6 +12,7 @@ import streamlit as st
 from centro_estadistico_nfl import mostrar_centro_estadistico_nfl
 from comparador_jugadores_nfl import mostrar_comparador
 from centro_estadistico_nba import mostrar_centro_estadistico_nba
+from resumen_inteligente_soccer import mostrar_resumen_inteligente_soccer
 
 # Configuración global de la página
 st.set_page_config(
@@ -129,34 +130,7 @@ elif modulo_seleccionado == "🏒 Módulo Pro NHL (Hockey)":
 # 4. MÓDULO FÚTBOL
 # ---------------------------------------------------------
 elif modulo_seleccionado == "⚽ Módulo Pro Fútbol (Soccer)":
-  st.title(f"⚽ **Módulo Pro Fútbol Élite [{fecha_hoy}]**")
-  st.markdown("---")
-  st.info("Simulador de Poisson Bivariado para 1X2, Goles Totales y Ambos Anotan.")
-  
-  col_s1, col_s2 = st.columns(2)
-  with col_s1:
-    el = st.text_input("Local (Fútbol):", value="Real Madrid")
-    xg_l = st.number_input("xG Local:", value=2.15, step=0.05)
-  with col_s2:
-    ev = st.text_input("Visita (Fútbol):", value="Barcelona")
-    xg_v = st.number_input("xG Visita:", value=1.45, step=0.05)
-
-  if st.button("🚀 Ejecutar Análisis de Fútbol", use_container_width=True):
-    max_g = 6
-    p_l = [poisson.pmf(i, xg_l) for i in range(max_g + 1)]
-    p_v = [poisson.pmf(j, xg_v) for j in range(max_g + 1)]
-    matriz = np.outer(p_l, p_v)
-    matriz /= matriz.sum()
-    
-    p_local = float(np.sum(np.tril(matriz, -1))) * 100.0
-    p_empate = float(np.sum(np.diag(matriz))) * 100.0
-    p_visita = float(np.sum(np.triu(matriz, 1))) * 100.0
-    
-    st.success(f"⚽ Resultados analizados para **{ev} @ {el}**")
-    col_r1, col_r2, col_r3 = st.columns(3)
-    col_r1.metric(f"Victoria {el}", f"{p_local:.1f}%")
-    col_r2.metric("Empate", f"{p_empate:.1f}%")
-    col_r3.metric(f"Victoria {ev}", f"{p_visita:.1f}%")
+  mostrar_resumen_inteligente_soccer()
 
 # ---------------------------------------------------------
 # 5. CONTROL DE BANKROLL & APUESTAS
