@@ -1,7 +1,8 @@
-"""Resumen Inteligente Soccer - Etapa 7, fuente football-data.org y CSV.
+"""Resumen Inteligente Soccer - Etapa 8, fuente football-data.org y CSV.
 Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
+import math
 from datetime import datetime, timezone
 from io import BytesIO
 import csv
@@ -246,7 +247,7 @@ def _validacion_cronologica(serie, ventana=5, minimo=3):
 
 
 def _panel_validacion(datos, selecciones, ventana, temporada_actual=None):
-    st.subheader('🧪 Validación histórica · Etapa 7')
+    st.subheader('🧪 Validación histórica · Etapa 8')
     st.caption('Promedio móvil evaluado partido a partido. Para cada fecha se usan '
                'exclusivamente resultados anteriores de la misma competición y condición, '
                'incluso si corresponden a otra temporada. No se hacen consultas adicionales.')
@@ -305,7 +306,7 @@ def _panel_validacion(datos, selecciones, ventana, temporada_actual=None):
             'las temporadas incompletas limitan las conclusiones.')
 
 def _comparador_equipos(datos, temporada_actual=None):
-    st.subheader('⚽ Comparador de equipos · Etapa 7')
+    st.subheader('⚽ Comparador de equipos · Etapa 8')
     st.caption('Datos reales de la competición seleccionada. Si activas el historial ampliado, se incluyen temporadas anteriores identificadas; el comparador no realiza consultas adicionales.')
     equipos = _equipos_desde_partidos(datos)
     if len(equipos) < 2:
@@ -358,8 +359,90 @@ def _comparador_equipos(datos, temporada_actual=None):
                 st.info('No hay partidos finalizados para el filtro seleccionado.')
     _panel_validacion(datos, [(izquierda, equipos[izquierda], condicion_a),
                               (derecha, equipos[derecha], condicion_b)], cantidad, temporada_actual)
+    _panel_probabilidades(datos, izquierda, derecha, equipos[izquierda],
+                           equipos[derecha], condicion_a, condicion_b, cantidad)
     st.info('Comparación histórica descriptiva; no predice resultados futuros. Córners y jugadores requieren fuentes adicionales verificadas.')
 
+
+
+def _probabilidades_poisson(media_local, media_visitante, max_goles=10):
+    """Probabilidades descriptivas de marcador, truncadas y normalizadas."""
+    def pmf(media, k):
+        return math.exp(-media) * media ** k / math.factorial(k)
+    p_local = [pmf(media_local, i) for i in range(max_goles + 1)]
+    p_visita = [pmf(media_visitante, i) for i in range(max_goles + 1)]
+    total = sum(p_local) * sum(p_visita)
+    if total <= 0:
+        return None
+    return {
+        'Local': sum(p_local[i] * p_visita[j] for i in range(max_goles + 1)
+                     for j in range(max_goles + 1) if i > j) / total,
+        'Empate': sum(p_local[i] * p_visita[i] for i in range(max_goles + 1)) / total,
+        'Visitante': sum(p_local[i] * p_visita[j] for i in range(max_goles + 1)
+                         for j in range(max_goles + 1) if i < j) / total,
+    }
+
+
+def _panel_probabilidades(datos, equipo_a, equipo_b, nombre_a, nombre_b,
+                          condicion_a, condicion_b, ventana):
+    """Comparación educativa entre modelo de equipos y referencia de liga."""
+    st.subheader('📐 Probabilidades estadísticas · Etapa 8')
+    st.caption('Distribución de Poisson ilustrativa. No utiliza cuotas, '
+               'mercados ni recomendaciones de apuestas.')
+    finalizados = _terminados(datos)
+    serie_a = _historial_cronologico(datos, equipo_a, condicion_a)
+    serie_b = _historial_cronologico(datos, equipo_b, condicion_b)
+    recientes_a = serie_a[-ventana:]
+    recientes_b = serie_b[-ventana:]
+    if len(recientes_a) < 10 or len(recientes_b) < 10:
+        st.warning('Muestra insuficiente para comparar probabilidades: '
+                   'se requieren al menos 10 partidos por equipo con los filtros elegidos.')
+        return
+    # Se interpreta A como local y B como visitante. No es un fixture real.
+    if condicion_a != 'Local' or condicion_b != 'Visitante':
+        st.info('Para este ejercicio selecciona Local para el equipo A '
+                'y Visitante para el equipo B.')
+        return
+    if len(finalizados) < 30:
+        st.warning('La competición cargada tiene menos de 30 partidos '
+                   'finalizados; no se calcula referencia de liga.')
+        return
+
+    media_a_gf = sum(x['GF'] for x in recientes_a) / len(recientes_a)
+    media_a_gc = sum(x['GC'] for x in recientes_a) / len(recientes_a)
+    media_b_gf = sum(x['GF'] for x in recientes_b) / len(recientes_b)
+    media_b_gc = sum(x['GC'] for x in recientes_b) / len(recientes_b)
+    lambda_a = (media_a_gf + media_b_gc) / 2
+    lambda_b = (media_b_gf + media_a_gc) / 2
+
+    media_liga_local = sum(x['score']['fullTime']['home'] for x in finalizados) / len(finalizados)
+    media_liga_visita = sum(x['score']['fullTime']['away'] for x in finalizados) / len(finalizados)
+    modelo = _probabilidades_poisson(lambda_a, lambda_b)
+    referencia = _probabilidades_poisson(media_liga_local, media_liga_visita)
+    if not modelo or not referencia:
+        st.info('No fue posible calcular las probabilidades con estos datos.')
+        return
+
+    st.caption(f'Escenario ilustrativo: {nombre_a} (local) frente a '
+               f'{nombre_b} (visitante). No representa un partido confirmado.')
+    st.write(f'Goles medios estimados: {nombre_a} **{lambda_a:.2f}** · '
+             f'{nombre_b} **{lambda_b:.2f}**')
+    filas = []
+    for evento in ('Local', 'Empate', 'Visitante'):
+        filas.append({
+            'Resultado': evento,
+            'Modelo equipos': f'{modelo[evento] * 100:.1f}%',
+            'Referencia liga': f'{referencia[evento] * 100:.1f}%',
+            'Diferencia (pp)': f'{(modelo[evento] - referencia[evento]) * 100:+.1f}',
+        })
+    st.dataframe(filas, hide_index=True, use_container_width=True)
+    st.caption('Diferencia (pp), también denominada aquí Edge estadístico: '
+               'probabilidad del modelo menos probabilidad de referencia. '
+               'No es una ventaja económica ni mide rentabilidad.')
+    st.info('Estas probabilidades son estimaciones no calibradas. '
+            'El MAE de goles no valida por sí solo las probabilidades de '
+            'victoria o empate. Las temporadas, cambios de plantilla y '
+            'la independencia supuesta por Poisson limitan el modelo.')
 
 def _archivo_csv():
     st.subheader('📂 Archivo histórico CSV (opcional)')
@@ -395,7 +478,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 7 · Historial ampliado y validación cronológica · Diseño móvil')
+    st.caption('Etapa 8 · Probabilidades estadísticas · Historial y validación · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
@@ -435,7 +518,7 @@ def mostrar_resumen_inteligente_soccer():
             st.caption(f'Se muestran {min(100, len(rows_view))} de {len(rows_view)} partidos. Horario UTC.')
             st.subheader('📊 Estadísticas históricas')
             _resumen(rows)
-            st.subheader('📚 Historial ampliado · Etapa 7')
+            st.subheader('📚 Historial ampliado · Etapa 8')
             st.caption('Opcional: consulta una temporada anterior de la misma competición. '
                        'Solo se añaden partidos finalizados; las temporadas se mantienen identificadas.')
             ampliar = st.checkbox('Incluir temporada anterior en el comparador', key='soc_ampliar_v7')
