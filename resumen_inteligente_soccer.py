@@ -1,4 +1,4 @@
-"""Resumen Inteligente Soccer - Etapa 9, fuente football-data.org y CSV.
+"""Resumen Inteligente Soccer - Etapa 10, fuente football-data.org y CSV.
 Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
@@ -305,6 +305,189 @@ def _panel_validacion(datos, selecciones, ventana, temporada_actual=None):
             'capacidad de anticipar partidos futuros. Las muestras pequeñas y '
             'las temporadas incompletas limitan las conclusiones.')
 
+
+
+# ── Etapa 10: proyecciones descriptivas de goles por períodos ──────────────
+def _soc10_goles_periodos(partido):
+    """Goles reales por equipo y período; nunca infiere un descanso ausente."""
+    if partido.get('status') != 'FINISHED':
+        return None
+    marcador = (partido.get('score') or {})
+    full = marcador.get('fullTime') or {}
+    half = marcador.get('halfTime') or {}
+    if any(type(full.get(k)) is not int for k in ('home', 'away')):
+        return None
+    resultado = {'Final': (full['home'], full['away'])}
+    if all(type(half.get(k)) is int for k in ('home', 'away')):
+        if 0 <= half['home'] <= full['home'] and 0 <= half['away'] <= full['away']:
+            resultado['1T'] = (half['home'], half['away'])
+            resultado['2T'] = (full['home'] - half['home'], full['away'] - half['away'])
+    return resultado
+
+
+def _soc10_promedio(historial, lado, periodo, minimo=3):
+    valores = []
+    for partido in historial:
+        periodos = _soc10_goles_periodos(partido)
+        if periodos and periodo in periodos:
+            valores.append(periodos[periodo][lado])
+    return sum(valores) / len(valores) if len(valores) >= minimo else None, len(valores)
+
+
+def _soc10_historial_lado(partidos, equipo_id, es_local, fecha_limite=None, ventana=10):
+    campo = 'homeTeam' if es_local else 'awayTeam'
+    filtrados = [p for p in _terminados(partidos)
+                 if (p.get(campo) or {}).get('id') == equipo_id
+                 and (fecha_limite is None or (p.get('utcDate') or '') < fecha_limite)]
+    return filtrados[-ventana:]
+
+
+def _soc10_calcular(partidos, local_id, visitante_id, ventana=10, fecha_limite=None):
+    """Ataque/defensa frente a referencia de liga, sin consultar datos futuros."""
+    anteriores = [p for p in _terminados(partidos)
+                  if fecha_limite is None or (p.get('utcDate') or '') < fecha_limite]
+    local = _soc10_historial_lado(anteriores, local_id, True, ventana=ventana)
+    visitante = _soc10_historial_lado(anteriores, visitante_id, False, ventana=ventana)
+    filas = []
+    for periodo in ('1T', '2T', 'Final'):
+        ataque_l, n_al = _soc10_promedio(local, 0, periodo)
+        defensa_l, n_dl = _soc10_promedio(local, 1, periodo)
+        ataque_v, n_av = _soc10_promedio(visitante, 1, periodo)
+        defensa_v, n_dv = _soc10_promedio(visitante, 0, periodo)
+        ref_l, n_rl = _soc10_promedio(anteriores, 0, periodo, minimo=10)
+        ref_v, n_rv = _soc10_promedio(anteriores, 1, periodo, minimo=10)
+        if any(v is None for v in (ataque_l, defensa_l, ataque_v, defensa_v, ref_l, ref_v)):
+            continue
+        est_l = (ataque_l + defensa_v) / 2
+        est_v = (ataque_v + defensa_l) / 2
+        for tipo, estimado, referencia in (
+            ('Local', est_l, ref_l), ('Visitante', est_v, ref_v),
+            ('Combinados', est_l + est_v, ref_l + ref_v)):
+            filas.append({'Período': periodo, 'Métrica': tipo,
+                          'Proyección': estimado, 'Referencia': referencia,
+                          'Edge descriptivo': estimado - referencia,
+                          'Muestra local': min(n_al, n_dl),
+                          'Muestra visitante': min(n_av, n_dv),
+                          'Muestra liga': min(n_rl, n_rv)})
+    return filas
+
+
+def _soc10_validacion(partidos, max_partidos=150, ventana=10):
+    """Backtest temporal: cada pronóstico utiliza solo encuentros previos."""
+    terminados = _terminados(partidos)
+    resultados = []
+    for partido in terminados:
+        fecha = partido.get('utcDate') or ''
+        local_id = (partido.get('homeTeam') or {}).get('id')
+        visitante_id = (partido.get('awayTeam') or {}).get('id')
+        if not fecha or local_id is None or visitante_id is None:
+            continue
+        reales = _soc10_goles_periodos(partido)
+        if not reales:
+            continue
+        estimaciones = _soc10_calcular(terminados, local_id, visitante_id,
+                                       ventana=ventana, fecha_limite=fecha)
+        for fila in estimaciones:
+            periodo, tipo = fila['Período'], fila['Métrica']
+            if periodo not in reales:
+                continue
+            rl, rv = reales[periodo]
+            observado = rl if tipo == 'Local' else rv if tipo == 'Visitante' else rl + rv
+            proyeccion = fila['Proyección']
+            referencia = fila['Referencia']
+            resultados.append({
+                'Fecha UTC': fecha, 'Partido':
+                    f"{(partido.get('homeTeam') or {}).get('shortName') or 'Local'} vs "
+                    f"{(partido.get('awayTeam') or {}).get('shortName') or 'Visitante'}",
+                'ID partido': partido.get('id'), 'Período': periodo,
+                'Métrica': tipo, 'Proyección': proyeccion,
+                'Referencia': referencia, 'Observado': observado,
+                'Edge descriptivo': proyeccion - referencia,
+                'Error firmado': proyeccion - observado,
+                'Error absoluto': abs(proyeccion - observado),
+                'Error referencia': abs(referencia - observado),
+            })
+    ids = list(dict.fromkeys(r['ID partido'] for r in resultados))[-max_partidos:]
+    permitidos = set(ids)
+    return [r for r in resultados if r['ID partido'] in permitidos]
+
+
+def _soc10_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
+    st.subheader('⚽ Proyecciones de goles y Edge · Etapa 10')
+    st.caption('Escenario estadístico ilustrativo: equipo A como local y equipo B como '
+               'visitante. No corresponde necesariamente a un encuentro programado. '
+               'Edge descriptivo = proyección − referencia histórica de liga.')
+    proyecciones = _soc10_calcular(datos, local_id, visitante_id, ventana=ventana)
+    if not proyecciones:
+        st.warning('No hay cobertura suficiente para proyectar goles. Se necesitan '
+                   'al menos 3 partidos de cada equipo en su condición y 10 de liga '
+                   'por período. No se inventan marcadores al descanso.')
+    else:
+        for periodo in ('1T', '2T', 'Final'):
+            filas = [f for f in proyecciones if f['Período'] == periodo]
+            if not filas:
+                st.info(f'{periodo}: datos por mitades insuficientes o no disponibles.')
+                continue
+            with st.expander(f'📊 {periodo} · goles y Edge', expanded=(periodo == 'Final')):
+                tabla = []
+                for f in filas:
+                    etiqueta = nombre_local if f['Métrica'] == 'Local' else (
+                        nombre_visitante if f['Métrica'] == 'Visitante' else 'Ambos equipos')
+                    tabla.append({'Equipo': etiqueta,
+                                  'Proyección': round(f['Proyección'], 2),
+                                  'Referencia': round(f['Referencia'], 2),
+                                  'Edge': round(f['Edge descriptivo'], 2)})
+                st.dataframe(tabla, hide_index=True, use_container_width=True)
+                st.caption(f"Cobertura: {filas[0]['Muestra local']} partidos local, "
+                           f"{filas[0]['Muestra visitante']} visitante y "
+                           f"{filas[0]['Muestra liga']} de liga.")
+        df = pd.DataFrame(proyecciones)
+        st.download_button('📥 Descargar proyecciones de goles CSV',
+                           data=df.to_csv(index=False).encode('utf-8-sig'),
+                           file_name='soccer_proyecciones_goles.csv',
+                           mime='text/csv', key='soc10_export_proy')
+
+    with st.expander('🧪 Validación histórica de goles · sin datos futuros'):
+        st.caption('Cada partido se evalúa exclusivamente con resultados anteriores '
+                   'a su fecha UTC. Los partidos simultáneos no se utilizan como historial. '
+                   'MAE y sesgo se calculan sin redondear las proyecciones.')
+        maximo = st.selectbox('Máximo de partidos históricos', [35, 70, 150],
+                              index=1, key='soc10_n_backtest')
+        if st.button('🔍 Calcular validación histórica', key='soc10_run_backtest'):
+            with st.spinner('Evaluando encuentros cronológicamente...'):
+                st.session_state['soc10_resultado'] = (
+                    len(datos), maximo, ventana, _soc10_validacion(datos, maximo, ventana))
+        guardado = st.session_state.get('soc10_resultado')
+        if not guardado or guardado[:3] != (len(datos), maximo, ventana):
+            st.info('Pulsa Calcular validación histórica para generar la tabla.')
+            return
+        resultados = guardado[3]
+        if not resultados:
+            st.warning('No hay suficientes partidos anteriores para una validación.')
+            return
+        resumen = []
+        for periodo in ('1T', '2T', 'Final'):
+            for tipo in ('Local', 'Visitante', 'Combinados'):
+                muestra = [x for x in resultados if x['Período'] == periodo and x['Métrica'] == tipo]
+                if not muestra:
+                    continue
+                n = len(muestra)
+                resumen.append({'Período': periodo, 'Métrica': tipo, 'Partidos': n,
+                                'MAE': round(sum(x['Error absoluto'] for x in muestra) / n, 3),
+                                'Sesgo': round(sum(x['Error firmado'] for x in muestra) / n, 3),
+                                'MAE referencia': round(sum(x['Error referencia'] for x in muestra) / n, 3)})
+        st.dataframe(resumen, hide_index=True, use_container_width=True)
+        st.caption('Sesgo positivo = sobreestimación. La referencia corresponde al '
+                   'promedio de liga disponible antes de cada partido evaluado.')
+        tabla = pd.DataFrame(resultados)
+        st.download_button('📥 Descargar validación completa CSV',
+                           data=tabla.to_csv(index=False).encode('utf-8-sig'),
+                           file_name='soccer_validacion_goles.csv',
+                           mime='text/csv', key='soc10_export_val')
+        with st.expander('📋 Partidos evaluados'):
+            st.dataframe(tabla.round(3), hide_index=True, use_container_width=True)
+
+
 def _comparador_equipos(datos, temporada_actual=None):
     st.subheader('⚽ Comparador de equipos · Etapa 9')
     st.caption('Datos reales de la competición seleccionada. Si activas el historial ampliado, se incluyen temporadas anteriores identificadas; el comparador no realiza consultas adicionales.')
@@ -359,6 +542,8 @@ def _comparador_equipos(datos, temporada_actual=None):
                 st.info('No hay partidos finalizados para el filtro seleccionado.')
     _panel_validacion(datos, [(izquierda, equipos[izquierda], condicion_a),
                               (derecha, equipos[derecha], condicion_b)], cantidad, temporada_actual)
+    _soc10_panel(datos, izquierda, derecha, equipos[izquierda],
+                 equipos[derecha], cantidad)
     _panel_probabilidades(datos, izquierda, derecha, equipos[izquierda],
                            equipos[derecha], condicion_a, condicion_b, cantidad)
     _panel_validacion_probabilidades(datos)
@@ -576,7 +761,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 9 · Probabilidades estadísticas · Historial y validación · Diseño móvil')
+    st.caption('Etapa 10 · Goles y Edge descriptivo · Validación histórica · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
