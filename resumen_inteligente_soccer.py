@@ -1,4 +1,4 @@
-"""Resumen Inteligente Soccer - Etapa 10, fuente football-data.org y CSV.
+"""Resumen Inteligente Soccer - Etapa 11, fuente football-data.org y CSV.
 Independiente de NFL, NBA y main.py. Requiere streamlit y requests.
 """
 import os
@@ -477,6 +477,39 @@ def _soc10_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
                                 'Sesgo': round(sum(x['Error firmado'] for x in muestra) / n, 3),
                                 'MAE referencia': round(sum(x['Error referencia'] for x in muestra) / n, 3)})
         st.dataframe(resumen, hide_index=True, use_container_width=True)
+        st.markdown('**📊 Comparación inteligente · modelo frente a referencia**')
+        st.caption('Ambos MAE se calculan sobre los mismos partidos y período. '
+                   'Diferencia = MAE referencia − MAE modelo; positiva favorece al modelo.')
+        for periodo in ('1T', '2T', 'Final'):
+            periodo_filas = [f for f in resumen if f['Período'] == periodo]
+            if not periodo_filas:
+                continue
+            titulo_periodo = {'1T': 'Primera mitad', '2T': 'Segunda mitad',
+                              'Final': 'Partido completo'}[periodo]
+            with st.container(border=True):
+                st.markdown(f'**{titulo_periodo}**')
+                for fila in periodo_filas:
+                    muestra = [x for x in resultados if x['Período'] == periodo
+                               and x['Métrica'] == fila['Métrica']]
+                    n = len(muestra)
+                    if not n:
+                        continue
+                    mae_m = sum(x['Error absoluto'] for x in muestra) / n
+                    mae_r = sum(x['Error referencia'] for x in muestra) / n
+                    diferencia = mae_r - mae_m
+                    st.markdown(f"**{fila['Métrica']} · {n} partidos**")
+                    a, b = st.columns(2)
+                    a.metric('MAE modelo', f'{mae_m:.3f}')
+                    b.metric('MAE referencia', f'{mae_r:.3f}')
+                    if abs(diferencia) < 0.0005:
+                        mensaje = 'Errores prácticamente iguales.'
+                    elif diferencia > 0:
+                        mensaje = f'Menor error del modelo por {diferencia:.3f} goles.'
+                    else:
+                        mensaje = f'Menor error de la referencia por {-diferencia:.3f} goles.'
+                    st.caption(mensaje)
+        st.info('La comparación es retrospectiva. Diferencias pequeñas no demuestran '
+                'superioridad futura; conviene acumular más encuentros y repetir la evaluación.')
         st.caption('Sesgo positivo = sobreestimación. La referencia corresponde al '
                    'promedio de liga disponible antes de cada partido evaluado.')
         tabla = pd.DataFrame(resultados)
@@ -761,7 +794,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 10 · Goles y Edge descriptivo · Validación histórica · Diseño móvil')
+    st.caption('Etapa 11 · Goles y Edge · Comparación histórica de precisión · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
