@@ -315,6 +315,19 @@ def _panel_registro_manual():
                 st.success('Proyección registrada. Descarga ahora el CSV de respaldo.')
             except Exception as exc:
                 st.error(str(exc))
+        st.markdown('**Carga asistida de varias proyecciones**')
+        st.caption('Copia las estimaciones mostradas por NFL 1.9.4 a una plantilla CSV. La fecha de registro se asigna al importar, nunca se toma de la plantilla.')
+        plantilla = pd.DataFrame(columns=['partido_id','entidad_tipo','entidad_id','periodo','metrica','proyeccion','inicio_partido'])
+        _descargar('plantilla_captura_lote_nfl.csv', plantilla, 'Descargar plantilla de captura por lote')
+        archivo_lote = st.file_uploader('CSV con proyecciones por registrar', type=['csv'], key='nfl_lote_v42')
+        if archivo_lote is not None:
+            if st.button('Registrar lote ahora', key='nfl_registrar_lote_v42', use_container_width=True):
+                try:
+                    lote = pd.read_csv(archivo_lote, dtype={'partido_id':'string','entidad_tipo':'string','entidad_id':'string','periodo':'string','metrica':'string','inicio_partido':'string'})
+                    st.session_state[key] = _registrar_lote(st.session_state[key], lote)
+                    st.success(f'Lote registrado: {len(lote)} filas. Descarga el respaldo CSV ahora.')
+                except Exception as exc:
+                    st.error(f'No se registró ninguna fila del lote: {exc}')
         registros = st.session_state[key]
         st.metric('Proyecciones en esta sesión', len(registros))
         if registros:
@@ -322,3 +335,36 @@ def _panel_registro_manual():
             st.dataframe(tabla, use_container_width=True, hide_index=True)
             _descargar('nfl_proyecciones_registradas.csv', tabla, 'Descargar respaldo CSV de proyecciones')
             st.caption('El archivo descargado puede cargarse en la sección de validación histórica junto con los resultados reales.')
+
+
+def _registrar_lote(registros, lote, ahora=None):
+    """Transacción completa: si una fila falla, no se guarda ninguna."""
+    columnas = ['partido_id','entidad_tipo','entidad_id','periodo','metrica','proyeccion','inicio_partido']
+    faltantes = [c for c in columnas if c not in lote.columns]
+    if faltantes:
+        raise ValueError('Faltan columnas: ' + ', '.join(faltantes))
+    if lote.empty:
+        raise ValueError('El CSV no contiene proyecciones.')
+    if len(lote) > 200:
+        raise ValueError('Máximo 200 proyecciones por lote.')
+    ahora = ahora if ahora is not None else datetime.now(timezone.utc)
+    nuevos = list(registros)
+    for numero, (_, fila) in enumerate(lote.iterrows(), 1):
+        try:
+            for c in ['partido_id','entidad_tipo','entidad_id','periodo','metrica','inicio_partido']:
+                if pd.isna(fila[c]) or not str(fila[c]).strip():
+                    raise ValueError(f'{c} está vacío')
+            if str(fila['entidad_tipo']).strip() not in ('equipo','jugador','partido'):
+                raise ValueError('entidad_tipo debe ser equipo, jugador o partido')
+            if str(fila['periodo']).strip() not in ('FINAL','Q1','Q2','Q3','Q4','H1','H2'):
+                raise ValueError('período no reconocido')
+            valor = pd.to_numeric(fila['proyeccion'], errors='coerce')
+            if not pd.notna(valor) or not __import__('math').isfinite(float(valor)):
+                raise ValueError('proyección no numérica o infinita')
+            nuevos = _registrar_proyeccion_manual(
+                nuevos, str(fila['partido_id']).strip(), str(fila['entidad_tipo']).strip(),
+                str(fila['entidad_id']).strip(), str(fila['periodo']).strip(),
+                str(fila['metrica']).strip(), float(valor), str(fila['inicio_partido']).strip(), ahora=ahora)
+        except Exception as exc:
+            raise ValueError(f'Fila {numero}: {exc}') from exc
+    return nuevos
