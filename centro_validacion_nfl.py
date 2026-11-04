@@ -1,5 +1,6 @@
 """Centro de validación NFL v2: diagnóstico descriptivo, sin modificar modelos."""
 import pandas as pd
+from datetime import datetime, timezone
 import streamlit as st
 
 
@@ -144,6 +145,7 @@ def mostrar_centro_validacion_nfl():
             df = resultado.to_pandas() if hasattr(resultado, 'to_pandas') else pd.DataFrame(resultado)
         except Exception as exc:
             st.error(f'No fue posible consultar NFLverse: {exc}')
+    _panel_registro_manual()
     _panel_validacion_proyecciones()
     if df is None:
         st.caption('El diagnóstico se ejecutará al cargar un CSV o consultar NFLverse.')
@@ -260,3 +262,63 @@ def _panel_validacion_proyecciones():
         st.dataframe(resumen, use_container_width=True, hide_index=True)
         _descargar('validacion_nfl_errores_detalle.csv', comparacion, 'Descargar errores por registro CSV')
         _descargar('validacion_nfl_mae_sesgo.csv', resumen, 'Descargar MAE y sesgo CSV')
+
+
+_COLUMNAS_REGISTRO = ['partido_id','entidad_tipo','entidad_id','periodo','metrica','proyeccion','fecha_prediccion','inicio_partido']
+
+
+def _registrar_proyeccion_manual(registros, partido_id, entidad_tipo, entidad_id, periodo,
+                                 metrica, proyeccion, inicio_partido, ahora=None):
+    """Registro de sesión: la marca de tiempo la crea el servidor, nunca el usuario."""
+    ahora = ahora or datetime.now(timezone.utc)
+    ahora = pd.Timestamp(ahora)
+    if ahora.tzinfo is None:
+        raise ValueError('La hora del servidor debe incluir zona horaria.')
+    inicio = pd.to_datetime(inicio_partido, utc=True, errors='coerce')
+    if pd.isna(inicio):
+        raise ValueError('Introduce una fecha ISO 8601 válida con zona horaria.')
+    if ahora >= inicio:
+        raise ValueError('No se pueden registrar proyecciones cuando el partido ya comenzó.')
+    campos = [partido_id, entidad_tipo, entidad_id, periodo, metrica]
+    if any(not str(x).strip() for x in campos):
+        raise ValueError('Completa todos los campos de identificación.')
+    if not pd.notna(proyeccion):
+        raise ValueError('La proyección debe ser un número válido.')
+    clave = tuple(str(x).strip() for x in campos)
+    for r in registros:
+        if tuple(str(r[k]).strip() for k in _COLUMNAS_REGISTRO[:5]) == clave:
+            raise ValueError('Ya existe una proyección para esta combinación. No se sobrescribe el registro original.')
+    fila = dict(zip(_COLUMNAS_REGISTRO, [*clave, float(proyeccion), ahora.isoformat(), inicio.isoformat()]))
+    return [*registros, fila]
+
+
+def _panel_registro_manual():
+    with st.expander('📝 Registro manual de proyecciones NFL', expanded=False):
+        st.caption('Registra una estimación antes del partido. La hora de captura la asigna el servidor (UTC).')
+        st.warning('Los registros se conservan solo durante esta sesión. Descarga el CSV después de cada captura: un reinicio puede borrar el historial. Un CSV descargado no constituye por sí solo una prueba inalterable de la fecha de creación.')
+        key = 'nfl_registro_manual_v41'
+        if key not in st.session_state:
+            st.session_state[key] = []
+        with st.form('nfl_form_registro_v41', clear_on_submit=False):
+            partido = st.text_input('ID del partido (identificador estable)', placeholder='2026_09_PIT_CLE')
+            tipo = st.selectbox('Tipo de entidad', ['equipo', 'jugador', 'partido'])
+            entidad = st.text_input('ID de equipo o jugador', placeholder='PIT o ID de jugador')
+            periodo = st.selectbox('Período', ['FINAL', 'Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2'])
+            metrica = st.text_input('Métrica y unidad', placeholder='puntos o yardas_recepcion')
+            valor = st.number_input('Valor proyectado', value=0.0, step=0.1, format='%.2f')
+            inicio = st.text_input('Inicio del partido (ISO 8601 con zona horaria)', placeholder='2026-11-08T13:00:00-06:00')
+            guardar = st.form_submit_button('Guardar proyección en esta sesión', use_container_width=True)
+        if guardar:
+            try:
+                st.session_state[key] = _registrar_proyeccion_manual(
+                    st.session_state[key], partido, tipo, entidad, periodo, metrica, valor, inicio)
+                st.success('Proyección registrada. Descarga ahora el CSV de respaldo.')
+            except Exception as exc:
+                st.error(str(exc))
+        registros = st.session_state[key]
+        st.metric('Proyecciones en esta sesión', len(registros))
+        if registros:
+            tabla = pd.DataFrame(registros, columns=_COLUMNAS_REGISTRO)
+            st.dataframe(tabla, use_container_width=True, hide_index=True)
+            _descargar('nfl_proyecciones_registradas.csv', tabla, 'Descargar respaldo CSV de proyecciones')
+            st.caption('El archivo descargado puede cargarse en la sección de validación histórica junto con los resultados reales.')
