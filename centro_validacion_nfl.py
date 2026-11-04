@@ -1,6 +1,7 @@
 """Centro de validación NFL v2: diagnóstico descriptivo, sin modificar modelos."""
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, time
+from zoneinfo import ZoneInfo
 import streamlit as st
 
 
@@ -292,29 +293,114 @@ def _registrar_proyeccion_manual(registros, partido_id, entidad_tipo, entidad_id
     return [*registros, fila]
 
 
+# Selector simplificado. No inventa encuentros: el usuario elige los equipos y la fecha.
+_EQUIPOS_NFL = {
+    'Arizona Cardinals':'ARI', 'Atlanta Falcons':'ATL', 'Baltimore Ravens':'BAL',
+    'Buffalo Bills':'BUF', 'Carolina Panthers':'CAR', 'Chicago Bears':'CHI',
+    'Cincinnati Bengals':'CIN', 'Cleveland Browns':'CLE', 'Dallas Cowboys':'DAL',
+    'Denver Broncos':'DEN', 'Detroit Lions':'DET', 'Green Bay Packers':'GB',
+    'Houston Texans':'HOU', 'Indianapolis Colts':'IND', 'Jacksonville Jaguars':'JAX',
+    'Kansas City Chiefs':'KC', 'Las Vegas Raiders':'LV', 'Los Angeles Chargers':'LAC',
+    'Los Angeles Rams':'LA', 'Miami Dolphins':'MIA', 'Minnesota Vikings':'MIN',
+    'New England Patriots':'NE', 'New Orleans Saints':'NO', 'New York Giants':'NYG',
+    'New York Jets':'NYJ', 'Philadelphia Eagles':'PHI', 'Pittsburgh Steelers':'PIT',
+    'San Francisco 49ers':'SF', 'Seattle Seahawks':'SEA', 'Tampa Bay Buccaneers':'TB',
+    'Tennessee Titans':'TEN', 'Washington Commanders':'WAS',
+}
+
+
+def _crear_registro_facil(registros, local, visitante, fecha, hora, zona,
+                         objetivo, equipo, jugador_id, metrica, periodo, valor, ahora=None):
+    """Construye campos técnicos sin consultar ni suponer el calendario oficial."""
+    if local == visitante:
+        raise ValueError('Selecciona dos equipos distintos.')
+    if zona not in ('America/Mexico_City', 'America/Mazatlan', 'America/New_York'):
+        raise ValueError('Zona horaria no reconocida.')
+    if not isinstance(fecha, date) or not isinstance(hora, time):
+        raise ValueError('Fecha u hora no válidas.')
+    inicio = datetime.combine(fecha, hora, tzinfo=ZoneInfo(zona))
+    partido_id = f'{fecha:%Y%m%d}_{_EQUIPOS_NFL[visitante]}_{_EQUIPOS_NFL[local]}'
+    if objetivo == 'Puntos combinados':
+        tipo, ident, medida = 'partido', partido_id, 'puntos'
+    elif objetivo == 'Jugador':
+        tipo, ident, medida = 'jugador', jugador_id.strip(), metrica
+        if not ident:
+            raise ValueError('Introduce el ID estable del jugador; no basta con su nombre.')
+    else:
+        tipo, ident, medida = 'equipo', _EQUIPOS_NFL[equipo], 'puntos'
+    return _registrar_proyeccion_manual(registros, partido_id, tipo, ident,
+                                       periodo, medida, valor, inicio.isoformat(), ahora=ahora)
+
+
+def _panel_registro_facil(key):
+    st.markdown('### Registro sencillo · 4 pasos')
+    st.caption('Selecciona un encuentro y copia el valor proyectado de NFL 1.9.4. '
+               'La fecha y hora del encuentro se introducen manualmente; no son un calendario oficial.')
+    nombres = list(_EQUIPOS_NFL)
+    with st.form('nfl_registro_facil_v43'):
+        st.markdown('**1. Equipos del partido**')
+        local = st.selectbox('Equipo local', nombres, index=nombres.index('Pittsburgh Steelers'))
+        visitante = st.selectbox('Equipo visitante', nombres, index=nombres.index('Cleveland Browns'))
+        st.markdown('**2. Inicio del encuentro**')
+        fecha = st.date_input('Fecha del partido', value=date.today(), format='DD/MM/YYYY')
+        hora = st.time_input('Hora local de inicio', value=time(13, 0), step=1800)
+        zona_label = st.selectbox('Zona horaria', ['Sinaloa (Mazatlán)', 'Centro de México', 'Este de EE. UU.'])
+        zona = {'Sinaloa (Mazatlán)':'America/Mazatlan',
+                'Centro de México':'America/Mexico_City',
+                'Este de EE. UU.':'America/New_York'}[zona_label]
+        st.markdown('**3. Estadística a registrar**')
+        objetivo = st.selectbox('¿Qué quieres registrar?', ['Puntos de un equipo', 'Puntos combinados', 'Jugador'])
+        equipo = local
+        jugador_id = ''
+        metrica = 'puntos'
+        if objetivo == 'Puntos de un equipo':
+            equipo = st.selectbox('¿De cuál equipo?', [local, visitante])
+        elif objetivo == 'Jugador':
+            st.caption('Para evitar confundir jugadores con el mismo nombre, usa su ID estable.')
+            jugador_id = st.text_input('ID del jugador', placeholder='ID del historial NFL')
+            metrica = st.selectbox('Estadística del jugador', ['yardas_pase', 'yardas_carrera', 'yardas_recepcion', 'recepciones', 'touchdowns'])
+        periodo_nombre = st.selectbox('Período', ['Partido completo', '1.er cuarto', '2.º cuarto', '3.er cuarto', '4.º cuarto', '1.ª mitad', '2.ª mitad'])
+        periodo = {'Partido completo':'FINAL', '1.er cuarto':'Q1', '2.º cuarto':'Q2',
+                   '3.er cuarto':'Q3', '4.º cuarto':'Q4', '1.ª mitad':'H1', '2.ª mitad':'H2'}[periodo_nombre]
+        st.markdown('**4. Valor proyectado**')
+        valor = st.number_input('Proyección', min_value=0.0, value=0.0, step=0.5, format='%.2f')
+        guardar = st.form_submit_button('Guardar proyección', use_container_width=True)
+    if guardar:
+        try:
+            st.session_state[key] = _crear_registro_facil(
+                st.session_state[key], local, visitante, fecha, hora, zona,
+                objetivo, equipo, jugador_id, metrica, periodo, valor)
+            st.success('Proyección registrada. Descarga el respaldo CSV antes de cerrar la sesión.')
+        except Exception as exc:
+            st.error(str(exc))
+    st.caption('El formulario no obtiene automáticamente proyecciones ni horarios de NFLverse.')
+
+
 def _panel_registro_manual():
-    with st.expander('📝 Registro manual de proyecciones NFL', expanded=False):
+    with st.expander('📝 Registro inteligente NFL · sencillo', expanded=True):
         st.caption('Registra una estimación antes del partido. La hora de captura la asigna el servidor (UTC).')
         st.warning('Los registros se conservan solo durante esta sesión. Descarga el CSV después de cada captura: un reinicio puede borrar el historial. Un CSV descargado no constituye por sí solo una prueba inalterable de la fecha de creación.')
         key = 'nfl_registro_manual_v41'
         if key not in st.session_state:
             st.session_state[key] = []
-        with st.form('nfl_form_registro_v41', clear_on_submit=False):
-            partido = st.text_input('ID del partido (identificador estable)', placeholder='2026_09_PIT_CLE')
-            tipo = st.selectbox('Tipo de entidad', ['equipo', 'jugador', 'partido'])
-            entidad = st.text_input('ID de equipo o jugador', placeholder='PIT o ID de jugador')
-            periodo = st.selectbox('Período', ['FINAL', 'Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2'])
-            metrica = st.text_input('Métrica y unidad', placeholder='puntos o yardas_recepcion')
-            valor = st.number_input('Valor proyectado', value=0.0, step=0.1, format='%.2f')
-            inicio = st.text_input('Inicio del partido (ISO 8601 con zona horaria)', placeholder='2026-11-08T13:00:00-06:00')
-            guardar = st.form_submit_button('Guardar proyección en esta sesión', use_container_width=True)
-        if guardar:
-            try:
-                st.session_state[key] = _registrar_proyeccion_manual(
-                    st.session_state[key], partido, tipo, entidad, periodo, metrica, valor, inicio)
-                st.success('Proyección registrada. Descarga ahora el CSV de respaldo.')
-            except Exception as exc:
-                st.error(str(exc))
+        _panel_registro_facil(key)
+        with st.expander("Opciones avanzadas · formulario técnico anterior", expanded=False):
+            with st.form('nfl_form_registro_v41', clear_on_submit=False):
+                partido = st.text_input('ID del partido (identificador estable)', placeholder='2026_09_PIT_CLE')
+                tipo = st.selectbox('Tipo de entidad', ['equipo', 'jugador', 'partido'])
+                entidad = st.text_input('ID de equipo o jugador', placeholder='PIT o ID de jugador')
+                periodo = st.selectbox('Período', ['FINAL', 'Q1', 'Q2', 'Q3', 'Q4', 'H1', 'H2'])
+                metrica = st.text_input('Métrica y unidad', placeholder='puntos o yardas_recepcion')
+                valor = st.number_input('Valor proyectado', value=0.0, step=0.1, format='%.2f')
+                inicio = st.text_input('Inicio del partido (ISO 8601 con zona horaria)', placeholder='2026-11-08T13:00:00-06:00')
+                guardar = st.form_submit_button('Guardar proyección en esta sesión', use_container_width=True)
+            if guardar:
+                try:
+                    st.session_state[key] = _registrar_proyeccion_manual(
+                        st.session_state[key], partido, tipo, entidad, periodo, metrica, valor, inicio)
+                    st.success('Proyección registrada. Descarga ahora el CSV de respaldo.')
+                except Exception as exc:
+                    st.error(str(exc))
         st.markdown('**Carga asistida de varias proyecciones**')
         st.caption('Copia las estimaciones mostradas por NFL 1.9.4 a una plantilla CSV. La fecha de registro se asigna al importar, nunca se toma de la plantilla.')
         plantilla = pd.DataFrame(columns=['partido_id','entidad_tipo','entidad_id','periodo','metrica','proyeccion','inicio_partido'])
