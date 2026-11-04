@@ -79,6 +79,50 @@ def _descargar(nombre, tabla, etiqueta):
     st.download_button(etiqueta, tabla.to_csv(index=False).encode('utf-8-sig'), nombre, 'text/csv', use_container_width=True)
 
 
+
+def _crear_historial_limpio(df):
+    """Devuelve historial, catálogo y filas excluidas; no altera el DataFrame original.
+
+    Los duplicados de ID/semana se ponen en cuarentena, sin sumarlos.
+    """
+    id_col = _columna(df, ('player_id', 'gsis_id', 'ID'))
+    week_col = _columna(df, ('week', 'Semana'))
+    team_col = _columna(df, ('recent_team', 'team', 'posteam', 'Equipo'))
+    name_col = _columna(df, ('player_display_name', 'player_name', 'player', 'Jugador'))
+    position_col = _columna(df, ('position', 'position_group', 'Posición'))
+    if not all((id_col, week_col, team_col)):
+        raise ValueError('Se requieren identificador, semana y equipo.')
+    data = df.copy().reset_index(drop=True)
+    data['fila_origen'] = data.index + 2
+    data['Semana'] = pd.to_numeric(data[week_col], errors='coerce')
+    valido = ~(_vacio(data[id_col]) | data['Semana'].isna() | _vacio(data[team_col]))
+    base = data.loc[valido].copy()
+    base['ID_jugador'] = base[id_col].astype('string').str.strip()
+    base['Equipo_semana'] = base[team_col].astype('string').str.strip()
+    base['Jugador'] = base[name_col].astype('string') if name_col else base['ID_jugador']
+    base['Posicion'] = base[position_col].astype('string') if position_col else 'Sin posición'
+    # No se atribuyen estadísticas duplicadas a una semana: se separan para inspección.
+    repetido = base.duplicated(['ID_jugador', 'Semana'], keep=False)
+    excluidos = pd.concat([
+        data.loc[~valido].assign(motivo_exclusion='Identificador, semana o equipo inválido'),
+        base.loc[repetido].assign(motivo_exclusion='ID y semana duplicados'),
+    ], ignore_index=True)
+    historial = base.loc[~repetido].copy()
+    if historial.empty:
+        historial['Equipo_actual'] = pd.Series(dtype='string')
+        catalogo = pd.DataFrame(columns=['ID_jugador','Jugador','Posicion','Equipo_actual','Ultima_semana'])
+        return historial, catalogo, excluidos
+    # Si la última semana es ambigua, el jugador no debe recibir equipo actual arbitrario.
+    ultimas = base.groupby('ID_jugador')['Semana'].transform('max').eq(base['Semana'])
+    ultimo_equipo = base.loc[ultimas].groupby('ID_jugador')['Equipo_semana'].nunique()
+    ids_ambiguos = set(ultimo_equipo[ultimo_equipo > 1].index)
+    historial = historial.sort_values(['ID_jugador', 'Semana', 'fila_origen'])
+    catalogo = historial.drop_duplicates('ID_jugador', keep='last')[['ID_jugador','Jugador','Posicion','Equipo_semana','Semana']].copy()
+    catalogo = catalogo.rename(columns={'Equipo_semana':'Equipo_actual','Semana':'Ultima_semana'})
+    catalogo.loc[catalogo['ID_jugador'].isin(ids_ambiguos), 'Equipo_actual'] = pd.NA
+    historial = historial.merge(catalogo[['ID_jugador','Equipo_actual']], on='ID_jugador', how='left', validate='many_to_one')
+    return historial, catalogo, excluidos
+
 def mostrar_centro_validacion_nfl():
     st.title('🛡️ Centro de Validación NFL')
     st.caption('Diagnóstico independiente: no modifica las proyecciones ni los archivos estables.')
@@ -132,4 +176,16 @@ def mostrar_centro_validacion_nfl():
         st.dataframe(ambiguos, use_container_width=True, hide_index=True)
     _descargar('validacion_nfl_resumen.csv', pd.DataFrame([resumen]), 'Descargar resumen CSV')
     _descargar('validacion_nfl_ambiguos.csv', ambiguos, 'Descargar casos ambiguos CSV')
+    st.subheader('Historial semanal limpio (experimental)')
+    st.caption('No modifica el motor NFL. Los duplicados se excluyen para revisión, sin sumar sus métricas.')
+    try:
+        historial, catalogo, excluidos = _crear_historial_limpio(df)
+        st.metric('Filas del historial limpio', len(historial))
+        st.metric('Jugadores en catálogo', len(catalogo))
+        st.metric('Filas excluidas', len(excluidos))
+        _descargar('validacion_nfl_historial_limpio.csv', historial, 'Descargar historial limpio CSV')
+        _descargar('validacion_nfl_catalogo.csv', catalogo, 'Descargar catálogo CSV')
+        _descargar('validacion_nfl_excluidos.csv', excluidos, 'Descargar excluidos CSV')
+    except Exception as exc:
+        st.error(f'No se pudo generar el historial experimental: {exc}')
 
