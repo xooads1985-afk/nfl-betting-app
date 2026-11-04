@@ -144,6 +144,7 @@ def mostrar_centro_validacion_nfl():
             df = resultado.to_pandas() if hasattr(resultado, 'to_pandas') else pd.DataFrame(resultado)
         except Exception as exc:
             st.error(f'No fue posible consultar NFLverse: {exc}')
+    _panel_validacion_proyecciones()
     if df is None:
         st.caption('El diagnóstico se ejecutará al cargar un CSV o consultar NFLverse.')
         return
@@ -189,3 +190,73 @@ def mostrar_centro_validacion_nfl():
     except Exception as exc:
         st.error(f'No se pudo generar el historial experimental: {exc}')
 
+# Validación histórica independiente. No calcula ni altera predicciones.
+def _evaluar_proyecciones(pronosticos, resultados):
+    """Une registros por claves explícitas y evalúa MAE/sesgo sin inventar datos."""
+    claves = ['partido_id', 'entidad_tipo', 'entidad_id', 'periodo', 'metrica']
+    obligatorias_pred = claves + ['proyeccion', 'fecha_prediccion', 'inicio_partido']
+    obligatorias_real = claves + ['real']
+    for etiqueta, tabla, requeridas in [('Proyecciones', pronosticos, obligatorias_pred), ('Resultados', resultados, obligatorias_real)]:
+        faltan = [c for c in requeridas if c not in tabla.columns]
+        if faltan:
+            raise ValueError(f'{etiqueta}: faltan columnas: {", ".join(faltan)}')
+    p, r = pronosticos.copy(), resultados.copy()
+    for tabla in (p, r):
+        for c in claves:
+            tabla[c] = tabla[c].astype('string').str.strip()
+            if _vacio(tabla[c]).any():
+                raise ValueError(f'Hay claves vacías en {c}.')
+        if tabla.duplicated(claves).any():
+            raise ValueError('Hay claves duplicadas. Corrige los registros antes de comparar.')
+    p['proyeccion'] = pd.to_numeric(p['proyeccion'], errors='coerce')
+    r['real'] = pd.to_numeric(r['real'], errors='coerce')
+    if p['proyeccion'].isna().any() or r['real'].isna().any():
+        raise ValueError('Hay proyecciones o resultados no numéricos.')
+    for c in ['fecha_prediccion', 'inicio_partido']:
+        p[c] = pd.to_datetime(p[c], utc=True, errors='coerce')
+        if p[c].isna().any():
+            raise ValueError(f'{c} debe contener fechas válidas con zona horaria.')
+    if (p['fecha_prediccion'] >= p['inicio_partido']).any():
+        raise ValueError('Se detectaron predicciones registradas durante o después del inicio del partido.')
+    comparacion = p.merge(r, on=claves, how='inner', validate='one_to_one')
+    comparacion['error'] = comparacion['proyeccion'] - comparacion['real']
+    comparacion['error_absoluto'] = comparacion['error'].abs()
+    resumen = (comparacion.groupby(['entidad_tipo','periodo','metrica'], dropna=False)
+               .agg(casos=('error','size'), MAE=('error_absoluto','mean'), sesgo=('error','mean'))
+               .reset_index())
+    return comparacion, resumen, {'proyecciones': len(p), 'resultados': len(r), 'comparaciones': len(comparacion),
+                                  'proyecciones_sin_resultado': len(p) - len(comparacion),
+                                  'resultados_sin_proyeccion': len(r) - len(comparacion)}
+
+
+def _panel_validacion_proyecciones():
+    with st.expander('📏 Validación histórica de proyecciones (experimental)', expanded=False):
+        st.caption('Carga predicciones guardadas antes del partido y resultados reales. No modifica el motor NFL.')
+        st.info('El MAE mide el error absoluto medio. El sesgo es proyección menos resultado; positivo indica sobreestimación.')
+        plantilla_p = pd.DataFrame(columns=['partido_id','entidad_tipo','entidad_id','periodo','metrica','proyeccion','fecha_prediccion','inicio_partido'])
+        plantilla_r = pd.DataFrame(columns=['partido_id','entidad_tipo','entidad_id','periodo','metrica','real'])
+        _descargar('plantilla_proyecciones_nfl.csv', plantilla_p, 'Descargar plantilla de proyecciones')
+        _descargar('plantilla_resultados_nfl.csv', plantilla_r, 'Descargar plantilla de resultados')
+        st.caption('Usa fechas ISO 8601 con zona horaria, por ejemplo 2026-11-01T15:00:00-06:00. Periodos: Q1, Q2, Q3, Q4, H1, H2 o FINAL. Identifica cada jugador con su ID estable.')
+        archivo_p = st.file_uploader('CSV de proyecciones registradas', type=['csv'], key='nfl_v4_pred')
+        archivo_r = st.file_uploader('CSV de resultados reales', type=['csv'], key='nfl_v4_real')
+        if archivo_p is None or archivo_r is None:
+            st.caption('Necesitamos ambos CSV para calcular errores. El historial de jugadores por sí solo no contiene las predicciones originales.')
+            return
+        try:
+            p = pd.read_csv(archivo_p, dtype={c:'string' for c in ['partido_id','entidad_tipo','entidad_id','periodo','metrica']})
+            r = pd.read_csv(archivo_r, dtype={c:'string' for c in ['partido_id','entidad_tipo','entidad_id','periodo','metrica']})
+            comparacion, resumen, cobertura = _evaluar_proyecciones(p, r)
+        except Exception as exc:
+            st.error(f'No se pudieron validar los CSV: {exc}')
+            return
+        st.metric('Comparaciones válidas', cobertura['comparaciones'])
+        st.metric('Proyecciones sin resultado', cobertura['proyecciones_sin_resultado'])
+        st.metric('Resultados sin proyección', cobertura['resultados_sin_proyeccion'])
+        if comparacion.empty:
+            st.warning('No hay coincidencias exactas entre las claves de ambos archivos.')
+            return
+        st.caption('Compara el MAE por métrica: no mezcles puntos, yardas y recepciones para evaluar precisión.')
+        st.dataframe(resumen, use_container_width=True, hide_index=True)
+        _descargar('validacion_nfl_errores_detalle.csv', comparacion, 'Descargar errores por registro CSV')
+        _descargar('validacion_nfl_mae_sesgo.csv', resumen, 'Descargar MAE y sesgo CSV')
