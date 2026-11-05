@@ -1,12 +1,36 @@
-"""Módulo de Puente y Automatización Universal con Historial y Calificación de Resultados en SQLite."""
+"""Módulo de Puente y Automatización Universal con los 32 equipos de NFL y 30 de NBA, más Historial SQLite."""
 import streamlit as st
 import math
 import sqlite3
 from datetime import datetime
 import pandas as pd
 
+# Listas completas oficiales por liga
+EQUIPOS_POR_DEPORTE = {
+    "🏈 NFL": [
+        "Arizona Cardinals", "Atlanta Falcons", "Baltimore Ravens", "Buffalo Bills", 
+        "Carolina Panthers", "Chicago Bears", "Cincinnati Bengals", "Cleveland Browns", 
+        "Dallas Cowboys", "Denver Broncos", "Detroit Lions", "Green Bay Packers", 
+        "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars", "Kansas City Chiefs", 
+        "Las Vegas Raiders", "Los Angeles Chargers", "Los Angeles Rams", "Miami Dolphins", 
+        "Minnesota Vikings", "New England Patriots", "New Orleans Saints", "New York Giants", 
+        "New York Jets", "Philadelphia Eagles", "Pittsburgh Steelers", "San Francisco 49ers", 
+        "Seattle Seahawks", "Tampa Bay Buccaneers", "Tennessee Titans", "Washington Commanders"
+    ],
+    "🏀 NBA": [
+        "Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets", 
+        "Chicago Bulls", "Cleveland Cavaliers", "Dallas Mavericks", "Denver Nuggets", 
+        "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers", 
+        "Los Angeles Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat", 
+        "Milwaukee Bucks", "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks", 
+        "Oklahoma City Thunder", "Orlando Magic", "Philadelphia 76ers", "Phoenix Suns", 
+        "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs", "Toronto Raptors", 
+        "Utah Jazz", "Washington Wizards"
+    ]
+}
+
 def inicializar_base_datos():
-    """Crea la base de datos y la tabla de historial si no existen con columna de resultado."""
+    """Crea la base de datos y la tabla de historial si no existen."""
     conexion = sqlite3.connect("apuestas_historial.db")
     cursor = conexion.cursor()
     cursor.execute("""
@@ -28,7 +52,7 @@ def inicializar_base_datos():
     conexion.close()
 
 def guardar_en_sqlite(deporte, partido, mercado, prob_modelo, prob_implicita, edge, momio, stake):
-    """Inserta una nueva apuesta registrada en la base de datos con estado Pendiente."""
+    """Inserta una nueva apuesta registrada en la base de datos."""
     inicializar_base_datos()
     conexion = sqlite3.connect("apuestas_historial.db")
     cursor = conexion.cursor()
@@ -54,7 +78,7 @@ def cargar_historial_por_deporte(deporte_filtro):
     return df
 
 def actualizar_estado_apuesta(apuesta_id, nuevo_estado):
-    """Actualiza el estado de una apuesta en la base de datos (Ganada / Perdida / Pendiente)."""
+    """Actualiza el estado de una apuesta en la base de datos."""
     conexion = sqlite3.connect("apuestas_historial.db")
     cursor = conexion.cursor()
     cursor.execute("UPDATE historial SET estado = ? WHERE id = ?", (nuevo_estado, apuesta_id))
@@ -65,12 +89,8 @@ def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte):
     diferencia = proyeccion_modelo - linea_casa  
     if "NFL" in deporte:
         desviacion_std = 13.5
-    elif "NBA" in deporte:
+    else:  # NBA
         desviacion_std = 11.0
-    elif "Fútbol" in deporte:
-        desviacion_std = 1.15  
-    else:
-        desviacion_std = 1.5  
         
     z = diferencia / (desviacion_std * math.sqrt(2))
     probabilidad = 0.5 * (1.0 + math.erf(z)) * 100.0
@@ -78,20 +98,23 @@ def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte):
 
 def mostrar_puente_kelly_universal():
     st.header("⚡ Automatización Élite: De Proyección a Criterio Kelly")
-    st.caption("Calcula el valor de tus apuestas, guárdalas y califica tus resultados reales en el historial.")
+    st.caption("Selecciona tu deporte y despliega las listas completas con todas las franquicias oficiales.")
     st.markdown("---")
     
     pestana_calculadora, pestana_historial = st.tabs(["🧮 Calculadora y Registro", "📂 Historial y Calificación"])
     
     with pestana_calculadora:
-        deporte_sel = st.selectbox("Selecciona el Deporte:", ["🏈 NFL", "🏀 NBA", "⚽ Fútbol (Soccer)", "🏒 NHL (Hockey)"], key="dep_calc")
+        deporte_sel = st.selectbox("Selecciona el Deporte:", ["🏈 NFL", "🏀 NBA"], key="dep_calc")
+        
+        lista_equipos = EQUIPOS_POR_DEPORTE.get(deporte_sel, [])
         
         st.subheader("📊 1. Encuentro y Pronóstico")
         col_eq1, col_eq2 = st.columns(2)
         with col_eq1:
-            equipo_local = st.text_input("Equipo Local:", value="Baltimore Ravens")
+            equipo_local = st.selectbox("Equipo Local:", lista_equipos, key="eq_local")
         with col_eq2:
-            equipo_visitante = st.text_input("Equipo Visitante:", value="Jacksonville Jaguars")
+            idx_default = 1 if len(lista_equipos) > 1 else 0
+            equipo_visitante = st.selectbox("Equipo Visitante:", lista_equipos, index=idx_default, key="eq_vis")
             
         partido_str = f"{equipo_local} vs {equipo_visitante}"
                 
@@ -105,14 +128,14 @@ def mostrar_puente_kelly_universal():
         
         with col1:
             mercado_sel = st.selectbox("Mercado a Apostar:", [
-                "Total Puntos / Goles (Over / Under)", 
+                "Total Puntos (Over / Under)", 
                 f"Spread / Hándicap: {equipo_local}", 
                 f"Spread / Hándicap: {equipo_visitante}", 
                 "Moneyline (Ganador)"
             ])
             
             if "Automático" in modo_calculo:
-                proyeccion_modelo = st.number_input("Lo que proyecta tu modelo (Puntos/Goles/Margen):", value=48.5, step=0.5)
+                proyeccion_modelo = st.number_input("Lo que proyecta tu modelo (Puntos totales/Margen):", value=48.5, step=0.5)
                 linea_casa = st.number_input("La línea de la casa de apuestas:", value=44.5, step=0.5)
                 prob_modelo = calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte_sel)
                 st.info(f"🧠 Probabilidad estimada automáticamente: **{prob_modelo}%**")
@@ -153,7 +176,7 @@ def mostrar_puente_kelly_universal():
             
         r4.metric("Stake Sugerido", f"${stake_sugerido:,.2f} MXN")
         
-        st.markdown("---")
+        st.markdown---()
         
         if edge > 0:
             st.success(f"✅ **¡Apuesta Viable para {partido_str}!** Ventaja detectada del **{edge:.2f}%**.")
@@ -166,27 +189,24 @@ def mostrar_puente_kelly_universal():
 
     with pestana_historial:
         st.subheader("📂 Bitácora de Apuestas y Calificación de Resultados")
-        deporte_filtro = st.selectbox("Selecciona el deporte a consultar:", ["🏈 NFL", "🏀 NBA", "⚽ Fútbol (Soccer)", "🏒 NHL (Hockey)"], key="dep_hist")
+        deporte_filtro = st.selectbox("Selecciona el deporte a consultar:", ["🏈 NFL", "🏀 NBA"], key="dep_hist")
         
         df_historial = cargar_historial_por_deporte(deporte_filtro)
         
         if not df_historial.empty:
-            st.info(f"Mostrando el historial para: **{deporte_filtro}**. Puedes actualizar el estado de cada juego cuando finalice.")
-            
-            # Mostramos la tabla general
+            st.info(f"Mostrando el historial para: **{deporte_filtro}**.")
             st.dataframe(df_historial, use_container_width=True)
             
             st.markdown("---")
             st.subheader("📝 Calificar Resultado de un Partido")
             
-            # Permitimos seleccionar un registro por su ID para cambiar su estado
             col_id, col_estado, col_btn = st.columns([1, 2, 1])
             with col_id:
                 id_apuesta = st.selectbox("ID de Apuesta:", df_historial["id"].tolist())
             with col_estado:
                 nuevo_resultado = st.selectbox("Resultado Real:", ["Pendiente", "Ganada", "Perdida", "Empate / Anulada"])
             with col_btn:
-                st.write("") # Espaciador vertical
+                st.write("") 
                 if st.button("Actualizar Estado", use_container_width=True):
                     actualizar_estado_apuesta(id_apuesta, nuevo_resultado)
                     st.success(f"¡Apuesta #{id_apuesta} actualizada a '{nuevo_resultado}'!")
