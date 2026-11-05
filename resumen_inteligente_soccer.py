@@ -554,8 +554,24 @@ def _soc12_resumen_validacion(datos, ventana):
     return resumen
 
 
+def _soc12_comparar_precision(mae_modelo, mae_referencia, n, tolerancia=0.02, minimo=30):
+    """Clasificación descriptiva conservadora usando MAE sin redondear."""
+    if n < minimo:
+        return ('Muestra limitada',
+                f'Solo {n} encuentros evaluados; conviene ampliar la muestra antes de interpretar diferencias.')
+    diferencia = mae_referencia - mae_modelo
+    if abs(diferencia) <= tolerancia + 1e-12:
+        return ('Rendimiento similar',
+                f'Diferencia de MAE de {abs(diferencia):.3f} goles, dentro del margen descriptivo de ±{tolerancia:.2f}.')
+    if diferencia > 0:
+        return ('Modelo con menor MAE',
+                f'En esta muestra, el modelo reduce el MAE en {diferencia:.3f} goles respecto a la referencia.')
+    return ('Referencia con menor MAE',
+            f'En esta muestra, la referencia reduce el MAE en {abs(diferencia):.3f} goles respecto al modelo.')
+
+
 def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
-    st.subheader('🧠 Interpretación inteligente · Etapa 12')
+    st.subheader('🧠 Interpretación inteligente · Etapa 12.1')
     st.caption('Edge = proyección menos referencia histórica. MAE y sesgo proceden '
                'de validación cronológica retrospectiva, no son garantías futuras.')
     proyecciones = _soc10_calcular(datos, local_id, visitante_id, ventana=ventana)
@@ -596,6 +612,12 @@ def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
                 if historial:
                     st.caption(f'Muestra histórica: {historial["N"]} encuentros · '
                                f'MAE referencia: {historial["MAE referencia"]:.2f}')
+                    estado, detalle = _soc12_comparar_precision(
+                        historial['MAE'], historial['MAE referencia'], historial['N'])
+                    st.markdown(f'**Precisión histórica: {estado}**')
+                    st.caption(detalle)
+                    st.caption('Comparación retrospectiva descriptiva; una diferencia de MAE '
+                               'no demuestra por sí sola superioridad futura.')
                 else:
                     st.caption('MAE y sesgo pendientes de calcular.')
     st.caption('Escenario ilustrativo de local y visitante; no implica que exista '
@@ -876,7 +898,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 12 · Goles y Edge · Interpretación y validación · Diseño móvil')
+    st.caption('Etapa 12.1 · Goles y Edge · Interpretación y validación · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
@@ -972,3 +994,4 @@ def mostrar_resumen_inteligente_soccer():
 
 if __name__ == '__main__':
     mostrar_resumen_inteligente_soccer()
+
