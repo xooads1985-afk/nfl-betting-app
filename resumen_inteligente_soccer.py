@@ -570,8 +570,62 @@ def _soc12_comparar_precision(mae_modelo, mae_referencia, n, tolerancia=0.02, mi
             f'En esta muestra, la referencia reduce el MAE en {abs(diferencia):.3f} goles respecto al modelo.')
 
 
+# ── Etapa 12.2: diagnóstico transversal de precisión ──────────────────────
+def _soc122_diagnostico(resumen, tolerancia=0.02, minimo=30):
+    """Solo interpreta los resultados existentes; no modifica el backtest."""
+    filas = []
+    for periodo, etiqueta in (('1T', 'Primera mitad'), ('2T', 'Segunda mitad'), ('Final', 'Partido completo')):
+        for tipo in ('Local', 'Visitante', 'Combinados'):
+            r = resumen.get((periodo, tipo))
+            if not r:
+                continue
+            n = r['N']
+            mae = r['MAE']
+            base = r['MAE referencia']
+            sesgo = r['Sesgo']
+            estado, _ = _soc12_comparar_precision(mae, base, n, tolerancia, minimo)
+            filas.append({'Período': etiqueta, 'Métrica': tipo, 'N': n,
+                          'MAE modelo': mae, 'MAE referencia': base,
+                          'Diferencia MAE': mae - base, 'Sesgo': sesgo,
+                          'Estado': estado})
+    return filas
+
+
+def _soc122_panel_diagnostico(resumen):
+    """Panel móvil compacto: tres períodos y las nueve métricas existentes."""
+    if not resumen:
+        return
+    filas = _soc122_diagnostico(resumen)
+    if not filas:
+        return
+    st.markdown('#### 🔎 Diagnóstico histórico · Etapa 12.2')
+    st.caption('Diferencia MAE = MAE modelo − MAE referencia. Negativa: menor error del modelo. '
+               'El sesgo es proyección − resultado real; positivo indica sobreestimación.')
+    for periodo in ('Primera mitad', 'Segunda mitad', 'Partido completo'):
+        bloque = [r for r in filas if r['Período'] == periodo]
+        if not bloque:
+            continue
+        with st.expander(f'📋 {periodo} · diagnóstico', expanded=(periodo == 'Partido completo')):
+            for r in bloque:
+                st.markdown(f'**{r["Métrica"]}** · {r["Estado"]}')
+                st.caption(f'MAE modelo {r["MAE modelo"]:.3f} · referencia {r["MAE referencia"]:.3f} '
+                           f'· diferencia {r["Diferencia MAE"]:+.3f} goles')
+                st.caption(f'Sesgo {r["Sesgo"]:+.3f} goles · muestra {r["N"]} encuentros')
+                if r['N'] < 30:
+                    st.caption('⚠️ Muestra limitada: interpretación provisional.')
+    menores = sum(r['Estado'] == 'Modelo con menor MAE' for r in filas)
+    similares = sum(r['Estado'] == 'Rendimiento similar' for r in filas)
+    referencias = sum(r['Estado'] == 'Referencia con menor MAE' for r in filas)
+    limitadas = sum(r['Estado'] == 'Muestra limitada' for r in filas)
+    st.caption(f'Resumen de {len(filas)} métricas: modelo menor MAE {menores} · '
+               f'similares {similares} · referencia menor MAE {referencias} · '
+               f'muestra limitada {limitadas}.')
+    st.caption('Diagnóstico retrospectivo descriptivo; no equivale a una predicción '
+               'de rendimiento futuro. Los valores no se recalculan ni ajustan aquí.')
+
+
 def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
-    st.subheader('🧠 Interpretación inteligente · Etapa 12.1')
+    st.subheader('🧠 Interpretación inteligente · Etapa 12.2')
     st.caption('Edge = proyección menos referencia histórica. MAE y sesgo proceden '
                'de validación cronológica retrospectiva, no son garantías futuras.')
     proyecciones = _soc10_calcular(datos, local_id, visitante_id, ventana=ventana)
@@ -590,6 +644,8 @@ def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
     validacion = guardado[1] if guardado and guardado[0] == clave else {}
     if not validacion:
         st.caption('La precisión histórica se mostrará al pulsar el botón de validación.')
+    else:
+        _soc122_panel_diagnostico(validacion)
     for periodo, etiqueta in [('Final', 'Partido completo'), ('1T', 'Primera mitad'), ('2T', 'Segunda mitad')]:
         filas = [p for p in proyecciones if p['Período'] == periodo]
         if not filas:
@@ -898,7 +954,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 12.1 · Goles y Edge · Interpretación y validación · Diseño móvil')
+    st.caption('Etapa 12.2 · Goles y Edge · Diagnóstico histórico · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
