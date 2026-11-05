@@ -603,37 +603,87 @@ def _soc123_interpretar_sesgo(sesgo, n, umbral=0.05):
 
 
 def _soc122_panel_diagnostico(resumen):
-    """Panel móvil compacto: tres períodos y las nueve métricas existentes."""
+    """Resumen primero; detalle cronológico por periodo bajo demanda visual."""
     if not resumen:
         return
     filas = _soc122_diagnostico(resumen)
     if not filas:
         return
-    st.markdown('#### 🔎 Diagnóstico avanzado · En pruebas (Etapa 12.3)')
-    st.caption('Diferencia MAE = MAE modelo − MAE referencia. Negativa: menor error del modelo. '
-               'El sesgo es proyección − resultado real; positivo indica sobreestimación.')
-    for periodo in ('Primera mitad', 'Segunda mitad', 'Partido completo'):
-        bloque = [r for r in filas if r['Período'] == periodo]
-        if not bloque:
-            continue
-        with st.expander(f'📋 {periodo} · diagnóstico', expanded=(periodo == 'Partido completo')):
-            for r in bloque:
-                st.markdown(f'**{r["Métrica"]}** · {r["Estado"]}')
-                st.caption(f'MAE modelo {r["MAE modelo"]:.3f} · referencia {r["MAE referencia"]:.3f} '
-                           f'· diferencia {r["Diferencia MAE"]:+.3f} goles')
-                st.caption(f'Sesgo {r["Sesgo"]:+.3f} goles · muestra {r["N"]} encuentros')
-                st.caption(_soc123_interpretar_sesgo(r['Sesgo'], r['N']))
-                if r['N'] < 30:
-                    st.caption('⚠️ Muestra limitada: interpretación provisional.')
+    st.markdown('#### 📊 Resumen de precisión histórica')
     menores = sum(r['Estado'] == 'Modelo con menor MAE' for r in filas)
     similares = sum(r['Estado'] == 'Rendimiento similar' for r in filas)
     referencias = sum(r['Estado'] == 'Referencia con menor MAE' for r in filas)
     limitadas = sum(r['Estado'] == 'Muestra limitada' for r in filas)
-    st.caption(f'Resumen de {len(filas)} métricas: modelo menor MAE {menores} · '
-               f'similares {similares} · referencia menor MAE {referencias} · '
-               f'muestra limitada {limitadas}.')
-    st.caption('Diagnóstico retrospectivo descriptivo; no equivale a una predicción '
-               'de rendimiento futuro. Los valores no se recalculan ni ajustan aquí.')
+    a, b, c = st.columns(3)
+    a.metric('Modelo menor MAE', menores)
+    b.metric('Similares', similares)
+    c.metric('Referencia menor MAE', referencias)
+    st.caption(f'{len(filas)} métricas evaluadas · muestra limitada: {limitadas}. '
+               'Menor MAE significa menor error medio en esta muestra.')
+    for periodo in ('Partido completo', 'Primera mitad', 'Segunda mitad'):
+        bloque = [r for r in filas if r['Período'] == periodo]
+        if not bloque:
+            continue
+        with st.expander(f'📋 {periodo} · detalles', expanded=False):
+            for r in bloque:
+                st.markdown(f'**{r["Métrica"]} · {r["Estado"]}**')
+                st.caption(f'MAE modelo {r["MAE modelo"]:.3f} · referencia {r["MAE referencia"]:.3f} '
+                           f'· diferencia {r["Diferencia MAE"]:+.3f} goles')
+                st.caption(f'Sesgo {r["Sesgo"]:+.3f} · {r["N"]} encuentros. '
+                           + _soc123_interpretar_sesgo(r['Sesgo'], r['N']))
+                if r['N'] < 30:
+                    st.caption('⚠️ Muestra limitada: interpretación provisional.')
+    st.caption('Evaluación retrospectiva descriptiva: no garantiza precisión futura.')
+
+
+def _soc124_evolucion(registros, periodo='Final', tipo='Combinados', bloque=20):
+    """MAE móvil sin reajustar ni recalcular las proyecciones originales."""
+    filtrados = sorted((r for r in registros if r['Período'] == periodo
+                        and r['Métrica'] == tipo),
+                       key=lambda r: (r['Fecha UTC'], str(r['ID partido'])))
+    puntos = []
+    for i in range(bloque, len(filtrados) + 1):
+        ventana = filtrados[i-bloque:i]
+        puntos.append({'Partido': i,
+                       'MAE modelo': sum(r['Error absoluto'] for r in ventana) / bloque,
+                       'MAE referencia': sum(r['Error referencia'] for r in ventana) / bloque,
+                       'Sesgo': sum(r['Error firmado'] for r in ventana) / bloque})
+    return puntos
+
+
+def _soc124_panel_evolucion(datos, ventana, clave):
+    st.markdown('#### 🔬 Evolución histórica del error · En pruebas (Etapa 12.4)')
+    st.caption('MAE móvil de los últimos 20 encuentros elegibles, ordenados por fecha. '
+               'No modifica las proyecciones. Las curvas descriptivas pueden fluctuar.')
+    if st.button('Calcular evolución histórica', key='soc124_calcular'):
+        with st.spinner('Preparando evolución cronológica...'):
+            st.session_state['soc124_resultado'] = (
+                clave, _soc10_validacion(datos, max_partidos=150, ventana=ventana))
+    guardado = st.session_state.get('soc124_resultado')
+    if not guardado or guardado[0] != clave:
+        st.caption('Pulsa el botón para mostrar la evolución; no se realizan consultas adicionales.')
+        return
+    registros = guardado[1]
+    periodo = st.selectbox('Período del diagnóstico',
+                           ['Partido completo', 'Primera mitad', 'Segunda mitad'],
+                           key='soc124_periodo')
+    tipo = st.selectbox('Métrica del diagnóstico',
+                        ['Combinados', 'Local', 'Visitante'], key='soc124_tipo')
+    codigo = {'Partido completo': 'Final', 'Primera mitad': '1T',
+              'Segunda mitad': '2T'}[periodo]
+    puntos = _soc124_evolucion(registros, codigo, tipo)
+    if not puntos:
+        st.info('Se requieren al menos 20 encuentros elegibles para esta curva.')
+        return
+    st.line_chart({'MAE modelo': [p['MAE modelo'] for p in puntos],
+                   'MAE referencia': [p['MAE referencia'] for p in puntos]})
+    ultimo = puntos[-1]
+    st.caption(f'Últimos 20 encuentros: MAE modelo {ultimo["MAE modelo"]:.3f} · '
+               f'referencia {ultimo["MAE referencia"]:.3f} · '
+               f'sesgo {ultimo["Sesgo"]:+.3f} goles. '
+               f'{len(puntos)} ventanas móviles disponibles.')
+    st.caption('Los puntos se solapan: no son pruebas independientes. '
+               'Una tendencia visual no demuestra una mejora futura.')
 
 
 def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
@@ -649,7 +699,7 @@ def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
              tuple((p.get('id'), p.get('status'), (p.get('score') or {}).get('fullTime', {} ).get('home'),
                     (p.get('score') or {}).get('fullTime', {}).get('away'))
                    for p in datos if isinstance(p, dict)))
-    if st.button('🧪 Calcular precisión histórica para interpretar Edge', key='soc12_validar'):
+    if st.button('Calcular precisión histórica para interpretar Edge', key='soc12_validar'):
         with st.spinner('Calculando validación cronológica...'):
             st.session_state['soc12_resultado'] = (clave, _soc12_resumen_validacion(datos, ventana))
     guardado = st.session_state.get('soc12_resultado')
@@ -658,6 +708,7 @@ def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
         st.caption('La precisión histórica se mostrará al pulsar el botón de validación.')
     else:
         _soc122_panel_diagnostico(validacion)
+        _soc124_panel_evolucion(datos, ventana, clave)
     for periodo, etiqueta in [('Final', 'Partido completo'), ('1T', 'Primera mitad'), ('2T', 'Segunda mitad')]:
         filas = [p for p in proyecciones if p['Período'] == periodo]
         if not filas:
@@ -1062,4 +1113,3 @@ def mostrar_resumen_inteligente_soccer():
 
 if __name__ == '__main__':
     mostrar_resumen_inteligente_soccer()
-
