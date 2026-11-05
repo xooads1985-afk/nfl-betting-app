@@ -521,6 +521,86 @@ def _soc10_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
             st.dataframe(tabla.round(3), hide_index=True, use_container_width=True)
 
 
+
+# ── Etapa 12: interpretación de Edge y contexto de precisión ───────────────
+def _soc12_interpretacion_edge(proyeccion, referencia, mae=None, sesgo=None):
+    """Interpretación descriptiva; no altera las estimaciones de Etapa 11."""
+    edge = proyeccion - referencia
+    direccion = ('superior' if edge > 0 else 'inferior' if edge < 0 else 'igual')
+    texto = f'Proyección {direccion} a la referencia histórica por {abs(edge):.2f} goles.'
+    if mae is not None:
+        texto += f' Error absoluto medio histórico: {mae:.2f} goles.'
+    if sesgo is not None:
+        texto += (f' Sesgo histórico: {sesgo:+.2f} goles '
+                  '(estimado menos real).')
+    return {'Edge': edge, 'Interpretación': texto}
+
+
+def _soc12_resumen_validacion(datos, ventana):
+    """Agrupa el backtest temporal original por período y tipo."""
+    registros = _soc10_validacion(datos, max_partidos=150, ventana=ventana)
+    resumen = {}
+    for periodo in ('1T', '2T', 'Final'):
+        for tipo in ('Local', 'Visitante', 'Combinados'):
+            grupo = [r for r in registros if r['Período'] == periodo and r['Métrica'] == tipo]
+            if grupo:
+                n = len(grupo)
+                resumen[(periodo, tipo)] = {
+                    'N': n,
+                    'MAE': sum(r['Error absoluto'] for r in grupo) / n,
+                    'Sesgo': sum(r['Error firmado'] for r in grupo) / n,
+                    'MAE referencia': sum(r['Error referencia'] for r in grupo) / n,
+                }
+    return resumen
+
+
+def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
+    st.subheader('🧠 Interpretación inteligente · Etapa 12')
+    st.caption('Edge = proyección menos referencia histórica. MAE y sesgo proceden '
+               'de validación cronológica retrospectiva, no son garantías futuras.')
+    proyecciones = _soc10_calcular(datos, local_id, visitante_id, ventana=ventana)
+    if not proyecciones:
+        st.info('Muestra insuficiente para mostrar la interpretación del Edge.')
+        return
+    # El backtest puede resultar costoso: se ejecuta solo a petición del usuario.
+    clave = ('soc12_validacion', len(datos), ventana,
+             tuple((p.get('id'), p.get('status'), (p.get('score') or {}).get('fullTime', {} ).get('home'),
+                    (p.get('score') or {}).get('fullTime', {}).get('away'))
+                   for p in datos if isinstance(p, dict)))
+    if st.button('🧪 Calcular precisión histórica para interpretar Edge', key='soc12_validar'):
+        with st.spinner('Calculando validación cronológica...'):
+            st.session_state['soc12_resultado'] = (clave, _soc12_resumen_validacion(datos, ventana))
+    guardado = st.session_state.get('soc12_resultado')
+    validacion = guardado[1] if guardado and guardado[0] == clave else {}
+    if not validacion:
+        st.caption('La precisión histórica se mostrará al pulsar el botón de validación.')
+    for periodo, etiqueta in [('Final', 'Partido completo'), ('1T', 'Primera mitad'), ('2T', 'Segunda mitad')]:
+        filas = [p for p in proyecciones if p['Período'] == periodo]
+        if not filas:
+            continue
+        with st.expander(f'📊 {etiqueta} · proyección y Edge', expanded=(periodo == 'Final')):
+            for fila in filas:
+                tipo = fila['Métrica']
+                nombre = nombre_local if tipo == 'Local' else nombre_visitante if tipo == 'Visitante' else 'Ambos equipos'
+                referencia = fila['Referencia']
+                estimacion = fila['Proyección']
+                historial = validacion.get((periodo, tipo), {})
+                interpretacion = _soc12_interpretacion_edge(estimacion, referencia,
+                                  historial.get('MAE'), historial.get('Sesgo'))
+                st.markdown(f'**{nombre}**')
+                a, b, c = st.columns(3)
+                a.metric('Proyección', f'{estimacion:.2f}')
+                b.metric('Referencia', f'{referencia:.2f}')
+                c.metric('Edge', f'{interpretacion["Edge"]:+.2f}')
+                st.caption(interpretacion['Interpretación'])
+                if historial:
+                    st.caption(f'Muestra histórica: {historial["N"]} encuentros · '
+                               f'MAE referencia: {historial["MAE referencia"]:.2f}')
+                else:
+                    st.caption('MAE y sesgo pendientes de calcular.')
+    st.caption('Escenario ilustrativo de local y visitante; no implica que exista '
+               'un partido programado entre los equipos seleccionados.')
+
 def _comparador_equipos(datos, temporada_actual=None):
     st.subheader('⚽ Comparador de equipos · Etapa 9')
     st.caption('Datos reales de la competición seleccionada. Si activas el historial ampliado, se incluyen temporadas anteriores identificadas; el comparador no realiza consultas adicionales.')
@@ -576,6 +656,8 @@ def _comparador_equipos(datos, temporada_actual=None):
     _panel_validacion(datos, [(izquierda, equipos[izquierda], condicion_a),
                               (derecha, equipos[derecha], condicion_b)], cantidad, temporada_actual)
     _soc10_panel(datos, izquierda, derecha, equipos[izquierda],
+                 equipos[derecha], cantidad)
+    _soc12_panel(datos, izquierda, derecha, equipos[izquierda],
                  equipos[derecha], cantidad)
     _panel_probabilidades(datos, izquierda, derecha, equipos[izquierda],
                            equipos[derecha], condicion_a, condicion_b, cantidad)
@@ -794,7 +876,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 11 · Goles y Edge · Comparación histórica de precisión · Diseño móvil')
+    st.caption('Etapa 12 · Goles y Edge · Interpretación y validación · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
