@@ -247,7 +247,7 @@ def _validacion_cronologica(serie, ventana=5, minimo=3):
 
 
 def _panel_validacion(datos, selecciones, ventana, temporada_actual=None):
-    st.subheader('🧪 Validación histórica · Etapa 9')
+    st.subheader('📊 Validación histórica de equipos')
     st.caption('Promedio móvil evaluado partido a partido. Para cada fecha se usan '
                'exclusivamente resultados anteriores de la misma competición y condición, '
                'incluso si corresponden a otra temporada. No se hacen consultas adicionales.')
@@ -413,7 +413,7 @@ def _soc10_validacion(partidos, max_partidos=150, ventana=10):
 
 
 def _soc10_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
-    st.subheader('⚽ Proyecciones de goles y Edge · Etapa 10')
+    st.subheader('⚽ Proyecciones de goles y Edge')
     st.caption('Escenario estadístico ilustrativo: equipo A como local y equipo B como '
                'visitante. No corresponde necesariamente a un encuentro programado. '
                'Edge descriptivo = proyección − referencia histórica de liga.')
@@ -591,6 +591,17 @@ def _soc122_diagnostico(resumen, tolerancia=0.02, minimo=30):
     return filas
 
 
+def _soc123_interpretar_sesgo(sesgo, n, umbral=0.05):
+    """Diagnóstico descriptivo: signo de proyección menos resultado observado."""
+    if n < 30:
+        return 'Sesgo: muestra limitada; lectura provisional.'
+    if abs(sesgo) <= umbral:
+        return 'Sesgo cercano a cero: sin tendencia marcada en esta muestra.'
+    if sesgo > 0:
+        return 'Tendencia histórica a sobreestimar los goles observados.'
+    return 'Tendencia histórica a subestimar los goles observados.'
+
+
 def _soc122_panel_diagnostico(resumen):
     """Panel móvil compacto: tres períodos y las nueve métricas existentes."""
     if not resumen:
@@ -598,7 +609,7 @@ def _soc122_panel_diagnostico(resumen):
     filas = _soc122_diagnostico(resumen)
     if not filas:
         return
-    st.markdown('#### 🔎 Diagnóstico histórico · Etapa 12.2')
+    st.markdown('#### 🔎 Diagnóstico avanzado · En pruebas (Etapa 12.3)')
     st.caption('Diferencia MAE = MAE modelo − MAE referencia. Negativa: menor error del modelo. '
                'El sesgo es proyección − resultado real; positivo indica sobreestimación.')
     for periodo in ('Primera mitad', 'Segunda mitad', 'Partido completo'):
@@ -611,6 +622,7 @@ def _soc122_panel_diagnostico(resumen):
                 st.caption(f'MAE modelo {r["MAE modelo"]:.3f} · referencia {r["MAE referencia"]:.3f} '
                            f'· diferencia {r["Diferencia MAE"]:+.3f} goles')
                 st.caption(f'Sesgo {r["Sesgo"]:+.3f} goles · muestra {r["N"]} encuentros')
+                st.caption(_soc123_interpretar_sesgo(r['Sesgo'], r['N']))
                 if r['N'] < 30:
                     st.caption('⚠️ Muestra limitada: interpretación provisional.')
     menores = sum(r['Estado'] == 'Modelo con menor MAE' for r in filas)
@@ -625,7 +637,7 @@ def _soc122_panel_diagnostico(resumen):
 
 
 def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, ventana):
-    st.subheader('🧠 Interpretación inteligente · Etapa 12.2')
+    st.subheader('🧠 Interpretación inteligente')
     st.caption('Edge = proyección menos referencia histórica. MAE y sesgo proceden '
                'de validación cronológica retrospectiva, no son garantías futuras.')
     proyecciones = _soc10_calcular(datos, local_id, visitante_id, ventana=ventana)
@@ -680,7 +692,7 @@ def _soc12_panel(datos, local_id, visitante_id, nombre_local, nombre_visitante, 
                'un partido programado entre los equipos seleccionados.')
 
 def _comparador_equipos(datos, temporada_actual=None):
-    st.subheader('⚽ Comparador de equipos · Etapa 9')
+    st.subheader('⚽ Comparador de equipos')
     st.caption('Datos reales de la competición seleccionada. Si activas el historial ampliado, se incluyen temporadas anteriores identificadas; el comparador no realiza consultas adicionales.')
     equipos = _equipos_desde_partidos(datos)
     if len(equipos) < 2:
@@ -765,7 +777,7 @@ def _probabilidades_poisson(media_local, media_visitante, max_goles=10):
 def _panel_probabilidades(datos, equipo_a, equipo_b, nombre_a, nombre_b,
                           condicion_a, condicion_b, ventana):
     """Comparación educativa entre modelo de equipos y referencia de liga."""
-    st.subheader('📐 Probabilidades estadísticas · Etapa 9')
+    st.subheader('📐 Probabilidades estadísticas')
     st.caption('Distribución de Poisson ilustrativa. No utiliza cuotas, '
                'mercados ni recomendaciones de apuestas.')
     finalizados = _terminados(datos)
@@ -872,7 +884,7 @@ def _evaluar_probabilidades_historicas(datos, max_evaluaciones=100, ventana=10):
 
 
 def _panel_validacion_probabilidades(datos):
-    st.subheader('🧪 Validación de probabilidades · Etapa 9')
+    st.subheader('📊 Validación histórica de probabilidades')
     st.caption('Prueba retrospectiva cronológica de resultados local/empate/visitante. '
                'Se utilizan solo partidos anteriores a cada encuentro, con '
                'un mínimo de 30 partidos de liga y 5 de cada equipo según su condición. '
@@ -954,7 +966,7 @@ def _archivo_csv():
 
 def mostrar_resumen_inteligente_soccer():
     st.title('⚽ Resumen Inteligente Soccer')
-    st.caption('Etapa 12.2 · Goles y Edge · Diagnóstico histórico · Diseño móvil')
+    st.caption('Goles · Edge · Precisión histórica · Diseño móvil')
     fuente = st.radio('Fuente de datos', ['football-data.org', 'CSV local'], horizontal=True, key='soc_fuente_v3')
     if fuente == 'CSV local':
         _archivo_csv()
@@ -994,7 +1006,7 @@ def mostrar_resumen_inteligente_soccer():
             st.caption(f'Se muestran {min(100, len(rows_view))} de {len(rows_view)} partidos. Horario UTC.')
             st.subheader('📊 Estadísticas históricas')
             _resumen(rows)
-            st.subheader('📚 Historial ampliado · Etapa 9')
+            st.subheader('📚 Historial ampliado')
             st.caption('Opcional: consulta una temporada anterior de la misma competición. '
                        'Solo se añaden partidos finalizados; las temporadas se mantienen identificadas.')
             ampliar = st.checkbox('Incluir temporada anterior en el comparador', key='soc_ampliar_v7')
