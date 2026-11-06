@@ -1,4 +1,4 @@
-"""Módulo de Puente y Automatización Universal con Dirección Clara Over/Under e Historial SQLite."""
+"""Módulo de Puente y Automatización Universal con Listas NFL/NBA, SQLite y Dashboard de Rendimiento."""
 import streamlit as st
 import math
 import sqlite3
@@ -66,6 +66,17 @@ def guardar_en_sqlite(deporte, partido, mercado, prob_modelo, prob_implicita, ed
     conexion.commit()
     conexion.close()
 
+def cargar_historial_completo():
+    """Carga todo el historial de apuestas de la base de datos."""
+    inicializar_base_datos()
+    conexion = sqlite3.connect("apuestas_historial.db")
+    try:
+        df = pd.read_sql_query("SELECT * FROM historial ORDER BY id DESC", conexion)
+    except Exception:
+        df = pd.DataFrame()
+    conexion.close()
+    return df
+
 def cargar_historial_por_deporte(deporte_filtro):
     """Carga el historial de apuestas filtrado por un deporte específico."""
     inicializar_base_datos()
@@ -98,10 +109,15 @@ def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte, es_
 
 def mostrar_puente_kelly_universal():
     st.header("⚡ Automatización Élite: De Proyección a Criterio Kelly")
-    st.caption("Selecciona tu deporte, define tu mercado y obtén la dirección exacta (Over/Under o Lado).")
+    st.caption("Selecciona tu deporte, define tu mercado, registra tus picks y mide tu rendimiento cuantitativo.")
     st.markdown("---")
     
-    pestana_calculadora, pestana_historial = st.tabs(["🧮 Calculadora y Registro", "📂 Historial y Calificación"])
+    # Añadimos la tercera pestaña para el Dashboard
+    pestana_calculadora, pestana_historial, pestana_dashboard = st.tabs([
+        "🧮 Calculadora y Registro", 
+        "📂 Historial y Calificación", 
+        "📊 Dashboard de Rendimiento"
+    ])
     
     with pestana_calculadora:
         deporte_sel = st.selectbox("Selecciona el Deporte:", ["🏈 NFL", "🏀 NBA"], key="dep_calc")
@@ -134,7 +150,6 @@ def mostrar_puente_kelly_universal():
                 "Moneyline (Ganador)"
             ])
             
-            # Variables de dirección por defecto
             direccion_apuesta = ""
             
             if "Automático" in modo_calculo:
@@ -142,10 +157,9 @@ def mostrar_puente_kelly_universal():
                 linea_casa = st.number_input("La línea de la casa de apuestas:", value=44.5, step=0.5)
                 
                 if "Total Puntos" in mercado_sel:
-                    # Determinamos si tira para Over o Under automáticamente
                     if proyeccion_modelo > linea_casa:
                         es_over = True
-                        direccion_apuesta = "📈 IR POR OVER (ALTAS)"
+                        direccion_apuesta = "📈 IR PRIOR OVER (ALTAS)" if False else "📈 IR POR OVER (ALTAS)"
                     else:
                         es_over = False
                         direccion_apuesta = "📉 IR POR UNDER (BAJAS)"
@@ -194,10 +208,9 @@ def mostrar_puente_kelly_universal():
         
         st.markdown("---")
         
-        # Ajustamos el texto descriptivo del mercado con su dirección si aplica
         mercado_a_guardar = mercado_sel
         if "Total Puntos" in mercado_sel and direccion_apuesta:
-            mercado_a_guardar = f"{mercado_sel} -> {direccion_apuesta.split(' ')[-2]}" # Guarda Over o Under
+            mercado_a_guardar = f"{mercado_sel} -> {direccion_apuesta.split(' ')[-2]}"
             
         if edge > 0:
             st.success(f"✅ **¡Apuesta Viable para {partido_str} ({mercado_a_guardar})!** Ventaja detectada del **{edge:.2f}%**.")
@@ -235,3 +248,70 @@ def mostrar_puente_kelly_universal():
         else:
             st.warning(f"No hay apuestas registradas todavía para {deporte_filtro}.")
 
+    with pestana_dashboard:
+        st.subheader("📊 Panel Global de Rendimiento y Rentabilidad")
+        st.caption("Métricas cuantitativas calculadas a partir de tus apuestas calificadas.")
+        
+        df_global = cargar_historial_completo()
+        
+        if not df_global.empty:
+            # Filtramos solo las que ya tienen un resultado definitivo (Ganada o Perdida)
+            df_cerradas = df_global[df_global["estado"].isin(["Ganada", "Perdida"])]
+            total_registros = len(df_global)
+            total_cerradas = len(df_cerradas)
+            
+            # Métricas rápidas de conteo
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Apuestas Totales Registradas", total_registros)
+            c2.metric("Apuestas Resueltas (Cerradas)", total_cerradas)
+            c3.metric("Apuestas Pendientes", total_registros - total_cerradas)
+            
+            st.markdown("---")
+            
+            if total_cerradas > 0:
+                ganadas = len(df_cerradas[df_cerradas["estado"] == "Ganada"])
+                perdidas = len(df_cerradas[df_cerradas["estado"] == "Perdida"])
+                win_rate = (ganadas / total_cerradas) * 100.0
+                
+                # Cálculo de unidades / dinero apostado y retornado
+                volumen_total_apostado = 0.0
+                utilidad_neta = 0.0
+                
+                for _, row in df_cerradas.iterrows():
+                    stake = row["stake"]
+                    momio = row["momio"]
+                    volumen_total_apostado += stake
+                    
+                    if row["estado"] == "Ganada":
+                        if momio > 0:
+                            ganancia = stake * (momio / 100.0)
+                        else:
+                            ganancia = stake * (100.0 / abs(momio))
+                        utilidad_neta += ganancia
+                    elif row["estado"] == "Perdida":
+                        utilidad_neta -= stake
+                        
+                roi = (utilidad_neta / volumen_total_apostado * 100.0) if volumen_total_apostado > 0 else 0.0
+                
+                # Despliegue de KPIs de Rendimiento Élite
+                d1, d2, d3, d4 = st.columns(4)
+                d1.metric("Win Rate (Efectividad)", f"{win_rate:.1f}%", f"{ganadas}G - {perdidas}P")
+                d2.metric("Volumen Apostado", f"${volumen_total_apostado:,.2f} MXN")
+                
+                if utilidad_neta >= 0:
+                    d3.metric("Utilidad Neta", f"${utilidad_neta:,.2f} MXN", delta="En Ganancia")
+                else:
+                    d3.metric("Utilidad Neta", f"${utilidad_neta:,.2f} MXN", delta="En Pérdida", delta_color="inverse")
+                    
+                if roi >= 0:
+                    d4.metric("ROI Global", f"{roi:+.2f}%", delta="Rentable")
+                else:
+                    d4.metric("ROI Global", f"{roi:+.2f}%", delta="Negativo", delta_color="inverse")
+                    
+                st.markdown("---")
+                st.subheader("📋 Detalle General del Historial")
+                st.dataframe(df_global, use_container_width=True)
+            else:
+                st.info("ℹ️ Tienes apuestas registradas, pero todas están en estado **Pendiente**. Califica algunas en la pestaña de 'Historial y Calificación' para ver los cálculos de ROI y Win Rate en tiempo real.")
+        else:
+            st.warning("⚠️ No hay datos en la base de datos todavía. Realiza tu primer registro en la pestaña de la calculadora.")
