@@ -1,4 +1,4 @@
-"""Módulo de Puente y Automatización Universal con los 32 equipos de NFL y 30 de NBA, más Historial SQLite."""
+"""Módulo de Puente y Automatización Universal con Dirección Clara Over/Under e Historial SQLite."""
 import streamlit as st
 import math
 import sqlite3
@@ -85,8 +85,8 @@ def actualizar_estado_apuesta(apuesta_id, nuevo_estado):
     conexion.commit()
     conexion.close()
 
-def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte):
-    diferencia = proyeccion_modelo - linea_casa  
+def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte, es_over=True):
+    diferencia = (proyeccion_modelo - linea_casa) if es_over else (linea_casa - proyeccion_modelo)
     if "NFL" in deporte:
         desviacion_std = 13.5
     else:  # NBA
@@ -98,7 +98,7 @@ def calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte):
 
 def mostrar_puente_kelly_universal():
     st.header("⚡ Automatización Élite: De Proyección a Criterio Kelly")
-    st.caption("Selecciona tu deporte y despliega las listas completas con todas las franquicias oficiales.")
+    st.caption("Selecciona tu deporte, define tu mercado y obtén la dirección exacta (Over/Under o Lado).")
     st.markdown("---")
     
     pestana_calculadora, pestana_historial = st.tabs(["🧮 Calculadora y Registro", "📂 Historial y Calificación"])
@@ -134,11 +134,27 @@ def mostrar_puente_kelly_universal():
                 "Moneyline (Ganador)"
             ])
             
+            # Variables de dirección por defecto
+            direccion_apuesta = ""
+            
             if "Automático" in modo_calculo:
                 proyeccion_modelo = st.number_input("Lo que proyecta tu modelo (Puntos totales/Margen):", value=48.5, step=0.5)
                 linea_casa = st.number_input("La línea de la casa de apuestas:", value=44.5, step=0.5)
-                prob_modelo = calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte_sel)
-                st.info(f"🧠 Probabilidad estimada automáticamente: **{prob_modelo}%**")
+                
+                if "Total Puntos" in mercado_sel:
+                    # Determinamos si tira para Over o Under automáticamente
+                    if proyeccion_modelo > linea_casa:
+                        es_over = True
+                        direccion_apuesta = "📈 IR POR OVER (ALTAS)"
+                    else:
+                        es_over = False
+                        direccion_apuesta = "📉 IR POR UNDER (BAJAS)"
+                    
+                    prob_modelo = calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte_sel, es_over=es_over)
+                    st.info(f"🎯 Dirección sugerida: **{direccion_apuesta}**\n\n🧠 Probabilidad estimada: **{prob_modelo}%**")
+                else:
+                    prob_modelo = calcular_probabilidad_por_margen(proyeccion_modelo, linea_casa, deporte_sel)
+                    st.info(f"🧠 Probabilidad estimada automáticamente: **{prob_modelo}%**")
             else:
                 prob_modelo = st.slider("Probabilidad estimada por tu modelo (%)", min_value=20.0, max_value=95.0, value=56.0, step=0.5)
                 
@@ -178,12 +194,17 @@ def mostrar_puente_kelly_universal():
         
         st.markdown("---")
         
+        # Ajustamos el texto descriptivo del mercado con su dirección si aplica
+        mercado_a_guardar = mercado_sel
+        if "Total Puntos" in mercado_sel and direccion_apuesta:
+            mercado_a_guardar = f"{mercado_sel} -> {direccion_apuesta.split(' ')[-2]}" # Guarda Over o Under
+            
         if edge > 0:
-            st.success(f"✅ **¡Apuesta Viable para {partido_str}!** Ventaja detectada del **{edge:.2f}%**.")
+            st.success(f"✅ **¡Apuesta Viable para {partido_str} ({mercado_a_guardar})!** Ventaja detectada del **{edge:.2f}%**.")
             
             if st.button("💾 Registrar y Guardar en Base de Datos SQLite", use_container_width=True):
-                guardar_en_sqlite(deporte_sel, partido_str, mercado_sel, prob_modelo, prob_implicita, edge, momio_casa, stake_sugerido)
-                st.success(f"¡Pronóstico de {deporte_sel} guardado exitosamente en `apuestas_historial.db`!")
+                guardar_en_sqlite(deporte_sel, partido_str, mercado_a_guardar, prob_modelo, prob_implicita, edge, momio_casa, stake_sugerido)
+                st.success(f"¡Pronóstico guardado exitosamente en `apuestas_historial.db`!")
         else:
             st.warning("⚠️ **Precaución:** La línea de la casa no ofrece suficiente ventaja matemática. Se recomienda omitir.")
 
@@ -213,3 +234,4 @@ def mostrar_puente_kelly_universal():
                     st.rerun()
         else:
             st.warning(f"No hay apuestas registradas todavía para {deporte_filtro}.")
+
