@@ -176,7 +176,7 @@ def mostrar_puente_kelly_universal():
             
         r4.metric("Stake Sugerido", f"${stake_sugerido:,.2f} MXN")
         
-        st.markdown---()
+        st.markdown("---")
         
         if edge > 0:
             st.success(f"✅ **¡Apuesta Viable para {partido_str}!** Ventaja detectada del **{edge:.2f}%**.")
@@ -213,4 +213,3 @@ def mostrar_puente_kelly_universal():
                     st.rerun()
         else:
             st.warning(f"No hay apuestas registradas todavía para {deporte_filtro}.")
-
