@@ -68,8 +68,10 @@ def _estimacion_yardas(d, metricas):
     return principal, max(0.0, float(estimado))
 
 
+
 @st.cache_data(ttl=21600, show_spinner=False)
 def _cargar_snaps_resumen(temporada):
+    """Carga snaps NFLverse por temporada, sin modificar modulo_nfl.py."""
     import nflreadpy as nfl
     tabla = nfl.load_snap_counts(int(temporada))
     datos = tabla.to_pandas() if hasattr(tabla, 'to_pandas') else pd.DataFrame(tabla)
@@ -110,6 +112,7 @@ def _nombre_normalizado(nombre):
 
 
 def _participacion(d, snaps, error_snaps=None):
+    """Cruce conservador por nombre completo, equipo y posición; nunca por yardas."""
     if snaps is None or snaps.empty:
         return '⚪ No disponible', 'Snaps no publicados o no accesibles para esta temporada.'
     nombre = _nombre_normalizado(d['Jugador'].iloc[-1])
@@ -258,18 +261,21 @@ def _ri_panel_jugador(d, metricas):
                       'Ref.': round(ref, 1), 'Edge': _ri_edge(proy, ref), 'N': n})
     st.markdown('**📊 Proyecciones y Edge descriptivo por estadística**')
     _ri_tabla(filas, 'Ref. = promedio de hasta 5 partidos recientes; N = registros válidos. '
-              'Las métricas adicionales usan ponderación histórica 70/30.')
+              'Las métricas adicionales usan ponderación histórica 70/30. '
+              'La proyección principal de yardas conserva su función original.')
     with st.expander('📐 Validación histórica por estadística', expanded=False):
         validaciones = []
         for nombre in _metricas_posicion(d, metricas):
             resumen = _ri_validar_jugador(d, metricas[nombre])
             if resumen:
                 validaciones.append({'Estadística': nombre, **resumen})
-        _ri_tabla(validaciones, 'Evaluación cronológica de las nuevas proyecciones.')
+        _ri_tabla(validaciones, 'Evaluación cronológica de las nuevas proyecciones; '
+                  'no constituye validación independiente fuera de muestra.')
 
 
 @st.cache_data(ttl=21600, show_spinner=False)
 def _ri_cargar_puntos_por_cuarto(temporada):
+    """Extrae marcadores parciales reales del play-by-play NFLverse."""
     import nflreadpy as nfl
     bruto = nfl.load_pbp([int(temporada)])
     pbp = bruto.to_pandas() if hasattr(bruto, "to_pandas") else pd.DataFrame(bruto)
@@ -315,6 +321,7 @@ def _ri_cargar_puntos_por_cuarto(temporada):
 
 
 def _ri_periodos(cal, equipo, temporada, rival, total_proyectado):
+    """Distribuye la proyección total según los puntos históricos por cuarto."""
     propios = _partidos(cal, equipo, temporada)
     contrarios = _partidos(cal, rival, temporada)
     if len(propios) < 3 or len(contrarios) < 3:
@@ -431,7 +438,8 @@ def _ri_total_enfrentamiento(cal, temporada, elegidos):
         st.caption(f"Detalle técnico: {type(exc).__name__}: {exc}")
         return
     if not fa or not fb:
-        st.info("N/D: no hay suficientes partidos completos con datos verificables por cuarto.")
+        st.info("N/D: no hay suficientes partidos completos con datos "
+                "verificables por cuarto para ambos equipos.")
         return
     for nombre, filas in ((a, fa), (b, fb)):
         st.markdown(f"**{nombre} · puntos por período**")
@@ -444,7 +452,9 @@ def _ri_total_enfrentamiento(cal, temporada, elegidos):
                            "Ref.": round(r, 1), "Edge": _ri_edge(p, r)})
     st.markdown("**Ambos equipos · puntos combinados**")
     _ri_tabla(combinados)
-    st.caption("Distribución orientativa basada en anotación y puntos permitidos por cuarto.")
+    st.caption("Distribución orientativa basada en anotación y puntos permitidos "
+               "por cuarto; ajustada a las proyecciones generales ya existentes. "
+               "No equivale a resultados garantizados.")
 
     # ==========================================
     # BOTÓN DE GUARDADO DE PROYECCIÓN NFL
@@ -462,7 +472,6 @@ def _ri_total_enfrentamiento(cal, temporada, elegidos):
             }
             correcto, mensaje = _nfl_registrar_proyeccion(prox_partido_id, payload_proy)
             (st.success if correcto else st.info)(mensaje)
-
 
 def _equipos(cal, temporada, elegidos):
     for equipo in elegidos:
@@ -488,11 +497,12 @@ def _equipos(cal, temporada, elegidos):
                 _ri_tabla([{'Estadística': 'Puntos', 'Proy.': round(estimado, 1),
                             'Ref.': round(ref, 1), 'Edge': _ri_edge(estimado, ref)}])
                 _ri_validacion(_ri_validar_equipo(cal, equipo, temporada))
+                st.caption('Estimación orientativa: anotación reciente y de temporada, '
+                           'más puntos permitidos recientemente por el rival.')
             else:
-                st.caption('Estimación no disponible.')
+                st.caption('Estimación no disponible: faltan partidos registrados del equipo o rival.')
         else:
-            st.caption('No se encontró un próximo partido pendiente.')
-
+            st.caption('No se encontró un próximo partido pendiente en los datos del calendario.')
 
 def _jugadores(temporada, elegidos, cal):
     try:
@@ -546,7 +556,7 @@ def _jugadores(temporada, elegidos, cal):
             st.session_state[clave] = guardados + [nuevo]
             st.rerun()
     elif len(guardados) >= 3:
-        st.caption('Ya seleccionaste tres jugadores.')
+        st.caption('Ya seleccionaste tres jugadores. Quita uno para agregar otro.')
     else:
         st.caption('No hay jugadores disponibles para esta posición.')
 
@@ -618,10 +628,12 @@ def _ficha(d, metricas, cal, temporada, snaps):
         metrica, estimado = _estimacion_yardas(d, metricas)
         if estimado is not None:
             st.metric(f'🎯 {metrica} estimadas · próximo partido', f'{estimado:.1f}')
+            st.caption('Estimación orientativa basada en los registros disponibles.')
         else:
-            st.caption('Estimación de yardas no disponible.')
+            st.caption('Estimación de yardas no disponible: faltan al menos tres partidos '
+                       'registrados o una métrica compatible.')
     else:
-        st.caption('No se encontró un próximo partido pendiente.')
+        st.caption('No se encontró un próximo partido pendiente en los datos del calendario; verifica su actualización.')
 
 def _comparar(semanal, metricas, seleccionados):
     if semanal is None or semanal.empty:
@@ -657,7 +669,7 @@ def _comparar(semanal, metricas, seleccionados):
                       'Equipo': str(muestra.Equipo.iloc[-1]),
                       'Promedio últimos 5': round(float(promedio), 1) if pd.notna(promedio) else None})
     _ri_tarjetas(filas)
-    st.caption('Promedios de hasta cinco partidos registrados.')
+    st.caption('Promedios de hasta cinco partidos registrados. Sin gráficas.')
 
 def mostrar_resumen_inteligente_nfl():
     st.header('🏈 Resumen Inteligente NFL 1.9.4 · Edge ampliado')
@@ -710,3 +722,4 @@ def mostrar_resumen_inteligente_nfl():
         semanal, metricas, seleccionados = _jugadores(temporada, elegidos, juegos)
     with st.expander('🔎 3. Comparación de jugadores', expanded=False):
         _comparar(semanal, metricas, seleccionados)
+
