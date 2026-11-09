@@ -1,0 +1,27 @@
+name: NBA - Diagnostico ESPN (solo lectura)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar requests
+        run: python -m pip install requests
+      - name: Verificar ESPN con dos partidos historicos
+        run: python nba_lab_diagnostico_espn_real.py --cache nba_lab_cache --partidos 2 --salida nba_lab_auditoria_resultados/diagnostico_espn_real.json
+      - name: Descargar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostico-espn-real
+          path: nba_lab_auditoria_resultados/diagnostico_espn_real.json
+          if-no-files-found: warn
