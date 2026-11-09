@@ -87,6 +87,7 @@ modulo_seleccionado = st.sidebar.selectbox(
         "🏈 Centro Deportivo NFL",
         "🛡️ Centro de Validación NFL",
         "🏀 Módulo Pro NBA",
+        "🧪 Laboratorio NBA",
         "🏒 Módulo Pro NHL (Hockey)",
         "⚽ Módulo Pro Fútbol (Soccer)",
         "📊 Control de Bankroll & Apuestas",
@@ -110,6 +111,8 @@ elif modulo_seleccionado == "🛡️ Centro de Validación NFL":
 # ---------------------------------------------------------
 elif modulo_seleccionado == "🏀 Módulo Pro NBA":
   mostrar_centro_estadistico_nba()
+elif modulo_seleccionado == "🧪 Laboratorio NBA":
+  import nba_lab_panel_movil
 
 # ---------------------------------------------------------
 # 3. MÓDULO NHL
