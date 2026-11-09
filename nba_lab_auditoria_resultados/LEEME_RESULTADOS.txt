@@ -1,0 +1,7 @@
+Filas: 866
+Partidos únicos: 433
+Pares válidos: 433
+Incidencias detectadas: 0
+
+Nota: la comprobación de ausencia de fuga temporal requiere además pruebas sobre el código y datos fuente.
+Nota: el CSV actual no incluye local/visitante ni puntos por cuarto; no se infieren.
