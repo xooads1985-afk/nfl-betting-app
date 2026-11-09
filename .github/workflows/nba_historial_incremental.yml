@@ -1,0 +1,32 @@
+name: NBA - Historial incremental auditado
+on:
+  workflow_dispatch:
+    inputs:
+      inicio:
+        description: 'Fecha inicial YYYY-MM-DD (UTC)'
+        required: true
+        default: '2026-10-20'
+      dias:
+        description: 'Fechas a recuperar (1-7)'
+        required: true
+        default: '7'
+permissions:
+  contents: read
+jobs:
+  recuperar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recuperar y auditar
+        run: python nba_lab_historial_incremental.py --inicio '${{ inputs.inicio }}' --dias '${{ inputs.dias }}'
+      - name: Guardar reportes incluso ante errores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-historial-incremental-auditado
+          path: nba_historial_incremental_salida/
+          if-no-files-found: warn
