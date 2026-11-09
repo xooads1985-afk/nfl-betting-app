@@ -36,13 +36,15 @@ jobs:
         env:
           MAX_FECHAS: ${{ github.event_name == 'schedule' && '20' || inputs.max_fechas || '10' }}
         run: python nba_lab_ejecutar.py --max-fechas "$MAX_FECHAS"
+      - name: Auditar predicciones historicas
+        run: python nba_lab_auditoria.py --entrada nba_lab_resultados/algoritmos_predicciones.csv --salida nba_lab_auditoria_resultados
       - name: Guardar resultados en repositorio
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add nba_lab_resultados nba_lab_cache
+          git add nba_lab_resultados nba_lab_cache nba_lab_auditoria_resultados
           if ! git diff --cached --quiet; then
-            git commit -m "Actualizar resultados del laboratorio NBA [skip ci]"
+            git commit -m "Actualizar resultados y auditoria NBA [skip ci]"
             git push
           else
             echo "No hay cambios nuevos que guardar."
@@ -52,5 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nba-laboratorio-resultados
-          path: nba_lab_resultados/
+          path: |
+            nba_lab_resultados/
+            nba_lab_auditoria_resultados/
           if-no-files-found: warn
