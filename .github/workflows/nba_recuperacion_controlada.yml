@@ -1,0 +1,23 @@
+name: NBA - Recuperacion real controlada
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recuperar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Consultar muestra real ESPN (sin cambiar historial)
+        run: python nba_lab_recuperacion_controlada.py --max-partidos 8
+      - name: Guardar reporte y CSV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-recuperacion-real
+          path: diagnostico_recuperacion/
+          if-no-files-found: warn
