@@ -9,7 +9,7 @@ AUD = ROOT / "nba_lab_auditoria_resultados"
 DATA = ROOT / "nba_lab_resultados"
 
 st.markdown("""<style>
-.block-container {padding-top:.55rem;padding-left:.65rem;padding-right:.65rem;max-width:850px}
+.block-container {padding-top:2.6rem;padding-left:.65rem;padding-right:.65rem;max-width:850px}
 h1 {font-size:1.65rem!important;line-height:1.2!important}
 h2 {font-size:1.2rem!important}
 [data-testid="stMetricValue"] {font-size:1.45rem}
