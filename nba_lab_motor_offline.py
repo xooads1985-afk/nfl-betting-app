@@ -225,7 +225,7 @@ def _nba_lab_ml_predecir(modelos, x, base, n, liga):
         res['Ensemble'] = float(np.mean(miembros))
     return res
 
-def _nba_lab_ml_validacion(partidos, limite=None, minimo_train=24, progreso=None):
+def _nba_lab_ml_validacion(partidos, limite=None, minimo_train=24, progreso=None, fechas_objetivo=None):
     """Validación cronológica con caché de features y un entrenamiento por fecha.
 
     limite=None evalúa todas las fechas con historial suficiente.
@@ -244,7 +244,8 @@ def _nba_lab_ml_validacion(partidos, limite=None, minimo_train=24, progreso=None
     historico = []
     resultados = []
     fechas = datos['_fecha_ml'].drop_duplicates().tolist()
-    fechas_evaluar = set(fechas if limite is None else fechas[-limite:])
+    fechas_evaluar = (set(pd.to_datetime(fechas_objetivo, utc=True)) if fechas_objetivo is not None
+                     else set(fechas if limite is None else fechas[-limite:]))
     activos = {'forma': True, 'sede': True, 'descanso': True, 'pace': False, 'fuerza': True, 'regresion': True}
     grupos = list(datos.groupby('_fecha_ml', sort=True))
     for indice, (fecha, grupo) in enumerate(grupos):
@@ -288,3 +289,4 @@ def _nba_lab_ml_resumen(df):
         err = validos[col] - validos['real']
         filas.append({'Modelo': col, 'Predicciones': len(err), 'MAE': round(float(err.abs().mean()), 3), 'RMSE': round(float(np.sqrt((err ** 2).mean())), 3), 'Sesgo': round(float(err.mean()), 3)})
     return pd.DataFrame(filas)
+
