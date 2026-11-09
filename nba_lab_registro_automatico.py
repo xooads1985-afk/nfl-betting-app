@@ -1,9 +1,16 @@
-"""Prueba manual del registro prospectivo NBA. No cambia módulos estables."""
+"""Registro prospectivo NBA: ventana corta y ejecución manual segura.
+No altera los modelos ni los módulos principales.
+"""
 import argparse
 import json
 import os
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+
+
+def log(mensaje):
+    print(f'[{datetime.now(timezone.utc).isoformat(timespec="seconds")}] {mensaje}', flush=True)
 
 
 def configurar_secretos():
@@ -18,53 +25,89 @@ def configurar_secretos():
 
 
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument('--mode', choices=('dry_run', 'save'), default='dry_run')
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', choices=('dry_run', 'save'), default='dry_run')
+    args = parser.parse_args()
     configurar_secretos()
     import pandas as pd
     from resumen_inteligente_nba import _cargar_historial_temporada_nba, _calendario_proximos_nba
     from nba_laboratorio_prospectivo import calcular, guardar, registros
 
-    hoy = datetime.now(timezone.utc).date()
-    historico, incidencias = _cargar_historial_temporada_nba(date(2025, 10, 21), hoy)
-    if incidencias:
-        print(f'AVISO: {len(incidencias)} incidencias de cobertura histórica')
-    if historico.empty:
-        raise RuntimeError('Historial vacío: ejecución cancelada')
-    futuros, errores = _calendario_proximos_nba(hoy.isoformat(), (hoy + timedelta(days=3)).isoformat())
+    ahora = pd.Timestamp.now(tz='UTC')
+    hoy = ahora.date()
+    log(f'INICIO modo={args.mode}; ventana=60min a 24h; máximo=8 partidos')
+    log('Cargando calendario NBA...')
+    futuros, errores = _calendario_proximos_nba(hoy.isoformat(), (hoy + timedelta(days=2)).isoformat())
     if errores:
-        print(f'AVISO: {len(errores)} incidencias de calendario')
-    if futuros.empty:
-        print('Sin partidos futuros; no se guarda nada')
+        log(f'AVISO calendario: {len(errores)} incidencias')
+    if futuros is None or futuros.empty:
+        log('Sin partidos en calendario. No se escribe nada.')
         return
-    existentes = {(str(r['partido_id']), r['equipo'], r['modelo']) for r in registros()}
     futuros = futuros.copy()
     futuros['_inicio'] = pd.to_datetime(futuros['fecha_utc'], utc=True, errors='coerce')
-    futuros = futuros.loc[(futuros['_inicio'] > pd.Timestamp.now(tz='UTC') + pd.Timedelta(minutes=60)) & futuros['finalizado'].eq(False)]
-    futuros = futuros.drop_duplicates('id').sort_values('_inicio')
-    calculados = omitidos = fallos = insertados = 0
-    for juego in futuros.to_dict('records'):
+    elegibles = futuros.loc[
+        futuros['_inicio'].gt(ahora + pd.Timedelta(minutes=60))
+        & futuros['_inicio'].le(ahora + pd.Timedelta(hours=24))
+        & futuros['finalizado'].eq(False)
+    ].drop_duplicates('id').sort_values('_inicio')
+    log(f'Partidos dentro de ventana: {len(elegibles)}')
+    if elegibles.empty:
+        log('RESUMEN modo=' + args.mode + ' calculados=0 omitidos=0 fallos=0 insertados=0')
+        return
+
+    log('Consultando predicciones existentes...')
+    existentes = {(str(r['partido_id']), str(r['equipo']), str(r['modelo'])) for r in registros()}
+    pendientes = []
+    omitidos = 0
+    for juego in elegibles.to_dict('records'):
         ident = str(juego['id'])
         claves = {(ident, str(equipo), modelo) for equipo in (juego['local'], juego['visitante']) for modelo in ('Base', 'Modelo C', 'Ensemble')}
         if claves.issubset(existentes):
             omitidos += 1
-            print(f'OMITIDO {ident}: seis registros existentes')
-            continue
+            log(f'OMITIDO {ident}: seis registros existentes')
+        else:
+            pendientes.append(juego)
+    if not pendientes:
+        log(f'RESUMEN modo={args.mode} calculados=0 omitidos={omitidos} fallos=0 insertados=0')
+        return
+    if len(pendientes) > 8:
+        log(f'AVISO: {len(pendientes)} pendientes; se procesan los primeros 8 por hora de inicio')
+        pendientes = pendientes[:8]
+
+    log('Cargando historial de entrenamiento (2025-10-21 hasta hoy)...')
+    inicio_carga = time.monotonic()
+    historico, incidencias = _cargar_historial_temporada_nba(date(2025, 10, 21), hoy)
+    if incidencias:
+        log(f'AVISO: {len(incidencias)} incidencias de cobertura histórica')
+    if historico is None or historico.empty:
+        raise RuntimeError('Historial vacío: ejecución cancelada')
+    log(f'Historial listo: {len(historico)} partidos en {time.monotonic()-inicio_carga:.1f}s')
+
+    calculados = fallos = insertados = 0
+    for indice, juego in enumerate(pendientes, 1):
+        ident = str(juego['id'])
+        log(f'CALCULANDO {indice}/{len(pendientes)} partido={ident} inicio={juego["fecha_utc"]}')
+        inicio_modelo = time.monotonic()
         try:
+            # Se comprueba de nuevo que el encuentro no haya comenzado.
+            if pd.to_datetime(juego['fecha_utc'], utc=True) <= pd.Timestamp.now(tz='UTC') + pd.Timedelta(minutes=60):
+                log(f'OMITIDO {ident}: inicio demasiado cercano')
+                omitidos += 1
+                continue
             pred = calcular(historico, juego)
             calculados += 1
-            print(f'CALCULADO {ident}: {pred}')
+            log(f'CALCULADO {ident} en {time.monotonic()-inicio_modelo:.1f}s: {pred}')
             if args.mode == 'save':
+                # La función guardar del laboratorio impide sobrescribir filas existentes.
                 cantidad = guardar(juego, pred)
                 insertados += cantidad
-                print(f'GUARDADO {ident}: {cantidad} registros nuevos')
+                log(f'GUARDADO {ident}: {cantidad} registros nuevos')
             else:
-                print(f'SIMULACION {ident}: sin escrituras')
+                log(f'SIMULACION {ident}: sin escrituras')
         except Exception as exc:
             fallos += 1
-            print(f'ERROR {ident}: {type(exc).__name__}: {exc}')
-    print(f'RESUMEN modo={args.mode} calculados={calculados} omitidos={omitidos} fallos={fallos} insertados={insertados}')
+            log(f'ERROR {ident}: {type(exc).__name__}: {exc}')
+    log(f'RESUMEN modo={args.mode} calculados={calculados} omitidos={omitidos} fallos={fallos} insertados={insertados}')
     if fallos:
         raise RuntimeError('Uno o más encuentros fallaron; revisar registro')
 
