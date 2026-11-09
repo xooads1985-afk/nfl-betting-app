@@ -100,28 +100,32 @@ def main():
     completed.to_csv(OUT/'partidos_historicos.csv',index=False)
     oldpath=OUT/'algoritmos_predicciones.csv'
     old=pd.read_csv(oldpath) if oldpath.exists() else pd.DataFrame()
-    # Incremental validation: the engine trains on all prior games but only
-    # produces predictions for new dates; previous predictions are reused.
+    # Backfill cronológico: evaluar fechas todavía no cubiertas, sin reescribir
+    # las predicciones de la primera prueba ni saltar al día siguiente.
     all_dates=sorted(pd.to_datetime(completed['fecha_utc'],utc=True).unique())
-    if old.empty:
-        limit=None if args.max_fechas==0 else args.max_fechas
-    else:
-        last=pd.to_datetime(old['fecha'],utc=True).max()
-        new_dates=[d for d in all_dates if d>last]
-        if not new_dates:
-            print('No new games to validate; retaining results',flush=True)
-            limit=0
-        else:
-            limit=len(new_dates) if args.max_fechas==0 else min(len(new_dates),args.max_fechas)
-    if limit!=0:
-        print('Validating chronological models...',flush=True)
-        new,note=_nba_lab_ml_validacion(completed,limite=limit)
+    existing_ids=set(old['partido'].astype(str)) if not old.empty else set()
+    game_dates=completed[['id','fecha_utc']].copy()
+    game_dates['fecha_utc']=pd.to_datetime(game_dates['fecha_utc'],utc=True)
+    missing_dates=[]
+    for d,g in game_dates.groupby('fecha_utc',sort=True):
+        if not set(g['id'].astype(str)).issubset(existing_ids):
+            missing_dates.append(d)
+    target=missing_dates if args.max_fechas==0 else missing_dates[:args.max_fechas]
+    if target:
+        print(f'Backfill: {len(target)} fechas pendientes, desde {target[0]}',flush=True)
+        new,note=_nba_lab_ml_validacion(completed,fechas_objetivo=target)
         print(note,flush=True)
         if not new.empty:
             combined=pd.concat([old,new],ignore_index=True) if not old.empty else new
-            combined=combined.drop_duplicates(['partido','equipo'],keep='last')
+            combined['partido']=combined['partido'].astype(str)
+            combined=combined.drop_duplicates(['partido','equipo'],keep='first')
+            combined=combined.sort_values(['fecha','partido','equipo'])
             combined.to_csv(oldpath,index=False)
             _nba_lab_ml_resumen(combined).to_csv(OUT/'algoritmos_resumen.csv',index=False)
+        else:
+            print('Sin predicciones para este bloque; revise historial mínimo.',flush=True)
+    else:
+        print('No hay fechas pendientes; se conservan resultados.',flush=True)
     meta={'actualizado_utc':datetime.now(timezone.utc).isoformat(),
           'desde':str(a),'hasta':str(b),'partidos_finalizados':len(completed),
           'predicciones_guardadas':len(pd.read_csv(oldpath)) if oldpath.exists() else 0,
