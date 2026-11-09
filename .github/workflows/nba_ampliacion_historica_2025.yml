@@ -1,0 +1,23 @@
+name: NBA - Ampliacion historica 2025
+on:
+  workflow_dispatch:
+jobs:
+  ampliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencias
+        run: pip install pandas numpy scikit-learn
+      - name: Ampliar boxscores y comparar modelos
+        run: python nba_lab_ampliar_2025.py
+      - name: Guardar resultados incluso si hay fallos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-ampliacion-historica-2025
+          path: nba_ampliacion_2025_resultados/
+          if-no-files-found: warn
