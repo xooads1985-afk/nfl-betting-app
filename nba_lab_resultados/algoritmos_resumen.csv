@@ -1,10 +1,10 @@
 Modelo,Predicciones,MAE,RMSE,Sesgo
-Base,316,9.018,11.243,0.055
-Modelo C,316,9.076,11.349,0.01
-Ridge,316,8.949,11.347,-0.455
-Bayesiano,316,9.169,11.484,0.124
-Gradient Boosting,316,9.046,11.565,-0.387
+Base,472,9.279,11.579,0.198
+Modelo C,472,9.312,11.639,0.141
+Ridge,472,9.241,11.695,-0.443
+Bayesiano,472,9.36,11.727,0.243
+Gradient Boosting,472,9.321,11.833,-0.041
 Posesiones + eficiencia,0,,,
-Ensemble,316,8.897,11.349,-0.239
-Regresión lineal,316,9.022,11.504,-0.953
-Binomial negativa,316,9.022,11.504,-0.953
+Ensemble,472,9.179,11.649,-0.08
+Regresión lineal,472,9.295,11.809,-0.838
+Binomial negativa,472,9.295,11.809,-0.838
