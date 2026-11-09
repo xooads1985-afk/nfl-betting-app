@@ -1,0 +1,23 @@
+name: NBA - Verificacion identidad ESPN
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cotejar muestra contra ESPN original
+        run: python nba_lab_verificar_identidad_espn.py --muestra nba_lab_muestra_identidad --salida auditoria_identidad_espn
+      - name: Guardar resultados incluso si hay discrepancias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-auditoria-identidad
+          path: auditoria_identidad_espn/
+          if-no-files-found: warn
