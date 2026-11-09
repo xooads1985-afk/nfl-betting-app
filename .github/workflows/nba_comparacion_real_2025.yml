@@ -1,0 +1,29 @@
+name: NBA - Comparacion Pace real 2025
+on:
+  workflow_dispatch:
+    inputs:
+      max_partidos:
+        description: 'Partidos historicos a descargar (100-1000)'
+        required: true
+        default: '350'
+permissions:
+  contents: read
+jobs:
+  comparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Comparar sobre mismos partidos
+        run: python nba_lab_comparar_2025.py --max-partidos '${{ inputs.max_partidos }}'
+      - name: Descargar auditoria y metricas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-comparacion-real-2025
+          path: nba_comparacion_2025_resultados/
+          if-no-files-found: warn
