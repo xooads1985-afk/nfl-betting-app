@@ -1,27 +1,27 @@
 id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809243,2025-10-21T23:30:00Z,Oklahoma City Thunder,Houston Rockets,125.0,124.0,True,Final
 401809244,2025-10-22T02:00:00Z,Los Angeles Lakers,Golden State Warriors,109.0,119.0,True,Final
-401809934,2025-10-22T23:00:00Z,Orlando Magic,Miami Heat,125.0,121.0,True,Final
-401809933,2025-10-22T23:00:00Z,Charlotte Hornets,Brooklyn Nets,136.0,117.0,True,Final
 401809234,2025-10-22T23:00:00Z,New York Knicks,Cleveland Cavaliers,119.0,111.0,True,Final
-401809936,2025-10-22T23:30:00Z,Boston Celtics,Philadelphia 76ers,116.0,117.0,True,Final
+401809933,2025-10-22T23:00:00Z,Charlotte Hornets,Brooklyn Nets,136.0,117.0,True,Final
+401809934,2025-10-22T23:00:00Z,Orlando Magic,Miami Heat,125.0,121.0,True,Final
 401809935,2025-10-22T23:30:00Z,Atlanta Hawks,Toronto Raptors,118.0,138.0,True,Final
-401809939,2025-10-23T00:00:00Z,Milwaukee Bucks,Washington Wizards,133.0,120.0,True,Final
-401809938,2025-10-23T00:00:00Z,Memphis Grizzlies,New Orleans Pelicans,128.0,122.0,True,Final
+401809936,2025-10-22T23:30:00Z,Boston Celtics,Philadelphia 76ers,116.0,117.0,True,Final
 401809937,2025-10-23T00:00:00Z,Chicago Bulls,Detroit Pistons,115.0,111.0,True,Final
+401809938,2025-10-23T00:00:00Z,Memphis Grizzlies,New Orleans Pelicans,128.0,122.0,True,Final
+401809939,2025-10-23T00:00:00Z,Milwaukee Bucks,Washington Wizards,133.0,120.0,True,Final
 401809940,2025-10-23T01:00:00Z,Utah Jazz,LA Clippers,129.0,108.0,True,Final
 401809235,2025-10-23T01:47:00Z,Dallas Mavericks,San Antonio Spurs,92.0,125.0,True,Final
-401809942,2025-10-23T02:00:00Z,Portland Trail Blazers,Minnesota Timberwolves,114.0,118.0,True,Final
 401809941,2025-10-23T02:00:00Z,Phoenix Suns,Sacramento Kings,120.0,116.0,True,Final
+401809942,2025-10-23T02:00:00Z,Portland Trail Blazers,Minnesota Timberwolves,114.0,118.0,True,Final
 401809236,2025-10-23T23:30:00Z,Indiana Pacers,Oklahoma City Thunder,135.0,141.0,True,Final
 401809237,2025-10-24T02:17:00Z,Golden State Warriors,Denver Nuggets,137.0,131.0,True,Final
 401809946,2025-10-24T22:30:00Z,Toronto Raptors,Milwaukee Bucks,116.0,122.0,True,Final
 401809943,2025-10-24T23:00:00Z,Orlando Magic,Atlanta Hawks,107.0,111.0,True,Final
-401809944,2025-10-24T23:30:00Z,Brooklyn Nets,Cleveland Cavaliers,124.0,131.0,True,Final
 401809945,2025-10-24T23:30:00Z,New York Knicks,Boston Celtics,105.0,95.0,True,Final
-401809949,2025-10-25T00:00:00Z,New Orleans Pelicans,San Antonio Spurs,116.0,120.0,True,Final
+401809944,2025-10-24T23:30:00Z,Brooklyn Nets,Cleveland Cavaliers,124.0,131.0,True,Final
 401809948,2025-10-25T00:00:00Z,Memphis Grizzlies,Miami Heat,114.0,146.0,True,Final
 401809947,2025-10-25T00:00:00Z,Houston Rockets,Detroit Pistons,111.0,115.0,True,Final
+401809949,2025-10-25T00:00:00Z,New Orleans Pelicans,San Antonio Spurs,116.0,120.0,True,Final
 401809950,2025-10-25T00:30:00Z,Dallas Mavericks,Washington Wizards,107.0,117.0,True,Final
 401809953,2025-10-25T02:00:00Z,Sacramento Kings,Utah Jazz,105.0,104.0,True,Final
 401809952,2025-10-25T02:00:00Z,Portland Trail Blazers,Golden State Warriors,139.0,119.0,True,Final
@@ -34,19 +34,19 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809959,2025-10-26T01:00:00Z,Denver Nuggets,Phoenix Suns,133.0,111.0,True,Final
 401809960,2025-10-26T18:00:00Z,San Antonio Spurs,Brooklyn Nets,118.0,107.0,True,Final
 401809961,2025-10-26T19:30:00Z,Detroit Pistons,Boston Celtics,119.0,113.0,True,Final
+401809962,2025-10-26T22:00:00Z,Cleveland Cavaliers,Milwaukee Bucks,118.0,113.0,True,Final
 401809964,2025-10-26T22:00:00Z,Washington Wizards,Charlotte Hornets,113.0,139.0,True,Final
 401809963,2025-10-26T22:00:00Z,Miami Heat,New York Knicks,115.0,107.0,True,Final
-401809962,2025-10-26T22:00:00Z,Cleveland Cavaliers,Milwaukee Bucks,118.0,113.0,True,Final
 401809965,2025-10-26T23:00:00Z,Minnesota Timberwolves,Indiana Pacers,114.0,110.0,True,Final
 401809966,2025-10-26T23:30:00Z,Dallas Mavericks,Toronto Raptors,139.0,129.0,True,Final
-401809968,2025-10-27T01:00:00Z,Sacramento Kings,Los Angeles Lakers,120.0,127.0,True,Final
 401809967,2025-10-27T01:00:00Z,LA Clippers,Portland Trail Blazers,114.0,107.0,True,Final
-401809245,2025-10-27T23:00:00Z,Detroit Pistons,Cleveland Cavaliers,95.0,116.0,True,Final
+401809968,2025-10-27T01:00:00Z,Sacramento Kings,Los Angeles Lakers,120.0,127.0,True,Final
 401809969,2025-10-27T23:00:00Z,Philadelphia 76ers,Orlando Magic,136.0,124.0,True,Final
+401809245,2025-10-27T23:00:00Z,Detroit Pistons,Cleveland Cavaliers,95.0,116.0,True,Final
+401809971,2025-10-28T00:00:00Z,Houston Rockets,Brooklyn Nets,137.0,109.0,True,Final
+401809970,2025-10-28T00:00:00Z,Chicago Bulls,Atlanta Hawks,128.0,123.0,True,Final
 401809972,2025-10-28T00:00:00Z,New Orleans Pelicans,Boston Celtics,90.0,122.0,True,Final
 401809973,2025-10-28T00:00:00Z,San Antonio Spurs,Toronto Raptors,121.0,103.0,True,Final
-401809970,2025-10-28T00:00:00Z,Chicago Bulls,Atlanta Hawks,128.0,123.0,True,Final
-401809971,2025-10-28T00:00:00Z,Houston Rockets,Brooklyn Nets,137.0,109.0,True,Final
 401809974,2025-10-28T00:30:00Z,Dallas Mavericks,Oklahoma City Thunder,94.0,101.0,True,Final
 401809975,2025-10-28T01:00:00Z,Utah Jazz,Phoenix Suns,138.0,134.0,True,Final
 401809246,2025-10-28T01:30:00Z,Minnesota Timberwolves,Denver Nuggets,114.0,127.0,True,Final
@@ -58,8 +58,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809980,2025-10-29T00:00:00Z,Milwaukee Bucks,New York Knicks,121.0,111.0,True,Final
 401809982,2025-10-29T03:00:00Z,Golden State Warriors,LA Clippers,98.0,79.0,True,Final
 401809986,2025-10-29T22:30:00Z,Toronto Raptors,Houston Rockets,121.0,139.0,True,Final
-401809983,2025-10-29T23:00:00Z,Boston Celtics,Cleveland Cavaliers,125.0,105.0,True,Final
 401809984,2025-10-29T23:00:00Z,Detroit Pistons,Orlando Magic,135.0,116.0,True,Final
+401809983,2025-10-29T23:00:00Z,Boston Celtics,Cleveland Cavaliers,125.0,105.0,True,Final
 401809985,2025-10-29T23:30:00Z,Brooklyn Nets,Atlanta Hawks,112.0,117.0,True,Final
 401809987,2025-10-30T00:00:00Z,Chicago Bulls,Sacramento Kings,126.0,113.0,True,Final
 401809988,2025-10-30T00:30:00Z,Dallas Mavericks,Indiana Pacers,107.0,105.0,True,Final
@@ -71,66 +71,66 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809994,2025-10-31T00:00:00Z,Milwaukee Bucks,Golden State Warriors,120.0,110.0,True,Final
 401809995,2025-10-31T00:00:00Z,Oklahoma City Thunder,Washington Wizards,127.0,108.0,True,Final
 401809996,2025-10-31T00:30:00Z,San Antonio Spurs,Miami Heat,107.0,101.0,True,Final
-401809502,2025-10-31T23:00:00Z,Indiana Pacers,Atlanta Hawks,108.0,128.0,True,Final
 401809503,2025-10-31T23:00:00Z,Philadelphia 76ers,Boston Celtics,108.0,109.0,True,Final
+401809502,2025-10-31T23:00:00Z,Indiana Pacers,Atlanta Hawks,108.0,128.0,True,Final
 401809504,2025-10-31T23:30:00Z,Cleveland Cavaliers,Toronto Raptors,101.0,112.0,True,Final
 401809505,2025-11-01T00:00:00Z,Chicago Bulls,New York Knicks,135.0,125.0,True,Final
 401809506,2025-11-01T01:30:00Z,Memphis Grizzlies,Los Angeles Lakers,112.0,117.0,True,Final
-401809507,2025-11-01T02:00:00Z,Phoenix Suns,Utah Jazz,118.0,96.0,True,Final
 401809508,2025-11-01T02:00:00Z,Portland Trail Blazers,Denver Nuggets,109.0,107.0,True,Final
+401809507,2025-11-01T02:00:00Z,Phoenix Suns,Utah Jazz,118.0,96.0,True,Final
 401809509,2025-11-01T02:30:00Z,LA Clippers,New Orleans Pelicans,126.0,124.0,True,Final
 401809997,2025-11-01T21:00:00Z,Milwaukee Bucks,Sacramento Kings,133.0,135.0,True,Final
 401809998,2025-11-01T22:00:00Z,Charlotte Hornets,Minnesota Timberwolves,105.0,122.0,True,Final
-401810000,2025-11-01T23:00:00Z,Washington Wizards,Orlando Magic,94.0,125.0,True,Final
 401809999,2025-11-01T23:00:00Z,Indiana Pacers,Golden State Warriors,114.0,109.0,True,Final
+401810000,2025-11-01T23:00:00Z,Washington Wizards,Orlando Magic,94.0,125.0,True,Final
 401810001,2025-11-02T00:00:00Z,Boston Celtics,Houston Rockets,101.0,128.0,True,Final
 401810002,2025-11-02T02:00:00Z,Detroit Pistons,Dallas Mavericks,122.0,110.0,True,Final
 401810003,2025-11-02T20:30:00Z,Oklahoma City Thunder,New Orleans Pelicans,137.0,106.0,True,Final
-401810004,2025-11-02T23:00:00Z,Brooklyn Nets,Philadelphia 76ers,105.0,129.0,True,Final
 401810007,2025-11-02T23:00:00Z,Toronto Raptors,Memphis Grizzlies,117.0,104.0,True,Final
-401810005,2025-11-02T23:00:00Z,Charlotte Hornets,Utah Jazz,126.0,103.0,True,Final
 401810006,2025-11-02T23:00:00Z,Cleveland Cavaliers,Atlanta Hawks,117.0,109.0,True,Final
+401810005,2025-11-02T23:00:00Z,Charlotte Hornets,Utah Jazz,126.0,103.0,True,Final
+401810004,2025-11-02T23:00:00Z,Brooklyn Nets,Philadelphia 76ers,105.0,129.0,True,Final
 401810008,2025-11-03T00:00:00Z,New York Knicks,Chicago Bulls,128.0,116.0,True,Final
 401810009,2025-11-03T01:00:00Z,Phoenix Suns,San Antonio Spurs,130.0,118.0,True,Final
 401810010,2025-11-03T02:30:00Z,Los Angeles Lakers,Miami Heat,130.0,120.0,True,Final
 401810011,2025-11-04T00:00:00Z,Brooklyn Nets,Minnesota Timberwolves,109.0,125.0,True,Final
 401810012,2025-11-04T00:00:00Z,Indiana Pacers,Milwaukee Bucks,115.0,117.0,True,Final
-401810014,2025-11-04T00:30:00Z,New York Knicks,Washington Wizards,119.0,102.0,True,Final
 401810013,2025-11-04T00:30:00Z,Boston Celtics,Utah Jazz,103.0,105.0,True,Final
-401810015,2025-11-04T01:00:00Z,Houston Rockets,Dallas Mavericks,110.0,102.0,True,Final
+401810014,2025-11-04T00:30:00Z,New York Knicks,Washington Wizards,119.0,102.0,True,Final
 401810016,2025-11-04T01:00:00Z,Memphis Grizzlies,Detroit Pistons,106.0,114.0,True,Final
+401810015,2025-11-04T01:00:00Z,Houston Rockets,Dallas Mavericks,110.0,102.0,True,Final
 401810017,2025-11-04T02:00:00Z,Denver Nuggets,Sacramento Kings,130.0,124.0,True,Final
 401810018,2025-11-04T03:00:00Z,Portland Trail Blazers,Los Angeles Lakers,115.0,123.0,True,Final
 401810019,2025-11-04T03:30:00Z,LA Clippers,Miami Heat,119.0,120.0,True,Final
 401810020,2025-11-05T00:30:00Z,Toronto Raptors,Milwaukee Bucks,128.0,100.0,True,Final
 401810023,2025-11-05T01:00:00Z,New Orleans Pelicans,Charlotte Hornets,116.0,112.0,True,Final
-401810022,2025-11-05T01:00:00Z,Chicago Bulls,Philadelphia 76ers,113.0,111.0,True,Final
 401810021,2025-11-05T01:00:00Z,Atlanta Hawks,Orlando Magic,127.0,112.0,True,Final
+401810022,2025-11-05T01:00:00Z,Chicago Bulls,Philadelphia 76ers,113.0,111.0,True,Final
 401810024,2025-11-05T03:00:00Z,Golden State Warriors,Phoenix Suns,118.0,107.0,True,Final
 401810025,2025-11-05T04:00:00Z,LA Clippers,Oklahoma City Thunder,107.0,126.0,True,Final
+401810028,2025-11-06T00:00:00Z,Indiana Pacers,Brooklyn Nets,103.0,112.0,True,Final
 401810027,2025-11-06T00:00:00Z,Detroit Pistons,Utah Jazz,114.0,103.0,True,Final
 401810026,2025-11-06T00:00:00Z,Cleveland Cavaliers,Philadelphia 76ers,132.0,121.0,True,Final
-401810028,2025-11-06T00:00:00Z,Indiana Pacers,Brooklyn Nets,103.0,112.0,True,Final
 401810030,2025-11-06T00:30:00Z,New York Knicks,Minnesota Timberwolves,137.0,114.0,True,Final
 401810029,2025-11-06T00:30:00Z,Boston Celtics,Washington Wizards,136.0,107.0,True,Final
 401810031,2025-11-06T01:00:00Z,Memphis Grizzlies,Houston Rockets,109.0,124.0,True,Final
 401810032,2025-11-06T01:30:00Z,Dallas Mavericks,New Orleans Pelicans,99.0,101.0,True,Final
 401810033,2025-11-06T02:00:00Z,Denver Nuggets,Miami Heat,122.0,112.0,True,Final
-401810036,2025-11-06T03:00:00Z,Sacramento Kings,Golden State Warriors,121.0,116.0,True,Final
-401810034,2025-11-06T03:00:00Z,Los Angeles Lakers,San Antonio Spurs,118.0,116.0,True,Final
 401810035,2025-11-06T03:00:00Z,Portland Trail Blazers,Oklahoma City Thunder,121.0,119.0,True,Final
+401810034,2025-11-06T03:00:00Z,Los Angeles Lakers,San Antonio Spurs,118.0,116.0,True,Final
+401810036,2025-11-06T03:00:00Z,Sacramento Kings,Golden State Warriors,121.0,116.0,True,Final
 401810037,2025-11-07T02:00:00Z,Phoenix Suns,LA Clippers,115.0,102.0,True,Final
-401809511,2025-11-08T00:00:00Z,Washington Wizards,Cleveland Cavaliers,115.0,148.0,True,Final
 401809510,2025-11-08T00:00:00Z,Orlando Magic,Boston Celtics,123.0,110.0,True,Final
-401809773,2025-11-08T00:30:00Z,Brooklyn Nets,Detroit Pistons,107.0,125.0,True,Final
+401809511,2025-11-08T00:00:00Z,Washington Wizards,Cleveland Cavaliers,115.0,148.0,True,Final
 401809774,2025-11-08T00:30:00Z,San Antonio Spurs,Houston Rockets,121.0,110.0,True,Final
+401809773,2025-11-08T00:30:00Z,Brooklyn Nets,Detroit Pistons,107.0,125.0,True,Final
 401809512,2025-11-08T00:30:00Z,Atlanta Hawks,Toronto Raptors,97.0,109.0,True,Final
-401809776,2025-11-08T01:00:00Z,Memphis Grizzlies,Dallas Mavericks,118.0,104.0,True,Final
 401809778,2025-11-08T01:00:00Z,Minnesota Timberwolves,Utah Jazz,137.0,97.0,True,Final
-401809777,2025-11-08T01:00:00Z,Milwaukee Bucks,Chicago Bulls,126.0,110.0,True,Final
+401809776,2025-11-08T01:00:00Z,Memphis Grizzlies,Dallas Mavericks,118.0,104.0,True,Final
 401809775,2025-11-08T01:00:00Z,Miami Heat,Charlotte Hornets,126.0,108.0,True,Final
-401809779,2025-11-08T03:00:00Z,Denver Nuggets,Golden State Warriors,129.0,104.0,True,Final
+401809777,2025-11-08T01:00:00Z,Milwaukee Bucks,Chicago Bulls,126.0,110.0,True,Final
 401809780,2025-11-08T03:00:00Z,Sacramento Kings,Oklahoma City Thunder,101.0,132.0,True,Final
+401809779,2025-11-08T03:00:00Z,Denver Nuggets,Golden State Warriors,129.0,104.0,True,Final
 401810038,2025-11-09T00:00:00Z,Washington Wizards,Dallas Mavericks,105.0,111.0,True,Final
 401810039,2025-11-09T00:30:00Z,Philadelphia 76ers,Toronto Raptors,130.0,120.0,True,Final
 401810043,2025-11-09T01:00:00Z,San Antonio Spurs,New Orleans Pelicans,126.0,119.0,True,Final
@@ -140,25 +140,25 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810044,2025-11-09T02:00:00Z,Denver Nuggets,Indiana Pacers,117.0,100.0,True,Final
 401810045,2025-11-09T03:30:00Z,LA Clippers,Phoenix Suns,103.0,114.0,True,Final
 401810046,2025-11-09T20:30:00Z,Milwaukee Bucks,Houston Rockets,115.0,122.0,True,Final
-401810048,2025-11-09T23:00:00Z,Orlando Magic,Boston Celtics,107.0,111.0,True,Final
 401810049,2025-11-09T23:00:00Z,Memphis Grizzlies,Oklahoma City Thunder,100.0,114.0,True,Final
+401810048,2025-11-09T23:00:00Z,Orlando Magic,Boston Celtics,107.0,111.0,True,Final
 401810047,2025-11-09T23:00:00Z,New York Knicks,Brooklyn Nets,134.0,98.0,True,Final
 401810050,2025-11-10T00:30:00Z,Philadelphia 76ers,Detroit Pistons,108.0,111.0,True,Final
 401810051,2025-11-10T01:30:00Z,Golden State Warriors,Indiana Pacers,114.0,83.0,True,Final
 401810052,2025-11-10T02:00:00Z,Sacramento Kings,Minnesota Timberwolves,117.0,144.0,True,Final
+401810055,2025-11-11T00:00:00Z,Orlando Magic,Portland Trail Blazers,115.0,112.0,True,Final
 401810054,2025-11-11T00:00:00Z,Detroit Pistons,Washington Wizards,137.0,135.0,True,Final
 401810053,2025-11-11T00:00:00Z,Charlotte Hornets,Los Angeles Lakers,111.0,121.0,True,Final
-401810055,2025-11-11T00:00:00Z,Orlando Magic,Portland Trail Blazers,115.0,112.0,True,Final
 401810056,2025-11-11T00:30:00Z,Miami Heat,Cleveland Cavaliers,140.0,138.0,True,Final
 401810057,2025-11-11T01:00:00Z,Chicago Bulls,San Antonio Spurs,117.0,121.0,True,Final
 401810058,2025-11-11T01:30:00Z,Dallas Mavericks,Milwaukee Bucks,114.0,116.0,True,Final
 401810059,2025-11-11T02:00:00Z,Phoenix Suns,New Orleans Pelicans,121.0,98.0,True,Final
 401810060,2025-11-11T02:00:00Z,Utah Jazz,Minnesota Timberwolves,113.0,120.0,True,Final
 401810061,2025-11-11T03:30:00Z,LA Clippers,Atlanta Hawks,102.0,105.0,True,Final
-401810063,2025-11-12T00:30:00Z,New York Knicks,Memphis Grizzlies,133.0,120.0,True,Final
 401810062,2025-11-12T00:30:00Z,Brooklyn Nets,Toronto Raptors,109.0,119.0,True,Final
-401810064,2025-11-12T01:00:00Z,Philadelphia 76ers,Boston Celtics,102.0,100.0,True,Final
+401810063,2025-11-12T00:30:00Z,New York Knicks,Memphis Grizzlies,133.0,120.0,True,Final
 401810065,2025-11-12T01:00:00Z,Oklahoma City Thunder,Golden State Warriors,126.0,102.0,True,Final
+401810064,2025-11-12T01:00:00Z,Philadelphia 76ers,Boston Celtics,102.0,100.0,True,Final
 401810066,2025-11-12T02:00:00Z,Utah Jazz,Indiana Pacers,152.0,128.0,True,Final
 401810067,2025-11-12T04:00:00Z,Sacramento Kings,Denver Nuggets,108.0,122.0,True,Final
 401810069,2025-11-13T00:00:00Z,Detroit Pistons,Chicago Bulls,124.0,113.0,True,Final
@@ -166,8 +166,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810068,2025-11-13T00:00:00Z,Charlotte Hornets,Milwaukee Bucks,111.0,100.0,True,Final
 401810071,2025-11-13T00:30:00Z,Boston Celtics,Memphis Grizzlies,131.0,95.0,True,Final
 401810072,2025-11-13T00:30:00Z,Miami Heat,Cleveland Cavaliers,116.0,130.0,True,Final
-401810073,2025-11-13T01:00:00Z,Houston Rockets,Washington Wizards,135.0,112.0,True,Final
 401810075,2025-11-13T01:00:00Z,San Antonio Spurs,Golden State Warriors,120.0,125.0,True,Final
+401810073,2025-11-13T01:00:00Z,Houston Rockets,Washington Wizards,135.0,112.0,True,Final
 401810074,2025-11-13T01:00:00Z,New Orleans Pelicans,Portland Trail Blazers,117.0,125.0,True,Final
 401810076,2025-11-13T01:30:00Z,Dallas Mavericks,Phoenix Suns,114.0,123.0,True,Final
 401810077,2025-11-13T02:47:00Z,Oklahoma City Thunder,Los Angeles Lakers,121.0,92.0,True,Final
@@ -179,52 +179,52 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809782,2025-11-15T00:00:00Z,Orlando Magic,Brooklyn Nets,105.0,98.0,True,Final
 401809781,2025-11-15T00:00:00Z,New York Knicks,Miami Heat,140.0,132.0,True,Final
 401809783,2025-11-15T00:30:00Z,Detroit Pistons,Philadelphia 76ers,114.0,105.0,True,Final
+401809786,2025-11-15T01:00:00Z,Minnesota Timberwolves,Sacramento Kings,124.0,110.0,True,Final
 401809784,2025-11-15T01:00:00Z,Houston Rockets,Portland Trail Blazers,140.0,116.0,True,Final
 401809787,2025-11-15T01:00:00Z,New Orleans Pelicans,Los Angeles Lakers,104.0,118.0,True,Final
-401809786,2025-11-15T01:00:00Z,Minnesota Timberwolves,Sacramento Kings,124.0,110.0,True,Final
 401809785,2025-11-15T01:00:00Z,Milwaukee Bucks,Charlotte Hornets,147.0,134.0,True,Final
 401809788,2025-11-15T01:30:00Z,Dallas Mavericks,LA Clippers,127.0,133.0,True,Final
 401809789,2025-11-15T02:30:00Z,San Antonio Spurs,Golden State Warriors,108.0,109.0,True,Final
 401810083,2025-11-15T22:00:00Z,Cleveland Cavaliers,Memphis Grizzlies,108.0,100.0,True,Final
 401810085,2025-11-16T00:00:00Z,Indiana Pacers,Toronto Raptors,111.0,129.0,True,Final
 401810084,2025-11-16T00:00:00Z,Charlotte Hornets,Oklahoma City Thunder,96.0,109.0,True,Final
-401810086,2025-11-16T01:00:00Z,Milwaukee Bucks,Los Angeles Lakers,95.0,119.0,True,Final
 401810087,2025-11-16T01:00:00Z,Minnesota Timberwolves,Denver Nuggets,112.0,123.0,True,Final
+401810086,2025-11-16T01:00:00Z,Milwaukee Bucks,Los Angeles Lakers,95.0,119.0,True,Final
 401810088,2025-11-16T20:30:00Z,Boston Celtics,LA Clippers,121.0,118.0,True,Final
 401810089,2025-11-16T21:00:00Z,San Antonio Spurs,Sacramento Kings,123.0,110.0,True,Final
 401810090,2025-11-16T23:00:00Z,Washington Wizards,Brooklyn Nets,106.0,129.0,True,Final
-401810091,2025-11-17T00:00:00Z,Houston Rockets,Orlando Magic,117.0,113.0,True,Final
 401810092,2025-11-17T00:00:00Z,New Orleans Pelicans,Golden State Warriors,106.0,124.0,True,Final
+401810091,2025-11-17T00:00:00Z,Houston Rockets,Orlando Magic,117.0,113.0,True,Final
 401810093,2025-11-17T00:30:00Z,Dallas Mavericks,Portland Trail Blazers,138.0,133.0,True,Final
-401810094,2025-11-17T01:00:00Z,Phoenix Suns,Atlanta Hawks,122.0,124.0,True,Final
 401810095,2025-11-17T01:00:00Z,Utah Jazz,Chicago Bulls,150.0,147.0,True,Final
-401810098,2025-11-18T00:00:00Z,Philadelphia 76ers,LA Clippers,110.0,108.0,True,Final
-401810097,2025-11-18T00:00:00Z,Detroit Pistons,Indiana Pacers,127.0,112.0,True,Final
+401810094,2025-11-17T01:00:00Z,Phoenix Suns,Atlanta Hawks,122.0,124.0,True,Final
 401810096,2025-11-18T00:00:00Z,Cleveland Cavaliers,Milwaukee Bucks,118.0,106.0,True,Final
+401810097,2025-11-18T00:00:00Z,Detroit Pistons,Indiana Pacers,127.0,112.0,True,Final
+401810098,2025-11-18T00:00:00Z,Philadelphia 76ers,LA Clippers,110.0,108.0,True,Final
 401810100,2025-11-18T00:30:00Z,Toronto Raptors,Charlotte Hornets,110.0,108.0,True,Final
 401810099,2025-11-18T00:30:00Z,Miami Heat,New York Knicks,115.0,113.0,True,Final
 401810102,2025-11-18T01:00:00Z,New Orleans Pelicans,Oklahoma City Thunder,109.0,126.0,True,Final
 401810101,2025-11-18T01:00:00Z,Minnesota Timberwolves,Dallas Mavericks,120.0,96.0,True,Final
 401810103,2025-11-18T02:00:00Z,Denver Nuggets,Chicago Bulls,127.0,130.0,True,Final
 401810104,2025-11-19T00:00:00Z,Orlando Magic,Golden State Warriors,121.0,113.0,True,Final
-401810106,2025-11-19T00:30:00Z,Atlanta Hawks,Detroit Pistons,112.0,120.0,True,Final
 401810105,2025-11-19T00:30:00Z,Brooklyn Nets,Boston Celtics,99.0,113.0,True,Final
+401810106,2025-11-19T00:30:00Z,Atlanta Hawks,Detroit Pistons,112.0,120.0,True,Final
 401810107,2025-11-19T01:00:00Z,San Antonio Spurs,Memphis Grizzlies,111.0,101.0,True,Final
 401810108,2025-11-19T03:30:00Z,Los Angeles Lakers,Utah Jazz,140.0,126.0,True,Final
 401810109,2025-11-19T04:00:00Z,Portland Trail Blazers,Phoenix Suns,110.0,127.0,True,Final
 401810110,2025-11-20T00:00:00Z,Cleveland Cavaliers,Houston Rockets,104.0,114.0,True,Final
-401810111,2025-11-20T00:00:00Z,Indiana Pacers,Charlotte Hornets,127.0,118.0,True,Final
 401810113,2025-11-20T00:00:00Z,Philadelphia 76ers,Toronto Raptors,112.0,121.0,True,Final
+401810111,2025-11-20T00:00:00Z,Indiana Pacers,Charlotte Hornets,127.0,118.0,True,Final
 401810112,2025-11-20T00:30:00Z,Miami Heat,Golden State Warriors,110.0,96.0,True,Final
-401810114,2025-11-20T01:00:00Z,Minnesota Timberwolves,Washington Wizards,120.0,109.0,True,Final
-401810115,2025-11-20T01:00:00Z,New Orleans Pelicans,Denver Nuggets,118.0,125.0,True,Final
 401810116,2025-11-20T01:00:00Z,Oklahoma City Thunder,Sacramento Kings,113.0,99.0,True,Final
+401810115,2025-11-20T01:00:00Z,New Orleans Pelicans,Denver Nuggets,118.0,125.0,True,Final
+401810114,2025-11-20T01:00:00Z,Minnesota Timberwolves,Washington Wizards,120.0,109.0,True,Final
 401810117,2025-11-20T02:30:00Z,Dallas Mavericks,New York Knicks,111.0,113.0,True,Final
 401810118,2025-11-20T03:00:00Z,Portland Trail Blazers,Chicago Bulls,121.0,122.0,True,Final
 401810119,2025-11-21T00:00:00Z,Orlando Magic,LA Clippers,129.0,101.0,True,Final
 401810121,2025-11-21T01:00:00Z,Milwaukee Bucks,Philadelphia 76ers,114.0,123.0,True,Final
-401810122,2025-11-21T01:00:00Z,San Antonio Spurs,Atlanta Hawks,135.0,126.0,True,Final
 401810120,2025-11-21T01:00:00Z,Memphis Grizzlies,Sacramento Kings,137.0,96.0,True,Final
+401810122,2025-11-21T01:00:00Z,San Antonio Spurs,Atlanta Hawks,135.0,126.0,True,Final
 401809790,2025-11-22T00:00:00Z,Cleveland Cavaliers,Indiana Pacers,120.0,109.0,True,Final
 401809792,2025-11-22T00:30:00Z,Toronto Raptors,Washington Wizards,140.0,110.0,True,Final
 401809791,2025-11-22T00:30:00Z,Boston Celtics,Brooklyn Nets,105.0,113.0,True,Final
@@ -232,33 +232,33 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809794,2025-11-22T01:30:00Z,Dallas Mavericks,New Orleans Pelicans,118.0,115.0,True,Final
 401809795,2025-11-22T02:00:00Z,Phoenix Suns,Minnesota Timberwolves,114.0,113.0,True,Final
 401809796,2025-11-22T02:30:00Z,Houston Rockets,Denver Nuggets,109.0,112.0,True,Final
-401809798,2025-11-22T03:00:00Z,Golden State Warriors,Portland Trail Blazers,123.0,127.0,True,Final
 401809797,2025-11-22T03:00:00Z,Utah Jazz,Oklahoma City Thunder,112.0,144.0,True,Final
+401809798,2025-11-22T03:00:00Z,Golden State Warriors,Portland Trail Blazers,123.0,127.0,True,Final
 401810123,2025-11-22T18:00:00Z,Charlotte Hornets,LA Clippers,116.0,131.0,True,Final
 401810124,2025-11-22T22:00:00Z,Orlando Magic,New York Knicks,133.0,121.0,True,Final
 401810125,2025-11-23T00:00:00Z,New Orleans Pelicans,Atlanta Hawks,98.0,115.0,True,Final
-401810127,2025-11-23T01:00:00Z,Milwaukee Bucks,Detroit Pistons,116.0,129.0,True,Final
 401810126,2025-11-23T01:00:00Z,Chicago Bulls,Washington Wizards,121.0,120.0,True,Final
+401810127,2025-11-23T01:00:00Z,Milwaukee Bucks,Detroit Pistons,116.0,129.0,True,Final
 401810128,2025-11-23T01:30:00Z,Dallas Mavericks,Memphis Grizzlies,96.0,102.0,True,Final
 401810129,2025-11-23T03:00:00Z,Denver Nuggets,Sacramento Kings,123.0,128.0,True,Final
 401810130,2025-11-23T18:00:00Z,Philadelphia 76ers,Miami Heat,117.0,127.0,True,Final
 401810131,2025-11-23T23:00:00Z,Atlanta Hawks,Charlotte Hornets,113.0,110.0,True,Final
-401810134,2025-11-23T23:00:00Z,Toronto Raptors,Brooklyn Nets,119.0,109.0,True,Final
-401810133,2025-11-23T23:00:00Z,Cleveland Cavaliers,LA Clippers,120.0,105.0,True,Final
 401810132,2025-11-23T23:00:00Z,Boston Celtics,Orlando Magic,138.0,129.0,True,Final
+401810133,2025-11-23T23:00:00Z,Cleveland Cavaliers,LA Clippers,120.0,105.0,True,Final
+401810134,2025-11-23T23:00:00Z,Toronto Raptors,Brooklyn Nets,119.0,109.0,True,Final
 401810135,2025-11-24T00:00:00Z,Oklahoma City Thunder,Portland Trail Blazers,122.0,95.0,True,Final
-401810137,2025-11-24T01:00:00Z,Utah Jazz,Los Angeles Lakers,106.0,108.0,True,Final
 401810136,2025-11-24T01:00:00Z,Phoenix Suns,San Antonio Spurs,111.0,102.0,True,Final
+401810137,2025-11-24T01:00:00Z,Utah Jazz,Los Angeles Lakers,106.0,108.0,True,Final
 401810139,2025-11-25T00:00:00Z,Toronto Raptors,Cleveland Cavaliers,110.0,99.0,True,Final
 401810138,2025-11-25T00:00:00Z,Indiana Pacers,Detroit Pistons,117.0,122.0,True,Final
-401810141,2025-11-25T00:30:00Z,Miami Heat,Dallas Mavericks,106.0,102.0,True,Final
 401810140,2025-11-25T00:30:00Z,Brooklyn Nets,New York Knicks,100.0,113.0,True,Final
+401810141,2025-11-25T00:30:00Z,Miami Heat,Dallas Mavericks,106.0,102.0,True,Final
+401810142,2025-11-25T01:00:00Z,Memphis Grizzlies,Denver Nuggets,115.0,125.0,True,Final
 401810144,2025-11-25T01:00:00Z,New Orleans Pelicans,Chicago Bulls,143.0,130.0,True,Final
 401810143,2025-11-25T01:00:00Z,Milwaukee Bucks,Portland Trail Blazers,103.0,115.0,True,Final
-401810142,2025-11-25T01:00:00Z,Memphis Grizzlies,Denver Nuggets,115.0,125.0,True,Final
 401810145,2025-11-25T02:30:00Z,Phoenix Suns,Houston Rockets,92.0,114.0,True,Final
-401810147,2025-11-25T03:00:00Z,Sacramento Kings,Minnesota Timberwolves,117.0,112.0,True,Final
 401810146,2025-11-25T03:00:00Z,Golden State Warriors,Utah Jazz,134.0,117.0,True,Final
+401810147,2025-11-25T03:00:00Z,Sacramento Kings,Minnesota Timberwolves,117.0,112.0,True,Final
 401809799,2025-11-26T00:00:00Z,Washington Wizards,Atlanta Hawks,132.0,113.0,True,Final
 401809800,2025-11-26T01:00:00Z,Philadelphia 76ers,Orlando Magic,103.0,144.0,True,Final
 401809801,2025-11-26T04:00:00Z,Los Angeles Lakers,LA Clippers,135.0,118.0,True,Final
@@ -268,33 +268,33 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809805,2025-11-27T00:30:00Z,Toronto Raptors,Indiana Pacers,97.0,95.0,True,Final
 401809804,2025-11-27T00:30:00Z,Miami Heat,Milwaukee Bucks,106.0,103.0,True,Final
 401809807,2025-11-27T01:00:00Z,New Orleans Pelicans,Memphis Grizzlies,128.0,133.0,True,Final
-401809809,2025-11-27T03:00:00Z,Portland Trail Blazers,San Antonio Spurs,102.0,115.0,True,Final
 401809808,2025-11-27T03:00:00Z,Golden State Warriors,Houston Rockets,100.0,104.0,True,Final
+401809809,2025-11-27T03:00:00Z,Portland Trail Blazers,San Antonio Spurs,102.0,115.0,True,Final
 401809810,2025-11-27T03:00:00Z,Sacramento Kings,Phoenix Suns,100.0,112.0,True,Final
-401809812,2025-11-29T00:30:00Z,Brooklyn Nets,Philadelphia 76ers,103.0,115.0,True,Final
-401809815,2025-11-29T00:30:00Z,Indiana Pacers,Washington Wizards,119.0,86.0,True,Final
-401809816,2025-11-29T00:30:00Z,New York Knicks,Milwaukee Bucks,118.0,109.0,True,Final
 401809813,2025-11-29T00:30:00Z,Charlotte Hornets,Chicago Bulls,123.0,116.0,True,Final
-401809811,2025-11-29T00:30:00Z,Atlanta Hawks,Cleveland Cavaliers,130.0,123.0,True,Final
+401809812,2025-11-29T00:30:00Z,Brooklyn Nets,Philadelphia 76ers,103.0,115.0,True,Final
+401809816,2025-11-29T00:30:00Z,New York Knicks,Milwaukee Bucks,118.0,109.0,True,Final
 401809814,2025-11-29T00:30:00Z,Detroit Pistons,Orlando Magic,109.0,112.0,True,Final
+401809811,2025-11-29T00:30:00Z,Atlanta Hawks,Cleveland Cavaliers,130.0,123.0,True,Final
+401809815,2025-11-29T00:30:00Z,Indiana Pacers,Washington Wizards,119.0,86.0,True,Final
 401809817,2025-11-29T02:30:00Z,Oklahoma City Thunder,Phoenix Suns,123.0,119.0,True,Final
-401809819,2025-11-29T02:30:00Z,Utah Jazz,Sacramento Kings,128.0,119.0,True,Final
 401809818,2025-11-29T02:30:00Z,Denver Nuggets,San Antonio Spurs,136.0,139.0,True,Final
+401809819,2025-11-29T02:30:00Z,Utah Jazz,Sacramento Kings,128.0,119.0,True,Final
 401809821,2025-11-29T03:00:00Z,LA Clippers,Memphis Grizzlies,107.0,112.0,True,Final
 401809820,2025-11-29T03:00:00Z,Los Angeles Lakers,Dallas Mavericks,129.0,119.0,True,Final
 401810148,2025-11-29T22:00:00Z,Minnesota Timberwolves,Boston Celtics,119.0,115.0,True,Final
 401810149,2025-11-29T23:00:00Z,Charlotte Hornets,Toronto Raptors,118.0,111.0,True,Final
 401810150,2025-11-30T00:30:00Z,Indiana Pacers,Chicago Bulls,103.0,101.0,True,Final
-401810151,2025-11-30T01:00:00Z,Miami Heat,Detroit Pistons,135.0,138.0,True,Final
 401810152,2025-11-30T01:00:00Z,Milwaukee Bucks,Brooklyn Nets,116.0,99.0,True,Final
+401810151,2025-11-30T01:00:00Z,Miami Heat,Detroit Pistons,135.0,138.0,True,Final
 401810153,2025-11-30T01:30:00Z,Golden State Warriors,New Orleans Pelicans,104.0,96.0,True,Final
 401810154,2025-11-30T02:00:00Z,Phoenix Suns,Denver Nuggets,112.0,130.0,True,Final
 401810155,2025-11-30T03:00:00Z,LA Clippers,Dallas Mavericks,110.0,114.0,True,Final
 401810156,2025-11-30T20:00:00Z,Utah Jazz,Houston Rockets,101.0,129.0,True,Final
-401810157,2025-11-30T23:00:00Z,Cleveland Cavaliers,Boston Celtics,115.0,117.0,True,Final
-401810158,2025-11-30T23:00:00Z,New York Knicks,Toronto Raptors,116.0,94.0,True,Final
-401810159,2025-11-30T23:00:00Z,Philadelphia 76ers,Atlanta Hawks,134.0,142.0,True,Final
 401810160,2025-11-30T23:00:00Z,Portland Trail Blazers,Oklahoma City Thunder,115.0,123.0,True,Final
+401810158,2025-11-30T23:00:00Z,New York Knicks,Toronto Raptors,116.0,94.0,True,Final
+401810157,2025-11-30T23:00:00Z,Cleveland Cavaliers,Boston Celtics,115.0,117.0,True,Final
+401810159,2025-11-30T23:00:00Z,Philadelphia 76ers,Atlanta Hawks,134.0,142.0,True,Final
 401810161,2025-12-01T00:00:00Z,Minnesota Timberwolves,San Antonio Spurs,125.0,112.0,True,Final
 401810162,2025-12-01T02:00:00Z,Sacramento Kings,Memphis Grizzlies,107.0,115.0,True,Final
 401810163,2025-12-01T02:30:00Z,Los Angeles Lakers,New Orleans Pelicans,133.0,121.0,True,Final
@@ -302,54 +302,54 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810165,2025-12-02T00:00:00Z,Indiana Pacers,Cleveland Cavaliers,119.0,135.0,True,Final
 401810164,2025-12-02T00:00:00Z,Detroit Pistons,Atlanta Hawks,99.0,98.0,True,Final
 401810169,2025-12-02T00:30:00Z,Orlando Magic,Chicago Bulls,125.0,120.0,True,Final
-401810168,2025-12-02T00:30:00Z,Miami Heat,LA Clippers,140.0,123.0,True,Final
 401810167,2025-12-02T00:30:00Z,Brooklyn Nets,Charlotte Hornets,116.0,103.0,True,Final
-401810171,2025-12-02T02:00:00Z,Utah Jazz,Houston Rockets,133.0,125.0,True,Final
+401810168,2025-12-02T00:30:00Z,Miami Heat,LA Clippers,140.0,123.0,True,Final
 401810170,2025-12-02T02:00:00Z,Denver Nuggets,Dallas Mavericks,121.0,131.0,True,Final
+401810171,2025-12-02T02:00:00Z,Utah Jazz,Houston Rockets,133.0,125.0,True,Final
 401810172,2025-12-02T03:00:00Z,Los Angeles Lakers,Phoenix Suns,108.0,125.0,True,Final
 401810173,2025-12-03T00:00:00Z,Philadelphia 76ers,Washington Wizards,121.0,102.0,True,Final
 401810174,2025-12-03T00:30:00Z,Toronto Raptors,Portland Trail Blazers,121.0,118.0,True,Final
 401810175,2025-12-03T01:00:00Z,Boston Celtics,New York Knicks,123.0,117.0,True,Final
-401810177,2025-12-03T01:00:00Z,San Antonio Spurs,Memphis Grizzlies,126.0,119.0,True,Final
 401810176,2025-12-03T01:00:00Z,New Orleans Pelicans,Minnesota Timberwolves,142.0,149.0,True,Final
+401810177,2025-12-03T01:00:00Z,San Antonio Spurs,Memphis Grizzlies,126.0,119.0,True,Final
 401810178,2025-12-03T04:00:00Z,Golden State Warriors,Oklahoma City Thunder,112.0,124.0,True,Final
 401810179,2025-12-04T00:00:00Z,Cleveland Cavaliers,Portland Trail Blazers,110.0,122.0,True,Final
 401810180,2025-12-04T00:00:00Z,Indiana Pacers,Denver Nuggets,120.0,135.0,True,Final
 401810181,2025-12-04T00:00:00Z,Orlando Magic,San Antonio Spurs,112.0,114.0,True,Final
 401810182,2025-12-04T00:30:00Z,Atlanta Hawks,LA Clippers,92.0,115.0,True,Final
 401810183,2025-12-04T00:30:00Z,New York Knicks,Charlotte Hornets,119.0,104.0,True,Final
-401810184,2025-12-04T01:00:00Z,Chicago Bulls,Brooklyn Nets,103.0,113.0,True,Final
 401810185,2025-12-04T01:00:00Z,Houston Rockets,Sacramento Kings,121.0,95.0,True,Final
+401810184,2025-12-04T01:00:00Z,Chicago Bulls,Brooklyn Nets,103.0,113.0,True,Final
 401810186,2025-12-04T01:00:00Z,Milwaukee Bucks,Detroit Pistons,113.0,109.0,True,Final
 401810187,2025-12-04T01:30:00Z,Dallas Mavericks,Miami Heat,118.0,108.0,True,Final
-401810188,2025-12-05T00:00:00Z,Philadelphia 76ers,Golden State Warriors,99.0,98.0,True,Final
 401810189,2025-12-05T00:00:00Z,Washington Wizards,Boston Celtics,101.0,146.0,True,Final
+401810188,2025-12-05T00:00:00Z,Philadelphia 76ers,Golden State Warriors,99.0,98.0,True,Final
 401810191,2025-12-05T00:30:00Z,Toronto Raptors,Los Angeles Lakers,120.0,123.0,True,Final
 401810190,2025-12-05T00:30:00Z,Brooklyn Nets,Utah Jazz,110.0,123.0,True,Final
 401810192,2025-12-05T01:00:00Z,New Orleans Pelicans,Minnesota Timberwolves,116.0,125.0,True,Final
-401810194,2025-12-06T00:00:00Z,Orlando Magic,Miami Heat,106.0,105.0,True,Final
 401810193,2025-12-06T00:00:00Z,Boston Celtics,Los Angeles Lakers,126.0,105.0,True,Final
+401810194,2025-12-06T00:00:00Z,Orlando Magic,Miami Heat,106.0,105.0,True,Final
 401810199,2025-12-06T00:30:00Z,Toronto Raptors,Charlotte Hornets,86.0,111.0,True,Final
 401810198,2025-12-06T00:30:00Z,New York Knicks,Utah Jazz,146.0,112.0,True,Final
 401810197,2025-12-06T00:30:00Z,Detroit Pistons,Portland Trail Blazers,122.0,116.0,True,Final
 401810196,2025-12-06T00:30:00Z,Cleveland Cavaliers,San Antonio Spurs,130.0,117.0,True,Final
 401810195,2025-12-06T00:30:00Z,Atlanta Hawks,Denver Nuggets,133.0,134.0,True,Final
-401810201,2025-12-06T01:00:00Z,Houston Rockets,Phoenix Suns,117.0,98.0,True,Final
 401810202,2025-12-06T01:00:00Z,Memphis Grizzlies,LA Clippers,107.0,98.0,True,Final
 401810203,2025-12-06T01:00:00Z,Milwaukee Bucks,Philadelphia 76ers,101.0,116.0,True,Final
+401810201,2025-12-06T01:00:00Z,Houston Rockets,Phoenix Suns,117.0,98.0,True,Final
 401810200,2025-12-06T01:00:00Z,Chicago Bulls,Indiana Pacers,105.0,120.0,True,Final
 401810204,2025-12-06T02:30:00Z,Oklahoma City Thunder,Dallas Mavericks,132.0,111.0,True,Final
 401810205,2025-12-06T22:00:00Z,Brooklyn Nets,New Orleans Pelicans,119.0,101.0,True,Final
 401810206,2025-12-07T00:00:00Z,Washington Wizards,Atlanta Hawks,116.0,131.0,True,Final
-401810207,2025-12-07T00:30:00Z,Cleveland Cavaliers,Golden State Warriors,94.0,99.0,True,Final
 401810208,2025-12-07T00:30:00Z,Detroit Pistons,Milwaukee Bucks,124.0,112.0,True,Final
-401810209,2025-12-07T01:00:00Z,Miami Heat,Sacramento Kings,111.0,127.0,True,Final
+401810207,2025-12-07T00:30:00Z,Cleveland Cavaliers,Golden State Warriors,94.0,99.0,True,Final
 401810210,2025-12-07T01:00:00Z,Minnesota Timberwolves,LA Clippers,109.0,106.0,True,Final
+401810209,2025-12-07T01:00:00Z,Miami Heat,Sacramento Kings,111.0,127.0,True,Final
 401810211,2025-12-07T01:30:00Z,Dallas Mavericks,Houston Rockets,122.0,109.0,True,Final
 401810212,2025-12-07T17:00:00Z,New York Knicks,Orlando Magic,106.0,100.0,True,Final
 401810213,2025-12-07T20:30:00Z,Toronto Raptors,Boston Celtics,113.0,121.0,True,Final
-401810215,2025-12-07T23:00:00Z,Memphis Grizzlies,Portland Trail Blazers,119.0,96.0,True,Final
 401810214,2025-12-07T23:00:00Z,Charlotte Hornets,Denver Nuggets,106.0,115.0,True,Final
+401810215,2025-12-07T23:00:00Z,Memphis Grizzlies,Portland Trail Blazers,119.0,96.0,True,Final
 401810216,2025-12-08T00:00:00Z,Chicago Bulls,Golden State Warriors,91.0,123.0,True,Final
 401810217,2025-12-08T00:30:00Z,Philadelphia 76ers,Los Angeles Lakers,108.0,112.0,True,Final
 401810218,2025-12-08T01:00:00Z,Utah Jazz,Oklahoma City Thunder,101.0,131.0,True,Final
@@ -360,14 +360,14 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809834,2025-12-10T01:30:00Z,Toronto Raptors,New York Knicks,101.0,117.0,True,Final
 401809835,2025-12-11T00:30:00Z,Oklahoma City Thunder,Phoenix Suns,138.0,89.0,True,Final
 401809836,2025-12-11T03:00:00Z,Los Angeles Lakers,San Antonio Spurs,119.0,132.0,True,Final
+401836748,2025-12-12T01:00:00Z,New Orleans Pelicans,Portland Trail Blazers,143.0,120.0,True,Final
 401836747,2025-12-12T01:00:00Z,Milwaukee Bucks,Boston Celtics,116.0,101.0,True,Final
 401836746,2025-12-12T01:00:00Z,Houston Rockets,LA Clippers,115.0,113.0,True,Final
-401836748,2025-12-12T01:00:00Z,New Orleans Pelicans,Portland Trail Blazers,143.0,120.0,True,Final
 401836749,2025-12-12T03:00:00Z,Sacramento Kings,Denver Nuggets,105.0,136.0,True,Final
-401836750,2025-12-13T00:00:00Z,Charlotte Hornets,Chicago Bulls,126.0,129.0,True,Final
-401836751,2025-12-13T00:00:00Z,Detroit Pistons,Atlanta Hawks,142.0,115.0,True,Final
-401836752,2025-12-13T00:00:00Z,Philadelphia 76ers,Indiana Pacers,115.0,105.0,True,Final
 401836753,2025-12-13T00:00:00Z,Washington Wizards,Cleveland Cavaliers,126.0,130.0,True,Final
+401836752,2025-12-13T00:00:00Z,Philadelphia 76ers,Indiana Pacers,115.0,105.0,True,Final
+401836751,2025-12-13T00:00:00Z,Detroit Pistons,Atlanta Hawks,142.0,115.0,True,Final
+401836750,2025-12-13T00:00:00Z,Charlotte Hornets,Chicago Bulls,126.0,129.0,True,Final
 401836754,2025-12-13T01:00:00Z,Memphis Grizzlies,Utah Jazz,126.0,130.0,True,Final
 401836795,2025-12-13T01:30:00Z,Dallas Mavericks,Brooklyn Nets,119.0,111.0,True,Final
 401836796,2025-12-13T03:00:00Z,Golden State Warriors,Minnesota Timberwolves,120.0,127.0,True,Final
@@ -377,8 +377,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401836799,2025-12-14T20:30:00Z,Cleveland Cavaliers,Charlotte Hornets,111.0,119.0,True,Final
 401836800,2025-12-14T23:00:00Z,Brooklyn Nets,Milwaukee Bucks,127.0,82.0,True,Final
 401836798,2025-12-14T23:00:00Z,Atlanta Hawks,Philadelphia 76ers,120.0,117.0,True,Final
-401836804,2025-12-15T00:00:00Z,Chicago Bulls,New Orleans Pelicans,104.0,114.0,True,Final
 401836801,2025-12-15T00:00:00Z,Minnesota Timberwolves,Sacramento Kings,117.0,103.0,True,Final
+401836804,2025-12-15T00:00:00Z,Chicago Bulls,New Orleans Pelicans,104.0,114.0,True,Final
 401839699,2025-12-15T01:00:00Z,Phoenix Suns,Los Angeles Lakers,114.0,116.0,True,Final
 401836802,2025-12-15T02:00:00Z,Portland Trail Blazers,Golden State Warriors,136.0,131.0,True,Final
 401836803,2025-12-16T00:00:00Z,Boston Celtics,Detroit Pistons,105.0,112.0,True,Final
@@ -389,22 +389,22 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809839,2025-12-17T01:30:00Z,New York Knicks,San Antonio Spurs,124.0,113.0,True,Final
 401810222,2025-12-18T01:00:00Z,Chicago Bulls,Cleveland Cavaliers,127.0,111.0,True,Final
 401810223,2025-12-18T01:00:00Z,Minnesota Timberwolves,Memphis Grizzlies,110.0,116.0,True,Final
-401810227,2025-12-19T00:00:00Z,Indiana Pacers,New York Knicks,113.0,114.0,True,Final
 401810226,2025-12-19T00:00:00Z,Charlotte Hornets,Atlanta Hawks,133.0,126.0,True,Final
+401810227,2025-12-19T00:00:00Z,Indiana Pacers,New York Knicks,113.0,114.0,True,Final
 401810228,2025-12-19T00:30:00Z,Brooklyn Nets,Miami Heat,95.0,106.0,True,Final
 401810230,2025-12-19T01:00:00Z,New Orleans Pelicans,Houston Rockets,133.0,128.0,True,Final
 401810229,2025-12-19T01:00:00Z,Milwaukee Bucks,Toronto Raptors,105.0,111.0,True,Final
 401810225,2025-12-19T01:00:00Z,San Antonio Spurs,Washington Wizards,119.0,94.0,True,Final
 401810224,2025-12-19T01:00:00Z,Oklahoma City Thunder,LA Clippers,122.0,101.0,True,Final
 401810231,2025-12-19T01:30:00Z,Dallas Mavericks,Detroit Pistons,116.0,114.0,True,Final
-401810233,2025-12-19T02:00:00Z,Phoenix Suns,Golden State Warriors,99.0,98.0,True,Final
-401810232,2025-12-19T02:00:00Z,Denver Nuggets,Orlando Magic,126.0,115.0,True,Final
 401810234,2025-12-19T02:00:00Z,Utah Jazz,Los Angeles Lakers,135.0,143.0,True,Final
+401810232,2025-12-19T02:00:00Z,Denver Nuggets,Orlando Magic,126.0,115.0,True,Final
+401810233,2025-12-19T02:00:00Z,Phoenix Suns,Golden State Warriors,99.0,98.0,True,Final
 401810235,2025-12-19T03:00:00Z,Portland Trail Blazers,Sacramento Kings,134.0,133.0,True,Final
-401810237,2025-12-20T00:00:00Z,New York Knicks,Philadelphia 76ers,107.0,116.0,True,Final
 401810236,2025-12-20T00:00:00Z,Boston Celtics,Miami Heat,129.0,116.0,True,Final
-401810239,2025-12-20T00:30:00Z,Cleveland Cavaliers,Chicago Bulls,125.0,136.0,True,Final
+401810237,2025-12-20T00:00:00Z,New York Knicks,Philadelphia 76ers,107.0,116.0,True,Final
 401810238,2025-12-20T00:30:00Z,Atlanta Hawks,San Antonio Spurs,98.0,126.0,True,Final
+401810239,2025-12-20T00:30:00Z,Cleveland Cavaliers,Chicago Bulls,125.0,136.0,True,Final
 401810240,2025-12-20T02:30:00Z,Minnesota Timberwolves,Oklahoma City Thunder,112.0,107.0,True,Final
 401810241,2025-12-20T22:00:00Z,Denver Nuggets,Houston Rockets,101.0,115.0,True,Final
 401810244,2025-12-21T00:00:00Z,New Orleans Pelicans,Indiana Pacers,128.0,109.0,True,Final
@@ -419,29 +419,29 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810251,2025-12-21T20:30:00Z,Atlanta Hawks,Chicago Bulls,150.0,152.0,True,Final
 401810253,2025-12-21T23:00:00Z,New York Knicks,Miami Heat,132.0,125.0,True,Final
 401810252,2025-12-21T23:00:00Z,Brooklyn Nets,Toronto Raptors,96.0,81.0,True,Final
-401810255,2025-12-22T00:00:00Z,Minnesota Timberwolves,Milwaukee Bucks,103.0,100.0,True,Final
 401810254,2025-12-22T00:00:00Z,Washington Wizards,San Antonio Spurs,113.0,124.0,True,Final
+401810255,2025-12-22T00:00:00Z,Minnesota Timberwolves,Milwaukee Bucks,103.0,100.0,True,Final
 401810256,2025-12-22T03:00:00Z,Sacramento Kings,Houston Rockets,125.0,124.0,True,Final
 401810257,2025-12-23T00:00:00Z,Cleveland Cavaliers,Charlotte Hornets,139.0,132.0,True,Final
 401810258,2025-12-23T00:30:00Z,Boston Celtics,Indiana Pacers,103.0,95.0,True,Final
 401810259,2025-12-23T01:00:00Z,New Orleans Pelicans,Dallas Mavericks,119.0,113.0,True,Final
 401810260,2025-12-23T02:00:00Z,Denver Nuggets,Utah Jazz,135.0,112.0,True,Final
 401810261,2025-12-23T02:30:00Z,Oklahoma City Thunder,Memphis Grizzlies,119.0,103.0,True,Final
-401810263,2025-12-23T03:00:00Z,Portland Trail Blazers,Detroit Pistons,102.0,110.0,True,Final
 401810262,2025-12-23T03:00:00Z,Golden State Warriors,Orlando Magic,120.0,97.0,True,Final
+401810263,2025-12-23T03:00:00Z,Portland Trail Blazers,Detroit Pistons,102.0,110.0,True,Final
 401810264,2025-12-24T00:00:00Z,Charlotte Hornets,Washington Wizards,126.0,109.0,True,Final
 401810265,2025-12-24T00:00:00Z,Philadelphia 76ers,Brooklyn Nets,106.0,114.0,True,Final
-401810266,2025-12-24T00:30:00Z,Atlanta Hawks,Chicago Bulls,123.0,126.0,True,Final
-401810267,2025-12-24T00:30:00Z,Cleveland Cavaliers,New Orleans Pelicans,141.0,118.0,True,Final
-401810268,2025-12-24T00:30:00Z,Indiana Pacers,Milwaukee Bucks,94.0,111.0,True,Final
 401810269,2025-12-24T00:30:00Z,Miami Heat,Toronto Raptors,91.0,112.0,True,Final
-401810270,2025-12-24T01:00:00Z,Dallas Mavericks,Denver Nuggets,131.0,130.0,True,Final
+401810268,2025-12-24T00:30:00Z,Indiana Pacers,Milwaukee Bucks,94.0,111.0,True,Final
+401810267,2025-12-24T00:30:00Z,Cleveland Cavaliers,New Orleans Pelicans,141.0,118.0,True,Final
+401810266,2025-12-24T00:30:00Z,Atlanta Hawks,Chicago Bulls,123.0,126.0,True,Final
 401810271,2025-12-24T01:00:00Z,Minnesota Timberwolves,New York Knicks,115.0,104.0,True,Final
+401810270,2025-12-24T01:00:00Z,Dallas Mavericks,Denver Nuggets,131.0,130.0,True,Final
 401810272,2025-12-24T01:30:00Z,San Antonio Spurs,Oklahoma City Thunder,130.0,110.0,True,Final
-401810273,2025-12-24T02:00:00Z,Phoenix Suns,Los Angeles Lakers,132.0,108.0,True,Final
 401810274,2025-12-24T02:00:00Z,Utah Jazz,Memphis Grizzlies,128.0,137.0,True,Final
-401810275,2025-12-24T03:00:00Z,Portland Trail Blazers,Orlando Magic,106.0,110.0,True,Final
+401810273,2025-12-24T02:00:00Z,Phoenix Suns,Los Angeles Lakers,132.0,108.0,True,Final
 401810276,2025-12-24T03:00:00Z,Sacramento Kings,Detroit Pistons,127.0,136.0,True,Final
+401810275,2025-12-24T03:00:00Z,Portland Trail Blazers,Orlando Magic,106.0,110.0,True,Final
 401810277,2025-12-24T03:30:00Z,LA Clippers,Houston Rockets,128.0,108.0,True,Final
 401809238,2025-12-25T17:00:00Z,New York Knicks,Cleveland Cavaliers,126.0,124.0,True,Final
 401809239,2025-12-25T19:30:00Z,Oklahoma City Thunder,San Antonio Spurs,102.0,117.0,True,Final
@@ -460,11 +460,11 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810287,2025-12-27T22:00:00Z,Sacramento Kings,Dallas Mavericks,113.0,107.0,True,Final
 401810289,2025-12-28T00:00:00Z,New Orleans Pelicans,Phoenix Suns,114.0,123.0,True,Final
 401810288,2025-12-28T00:00:00Z,Orlando Magic,Denver Nuggets,127.0,126.0,True,Final
+401810293,2025-12-28T01:00:00Z,Houston Rockets,Cleveland Cavaliers,117.0,100.0,True,Final
+401810294,2025-12-28T01:00:00Z,Minnesota Timberwolves,Brooklyn Nets,107.0,123.0,True,Final
 401810292,2025-12-28T01:00:00Z,Chicago Bulls,Milwaukee Bucks,103.0,112.0,True,Final
 401810291,2025-12-28T01:00:00Z,Miami Heat,Indiana Pacers,142.0,116.0,True,Final
 401810290,2025-12-28T01:00:00Z,Atlanta Hawks,New York Knicks,125.0,128.0,True,Final
-401810294,2025-12-28T01:00:00Z,Minnesota Timberwolves,Brooklyn Nets,107.0,123.0,True,Final
-401810293,2025-12-28T01:00:00Z,Houston Rockets,Cleveland Cavaliers,117.0,100.0,True,Final
 401810295,2025-12-28T01:00:00Z,San Antonio Spurs,Utah Jazz,114.0,127.0,True,Final
 401810297,2025-12-28T20:30:00Z,Oklahoma City Thunder,Philadelphia 76ers,129.0,104.0,True,Final
 401810296,2025-12-28T20:30:00Z,Toronto Raptors,Golden State Warriors,141.0,127.0,True,Final
@@ -472,16 +472,16 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810298,2025-12-28T23:00:00Z,Washington Wizards,Memphis Grizzlies,116.0,112.0,True,Final
 401810300,2025-12-29T02:00:00Z,LA Clippers,Detroit Pistons,112.0,99.0,True,Final
 401810301,2025-12-29T02:30:00Z,Los Angeles Lakers,Sacramento Kings,125.0,101.0,True,Final
-401810302,2025-12-30T00:00:00Z,Charlotte Hornets,Milwaukee Bucks,113.0,123.0,True,Final
 401810303,2025-12-30T00:00:00Z,Washington Wizards,Phoenix Suns,101.0,115.0,True,Final
+401810302,2025-12-30T00:00:00Z,Charlotte Hornets,Milwaukee Bucks,113.0,123.0,True,Final
 401810304,2025-12-30T00:30:00Z,Brooklyn Nets,Golden State Warriors,107.0,120.0,True,Final
-401810305,2025-12-30T00:30:00Z,Miami Heat,Denver Nuggets,147.0,123.0,True,Final
 401810306,2025-12-30T00:30:00Z,Toronto Raptors,Orlando Magic,107.0,106.0,True,Final
-401810311,2025-12-30T01:00:00Z,San Antonio Spurs,Cleveland Cavaliers,101.0,113.0,True,Final
+401810305,2025-12-30T00:30:00Z,Miami Heat,Denver Nuggets,147.0,123.0,True,Final
 401810310,2025-12-30T01:00:00Z,Oklahoma City Thunder,Atlanta Hawks,140.0,129.0,True,Final
+401810309,2025-12-30T01:00:00Z,New Orleans Pelicans,New York Knicks,125.0,130.0,True,Final
 401810308,2025-12-30T01:00:00Z,Houston Rockets,Indiana Pacers,126.0,119.0,True,Final
 401810307,2025-12-30T01:00:00Z,Chicago Bulls,Minnesota Timberwolves,101.0,136.0,True,Final
-401810309,2025-12-30T01:00:00Z,New Orleans Pelicans,New York Knicks,125.0,130.0,True,Final
+401810311,2025-12-30T01:00:00Z,San Antonio Spurs,Cleveland Cavaliers,101.0,113.0,True,Final
 401810312,2025-12-30T03:30:00Z,Portland Trail Blazers,Dallas Mavericks,125.0,122.0,True,Final
 401810313,2025-12-31T01:00:00Z,Memphis Grizzlies,Philadelphia 76ers,136.0,139.0,True,Final
 401810314,2025-12-31T02:00:00Z,Utah Jazz,Boston Celtics,119.0,129.0,True,Final
@@ -501,10 +501,10 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810328,2026-01-02T01:30:00Z,Dallas Mavericks,Philadelphia 76ers,108.0,123.0,True,Final
 401810329,2026-01-02T03:00:00Z,Sacramento Kings,Boston Celtics,106.0,120.0,True,Final
 401810330,2026-01-02T03:30:00Z,LA Clippers,Utah Jazz,118.0,101.0,True,Final
-401810331,2026-01-03T00:00:00Z,Indiana Pacers,San Antonio Spurs,113.0,123.0,True,Final
 401810332,2026-01-03T00:00:00Z,Washington Wizards,Brooklyn Nets,119.0,99.0,True,Final
-401810334,2026-01-03T00:30:00Z,New York Knicks,Atlanta Hawks,99.0,111.0,True,Final
+401810331,2026-01-03T00:00:00Z,Indiana Pacers,San Antonio Spurs,113.0,123.0,True,Final
 401810333,2026-01-03T00:30:00Z,Cleveland Cavaliers,Denver Nuggets,113.0,108.0,True,Final
+401810334,2026-01-03T00:30:00Z,New York Knicks,Atlanta Hawks,99.0,111.0,True,Final
 401810337,2026-01-03T01:00:00Z,New Orleans Pelicans,Portland Trail Blazers,109.0,122.0,True,Final
 401810336,2026-01-03T01:00:00Z,Milwaukee Bucks,Charlotte Hornets,122.0,121.0,True,Final
 401810335,2026-01-03T01:00:00Z,Chicago Bulls,Orlando Magic,121.0,114.0,True,Final
@@ -522,76 +522,76 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810349,2026-01-04T19:00:00Z,Cleveland Cavaliers,Detroit Pistons,110.0,114.0,True,Final
 401810350,2026-01-04T20:00:00Z,Orlando Magic,Indiana Pacers,135.0,127.0,True,Final
 401810351,2026-01-04T20:30:00Z,Brooklyn Nets,Denver Nuggets,127.0,115.0,True,Final
-401810353,2026-01-04T23:00:00Z,Washington Wizards,Minnesota Timberwolves,115.0,141.0,True,Final
 401810352,2026-01-04T23:00:00Z,Miami Heat,New Orleans Pelicans,125.0,106.0,True,Final
+401810353,2026-01-04T23:00:00Z,Washington Wizards,Minnesota Timberwolves,115.0,141.0,True,Final
 401810354,2026-01-05T01:00:00Z,Phoenix Suns,Oklahoma City Thunder,108.0,105.0,True,Final
 401810355,2026-01-05T02:00:00Z,Sacramento Kings,Milwaukee Bucks,98.0,115.0,True,Final
 401810356,2026-01-05T02:30:00Z,Los Angeles Lakers,Memphis Grizzlies,120.0,114.0,True,Final
 401810357,2026-01-06T00:00:00Z,Detroit Pistons,New York Knicks,121.0,90.0,True,Final
-401810358,2026-01-06T00:30:00Z,Boston Celtics,Chicago Bulls,115.0,101.0,True,Final
 401810359,2026-01-06T00:30:00Z,Toronto Raptors,Atlanta Hawks,118.0,100.0,True,Final
-401810361,2026-01-06T01:00:00Z,Oklahoma City Thunder,Charlotte Hornets,97.0,124.0,True,Final
+401810358,2026-01-06T00:30:00Z,Boston Celtics,Chicago Bulls,115.0,101.0,True,Final
 401810360,2026-01-06T01:00:00Z,Houston Rockets,Phoenix Suns,100.0,97.0,True,Final
+401810361,2026-01-06T01:00:00Z,Oklahoma City Thunder,Charlotte Hornets,97.0,124.0,True,Final
 401810362,2026-01-06T01:30:00Z,Philadelphia 76ers,Denver Nuggets,124.0,125.0,True,Final
-401810363,2026-01-06T03:00:00Z,LA Clippers,Golden State Warriors,103.0,102.0,True,Final
 401810364,2026-01-06T03:00:00Z,Portland Trail Blazers,Utah Jazz,137.0,117.0,True,Final
+401810363,2026-01-06T03:00:00Z,LA Clippers,Golden State Warriors,103.0,102.0,True,Final
 401810366,2026-01-07T00:00:00Z,Washington Wizards,Orlando Magic,120.0,112.0,True,Final
 401810365,2026-01-07T00:00:00Z,Indiana Pacers,Cleveland Cavaliers,116.0,120.0,True,Final
-401810369,2026-01-07T01:00:00Z,New Orleans Pelicans,Los Angeles Lakers,103.0,111.0,True,Final
 401810367,2026-01-07T01:00:00Z,Memphis Grizzlies,San Antonio Spurs,106.0,105.0,True,Final
+401810369,2026-01-07T01:00:00Z,New Orleans Pelicans,Los Angeles Lakers,103.0,111.0,True,Final
 401810368,2026-01-07T01:00:00Z,Minnesota Timberwolves,Miami Heat,122.0,94.0,True,Final
 401810370,2026-01-07T04:00:00Z,Sacramento Kings,Dallas Mavericks,98.0,100.0,True,Final
-401810371,2026-01-08T00:00:00Z,Charlotte Hornets,Toronto Raptors,96.0,97.0,True,Final
-401810372,2026-01-08T00:00:00Z,Detroit Pistons,Chicago Bulls,108.0,93.0,True,Final
-401810373,2026-01-08T00:00:00Z,Philadelphia 76ers,Washington Wizards,131.0,110.0,True,Final
 401810375,2026-01-08T00:00:00Z,Boston Celtics,Denver Nuggets,110.0,114.0,True,Final
+401810373,2026-01-08T00:00:00Z,Philadelphia 76ers,Washington Wizards,131.0,110.0,True,Final
+401810372,2026-01-08T00:00:00Z,Detroit Pistons,Chicago Bulls,108.0,93.0,True,Final
+401810371,2026-01-08T00:00:00Z,Charlotte Hornets,Toronto Raptors,96.0,97.0,True,Final
 401810376,2026-01-08T00:30:00Z,Brooklyn Nets,Orlando Magic,103.0,104.0,True,Final
 401810374,2026-01-08T00:30:00Z,Atlanta Hawks,New Orleans Pelicans,117.0,100.0,True,Final
 401810377,2026-01-08T00:30:00Z,New York Knicks,LA Clippers,123.0,111.0,True,Final
 401810379,2026-01-08T01:00:00Z,Memphis Grizzlies,Phoenix Suns,98.0,117.0,True,Final
 401810380,2026-01-08T01:00:00Z,Oklahoma City Thunder,Utah Jazz,129.0,125.0,True,Final
 401810378,2026-01-08T02:30:00Z,San Antonio Spurs,Los Angeles Lakers,107.0,91.0,True,Final
-401810382,2026-01-08T03:00:00Z,Portland Trail Blazers,Houston Rockets,103.0,102.0,True,Final
 401810381,2026-01-08T03:00:00Z,Golden State Warriors,Milwaukee Bucks,120.0,113.0,True,Final
+401810382,2026-01-08T03:00:00Z,Portland Trail Blazers,Houston Rockets,103.0,102.0,True,Final
 401810383,2026-01-09T00:00:00Z,Charlotte Hornets,Indiana Pacers,112.0,114.0,True,Final
 401810385,2026-01-09T01:00:00Z,Minnesota Timberwolves,Cleveland Cavaliers,131.0,122.0,True,Final
 401810386,2026-01-09T02:00:00Z,Utah Jazz,Dallas Mavericks,116.0,114.0,True,Final
-401810387,2026-01-10T00:00:00Z,Boston Celtics,Toronto Raptors,125.0,117.0,True,Final
 401810389,2026-01-10T00:00:00Z,Washington Wizards,New Orleans Pelicans,107.0,128.0,True,Final
 401810388,2026-01-10T00:00:00Z,Orlando Magic,Philadelphia 76ers,91.0,103.0,True,Final
+401810387,2026-01-10T00:00:00Z,Boston Celtics,Toronto Raptors,125.0,117.0,True,Final
 401810390,2026-01-10T00:30:00Z,Brooklyn Nets,LA Clippers,105.0,121.0,True,Final
 401810391,2026-01-10T01:00:00Z,Memphis Grizzlies,Oklahoma City Thunder,116.0,117.0,True,Final
-401810393,2026-01-10T02:00:00Z,Phoenix Suns,New York Knicks,112.0,107.0,True,Final
 401810392,2026-01-10T02:00:00Z,Denver Nuggets,Atlanta Hawks,87.0,110.0,True,Final
+401810393,2026-01-10T02:00:00Z,Phoenix Suns,New York Knicks,112.0,107.0,True,Final
 401810395,2026-01-10T03:00:00Z,Portland Trail Blazers,Houston Rockets,111.0,105.0,True,Final
 401810394,2026-01-10T03:00:00Z,Golden State Warriors,Sacramento Kings,137.0,103.0,True,Final
 401810396,2026-01-10T03:30:00Z,Los Angeles Lakers,Milwaukee Bucks,101.0,105.0,True,Final
 401810397,2026-01-10T18:00:00Z,Cleveland Cavaliers,Minnesota Timberwolves,146.0,134.0,True,Final
 401810398,2026-01-11T00:00:00Z,Indiana Pacers,Miami Heat,123.0,99.0,True,Final
 401810399,2026-01-11T00:30:00Z,Detroit Pistons,LA Clippers,92.0,98.0,True,Final
-401810401,2026-01-11T01:00:00Z,Chicago Bulls,Dallas Mavericks,125.0,107.0,True,Final
 401810400,2026-01-11T01:00:00Z,Boston Celtics,San Antonio Spurs,95.0,100.0,True,Final
+401810401,2026-01-11T01:00:00Z,Chicago Bulls,Dallas Mavericks,125.0,107.0,True,Final
 401810402,2026-01-11T02:30:00Z,Utah Jazz,Charlotte Hornets,95.0,150.0,True,Final
 401810403,2026-01-11T20:00:00Z,Orlando Magic,New Orleans Pelicans,128.0,118.0,True,Final
 401810404,2026-01-11T20:30:00Z,Memphis Grizzlies,Brooklyn Nets,103.0,98.0,True,Final
 401810406,2026-01-11T23:00:00Z,Portland Trail Blazers,New York Knicks,114.0,123.0,True,Final
 401810405,2026-01-11T23:00:00Z,Toronto Raptors,Philadelphia 76ers,116.0,115.0,True,Final
-401810408,2026-01-12T00:00:00Z,Oklahoma City Thunder,Miami Heat,124.0,112.0,True,Final
 401810407,2026-01-12T00:00:00Z,Minnesota Timberwolves,San Antonio Spurs,104.0,103.0,True,Final
-401810410,2026-01-12T01:00:00Z,Phoenix Suns,Washington Wizards,112.0,93.0,True,Final
+401810408,2026-01-12T00:00:00Z,Oklahoma City Thunder,Miami Heat,124.0,112.0,True,Final
 401810409,2026-01-12T01:00:00Z,Denver Nuggets,Milwaukee Bucks,108.0,104.0,True,Final
+401810410,2026-01-12T01:00:00Z,Phoenix Suns,Washington Wizards,112.0,93.0,True,Final
 401810411,2026-01-12T01:30:00Z,Golden State Warriors,Atlanta Hawks,111.0,124.0,True,Final
 401810412,2026-01-12T02:00:00Z,Sacramento Kings,Houston Rockets,111.0,98.0,True,Final
 401810413,2026-01-13T00:00:00Z,Cleveland Cavaliers,Utah Jazz,112.0,123.0,True,Final
-401810414,2026-01-13T00:30:00Z,Indiana Pacers,Boston Celtics,98.0,96.0,True,Final
 401810415,2026-01-13T00:30:00Z,Toronto Raptors,Philadelphia 76ers,102.0,115.0,True,Final
+401810414,2026-01-13T00:30:00Z,Indiana Pacers,Boston Celtics,98.0,96.0,True,Final
 401810416,2026-01-13T01:30:00Z,Dallas Mavericks,Brooklyn Nets,113.0,105.0,True,Final
 401810417,2026-01-13T03:00:00Z,Sacramento Kings,Los Angeles Lakers,124.0,112.0,True,Final
 401810418,2026-01-13T03:30:00Z,LA Clippers,Charlotte Hornets,117.0,109.0,True,Final
 401810419,2026-01-14T00:30:00Z,Miami Heat,Phoenix Suns,127.0,121.0,True,Final
-401810423,2026-01-14T01:00:00Z,Oklahoma City Thunder,San Antonio Spurs,119.0,98.0,True,Final
-401810422,2026-01-14T01:00:00Z,New Orleans Pelicans,Denver Nuggets,116.0,122.0,True,Final
 401810421,2026-01-14T01:00:00Z,Milwaukee Bucks,Minnesota Timberwolves,106.0,139.0,True,Final
+401810422,2026-01-14T01:00:00Z,New Orleans Pelicans,Denver Nuggets,116.0,122.0,True,Final
+401810423,2026-01-14T01:00:00Z,Oklahoma City Thunder,San Antonio Spurs,119.0,98.0,True,Final
 401810420,2026-01-14T01:00:00Z,Houston Rockets,Chicago Bulls,119.0,113.0,True,Final
 401810424,2026-01-14T03:30:00Z,Los Angeles Lakers,Atlanta Hawks,141.0,116.0,True,Final
 401810425,2026-01-14T04:00:00Z,Golden State Warriors,Portland Trail Blazers,119.0,97.0,True,Final
@@ -604,23 +604,23 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810432,2026-01-15T03:30:00Z,LA Clippers,Washington Wizards,119.0,105.0,True,Final
 401810433,2026-01-15T19:00:00Z,Orlando Magic,Memphis Grizzlies,118.0,111.0,True,Final
 401810434,2026-01-16T00:00:00Z,Detroit Pistons,Phoenix Suns,108.0,105.0,True,Final
-401810436,2026-01-16T00:30:00Z,Houston Rockets,Oklahoma City Thunder,91.0,111.0,True,Final
 401810435,2026-01-16T00:30:00Z,Miami Heat,Boston Celtics,114.0,119.0,True,Final
+401810436,2026-01-16T00:30:00Z,Houston Rockets,Oklahoma City Thunder,91.0,111.0,True,Final
 401810437,2026-01-16T01:00:00Z,San Antonio Spurs,Milwaukee Bucks,119.0,101.0,True,Final
 401810438,2026-01-16T01:30:00Z,Dallas Mavericks,Utah Jazz,144.0,122.0,True,Final
-401810440,2026-01-16T03:00:00Z,Portland Trail Blazers,Atlanta Hawks,117.0,101.0,True,Final
 401810439,2026-01-16T03:00:00Z,Golden State Warriors,New York Knicks,126.0,113.0,True,Final
+401810440,2026-01-16T03:00:00Z,Portland Trail Blazers,Atlanta Hawks,117.0,101.0,True,Final
 401810441,2026-01-16T03:30:00Z,Los Angeles Lakers,Charlotte Hornets,117.0,135.0,True,Final
-401810443,2026-01-17T00:00:00Z,Indiana Pacers,New Orleans Pelicans,127.0,119.0,True,Final
 401810444,2026-01-17T00:00:00Z,Philadelphia 76ers,Cleveland Cavaliers,115.0,117.0,True,Final
-401810442,2026-01-17T00:30:00Z,Brooklyn Nets,Chicago Bulls,112.0,109.0,True,Final
+401810443,2026-01-17T00:00:00Z,Indiana Pacers,New Orleans Pelicans,127.0,119.0,True,Final
 401810445,2026-01-17T00:30:00Z,Toronto Raptors,LA Clippers,117.0,121.0,True,Final
+401810442,2026-01-17T00:30:00Z,Brooklyn Nets,Chicago Bulls,112.0,109.0,True,Final
 401810446,2026-01-17T02:30:00Z,Houston Rockets,Minnesota Timberwolves,110.0,105.0,True,Final
 401810447,2026-01-17T03:00:00Z,Sacramento Kings,Washington Wizards,128.0,115.0,True,Final
 401810448,2026-01-17T22:00:00Z,Dallas Mavericks,Utah Jazz,138.0,120.0,True,Final
+401810449,2026-01-18T00:30:00Z,Atlanta Hawks,Boston Celtics,106.0,132.0,True,Final
 401810451,2026-01-18T00:30:00Z,New York Knicks,Phoenix Suns,99.0,106.0,True,Final
 401810450,2026-01-18T00:30:00Z,Detroit Pistons,Indiana Pacers,121.0,78.0,True,Final
-401810449,2026-01-18T00:30:00Z,Atlanta Hawks,Boston Celtics,106.0,132.0,True,Final
 401810453,2026-01-18T01:00:00Z,San Antonio Spurs,Minnesota Timberwolves,126.0,123.0,True,Final
 401810452,2026-01-18T01:00:00Z,Miami Heat,Oklahoma City Thunder,122.0,120.0,True,Final
 401810454,2026-01-18T01:30:00Z,Golden State Warriors,Charlotte Hornets,136.0,116.0,True,Final
@@ -642,31 +642,31 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401809250,2026-01-20T01:00:00Z,Detroit Pistons,Boston Celtics,104.0,103.0,True,Final
 401810467,2026-01-20T03:00:00Z,Golden State Warriors,Miami Heat,135.0,112.0,True,Final
 401810468,2026-01-21T00:00:00Z,Philadelphia 76ers,Phoenix Suns,110.0,116.0,True,Final
-401810469,2026-01-21T01:00:00Z,Chicago Bulls,LA Clippers,138.0,110.0,True,Final
 401810470,2026-01-21T01:00:00Z,Houston Rockets,San Antonio Spurs,111.0,106.0,True,Final
+401810469,2026-01-21T01:00:00Z,Chicago Bulls,LA Clippers,138.0,110.0,True,Final
 401810471,2026-01-21T02:00:00Z,Utah Jazz,Minnesota Timberwolves,127.0,122.0,True,Final
 401810472,2026-01-21T03:00:00Z,Denver Nuggets,Los Angeles Lakers,107.0,115.0,True,Final
-401810473,2026-01-21T03:00:00Z,Golden State Warriors,Toronto Raptors,127.0,145.0,True,Final
 401810474,2026-01-21T03:00:00Z,Sacramento Kings,Miami Heat,117.0,130.0,True,Final
+401810473,2026-01-21T03:00:00Z,Golden State Warriors,Toronto Raptors,127.0,145.0,True,Final
 401810475,2026-01-22T00:00:00Z,Charlotte Hornets,Cleveland Cavaliers,87.0,94.0,True,Final
-401810476,2026-01-22T00:30:00Z,Boston Celtics,Indiana Pacers,119.0,104.0,True,Final
 401810477,2026-01-22T00:30:00Z,New York Knicks,Brooklyn Nets,120.0,66.0,True,Final
-401810478,2026-01-22T01:00:00Z,Memphis Grizzlies,Atlanta Hawks,122.0,124.0,True,Final
+401810476,2026-01-22T00:30:00Z,Boston Celtics,Indiana Pacers,119.0,104.0,True,Final
 401810479,2026-01-22T01:00:00Z,New Orleans Pelicans,Detroit Pistons,104.0,112.0,True,Final
+401810478,2026-01-22T01:00:00Z,Memphis Grizzlies,Atlanta Hawks,122.0,124.0,True,Final
 401810480,2026-01-22T02:30:00Z,Milwaukee Bucks,Oklahoma City Thunder,102.0,122.0,True,Final
 401810481,2026-01-22T03:00:00Z,Sacramento Kings,Toronto Raptors,109.0,122.0,True,Final
-401810483,2026-01-23T00:00:00Z,Philadelphia 76ers,Houston Rockets,128.0,122.0,True,Final
-401810482,2026-01-23T00:00:00Z,Orlando Magic,Charlotte Hornets,97.0,124.0,True,Final
 401810484,2026-01-23T00:00:00Z,Washington Wizards,Denver Nuggets,97.0,107.0,True,Final
+401810482,2026-01-23T00:00:00Z,Orlando Magic,Charlotte Hornets,97.0,124.0,True,Final
+401810483,2026-01-23T00:00:00Z,Philadelphia 76ers,Houston Rockets,128.0,122.0,True,Final
 401810485,2026-01-23T00:30:00Z,Dallas Mavericks,Golden State Warriors,123.0,115.0,True,Final
 401810486,2026-01-23T01:00:00Z,Minnesota Timberwolves,Chicago Bulls,115.0,120.0,True,Final
 401810487,2026-01-23T02:00:00Z,Utah Jazz,San Antonio Spurs,109.0,126.0,True,Final
-401810488,2026-01-23T03:00:00Z,LA Clippers,Los Angeles Lakers,112.0,104.0,True,Final
 401810489,2026-01-23T03:00:00Z,Portland Trail Blazers,Miami Heat,127.0,110.0,True,Final
+401810488,2026-01-23T03:00:00Z,LA Clippers,Los Angeles Lakers,112.0,104.0,True,Final
 401810490,2026-01-24T00:00:00Z,Detroit Pistons,Houston Rockets,104.0,111.0,True,Final
-401810493,2026-01-24T00:30:00Z,Cleveland Cavaliers,Sacramento Kings,123.0,118.0,True,Final
 401810491,2026-01-24T00:30:00Z,Atlanta Hawks,Phoenix Suns,110.0,103.0,True,Final
 401810492,2026-01-24T00:30:00Z,Brooklyn Nets,Boston Celtics,126.0,130.0,True,Final
+401810493,2026-01-24T00:30:00Z,Cleveland Cavaliers,Sacramento Kings,123.0,118.0,True,Final
 401810494,2026-01-24T01:00:00Z,Memphis Grizzlies,New Orleans Pelicans,127.0,133.0,True,Final
 401810496,2026-01-24T01:00:00Z,Oklahoma City Thunder,Indiana Pacers,114.0,117.0,True,Final
 401810495,2026-01-24T02:30:00Z,Milwaukee Bucks,Denver Nuggets,100.0,102.0,True,Final
@@ -686,22 +686,22 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810514,2026-01-26T18:30:00Z,Atlanta Hawks,Indiana Pacers,132.0,116.0,True,Final
 401810512,2026-01-26T20:00:00Z,Charlotte Hornets,Philadelphia 76ers,130.0,93.0,True,Final
 401810513,2026-01-27T00:00:00Z,Cleveland Cavaliers,Orlando Magic,114.0,98.0,True,Final
-401810516,2026-01-27T01:00:00Z,Chicago Bulls,Los Angeles Lakers,118.0,129.0,True,Final
 401810515,2026-01-27T01:00:00Z,Boston Celtics,Portland Trail Blazers,102.0,94.0,True,Final
+401810516,2026-01-27T01:00:00Z,Chicago Bulls,Los Angeles Lakers,118.0,129.0,True,Final
 401810517,2026-01-27T01:00:00Z,Houston Rockets,Memphis Grizzlies,108.0,99.0,True,Final
 401810518,2026-01-27T02:30:00Z,Minnesota Timberwolves,Golden State Warriors,108.0,83.0,True,Final
 401810519,2026-01-28T00:00:00Z,Washington Wizards,Portland Trail Blazers,115.0,111.0,True,Final
 401810520,2026-01-28T00:30:00Z,New York Knicks,Sacramento Kings,103.0,87.0,True,Final
-401810521,2026-01-28T01:00:00Z,Philadelphia 76ers,Milwaukee Bucks,139.0,122.0,True,Final
 401810522,2026-01-28T01:00:00Z,Oklahoma City Thunder,New Orleans Pelicans,104.0,95.0,True,Final
-401810523,2026-01-28T02:00:00Z,Denver Nuggets,Detroit Pistons,107.0,109.0,True,Final
+401810521,2026-01-28T01:00:00Z,Philadelphia 76ers,Milwaukee Bucks,139.0,122.0,True,Final
 401810524,2026-01-28T02:00:00Z,Phoenix Suns,Brooklyn Nets,106.0,102.0,True,Final
+401810523,2026-01-28T02:00:00Z,Denver Nuggets,Detroit Pistons,107.0,109.0,True,Final
 401810525,2026-01-28T03:00:00Z,Utah Jazz,LA Clippers,103.0,115.0,True,Final
 401810527,2026-01-29T00:00:00Z,Indiana Pacers,Chicago Bulls,113.0,110.0,True,Final
 401810526,2026-01-29T00:00:00Z,Cleveland Cavaliers,Los Angeles Lakers,129.0,99.0,True,Final
-401810528,2026-01-29T00:30:00Z,Boston Celtics,Atlanta Hawks,106.0,117.0,True,Final
 401810529,2026-01-29T00:30:00Z,Miami Heat,Orlando Magic,124.0,133.0,True,Final
 401810530,2026-01-29T00:30:00Z,Toronto Raptors,New York Knicks,92.0,119.0,True,Final
+401810528,2026-01-29T00:30:00Z,Boston Celtics,Atlanta Hawks,106.0,117.0,True,Final
 401810531,2026-01-29T01:00:00Z,Memphis Grizzlies,Charlotte Hornets,97.0,112.0,True,Final
 401810532,2026-01-29T01:30:00Z,Dallas Mavericks,Minnesota Timberwolves,105.0,118.0,True,Final
 401810533,2026-01-29T02:00:00Z,Utah Jazz,Golden State Warriors,124.0,140.0,True,Final
@@ -711,52 +711,52 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810537,2026-01-30T01:00:00Z,Atlanta Hawks,Houston Rockets,86.0,104.0,True,Final
 401850920,2026-01-30T01:00:00Z,Chicago Bulls,Miami Heat,113.0,116.0,True,Final
 401810538,2026-01-30T01:30:00Z,Dallas Mavericks,Charlotte Hornets,121.0,123.0,True,Final
-401810539,2026-01-30T02:00:00Z,Denver Nuggets,Brooklyn Nets,107.0,103.0,True,Final
 401810540,2026-01-30T02:00:00Z,Phoenix Suns,Detroit Pistons,114.0,96.0,True,Final
+401810539,2026-01-30T02:00:00Z,Denver Nuggets,Brooklyn Nets,107.0,103.0,True,Final
 401810541,2026-01-30T02:30:00Z,Minnesota Timberwolves,Oklahoma City Thunder,123.0,111.0,True,Final
 401810543,2026-01-31T00:00:00Z,Washington Wizards,Los Angeles Lakers,111.0,142.0,True,Final
 401810544,2026-01-31T00:30:00Z,Boston Celtics,Sacramento Kings,112.0,93.0,True,Final
-401810542,2026-01-31T00:30:00Z,Orlando Magic,Toronto Raptors,130.0,120.0,True,Final
-401810546,2026-01-31T00:30:00Z,New Orleans Pelicans,Memphis Grizzlies,114.0,106.0,True,Final
 401810545,2026-01-31T00:30:00Z,New York Knicks,Portland Trail Blazers,127.0,97.0,True,Final
-401810550,2026-01-31T02:00:00Z,Denver Nuggets,LA Clippers,122.0,109.0,True,Final
+401810546,2026-01-31T00:30:00Z,New Orleans Pelicans,Memphis Grizzlies,114.0,106.0,True,Final
+401810542,2026-01-31T00:30:00Z,Orlando Magic,Toronto Raptors,130.0,120.0,True,Final
 401810548,2026-01-31T02:00:00Z,Phoenix Suns,Cleveland Cavaliers,126.0,113.0,True,Final
+401810550,2026-01-31T02:00:00Z,Denver Nuggets,LA Clippers,122.0,109.0,True,Final
 401810549,2026-01-31T02:30:00Z,Utah Jazz,Brooklyn Nets,99.0,109.0,True,Final
 401810551,2026-01-31T03:00:00Z,Golden State Warriors,Detroit Pistons,124.0,131.0,True,Final
 401810552,2026-01-31T17:00:00Z,Charlotte Hornets,San Antonio Spurs,111.0,106.0,True,Final
 401810553,2026-02-01T00:00:00Z,Indiana Pacers,Atlanta Hawks,129.0,124.0,True,Final
 401810554,2026-02-01T00:30:00Z,Philadelphia 76ers,New Orleans Pelicans,124.0,114.0,True,Final
-401810547,2026-02-01T01:00:00Z,Miami Heat,Chicago Bulls,118.0,125.0,True,Final
 401810555,2026-02-01T01:00:00Z,Memphis Grizzlies,Minnesota Timberwolves,114.0,131.0,True,Final
+401810547,2026-02-01T01:00:00Z,Miami Heat,Chicago Bulls,118.0,125.0,True,Final
 401810556,2026-02-01T01:30:00Z,Houston Rockets,Dallas Mavericks,111.0,107.0,True,Final
 401810557,2026-02-01T20:30:00Z,Boston Celtics,Milwaukee Bucks,107.0,79.0,True,Final
 401810562,2026-02-01T23:00:00Z,Washington Wizards,Sacramento Kings,116.0,112.0,True,Final
-401810561,2026-02-01T23:00:00Z,Toronto Raptors,Utah Jazz,107.0,100.0,True,Final
-401810560,2026-02-01T23:00:00Z,Miami Heat,Chicago Bulls,134.0,91.0,True,Final
 401810559,2026-02-01T23:00:00Z,Detroit Pistons,Brooklyn Nets,130.0,77.0,True,Final
+401810560,2026-02-01T23:00:00Z,Miami Heat,Chicago Bulls,134.0,91.0,True,Final
+401810561,2026-02-01T23:00:00Z,Toronto Raptors,Utah Jazz,107.0,100.0,True,Final
 401810563,2026-02-02T00:00:00Z,New York Knicks,Los Angeles Lakers,112.0,100.0,True,Final
 401810564,2026-02-02T01:00:00Z,Phoenix Suns,LA Clippers,93.0,117.0,True,Final
-401810565,2026-02-02T02:00:00Z,Portland Trail Blazers,Cleveland Cavaliers,111.0,130.0,True,Final
 401810558,2026-02-02T02:00:00Z,San Antonio Spurs,Orlando Magic,112.0,103.0,True,Final
+401810565,2026-02-02T02:00:00Z,Portland Trail Blazers,Cleveland Cavaliers,111.0,130.0,True,Final
 401810566,2026-02-02T02:30:00Z,Denver Nuggets,Oklahoma City Thunder,111.0,121.0,True,Final
 401810567,2026-02-02T20:00:00Z,Charlotte Hornets,New Orleans Pelicans,102.0,95.0,True,Final
 401810568,2026-02-03T00:00:00Z,Indiana Pacers,Houston Rockets,114.0,118.0,True,Final
 401810569,2026-02-03T00:30:00Z,Memphis Grizzlies,Minnesota Timberwolves,137.0,128.0,True,Final
 401810570,2026-02-03T03:00:00Z,LA Clippers,Philadelphia 76ers,113.0,128.0,True,Final
-401810573,2026-02-04T00:00:00Z,Washington Wizards,New York Knicks,101.0,132.0,True,Final
 401810571,2026-02-04T00:00:00Z,Detroit Pistons,Denver Nuggets,124.0,121.0,True,Final
 401810572,2026-02-04T00:00:00Z,Indiana Pacers,Utah Jazz,122.0,131.0,True,Final
+401810573,2026-02-04T00:00:00Z,Washington Wizards,New York Knicks,101.0,132.0,True,Final
 401810574,2026-02-04T00:30:00Z,Brooklyn Nets,Los Angeles Lakers,109.0,125.0,True,Final
 401810575,2026-02-04T00:30:00Z,Miami Heat,Atlanta Hawks,115.0,127.0,True,Final
 401810578,2026-02-04T01:00:00Z,Oklahoma City Thunder,Orlando Magic,128.0,92.0,True,Final
-401810577,2026-02-04T01:00:00Z,Milwaukee Bucks,Chicago Bulls,131.0,115.0,True,Final
 401810576,2026-02-04T01:00:00Z,Dallas Mavericks,Boston Celtics,100.0,110.0,True,Final
+401810577,2026-02-04T01:00:00Z,Milwaukee Bucks,Chicago Bulls,131.0,115.0,True,Final
 401810579,2026-02-04T03:00:00Z,Golden State Warriors,Philadelphia 76ers,94.0,113.0,True,Final
 401810580,2026-02-04T04:00:00Z,Portland Trail Blazers,Phoenix Suns,125.0,130.0,True,Final
 401810581,2026-02-05T00:00:00Z,New York Knicks,Denver Nuggets,134.0,127.0,True,Final
 401810582,2026-02-05T00:30:00Z,Toronto Raptors,Minnesota Timberwolves,126.0,128.0,True,Final
-401810583,2026-02-05T01:00:00Z,Houston Rockets,Boston Celtics,93.0,114.0,True,Final
 401810584,2026-02-05T01:00:00Z,Milwaukee Bucks,New Orleans Pelicans,141.0,137.0,True,Final
+401810583,2026-02-05T01:00:00Z,Houston Rockets,Boston Celtics,93.0,114.0,True,Final
 401810585,2026-02-05T02:30:00Z,San Antonio Spurs,Oklahoma City Thunder,116.0,106.0,True,Final
 401810586,2026-02-05T03:00:00Z,Sacramento Kings,Memphis Grizzlies,125.0,129.0,True,Final
 401810587,2026-02-05T03:30:00Z,LA Clippers,Cleveland Cavaliers,91.0,124.0,True,Final
@@ -768,10 +768,10 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810593,2026-02-06T01:30:00Z,Dallas Mavericks,San Antonio Spurs,123.0,135.0,True,Final
 401810595,2026-02-06T03:00:00Z,Los Angeles Lakers,Philadelphia 76ers,119.0,115.0,True,Final
 401810594,2026-02-06T03:00:00Z,Phoenix Suns,Golden State Warriors,97.0,101.0,True,Final
-401810596,2026-02-07T00:30:00Z,Boston Celtics,Miami Heat,98.0,96.0,True,Final
 401810597,2026-02-07T00:30:00Z,Detroit Pistons,New York Knicks,118.0,80.0,True,Final
-401810598,2026-02-07T01:00:00Z,Milwaukee Bucks,Indiana Pacers,105.0,99.0,True,Final
+401810596,2026-02-07T00:30:00Z,Boston Celtics,Miami Heat,98.0,96.0,True,Final
 401810599,2026-02-07T01:00:00Z,Minnesota Timberwolves,New Orleans Pelicans,115.0,119.0,True,Final
+401810598,2026-02-07T01:00:00Z,Milwaukee Bucks,Indiana Pacers,105.0,99.0,True,Final
 401810600,2026-02-07T03:00:00Z,Portland Trail Blazers,Memphis Grizzlies,135.0,115.0,True,Final
 401810601,2026-02-07T03:00:00Z,Sacramento Kings,LA Clippers,111.0,114.0,True,Final
 401810602,2026-02-07T20:00:00Z,Brooklyn Nets,Washington Wizards,127.0,113.0,True,Final
@@ -786,34 +786,34 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810611,2026-02-08T03:00:00Z,Sacramento Kings,Cleveland Cavaliers,126.0,132.0,True,Final
 401810612,2026-02-08T17:30:00Z,Boston Celtics,New York Knicks,89.0,111.0,True,Final
 401810613,2026-02-08T19:00:00Z,Washington Wizards,Miami Heat,101.0,132.0,True,Final
-401810615,2026-02-08T20:00:00Z,Minnesota Timberwolves,LA Clippers,96.0,115.0,True,Final
 401810614,2026-02-08T20:00:00Z,Toronto Raptors,Indiana Pacers,122.0,104.0,True,Final
+401810615,2026-02-08T20:00:00Z,Minnesota Timberwolves,LA Clippers,96.0,115.0,True,Final
 401810616,2026-02-10T00:00:00Z,Charlotte Hornets,Detroit Pistons,104.0,110.0,True,Final
 401810618,2026-02-10T00:30:00Z,Miami Heat,Utah Jazz,111.0,115.0,True,Final
-401810619,2026-02-10T00:30:00Z,Orlando Magic,Milwaukee Bucks,118.0,99.0,True,Final
 401810617,2026-02-10T00:30:00Z,Brooklyn Nets,Chicago Bulls,123.0,115.0,True,Final
-401810620,2026-02-10T01:00:00Z,Minnesota Timberwolves,Atlanta Hawks,138.0,116.0,True,Final
+401810619,2026-02-10T00:30:00Z,Orlando Magic,Milwaukee Bucks,118.0,99.0,True,Final
 401810621,2026-02-10T01:00:00Z,New Orleans Pelicans,Sacramento Kings,120.0,94.0,True,Final
+401810620,2026-02-10T01:00:00Z,Minnesota Timberwolves,Atlanta Hawks,138.0,116.0,True,Final
 401810622,2026-02-10T02:00:00Z,Denver Nuggets,Cleveland Cavaliers,117.0,119.0,True,Final
+401810625,2026-02-10T03:00:00Z,Portland Trail Blazers,Philadelphia 76ers,135.0,118.0,True,Final
 401810623,2026-02-10T03:00:00Z,Golden State Warriors,Memphis Grizzlies,114.0,113.0,True,Final
 401810624,2026-02-10T03:00:00Z,Los Angeles Lakers,Oklahoma City Thunder,110.0,119.0,True,Final
-401810625,2026-02-10T03:00:00Z,Portland Trail Blazers,Philadelphia 76ers,135.0,118.0,True,Final
 401810626,2026-02-11T00:30:00Z,New York Knicks,Indiana Pacers,134.0,137.0,True,Final
 401810627,2026-02-11T01:00:00Z,Houston Rockets,LA Clippers,102.0,95.0,True,Final
 401810628,2026-02-11T02:00:00Z,Phoenix Suns,Dallas Mavericks,120.0,111.0,True,Final
 401810629,2026-02-11T03:30:00Z,Los Angeles Lakers,San Antonio Spurs,108.0,136.0,True,Final
-401810631,2026-02-12T00:00:00Z,Cleveland Cavaliers,Washington Wizards,138.0,113.0,True,Final
 401810632,2026-02-12T00:00:00Z,Orlando Magic,Milwaukee Bucks,108.0,116.0,True,Final
 401810630,2026-02-12T00:00:00Z,Charlotte Hornets,Atlanta Hawks,110.0,107.0,True,Final
+401810631,2026-02-12T00:00:00Z,Cleveland Cavaliers,Washington Wizards,138.0,113.0,True,Final
+401810636,2026-02-12T00:30:00Z,Toronto Raptors,Detroit Pistons,95.0,113.0,True,Final
+401810635,2026-02-12T00:30:00Z,Philadelphia 76ers,New York Knicks,89.0,138.0,True,Final
 401810633,2026-02-12T00:30:00Z,Boston Celtics,Chicago Bulls,124.0,105.0,True,Final
 401810634,2026-02-12T00:30:00Z,Brooklyn Nets,Indiana Pacers,110.0,115.0,True,Final
-401810635,2026-02-12T00:30:00Z,Philadelphia 76ers,New York Knicks,89.0,138.0,True,Final
-401810636,2026-02-12T00:30:00Z,Toronto Raptors,Detroit Pistons,95.0,113.0,True,Final
 401810637,2026-02-12T01:00:00Z,Houston Rockets,LA Clippers,102.0,105.0,True,Final
 401810638,2026-02-12T01:00:00Z,Minnesota Timberwolves,Portland Trail Blazers,133.0,109.0,True,Final
 401810639,2026-02-12T01:00:00Z,New Orleans Pelicans,Miami Heat,111.0,123.0,True,Final
-401810641,2026-02-12T02:00:00Z,Utah Jazz,Sacramento Kings,121.0,93.0,True,Final
 401810640,2026-02-12T02:00:00Z,Phoenix Suns,Oklahoma City Thunder,109.0,136.0,True,Final
+401810641,2026-02-12T02:00:00Z,Utah Jazz,Sacramento Kings,121.0,93.0,True,Final
 401810642,2026-02-12T02:00:00Z,Denver Nuggets,Memphis Grizzlies,122.0,116.0,True,Final
 401810643,2026-02-12T03:00:00Z,Golden State Warriors,San Antonio Spurs,113.0,126.0,True,Final
 401810644,2026-02-13T00:30:00Z,Oklahoma City Thunder,Milwaukee Bucks,93.0,110.0,True,Final
@@ -823,10 +823,10 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401838141,2026-02-15T22:55:00Z,Team Stripes,Team Stars,42.0,40.0,True,Final
 401838142,2026-02-15T23:25:00Z,Team Stripes,World,48.0,45.0,True,Final
 401838143,2026-02-16T00:10:00Z,Team Stripes,Team Stars,21.0,47.0,True,Final
-401810650,2026-02-20T00:00:00Z,Washington Wizards,Indiana Pacers,112.0,105.0,True,Final
-401810649,2026-02-20T00:00:00Z,Philadelphia 76ers,Atlanta Hawks,107.0,117.0,True,Final
-401810647,2026-02-20T00:00:00Z,Charlotte Hornets,Houston Rockets,101.0,105.0,True,Final
 401810648,2026-02-20T00:00:00Z,Cleveland Cavaliers,Brooklyn Nets,112.0,84.0,True,Final
+401810649,2026-02-20T00:00:00Z,Philadelphia 76ers,Atlanta Hawks,107.0,117.0,True,Final
+401810650,2026-02-20T00:00:00Z,Washington Wizards,Indiana Pacers,112.0,105.0,True,Final
+401810647,2026-02-20T00:00:00Z,Charlotte Hornets,Houston Rockets,101.0,105.0,True,Final
 401810651,2026-02-20T00:30:00Z,New York Knicks,Detroit Pistons,111.0,126.0,True,Final
 401810652,2026-02-20T01:00:00Z,Chicago Bulls,Toronto Raptors,101.0,110.0,True,Final
 401810653,2026-02-20T01:30:00Z,San Antonio Spurs,Phoenix Suns,121.0,94.0,True,Final
@@ -844,50 +844,50 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810664,2026-02-21T03:15:00Z,Los Angeles Lakers,LA Clippers,125.0,122.0,True,Final
 401810666,2026-02-21T22:00:00Z,Phoenix Suns,Orlando Magic,113.0,110.0,True,Final
 401810667,2026-02-22T00:00:00Z,New Orleans Pelicans,Philadelphia 76ers,126.0,111.0,True,Final
-401810668,2026-02-22T01:00:00Z,Miami Heat,Memphis Grizzlies,136.0,120.0,True,Final
-401810669,2026-02-22T01:00:00Z,Chicago Bulls,Detroit Pistons,110.0,126.0,True,Final
 401810670,2026-02-22T01:00:00Z,San Antonio Spurs,Sacramento Kings,139.0,122.0,True,Final
+401810669,2026-02-22T01:00:00Z,Chicago Bulls,Detroit Pistons,110.0,126.0,True,Final
+401810668,2026-02-22T01:00:00Z,Miami Heat,Memphis Grizzlies,136.0,120.0,True,Final
 401810671,2026-02-22T01:30:00Z,New York Knicks,Houston Rockets,108.0,106.0,True,Final
 401810672,2026-02-22T18:00:00Z,Oklahoma City Thunder,Cleveland Cavaliers,121.0,113.0,True,Final
 401810674,2026-02-22T20:30:00Z,Milwaukee Bucks,Toronto Raptors,94.0,122.0,True,Final
-401810673,2026-02-22T20:30:00Z,Atlanta Hawks,Brooklyn Nets,115.0,104.0,True,Final
 401810675,2026-02-22T20:30:00Z,Golden State Warriors,Denver Nuggets,128.0,117.0,True,Final
+401810673,2026-02-22T20:30:00Z,Atlanta Hawks,Brooklyn Nets,115.0,104.0,True,Final
 401810676,2026-02-22T22:00:00Z,Indiana Pacers,Dallas Mavericks,130.0,134.0,True,Final
 401810677,2026-02-22T23:00:00Z,Washington Wizards,Charlotte Hornets,112.0,129.0,True,Final
 401810678,2026-02-22T23:30:00Z,Los Angeles Lakers,Boston Celtics,89.0,111.0,True,Final
 401810679,2026-02-23T00:00:00Z,Minnesota Timberwolves,Philadelphia 76ers,108.0,135.0,True,Final
-401810681,2026-02-23T01:00:00Z,Phoenix Suns,Portland Trail Blazers,77.0,92.0,True,Final
 401810680,2026-02-23T01:00:00Z,Chicago Bulls,New York Knicks,99.0,105.0,True,Final
+401810681,2026-02-23T01:00:00Z,Phoenix Suns,Portland Trail Blazers,77.0,92.0,True,Final
 401810682,2026-02-23T02:00:00Z,LA Clippers,Orlando Magic,109.0,111.0,True,Final
 401810683,2026-02-24T00:00:00Z,Detroit Pistons,San Antonio Spurs,103.0,114.0,True,Final
 401810684,2026-02-24T01:00:00Z,Memphis Grizzlies,Sacramento Kings,114.0,123.0,True,Final
 401810685,2026-02-24T02:30:00Z,Houston Rockets,Utah Jazz,125.0,105.0,True,Final
 401810686,2026-02-25T00:00:00Z,Indiana Pacers,Philadelphia 76ers,114.0,135.0,True,Final
-401810689,2026-02-25T00:30:00Z,Toronto Raptors,Oklahoma City Thunder,107.0,116.0,True,Final
 401810687,2026-02-25T00:30:00Z,Atlanta Hawks,Washington Wizards,119.0,98.0,True,Final
 401810688,2026-02-25T00:30:00Z,Brooklyn Nets,Dallas Mavericks,114.0,123.0,True,Final
 401810690,2026-02-25T00:30:00Z,Cleveland Cavaliers,New York Knicks,109.0,94.0,True,Final
-401810691,2026-02-25T01:00:00Z,Chicago Bulls,Charlotte Hornets,99.0,131.0,True,Final
+401810689,2026-02-25T00:30:00Z,Toronto Raptors,Oklahoma City Thunder,107.0,116.0,True,Final
 401810692,2026-02-25T01:00:00Z,Milwaukee Bucks,Miami Heat,128.0,117.0,True,Final
 401810693,2026-02-25T01:00:00Z,New Orleans Pelicans,Golden State Warriors,113.0,109.0,True,Final
+401810691,2026-02-25T01:00:00Z,Chicago Bulls,Charlotte Hornets,99.0,131.0,True,Final
 401810694,2026-02-25T02:00:00Z,Phoenix Suns,Boston Celtics,81.0,97.0,True,Final
 401810696,2026-02-25T03:00:00Z,Portland Trail Blazers,Minnesota Timberwolves,121.0,124.0,True,Final
 401810695,2026-02-25T03:30:00Z,Los Angeles Lakers,Orlando Magic,109.0,110.0,True,Final
 401810697,2026-02-26T00:30:00Z,Detroit Pistons,Oklahoma City Thunder,124.0,116.0,True,Final
-401810699,2026-02-26T00:30:00Z,Memphis Grizzlies,Golden State Warriors,112.0,133.0,True,Final
 401810698,2026-02-26T00:30:00Z,Toronto Raptors,San Antonio Spurs,107.0,110.0,True,Final
+401810699,2026-02-26T00:30:00Z,Memphis Grizzlies,Golden State Warriors,112.0,133.0,True,Final
 401810701,2026-02-26T01:00:00Z,Milwaukee Bucks,Cleveland Cavaliers,118.0,116.0,True,Final
 401810700,2026-02-26T01:00:00Z,Houston Rockets,Sacramento Kings,128.0,97.0,True,Final
 401810702,2026-02-26T03:00:00Z,Denver Nuggets,Boston Celtics,103.0,84.0,True,Final
-401810703,2026-02-27T00:00:00Z,Indiana Pacers,Charlotte Hornets,109.0,133.0,True,Final
 401810704,2026-02-27T00:00:00Z,Philadelphia 76ers,Miami Heat,124.0,117.0,True,Final
+401810703,2026-02-27T00:00:00Z,Indiana Pacers,Charlotte Hornets,109.0,133.0,True,Final
+401810707,2026-02-27T00:30:00Z,Orlando Magic,Houston Rockets,108.0,113.0,True,Final
 401810706,2026-02-27T00:30:00Z,Brooklyn Nets,San Antonio Spurs,110.0,126.0,True,Final
 401810705,2026-02-27T00:30:00Z,Atlanta Hawks,Washington Wizards,126.0,96.0,True,Final
-401810707,2026-02-27T00:30:00Z,Orlando Magic,Houston Rockets,108.0,113.0,True,Final
 401810708,2026-02-27T01:00:00Z,Chicago Bulls,Portland Trail Blazers,112.0,121.0,True,Final
 401810709,2026-02-27T01:30:00Z,Dallas Mavericks,Sacramento Kings,121.0,130.0,True,Final
-401810710,2026-02-27T02:00:00Z,Phoenix Suns,Los Angeles Lakers,113.0,110.0,True,Final
 401810711,2026-02-27T02:00:00Z,Utah Jazz,New Orleans Pelicans,118.0,129.0,True,Final
+401810710,2026-02-27T02:00:00Z,Phoenix Suns,Los Angeles Lakers,113.0,110.0,True,Final
 401810712,2026-02-27T03:00:00Z,LA Clippers,Minnesota Timberwolves,88.0,94.0,True,Final
 401810713,2026-02-28T00:00:00Z,Detroit Pistons,Cleveland Cavaliers,122.0,119.0,True,Final
 401810714,2026-02-28T00:30:00Z,Boston Celtics,Brooklyn Nets,148.0,111.0,True,Final
@@ -900,9 +900,9 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810721,2026-03-01T01:30:00Z,Golden State Warriors,Los Angeles Lakers,101.0,129.0,True,Final
 401810722,2026-03-01T02:30:00Z,Utah Jazz,New Orleans Pelicans,105.0,115.0,True,Final
 401810723,2026-03-01T18:00:00Z,New York Knicks,San Antonio Spurs,114.0,89.0,True,Final
-401810726,2026-03-01T20:30:00Z,Denver Nuggets,Minnesota Timberwolves,108.0,117.0,True,Final
-401810725,2026-03-01T20:30:00Z,Chicago Bulls,Milwaukee Bucks,120.0,97.0,True,Final
 401810724,2026-03-01T20:30:00Z,Brooklyn Nets,Cleveland Cavaliers,102.0,106.0,True,Final
+401810725,2026-03-01T20:30:00Z,Chicago Bulls,Milwaukee Bucks,120.0,97.0,True,Final
+401810726,2026-03-01T20:30:00Z,Denver Nuggets,Minnesota Timberwolves,108.0,117.0,True,Final
 401810727,2026-03-01T22:00:00Z,Indiana Pacers,Memphis Grizzlies,106.0,125.0,True,Final
 401810728,2026-03-01T23:00:00Z,Atlanta Hawks,Portland Trail Blazers,135.0,101.0,True,Final
 401810730,2026-03-01T23:00:00Z,Orlando Magic,Detroit Pistons,92.0,106.0,True,Final
@@ -914,14 +914,14 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810735,2026-03-03T00:30:00Z,Milwaukee Bucks,Boston Celtics,81.0,108.0,True,Final
 401810736,2026-03-03T02:00:00Z,Utah Jazz,Denver Nuggets,125.0,128.0,True,Final
 401810737,2026-03-03T03:00:00Z,Golden State Warriors,LA Clippers,101.0,114.0,True,Final
-401810740,2026-03-04T00:00:00Z,Orlando Magic,Washington Wizards,126.0,109.0,True,Final
 401810739,2026-03-04T00:00:00Z,Cleveland Cavaliers,Detroit Pistons,113.0,109.0,True,Final
 401810738,2026-03-04T00:00:00Z,Charlotte Hornets,Dallas Mavericks,117.0,90.0,True,Final
-401810742,2026-03-04T00:30:00Z,Toronto Raptors,New York Knicks,95.0,111.0,True,Final
+401810740,2026-03-04T00:00:00Z,Orlando Magic,Washington Wizards,126.0,109.0,True,Final
 401810741,2026-03-04T00:30:00Z,Miami Heat,Brooklyn Nets,124.0,98.0,True,Final
+401810742,2026-03-04T00:30:00Z,Toronto Raptors,New York Knicks,95.0,111.0,True,Final
+401810743,2026-03-04T01:00:00Z,Philadelphia 76ers,San Antonio Spurs,91.0,131.0,True,Final
 401810745,2026-03-04T01:00:00Z,Minnesota Timberwolves,Memphis Grizzlies,117.0,110.0,True,Final
 401810744,2026-03-04T01:00:00Z,Chicago Bulls,Oklahoma City Thunder,108.0,116.0,True,Final
-401810743,2026-03-04T01:00:00Z,Philadelphia 76ers,San Antonio Spurs,91.0,131.0,True,Final
 401810746,2026-03-04T03:30:00Z,Los Angeles Lakers,New Orleans Pelicans,110.0,101.0,True,Final
 401810747,2026-03-04T04:00:00Z,Sacramento Kings,Phoenix Suns,103.0,114.0,True,Final
 401810748,2026-03-05T00:00:00Z,New York Knicks,Oklahoma City Thunder,100.0,103.0,True,Final
@@ -930,53 +930,53 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810751,2026-03-05T01:00:00Z,Memphis Grizzlies,Portland Trail Blazers,114.0,122.0,True,Final
 401810752,2026-03-05T02:30:00Z,Milwaukee Bucks,Atlanta Hawks,113.0,131.0,True,Final
 401810753,2026-03-05T03:30:00Z,LA Clippers,Indiana Pacers,130.0,107.0,True,Final
-401810754,2026-03-06T00:00:00Z,Orlando Magic,Dallas Mavericks,115.0,114.0,True,Final
 401810755,2026-03-06T00:00:00Z,Washington Wizards,Utah Jazz,112.0,122.0,True,Final
-401810756,2026-03-06T00:30:00Z,Miami Heat,Brooklyn Nets,126.0,110.0,True,Final
+401810754,2026-03-06T00:00:00Z,Orlando Magic,Dallas Mavericks,115.0,114.0,True,Final
 401810757,2026-03-06T00:30:00Z,Houston Rockets,Golden State Warriors,113.0,115.0,True,Final
-401810758,2026-03-06T01:00:00Z,Minnesota Timberwolves,Toronto Raptors,115.0,107.0,True,Final
+401810756,2026-03-06T00:30:00Z,Miami Heat,Brooklyn Nets,126.0,110.0,True,Final
 401810759,2026-03-06T01:00:00Z,San Antonio Spurs,Detroit Pistons,121.0,106.0,True,Final
+401810758,2026-03-06T01:00:00Z,Minnesota Timberwolves,Toronto Raptors,115.0,107.0,True,Final
 401810760,2026-03-06T02:00:00Z,Phoenix Suns,Chicago Bulls,103.0,105.0,True,Final
 401810762,2026-03-06T03:00:00Z,Sacramento Kings,New Orleans Pelicans,123.0,133.0,True,Final
 401810761,2026-03-06T03:00:00Z,Denver Nuggets,Los Angeles Lakers,120.0,113.0,True,Final
-401810763,2026-03-07T00:00:00Z,Boston Celtics,Dallas Mavericks,120.0,100.0,True,Final
 401810764,2026-03-07T00:00:00Z,Charlotte Hornets,Miami Heat,120.0,128.0,True,Final
+401810763,2026-03-07T00:00:00Z,Boston Celtics,Dallas Mavericks,120.0,100.0,True,Final
 401810765,2026-03-07T01:00:00Z,Houston Rockets,Portland Trail Blazers,106.0,99.0,True,Final
 401810766,2026-03-07T02:00:00Z,Denver Nuggets,New York Knicks,103.0,142.0,True,Final
 401810767,2026-03-07T02:00:00Z,Phoenix Suns,New Orleans Pelicans,118.0,116.0,True,Final
 401810768,2026-03-07T02:30:00Z,San Antonio Spurs,LA Clippers,116.0,112.0,True,Final
 401810769,2026-03-07T03:30:00Z,Los Angeles Lakers,Indiana Pacers,128.0,117.0,True,Final
 401810770,2026-03-07T20:00:00Z,Minnesota Timberwolves,Orlando Magic,92.0,119.0,True,Final
-401810771,2026-03-07T23:00:00Z,Detroit Pistons,Brooklyn Nets,105.0,107.0,True,Final
 401810772,2026-03-07T23:00:00Z,Atlanta Hawks,Philadelphia 76ers,125.0,116.0,True,Final
+401810771,2026-03-07T23:00:00Z,Detroit Pistons,Brooklyn Nets,105.0,107.0,True,Final
 401810774,2026-03-08T01:00:00Z,Milwaukee Bucks,Utah Jazz,113.0,99.0,True,Final
 401810773,2026-03-08T01:00:00Z,Memphis Grizzlies,LA Clippers,120.0,123.0,True,Final
 401810775,2026-03-08T01:30:00Z,Oklahoma City Thunder,Golden State Warriors,104.0,97.0,True,Final
 401810776,2026-03-08T17:00:00Z,Cleveland Cavaliers,Boston Celtics,98.0,109.0,True,Final
 401810777,2026-03-08T19:30:00Z,Los Angeles Lakers,New York Knicks,110.0,97.0,True,Final
-401810779,2026-03-08T22:00:00Z,Toronto Raptors,Dallas Mavericks,122.0,92.0,True,Final
 401810778,2026-03-08T22:00:00Z,Miami Heat,Detroit Pistons,121.0,110.0,True,Final
+401810779,2026-03-08T22:00:00Z,Toronto Raptors,Dallas Mavericks,122.0,92.0,True,Final
 401810780,2026-03-08T23:00:00Z,New Orleans Pelicans,Washington Wizards,138.0,118.0,True,Final
 401810782,2026-03-09T00:00:00Z,San Antonio Spurs,Houston Rockets,145.0,120.0,True,Final
 401810781,2026-03-09T00:00:00Z,Milwaukee Bucks,Orlando Magic,91.0,130.0,True,Final
-401810785,2026-03-09T01:00:00Z,Sacramento Kings,Chicago Bulls,126.0,110.0,True,Final
 401810784,2026-03-09T01:00:00Z,Portland Trail Blazers,Indiana Pacers,131.0,111.0,True,Final
+401810785,2026-03-09T01:00:00Z,Sacramento Kings,Chicago Bulls,126.0,110.0,True,Final
 401810783,2026-03-09T02:00:00Z,Phoenix Suns,Charlotte Hornets,111.0,99.0,True,Final
 401810786,2026-03-09T23:00:00Z,Cleveland Cavaliers,Philadelphia 76ers,115.0,101.0,True,Final
-401810788,2026-03-09T23:30:00Z,Oklahoma City Thunder,Denver Nuggets,129.0,126.0,True,Final
 401810787,2026-03-09T23:30:00Z,Brooklyn Nets,Memphis Grizzlies,126.0,115.0,True,Final
+401810788,2026-03-09T23:30:00Z,Oklahoma City Thunder,Denver Nuggets,129.0,126.0,True,Final
 401810789,2026-03-10T01:00:00Z,Utah Jazz,Golden State Warriors,119.0,116.0,True,Final
 401810790,2026-03-10T02:00:00Z,LA Clippers,New York Knicks,126.0,118.0,True,Final
 401810791,2026-03-10T23:00:00Z,Philadelphia 76ers,Memphis Grizzlies,139.0,129.0,True,Final
-401810792,2026-03-10T23:30:00Z,Brooklyn Nets,Detroit Pistons,100.0,138.0,True,Final
 401810793,2026-03-10T23:30:00Z,Miami Heat,Washington Wizards,150.0,129.0,True,Final
 401810794,2026-03-10T23:30:00Z,Atlanta Hawks,Dallas Mavericks,124.0,112.0,True,Final
-401810797,2026-03-11T00:00:00Z,San Antonio Spurs,Boston Celtics,125.0,116.0,True,Final
+401810792,2026-03-10T23:30:00Z,Brooklyn Nets,Detroit Pistons,100.0,138.0,True,Final
 401810796,2026-03-11T00:00:00Z,Milwaukee Bucks,Phoenix Suns,114.0,129.0,True,Final
 401810795,2026-03-11T00:00:00Z,Houston Rockets,Toronto Raptors,113.0,99.0,True,Final
-401810800,2026-03-11T02:00:00Z,Sacramento Kings,Indiana Pacers,114.0,109.0,True,Final
-401810799,2026-03-11T02:00:00Z,Portland Trail Blazers,Charlotte Hornets,101.0,103.0,True,Final
+401810797,2026-03-11T00:00:00Z,San Antonio Spurs,Boston Celtics,125.0,116.0,True,Final
 401810798,2026-03-11T02:00:00Z,Golden State Warriors,Chicago Bulls,124.0,130.0,True,Final
+401810799,2026-03-11T02:00:00Z,Portland Trail Blazers,Charlotte Hornets,101.0,103.0,True,Final
+401810800,2026-03-11T02:00:00Z,Sacramento Kings,Indiana Pacers,114.0,109.0,True,Final
 401810801,2026-03-11T03:00:00Z,Los Angeles Lakers,Minnesota Timberwolves,120.0,106.0,True,Final
 401810802,2026-03-11T23:30:00Z,Orlando Magic,Cleveland Cavaliers,128.0,122.0,True,Final
 401810803,2026-03-12T00:00:00Z,New Orleans Pelicans,Toronto Raptors,122.0,111.0,True,Final
@@ -984,9 +984,9 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810806,2026-03-12T02:00:00Z,Sacramento Kings,Charlotte Hornets,109.0,117.0,True,Final
 401810805,2026-03-12T02:00:00Z,Denver Nuggets,Houston Rockets,129.0,93.0,True,Final
 401810807,2026-03-12T02:30:00Z,LA Clippers,Minnesota Timberwolves,153.0,128.0,True,Final
-401810808,2026-03-12T23:00:00Z,Detroit Pistons,Philadelphia 76ers,131.0,109.0,True,Final
 401810810,2026-03-12T23:00:00Z,Orlando Magic,Washington Wizards,136.0,131.0,True,Final
 401810809,2026-03-12T23:00:00Z,Indiana Pacers,Phoenix Suns,108.0,123.0,True,Final
+401810808,2026-03-12T23:00:00Z,Detroit Pistons,Philadelphia 76ers,131.0,109.0,True,Final
 401810812,2026-03-12T23:30:00Z,Miami Heat,Milwaukee Bucks,112.0,105.0,True,Final
 401810811,2026-03-12T23:30:00Z,Atlanta Hawks,Brooklyn Nets,108.0,97.0,True,Final
 401810966,2026-03-13T00:00:00Z,Memphis Grizzlies,Dallas Mavericks,112.0,120.0,True,Final
@@ -1019,39 +1019,39 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810838,2026-03-16T23:00:00Z,Atlanta Hawks,Orlando Magic,124.0,112.0,True,Final
 401810841,2026-03-16T23:30:00Z,Boston Celtics,Phoenix Suns,120.0,112.0,True,Final
 401810840,2026-03-16T23:30:00Z,Brooklyn Nets,Portland Trail Blazers,95.0,114.0,True,Final
-401810843,2026-03-17T00:00:00Z,New Orleans Pelicans,Dallas Mavericks,129.0,111.0,True,Final
 401810842,2026-03-17T00:00:00Z,Chicago Bulls,Memphis Grizzlies,132.0,107.0,True,Final
+401810843,2026-03-17T00:00:00Z,New Orleans Pelicans,Dallas Mavericks,129.0,111.0,True,Final
 401810844,2026-03-17T01:30:00Z,Houston Rockets,Los Angeles Lakers,92.0,100.0,True,Final
 401810845,2026-03-17T02:00:00Z,LA Clippers,San Antonio Spurs,115.0,119.0,True,Final
+401810846,2026-03-17T23:00:00Z,Charlotte Hornets,Miami Heat,136.0,106.0,True,Final
 401810848,2026-03-17T23:00:00Z,Washington Wizards,Detroit Pistons,117.0,130.0,True,Final
 401810847,2026-03-17T23:00:00Z,Orlando Magic,Oklahoma City Thunder,108.0,113.0,True,Final
-401810846,2026-03-17T23:00:00Z,Charlotte Hornets,Miami Heat,136.0,106.0,True,Final
 401810849,2026-03-17T23:30:00Z,New York Knicks,Indiana Pacers,136.0,110.0,True,Final
-401810850,2026-03-18T00:00:00Z,Milwaukee Bucks,Cleveland Cavaliers,116.0,123.0,True,Final
 401810851,2026-03-18T00:00:00Z,Minnesota Timberwolves,Phoenix Suns,116.0,104.0,True,Final
-401810852,2026-03-18T02:00:00Z,Denver Nuggets,Philadelphia 76ers,124.0,96.0,True,Final
+401810850,2026-03-18T00:00:00Z,Milwaukee Bucks,Cleveland Cavaliers,116.0,123.0,True,Final
 401810853,2026-03-18T02:00:00Z,Sacramento Kings,San Antonio Spurs,104.0,132.0,True,Final
+401810852,2026-03-18T02:00:00Z,Denver Nuggets,Philadelphia 76ers,124.0,96.0,True,Final
 401810854,2026-03-18T23:00:00Z,Boston Celtics,Golden State Warriors,120.0,99.0,True,Final
 401810855,2026-03-18T23:30:00Z,Brooklyn Nets,Oklahoma City Thunder,92.0,121.0,True,Final
 401810856,2026-03-18T23:30:00Z,Indiana Pacers,Portland Trail Blazers,119.0,127.0,True,Final
 401810860,2026-03-19T00:00:00Z,New Orleans Pelicans,LA Clippers,124.0,109.0,True,Final
-401810857,2026-03-19T00:00:00Z,Chicago Bulls,Toronto Raptors,109.0,139.0,True,Final
 401810859,2026-03-19T00:00:00Z,Minnesota Timberwolves,Utah Jazz,147.0,111.0,True,Final
+401810857,2026-03-19T00:00:00Z,Chicago Bulls,Toronto Raptors,109.0,139.0,True,Final
 401858693,2026-03-19T00:30:00Z,Memphis Grizzlies,Denver Nuggets,125.0,118.0,True,Final
 401810861,2026-03-19T00:30:00Z,Dallas Mavericks,Atlanta Hawks,120.0,135.0,True,Final
 401810862,2026-03-19T01:30:00Z,Houston Rockets,Los Angeles Lakers,116.0,124.0,True,Final
-401810863,2026-03-19T23:00:00Z,Charlotte Hornets,Orlando Magic,130.0,111.0,True,Final
 401810864,2026-03-19T23:00:00Z,Washington Wizards,Detroit Pistons,95.0,117.0,True,Final
+401810863,2026-03-19T23:00:00Z,Charlotte Hornets,Orlando Magic,130.0,111.0,True,Final
 401810865,2026-03-20T00:00:00Z,Miami Heat,Los Angeles Lakers,126.0,134.0,True,Final
-401810868,2026-03-20T00:00:00Z,San Antonio Spurs,Phoenix Suns,101.0,100.0,True,Final
 401810866,2026-03-20T00:00:00Z,Chicago Bulls,Cleveland Cavaliers,110.0,115.0,True,Final
 401810867,2026-03-20T00:00:00Z,New Orleans Pelicans,LA Clippers,105.0,99.0,True,Final
+401810868,2026-03-20T00:00:00Z,San Antonio Spurs,Phoenix Suns,101.0,100.0,True,Final
 401810869,2026-03-20T01:00:00Z,Utah Jazz,Milwaukee Bucks,128.0,96.0,True,Final
 401810870,2026-03-20T02:00:00Z,Sacramento Kings,Philadelphia 76ers,118.0,139.0,True,Final
 401810871,2026-03-20T23:30:00Z,Brooklyn Nets,New York Knicks,92.0,93.0,True,Final
 401810872,2026-03-20T23:30:00Z,Detroit Pistons,Golden State Warriors,115.0,101.0,True,Final
-401810875,2026-03-21T00:00:00Z,Minnesota Timberwolves,Portland Trail Blazers,104.0,108.0,True,Final
 401810873,2026-03-21T00:00:00Z,Houston Rockets,Atlanta Hawks,117.0,95.0,True,Final
+401810875,2026-03-21T00:00:00Z,Minnesota Timberwolves,Portland Trail Blazers,104.0,108.0,True,Final
 401810874,2026-03-21T00:00:00Z,Memphis Grizzlies,Boston Celtics,112.0,117.0,True,Final
 401810876,2026-03-21T01:00:00Z,Denver Nuggets,Toronto Raptors,121.0,115.0,True,Final
 401810877,2026-03-21T21:00:00Z,Washington Wizards,Oklahoma City Thunder,111.0,132.0,True,Final
@@ -1059,8 +1059,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810880,2026-03-21T23:00:00Z,New Orleans Pelicans,Cleveland Cavaliers,106.0,111.0,True,Final
 401810878,2026-03-21T23:00:00Z,Charlotte Hornets,Memphis Grizzlies,124.0,101.0,True,Final
 401810881,2026-03-22T00:00:00Z,Atlanta Hawks,Golden State Warriors,126.0,110.0,True,Final
-401810883,2026-03-22T00:00:00Z,San Antonio Spurs,Indiana Pacers,134.0,119.0,True,Final
 401810882,2026-03-22T00:00:00Z,Houston Rockets,Miami Heat,123.0,122.0,True,Final
+401810883,2026-03-22T00:00:00Z,San Antonio Spurs,Indiana Pacers,134.0,119.0,True,Final
 401810884,2026-03-22T00:30:00Z,Dallas Mavericks,LA Clippers,131.0,138.0,True,Final
 401810885,2026-03-22T01:30:00Z,Utah Jazz,Philadelphia 76ers,116.0,126.0,True,Final
 401810886,2026-03-22T02:00:00Z,Phoenix Suns,Milwaukee Bucks,105.0,108.0,True,Final
@@ -1069,10 +1069,10 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810889,2026-03-22T23:30:00Z,New York Knicks,Washington Wizards,145.0,113.0,True,Final
 401810890,2026-03-23T00:00:00Z,Boston Celtics,Minnesota Timberwolves,92.0,102.0,True,Final
 401810891,2026-03-23T01:00:00Z,Phoenix Suns,Toronto Raptors,120.0,98.0,True,Final
-401810896,2026-03-23T23:00:00Z,Miami Heat,San Antonio Spurs,111.0,136.0,True,Final
 401810893,2026-03-23T23:00:00Z,Detroit Pistons,Los Angeles Lakers,113.0,110.0,True,Final
-401810894,2026-03-23T23:00:00Z,Orlando Magic,Indiana Pacers,126.0,128.0,True,Final
 401810895,2026-03-23T23:00:00Z,Philadelphia 76ers,Oklahoma City Thunder,103.0,123.0,True,Final
+401810894,2026-03-23T23:00:00Z,Orlando Magic,Indiana Pacers,126.0,128.0,True,Final
+401810896,2026-03-23T23:00:00Z,Miami Heat,San Antonio Spurs,111.0,136.0,True,Final
 401810892,2026-03-23T23:30:00Z,Atlanta Hawks,Memphis Grizzlies,146.0,107.0,True,Final
 401810897,2026-03-24T00:00:00Z,Chicago Bulls,Houston Rockets,132.0,124.0,True,Final
 401810898,2026-03-24T01:00:00Z,Utah Jazz,Toronto Raptors,127.0,143.0,True,Final
@@ -1083,30 +1083,30 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810903,2026-03-24T23:30:00Z,New York Knicks,New Orleans Pelicans,121.0,116.0,True,Final
 401810904,2026-03-25T00:00:00Z,Cleveland Cavaliers,Orlando Magic,136.0,131.0,True,Final
 401810905,2026-03-25T03:00:00Z,Phoenix Suns,Denver Nuggets,123.0,125.0,True,Final
-401810907,2026-03-25T23:00:00Z,Indiana Pacers,Los Angeles Lakers,130.0,137.0,True,Final
 401810906,2026-03-25T23:00:00Z,Detroit Pistons,Atlanta Hawks,129.0,130.0,True,Final
+401810907,2026-03-25T23:00:00Z,Indiana Pacers,Los Angeles Lakers,130.0,137.0,True,Final
 401810908,2026-03-25T23:00:00Z,Philadelphia 76ers,Chicago Bulls,157.0,137.0,True,Final
 401810909,2026-03-25T23:30:00Z,Boston Celtics,Oklahoma City Thunder,119.0,109.0,True,Final
 401810910,2026-03-25T23:30:00Z,Cleveland Cavaliers,Miami Heat,103.0,120.0,True,Final
 401810911,2026-03-26T00:00:00Z,Memphis Grizzlies,San Antonio Spurs,98.0,123.0,True,Final
 401810912,2026-03-26T01:00:00Z,Utah Jazz,Washington Wizards,110.0,133.0,True,Final
 401810913,2026-03-26T01:42:00Z,Minnesota Timberwolves,Houston Rockets,110.0,108.0,True,Final
-401810914,2026-03-26T02:00:00Z,Denver Nuggets,Dallas Mavericks,142.0,135.0,True,Final
 401810915,2026-03-26T02:00:00Z,Golden State Warriors,Brooklyn Nets,109.0,106.0,True,Final
 401810916,2026-03-26T02:00:00Z,Portland Trail Blazers,Milwaukee Bucks,130.0,99.0,True,Final
+401810914,2026-03-26T02:00:00Z,Denver Nuggets,Dallas Mavericks,142.0,135.0,True,Final
 401810917,2026-03-26T02:30:00Z,LA Clippers,Toronto Raptors,119.0,94.0,True,Final
-401810920,2026-03-26T23:00:00Z,Orlando Magic,Sacramento Kings,121.0,117.0,True,Final
-401810919,2026-03-26T23:00:00Z,Detroit Pistons,New Orleans Pelicans,129.0,108.0,True,Final
 401810918,2026-03-26T23:00:00Z,Charlotte Hornets,New York Knicks,114.0,103.0,True,Final
+401810919,2026-03-26T23:00:00Z,Detroit Pistons,New Orleans Pelicans,129.0,108.0,True,Final
+401810920,2026-03-26T23:00:00Z,Orlando Magic,Sacramento Kings,121.0,117.0,True,Final
 401810921,2026-03-27T23:00:00Z,Indiana Pacers,LA Clippers,113.0,114.0,True,Final
 401810922,2026-03-27T23:30:00Z,Boston Celtics,Atlanta Hawks,109.0,102.0,True,Final
 401810923,2026-03-27T23:30:00Z,Cleveland Cavaliers,Miami Heat,149.0,128.0,True,Final
-401810925,2026-03-28T00:00:00Z,Oklahoma City Thunder,Chicago Bulls,131.0,113.0,True,Final
 401810924,2026-03-28T00:00:00Z,Memphis Grizzlies,Houston Rockets,109.0,119.0,True,Final
+401810925,2026-03-28T00:00:00Z,Oklahoma City Thunder,Chicago Bulls,131.0,113.0,True,Final
 401810926,2026-03-28T00:30:00Z,Toronto Raptors,New Orleans Pelicans,119.0,106.0,True,Final
 401810927,2026-03-28T01:00:00Z,Denver Nuggets,Utah Jazz,135.0,129.0,True,Final
-401810929,2026-03-28T02:00:00Z,Portland Trail Blazers,Dallas Mavericks,93.0,100.0,True,Final
 401810928,2026-03-28T02:00:00Z,Golden State Warriors,Washington Wizards,131.0,126.0,True,Final
+401810929,2026-03-28T02:00:00Z,Portland Trail Blazers,Dallas Mavericks,93.0,100.0,True,Final
 401810930,2026-03-28T02:30:00Z,Los Angeles Lakers,Brooklyn Nets,116.0,99.0,True,Final
 401810931,2026-03-28T19:00:00Z,Milwaukee Bucks,San Antonio Spurs,95.0,127.0,True,Final
 401810935,2026-03-28T21:30:00Z,Minnesota Timberwolves,Detroit Pistons,87.0,109.0,True,Final
@@ -1116,84 +1116,84 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401810936,2026-03-29T02:00:00Z,Phoenix Suns,Utah Jazz,134.0,109.0,True,Final
 401810937,2026-03-29T19:30:00Z,Milwaukee Bucks,LA Clippers,113.0,127.0,True,Final
 401810938,2026-03-29T21:00:00Z,Indiana Pacers,Miami Heat,135.0,118.0,True,Final
-401810939,2026-03-29T22:00:00Z,Brooklyn Nets,Sacramento Kings,116.0,99.0,True,Final
 401810940,2026-03-29T22:00:00Z,Charlotte Hornets,Boston Celtics,99.0,114.0,True,Final
 401810941,2026-03-29T22:00:00Z,Toronto Raptors,Orlando Magic,139.0,87.0,True,Final
 401810942,2026-03-29T22:00:00Z,Portland Trail Blazers,Washington Wizards,123.0,88.0,True,Final
+401810939,2026-03-29T22:00:00Z,Brooklyn Nets,Sacramento Kings,116.0,99.0,True,Final
 401810943,2026-03-29T23:00:00Z,New Orleans Pelicans,Houston Rockets,102.0,134.0,True,Final
 401810944,2026-03-29T23:30:00Z,Oklahoma City Thunder,New York Knicks,111.0,100.0,True,Final
 401810945,2026-03-30T02:00:00Z,Denver Nuggets,Golden State Warriors,116.0,93.0,True,Final
 401810946,2026-03-30T23:00:00Z,Miami Heat,Philadelphia 76ers,119.0,109.0,True,Final
 401810947,2026-03-30T23:30:00Z,Atlanta Hawks,Boston Celtics,112.0,102.0,True,Final
-401810948,2026-03-31T00:00:00Z,Memphis Grizzlies,Phoenix Suns,105.0,131.0,True,Final
 401810949,2026-03-31T00:00:00Z,San Antonio Spurs,Chicago Bulls,129.0,114.0,True,Final
+401810948,2026-03-31T00:00:00Z,Memphis Grizzlies,Phoenix Suns,105.0,131.0,True,Final
 401810950,2026-03-31T00:30:00Z,Dallas Mavericks,Minnesota Timberwolves,94.0,124.0,True,Final
 401810951,2026-03-31T01:00:00Z,Utah Jazz,Cleveland Cavaliers,113.0,122.0,True,Final
 401810952,2026-03-31T01:30:00Z,Oklahoma City Thunder,Detroit Pistons,114.0,110.0,True,Final
 401810953,2026-03-31T02:00:00Z,Los Angeles Lakers,Washington Wizards,120.0,101.0,True,Final
 401810954,2026-03-31T23:00:00Z,Orlando Magic,Phoenix Suns,115.0,111.0,True,Final
 401810955,2026-03-31T23:30:00Z,Brooklyn Nets,Charlotte Hornets,86.0,117.0,True,Final
-401810956,2026-04-01T00:00:00Z,Detroit Pistons,Toronto Raptors,127.0,116.0,True,Final
-401810957,2026-04-01T00:00:00Z,Houston Rockets,New York Knicks,111.0,94.0,True,Final
 401858694,2026-04-01T00:00:00Z,Milwaukee Bucks,Dallas Mavericks,123.0,99.0,True,Final
+401810957,2026-04-01T00:00:00Z,Houston Rockets,New York Knicks,111.0,94.0,True,Final
+401810956,2026-04-01T00:00:00Z,Detroit Pistons,Toronto Raptors,127.0,116.0,True,Final
 401810958,2026-04-01T02:30:00Z,Los Angeles Lakers,Cleveland Cavaliers,127.0,113.0,True,Final
 401810959,2026-04-01T03:00:00Z,LA Clippers,Portland Trail Blazers,104.0,114.0,True,Final
 401810960,2026-04-01T23:00:00Z,Washington Wizards,Philadelphia 76ers,131.0,153.0,True,Final
 401810962,2026-04-01T23:00:00Z,Orlando Magic,Atlanta Hawks,101.0,130.0,True,Final
 401810961,2026-04-01T23:30:00Z,Miami Heat,Boston Celtics,129.0,147.0,True,Final
-401810965,2026-04-02T00:00:00Z,Houston Rockets,Milwaukee Bucks,119.0,113.0,True,Final
-401810964,2026-04-02T00:00:00Z,Chicago Bulls,Indiana Pacers,126.0,145.0,True,Final
 401810963,2026-04-02T00:00:00Z,Toronto Raptors,Sacramento Kings,115.0,123.0,True,Final
+401810964,2026-04-02T00:00:00Z,Chicago Bulls,Indiana Pacers,126.0,145.0,True,Final
+401810965,2026-04-02T00:00:00Z,Houston Rockets,Milwaukee Bucks,119.0,113.0,True,Final
 401810858,2026-04-02T00:00:00Z,Memphis Grizzlies,New York Knicks,119.0,130.0,True,Final
 401810967,2026-04-02T01:00:00Z,Utah Jazz,Denver Nuggets,117.0,130.0,True,Final
 401810968,2026-04-02T02:00:00Z,Golden State Warriors,San Antonio Spurs,113.0,127.0,True,Final
-401810970,2026-04-02T23:00:00Z,Detroit Pistons,Minnesota Timberwolves,113.0,108.0,True,Final
 401810969,2026-04-02T23:00:00Z,Charlotte Hornets,Phoenix Suns,127.0,107.0,True,Final
+401810970,2026-04-02T23:00:00Z,Detroit Pistons,Minnesota Timberwolves,113.0,108.0,True,Final
 401810971,2026-04-03T01:30:00Z,Oklahoma City Thunder,Los Angeles Lakers,139.0,96.0,True,Final
 401810973,2026-04-03T02:00:00Z,Portland Trail Blazers,New Orleans Pelicans,118.0,106.0,True,Final
 401810972,2026-04-03T02:00:00Z,Golden State Warriors,Cleveland Cavaliers,111.0,118.0,True,Final
 401810974,2026-04-03T02:30:00Z,LA Clippers,San Antonio Spurs,99.0,118.0,True,Final
-401810976,2026-04-03T23:00:00Z,Philadelphia 76ers,Minnesota Timberwolves,115.0,103.0,True,Final
 401810975,2026-04-03T23:00:00Z,Charlotte Hornets,Indiana Pacers,129.0,108.0,True,Final
+401810976,2026-04-03T23:00:00Z,Philadelphia 76ers,Minnesota Timberwolves,115.0,103.0,True,Final
 401810978,2026-04-03T23:30:00Z,New York Knicks,Chicago Bulls,136.0,96.0,True,Final
 401810977,2026-04-03T23:30:00Z,Brooklyn Nets,Atlanta Hawks,107.0,141.0,True,Final
-401810981,2026-04-04T00:00:00Z,Milwaukee Bucks,Boston Celtics,101.0,133.0,True,Final
 401810980,2026-04-04T00:00:00Z,Memphis Grizzlies,Toronto Raptors,96.0,128.0,True,Final
+401810981,2026-04-04T00:00:00Z,Milwaukee Bucks,Boston Celtics,101.0,133.0,True,Final
 401810979,2026-04-04T00:00:00Z,Houston Rockets,Utah Jazz,140.0,106.0,True,Final
 401810982,2026-04-04T00:30:00Z,Dallas Mavericks,Orlando Magic,127.0,138.0,True,Final
 401810983,2026-04-04T02:00:00Z,Sacramento Kings,New Orleans Pelicans,117.0,113.0,True,Final
-401810984,2026-04-04T19:00:00Z,Miami Heat,Washington Wizards,152.0,136.0,True,Final
 401810985,2026-04-04T19:00:00Z,Denver Nuggets,San Antonio Spurs,136.0,134.0,True,Final
+401810984,2026-04-04T19:00:00Z,Miami Heat,Washington Wizards,152.0,136.0,True,Final
 401810986,2026-04-04T23:00:00Z,Philadelphia 76ers,Detroit Pistons,93.0,116.0,True,Final
 401810990,2026-04-05T19:30:00Z,Milwaukee Bucks,Memphis Grizzlies,131.0,115.0,True,Final
-401810987,2026-04-05T19:30:00Z,Boston Celtics,Toronto Raptors,115.0,101.0,True,Final
-401810988,2026-04-05T19:30:00Z,Brooklyn Nets,Washington Wizards,121.0,115.0,True,Final
 401810989,2026-04-05T19:30:00Z,Chicago Bulls,Phoenix Suns,110.0,120.0,True,Final
+401810988,2026-04-05T19:30:00Z,Brooklyn Nets,Washington Wizards,121.0,115.0,True,Final
+401810987,2026-04-05T19:30:00Z,Boston Celtics,Toronto Raptors,115.0,101.0,True,Final
 401810991,2026-04-05T22:00:00Z,Cleveland Cavaliers,Indiana Pacers,117.0,108.0,True,Final
-401810994,2026-04-05T23:00:00Z,Oklahoma City Thunder,Utah Jazz,146.0,111.0,True,Final
-401810992,2026-04-05T23:00:00Z,Minnesota Timberwolves,Charlotte Hornets,108.0,122.0,True,Final
 401810993,2026-04-05T23:00:00Z,New Orleans Pelicans,Orlando Magic,108.0,112.0,True,Final
+401810992,2026-04-05T23:00:00Z,Minnesota Timberwolves,Charlotte Hornets,108.0,122.0,True,Final
+401810994,2026-04-05T23:00:00Z,Oklahoma City Thunder,Utah Jazz,146.0,111.0,True,Final
 401810995,2026-04-05T23:30:00Z,Dallas Mavericks,Los Angeles Lakers,134.0,128.0,True,Final
 401810996,2026-04-06T01:00:00Z,Sacramento Kings,LA Clippers,109.0,138.0,True,Final
 401810997,2026-04-06T02:00:00Z,Golden State Warriors,Houston Rockets,116.0,117.0,True,Final
 401810998,2026-04-06T23:00:00Z,Atlanta Hawks,New York Knicks,105.0,108.0,True,Final
 401810999,2026-04-06T23:00:00Z,Orlando Magic,Detroit Pistons,123.0,107.0,True,Final
-401811000,2026-04-07T00:00:00Z,Memphis Grizzlies,Cleveland Cavaliers,126.0,142.0,True,Final
 401811001,2026-04-07T00:00:00Z,San Antonio Spurs,Philadelphia 76ers,115.0,102.0,True,Final
+401811000,2026-04-07T00:00:00Z,Memphis Grizzlies,Cleveland Cavaliers,126.0,142.0,True,Final
 401811002,2026-04-07T01:00:00Z,Denver Nuggets,Portland Trail Blazers,137.0,132.0,True,Final
-401811003,2026-04-07T23:00:00Z,Washington Wizards,Chicago Bulls,98.0,129.0,True,Final
 401811007,2026-04-07T23:00:00Z,Indiana Pacers,Minnesota Timberwolves,104.0,124.0,True,Final
+401811003,2026-04-07T23:00:00Z,Washington Wizards,Chicago Bulls,98.0,129.0,True,Final
 401811006,2026-04-07T23:30:00Z,Toronto Raptors,Miami Heat,121.0,95.0,True,Final
 401811005,2026-04-07T23:30:00Z,Brooklyn Nets,Milwaukee Bucks,96.0,90.0,True,Final
-401811008,2026-04-08T00:00:00Z,New Orleans Pelicans,Utah Jazz,156.0,137.0,True,Final
 401811004,2026-04-08T00:00:00Z,Boston Celtics,Charlotte Hornets,113.0,102.0,True,Final
+401811008,2026-04-08T00:00:00Z,New Orleans Pelicans,Utah Jazz,156.0,137.0,True,Final
 401811009,2026-04-08T02:00:00Z,Golden State Warriors,Sacramento Kings,110.0,105.0,True,Final
-401811011,2026-04-08T02:30:00Z,LA Clippers,Dallas Mavericks,116.0,103.0,True,Final
 401811010,2026-04-08T02:30:00Z,Los Angeles Lakers,Oklahoma City Thunder,87.0,123.0,True,Final
+401811011,2026-04-08T02:30:00Z,LA Clippers,Dallas Mavericks,116.0,103.0,True,Final
 401811012,2026-04-08T03:00:00Z,Phoenix Suns,Houston Rockets,105.0,119.0,True,Final
+401811013,2026-04-08T23:00:00Z,Cleveland Cavaliers,Atlanta Hawks,122.0,116.0,True,Final
 401811014,2026-04-08T23:00:00Z,Orlando Magic,Minnesota Timberwolves,132.0,120.0,True,Final
 401811015,2026-04-08T23:00:00Z,Detroit Pistons,Milwaukee Bucks,137.0,111.0,True,Final
-401811013,2026-04-08T23:00:00Z,Cleveland Cavaliers,Atlanta Hawks,122.0,116.0,True,Final
 401811017,2026-04-09T01:00:00Z,Denver Nuggets,Memphis Grizzlies,136.0,119.0,True,Final
 401811016,2026-04-09T01:30:00Z,San Antonio Spurs,Portland Trail Blazers,112.0,101.0,True,Final
 401811018,2026-04-09T02:00:00Z,LA Clippers,Oklahoma City Thunder,110.0,128.0,True,Final
@@ -1214,26 +1214,26 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401811035,2026-04-11T00:00:00Z,San Antonio Spurs,Dallas Mavericks,139.0,120.0,True,Final
 401811034,2026-04-11T00:00:00Z,Milwaukee Bucks,Brooklyn Nets,125.0,108.0,True,Final
 401811037,2026-04-11T01:00:00Z,Denver Nuggets,Oklahoma City Thunder,127.0,107.0,True,Final
-401811036,2026-04-11T01:30:00Z,Utah Jazz,Memphis Grizzlies,147.0,101.0,True,Final
 401811033,2026-04-11T01:30:00Z,Houston Rockets,Minnesota Timberwolves,132.0,136.0,True,Final
+401811036,2026-04-11T01:30:00Z,Utah Jazz,Memphis Grizzlies,147.0,101.0,True,Final
 401811039,2026-04-11T02:00:00Z,Sacramento Kings,Golden State Warriors,124.0,118.0,True,Final
 401811038,2026-04-11T02:00:00Z,Portland Trail Blazers,LA Clippers,116.0,97.0,True,Final
 401811040,2026-04-11T02:30:00Z,Los Angeles Lakers,Phoenix Suns,101.0,73.0,True,Final
+401811041,2026-04-12T22:00:00Z,Boston Celtics,Orlando Magic,113.0,108.0,True,Final
+401811042,2026-04-12T22:00:00Z,Cleveland Cavaliers,Washington Wizards,130.0,117.0,True,Final
+401811043,2026-04-12T22:00:00Z,Indiana Pacers,Detroit Pistons,121.0,133.0,True,Final
 401811044,2026-04-12T22:00:00Z,Miami Heat,Atlanta Hawks,143.0,117.0,True,Final
 401811045,2026-04-12T22:00:00Z,New York Knicks,Charlotte Hornets,96.0,110.0,True,Final
 401811046,2026-04-12T22:00:00Z,Philadelphia 76ers,Milwaukee Bucks,126.0,106.0,True,Final
-401811043,2026-04-12T22:00:00Z,Indiana Pacers,Detroit Pistons,121.0,133.0,True,Final
-401811042,2026-04-12T22:00:00Z,Cleveland Cavaliers,Washington Wizards,130.0,117.0,True,Final
 401811047,2026-04-12T22:00:00Z,Toronto Raptors,Brooklyn Nets,136.0,101.0,True,Final
-401811041,2026-04-12T22:00:00Z,Boston Celtics,Orlando Magic,113.0,108.0,True,Final
-401811051,2026-04-13T00:30:00Z,Oklahoma City Thunder,Phoenix Suns,103.0,135.0,True,Final
 401811052,2026-04-13T00:30:00Z,San Antonio Spurs,Denver Nuggets,118.0,128.0,True,Final
-401811054,2026-04-13T00:30:00Z,LA Clippers,Golden State Warriors,115.0,110.0,True,Final
-401811055,2026-04-13T00:30:00Z,Portland Trail Blazers,Sacramento Kings,122.0,110.0,True,Final
-401811050,2026-04-13T00:30:00Z,Minnesota Timberwolves,New Orleans Pelicans,132.0,126.0,True,Final
 401811053,2026-04-13T00:30:00Z,Los Angeles Lakers,Utah Jazz,131.0,107.0,True,Final
-401811048,2026-04-13T00:30:00Z,Dallas Mavericks,Chicago Bulls,149.0,128.0,True,Final
+401811051,2026-04-13T00:30:00Z,Oklahoma City Thunder,Phoenix Suns,103.0,135.0,True,Final
+401811054,2026-04-13T00:30:00Z,LA Clippers,Golden State Warriors,115.0,110.0,True,Final
 401811049,2026-04-13T00:30:00Z,Houston Rockets,Memphis Grizzlies,132.0,101.0,True,Final
+401811048,2026-04-13T00:30:00Z,Dallas Mavericks,Chicago Bulls,149.0,128.0,True,Final
+401811050,2026-04-13T00:30:00Z,Minnesota Timberwolves,New Orleans Pelicans,132.0,126.0,True,Final
+401811055,2026-04-13T00:30:00Z,Portland Trail Blazers,Sacramento Kings,122.0,110.0,True,Final
 401866755,2026-04-14T23:30:00Z,Charlotte Hornets,Miami Heat,127.0,126.0,True,Final
 401866754,2026-04-15T02:00:00Z,Phoenix Suns,Portland Trail Blazers,110.0,114.0,True,Final
 401866757,2026-04-15T23:30:00Z,Philadelphia 76ers,Orlando Magic,109.0,97.0,True,Final
@@ -1326,8 +1326,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401859966,2026-06-11T00:30:00Z,New York Knicks,San Antonio Spurs,107.0,106.0,True,Final
 401859967,2026-06-14T00:30:00Z,San Antonio Spurs,New York Knicks,90.0,94.0,True,Final
 401902644,2026-10-03T23:00:00Z,Toronto Raptors,Miami Heat,105.0,129.0,True,Final
-401918010,2026-10-04T23:00:00Z,LA Clippers,Golden State Warriors,104.0,101.0,True,Final
 401914127,2026-10-04T23:00:00Z,Denver Nuggets,Utah Jazz,97.0,109.0,True,Final
+401918010,2026-10-04T23:00:00Z,LA Clippers,Golden State Warriors,104.0,101.0,True,Final
 401898388,2026-10-05T23:00:00Z,Atlanta Hawks,Memphis Grizzlies,123.0,132.0,True,Final
 401908947,2026-10-05T23:00:00Z,Detroit Pistons,Phoenix Suns,109.0,107.0,True,Final
 401914101,2026-10-05T23:00:00Z,Philadelphia 76ers,New York Knicks,120.0,97.0,True,Final
@@ -1338,13 +1338,13 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401914128,2026-10-07T01:00:00Z,Utah Jazz,Denver Nuggets,106.0,117.0,True,Final
 401898390,2026-10-07T02:00:00Z,Golden State Warriors,Los Angeles Lakers,124.0,98.0,True,Final
 401914123,2026-10-07T23:00:00Z,Indiana Pacers,Minnesota Timberwolves,123.0,112.0,True,Final
-401908620,2026-10-08T00:00:00Z,Oklahoma City Thunder,Milwaukee Bucks,126.0,128.0,True,Final
-401898391,2026-10-08T00:00:00Z,Memphis Grizzlies,Orlando Magic,118.0,122.0,True,Final
 401908939,2026-10-08T00:00:00Z,Chicago Bulls,Phoenix Suns,124.0,117.0,True,Final
+401898391,2026-10-08T00:00:00Z,Memphis Grizzlies,Orlando Magic,118.0,122.0,True,Final
+401908620,2026-10-08T00:00:00Z,Oklahoma City Thunder,Milwaukee Bucks,126.0,128.0,True,Final
 401914129,2026-10-08T02:00:00Z,Portland Trail Blazers,Golden State Warriors,123.0,118.0,True,Final
 401898392,2026-10-08T23:00:00Z,Cleveland Cavaliers,Boston Celtics,113.0,124.0,True,Final
-401901823,2026-10-08T23:30:00Z,Brooklyn Nets,Philadelphia 76ers,114.0,108.0,True,Final
 401898393,2026-10-08T23:30:00Z,Miami Heat,New Orleans Pelicans,128.0,118.0,True,Final
+401901823,2026-10-08T23:30:00Z,Brooklyn Nets,Philadelphia 76ers,114.0,108.0,True,Final
 401906508,2026-10-08T23:30:00Z,New York Knicks,Washington Wizards,109.0,111.0,True,Final
 401898394,2026-10-09T00:00:00Z,San Antonio Spurs,Atlanta Hawks,116.0,123.0,True,Final
 401898717,2026-10-09T02:45:00Z,Los Angeles Lakers,Sacramento Kings,114.0,110.0,True,Final
@@ -1362,8 +1362,8 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401901821,2026-10-11T23:00:00Z,Charlotte Hornets,Milwaukee Bucks,105.0,90.0,True,Final
 401908941,2026-10-12T01:00:00Z,Denver Nuggets,Chicago Bulls,133.0,128.0,True,Final
 401914130,2026-10-12T20:00:00Z,Portland Trail Blazers,London Lions,119.0,66.0,True,Final
-401898402,2026-10-12T23:00:00Z,Atlanta Hawks,Oklahoma City Thunder,113.0,110.0,True,Final
 401901824,2026-10-12T23:00:00Z,Washington Wizards,Brooklyn Nets,122.0,131.0,True,Final
+401898402,2026-10-12T23:00:00Z,Atlanta Hawks,Oklahoma City Thunder,113.0,110.0,True,Final
 401914124,2026-10-12T23:30:00Z,New York Knicks,Minnesota Timberwolves,104.0,122.0,True,Final
 401898721,2026-10-13T01:00:00Z,Utah Jazz,San Antonio Spurs,119.0,109.0,True,Final
 401898403,2026-10-13T23:00:00Z,Orlando Magic,Cleveland Cavaliers,132.0,116.0,True,Final
@@ -1371,19 +1371,19 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401908621,2026-10-14T00:00:00Z,Oklahoma City Thunder,Indiana Pacers,114.0,112.0,True,Final
 401898718,2026-10-14T02:00:00Z,Los Angeles Lakers,Golden State Warriors,89.0,101.0,True,Final
 401901826,2026-10-14T02:00:00Z,Sacramento Kings,Portland Trail Blazers,98.0,110.0,True,Final
-401898405,2026-10-14T23:30:00Z,Boston Celtics,Charlotte Hornets,114.0,93.0,True,Final
 401898404,2026-10-14T23:30:00Z,Miami Heat,Brooklyn Nets,144.0,128.0,True,Final
+401898405,2026-10-14T23:30:00Z,Boston Celtics,Charlotte Hornets,114.0,93.0,True,Final
 401914125,2026-10-15T00:00:00Z,Minnesota Timberwolves,Detroit Pistons,106.0,128.0,True,Final
 401908942,2026-10-15T00:00:00Z,Milwaukee Bucks,Chicago Bulls,104.0,125.0,True,Final
-401901825,2026-10-15T00:00:00Z,Dallas Mavericks,New Orleans Pelicans,97.0,101.0,True,Final
 401898722,2026-10-15T00:00:00Z,San Antonio Spurs,Phoenix Suns,123.0,103.0,True,Final
+401901825,2026-10-15T00:00:00Z,Dallas Mavericks,New Orleans Pelicans,97.0,101.0,True,Final
 401918011,2026-10-15T02:30:00Z,LA Clippers,Denver Nuggets,122.0,110.0,True,Final
 401908945,2026-10-15T23:30:00Z,New York Knicks,Toronto Raptors,122.0,120.0,True,Final
 401908622,2026-10-16T00:30:00Z,Houston Rockets,Oklahoma City Thunder,116.0,89.0,True,Final
-401898406,2026-10-16T23:00:00Z,Orlando Magic,Miami Heat,136.0,115.0,True,Final
-401898407,2026-10-16T23:00:00Z,Philadelphia 76ers,Boston Celtics,120.0,125.0,True,Final
-401908946,2026-10-16T23:00:00Z,Detroit Pistons,Toronto Raptors,129.0,125.0,True,Final
 401914126,2026-10-16T23:00:00Z,Indiana Pacers,Milwaukee Bucks,127.0,128.0,True,Final
+401908946,2026-10-16T23:00:00Z,Detroit Pistons,Toronto Raptors,129.0,125.0,True,Final
+401898407,2026-10-16T23:00:00Z,Philadelphia 76ers,Boston Celtics,120.0,125.0,True,Final
+401898406,2026-10-16T23:00:00Z,Orlando Magic,Miami Heat,136.0,115.0,True,Final
 401908943,2026-10-17T00:00:00Z,Chicago Bulls,Minnesota Timberwolves,133.0,116.0,True,Final
 401906509,2026-10-17T00:00:00Z,New Orleans Pelicans,Washington Wizards,107.0,106.0,True,Final
 401901822,2026-10-17T00:00:00Z,Memphis Grizzlies,Charlotte Hornets,116.0,98.0,True,Final
@@ -1395,16 +1395,16 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909088,2026-10-20T19:00:00Z,Detroit Pistons,Boston Celtics,121.0,113.0,True,Final
 401909089,2026-10-20T23:00:00Z,New York Knicks,Philadelphia 76ers,100.0,106.0,True,Final
 401909090,2026-10-21T01:50:00Z,San Antonio Spurs,Oklahoma City Thunder,104.0,116.0,True,Final
-401909834,2026-10-21T23:00:00Z,Orlando Magic,Atlanta Hawks,125.0,132.0,True,Final
 401909835,2026-10-21T23:00:00Z,Washington Wizards,Milwaukee Bucks,128.0,116.0,True,Final
-401909091,2026-10-21T23:30:00Z,Miami Heat,Minnesota Timberwolves,106.0,131.0,True,Final
-401909836,2026-10-21T23:30:00Z,Brooklyn Nets,Charlotte Hornets,103.0,110.0,True,Final
+401909834,2026-10-21T23:00:00Z,Orlando Magic,Atlanta Hawks,125.0,132.0,True,Final
 401909837,2026-10-21T23:30:00Z,Toronto Raptors,Chicago Bulls,135.0,92.0,True,Final
-401909838,2026-10-22T00:00:00Z,Memphis Grizzlies,Utah Jazz,123.0,103.0,True,Final
+401909836,2026-10-21T23:30:00Z,Brooklyn Nets,Charlotte Hornets,103.0,110.0,True,Final
+401909091,2026-10-21T23:30:00Z,Miami Heat,Minnesota Timberwolves,106.0,131.0,True,Final
 401909839,2026-10-22T00:00:00Z,New Orleans Pelicans,Indiana Pacers,120.0,123.0,True,Final
+401909838,2026-10-22T00:00:00Z,Memphis Grizzlies,Utah Jazz,123.0,103.0,True,Final
 401909840,2026-10-22T00:30:00Z,Houston Rockets,Dallas Mavericks,128.0,110.0,True,Final
-401909092,2026-10-22T02:00:00Z,Los Angeles Lakers,Golden State Warriors,127.0,105.0,True,Final
 401909841,2026-10-22T02:00:00Z,Portland Trail Blazers,Phoenix Suns,124.0,83.0,True,Final
+401909092,2026-10-22T02:00:00Z,Los Angeles Lakers,Golden State Warriors,127.0,105.0,True,Final
 401909842,2026-10-22T02:30:00Z,LA Clippers,Sacramento Kings,121.0,96.0,True,Final
 401909093,2026-10-22T23:00:00Z,Philadelphia 76ers,Cleveland Cavaliers,114.0,106.0,True,Final
 401909094,2026-10-23T01:30:00Z,Oklahoma City Thunder,Denver Nuggets,96.0,84.0,True,Final
@@ -1415,30 +1415,30 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909845,2026-10-23T23:00:00Z,Orlando Magic,Minnesota Timberwolves,93.0,115.0,True,Final
 401909846,2026-10-23T23:00:00Z,Washington Wizards,Toronto Raptors,102.0,112.0,True,Final
 401909847,2026-10-24T00:00:00Z,Miami Heat,Detroit Pistons,111.0,128.0,True,Final
-401909096,2026-10-24T01:30:00Z,San Antonio Spurs,Houston Rockets,110.0,114.0,True,Final
 401909849,2026-10-24T01:30:00Z,Utah Jazz,New Orleans Pelicans,120.0,119.0,True,Final
+401909096,2026-10-24T01:30:00Z,San Antonio Spurs,Houston Rockets,110.0,114.0,True,Final
 401909850,2026-10-24T02:00:00Z,Golden State Warriors,Memphis Grizzlies,108.0,111.0,True,Final
 401909851,2026-10-24T02:00:00Z,Los Angeles Lakers,LA Clippers,125.0,117.0,True,Final
 401909852,2026-10-24T02:00:00Z,Sacramento Kings,Portland Trail Blazers,120.0,128.0,True,Final
 401909853,2026-10-24T22:00:00Z,Charlotte Hornets,Miami Heat,115.0,110.0,True,Final
 401909854,2026-10-24T23:30:00Z,Cleveland Cavaliers,Brooklyn Nets,125.0,121.0,True,Final
 401909855,2026-10-24T23:30:00Z,Philadelphia 76ers,Milwaukee Bucks,127.0,116.0,True,Final
-401909857,2026-10-25T00:00:00Z,Chicago Bulls,Washington Wizards,120.0,124.0,True,Final
 401909858,2026-10-25T00:00:00Z,Dallas Mavericks,San Antonio Spurs,106.0,122.0,True,Final
+401909857,2026-10-25T00:00:00Z,Chicago Bulls,Washington Wizards,120.0,124.0,True,Final
 401909856,2026-10-25T00:30:00Z,Atlanta Hawks,Houston Rockets,114.0,121.0,True,Final
 401909859,2026-10-25T01:00:00Z,Denver Nuggets,New Orleans Pelicans,141.0,135.0,True,Final
 401909860,2026-10-25T02:00:00Z,Phoenix Suns,Golden State Warriors,131.0,122.0,True,Final
 401909861,2026-10-25T21:00:00Z,Utah Jazz,Los Angeles Lakers,123.0,132.0,True,Final
 401909862,2026-10-25T22:00:00Z,Brooklyn Nets,Indiana Pacers,109.0,136.0,True,Final
-401909865,2026-10-25T23:00:00Z,Oklahoma City Thunder,LA Clippers,108.0,101.0,True,Final
 401909863,2026-10-25T23:00:00Z,New York Knicks,Orlando Magic,102.0,111.0,True,Final
 401909864,2026-10-25T23:00:00Z,Minnesota Timberwolves,Toronto Raptors,117.0,94.0,True,Final
+401909865,2026-10-25T23:00:00Z,Oklahoma City Thunder,LA Clippers,108.0,101.0,True,Final
 401909866,2026-10-25T23:30:00Z,Philadelphia 76ers,Detroit Pistons,93.0,106.0,True,Final
 401909867,2026-10-26T01:00:00Z,Sacramento Kings,Memphis Grizzlies,112.0,123.0,True,Final
 401909868,2026-10-26T23:00:00Z,Charlotte Hornets,Washington Wizards,110.0,103.0,True,Final
 401909869,2026-10-26T23:00:00Z,Cleveland Cavaliers,Minnesota Timberwolves,127.0,125.0,True,Final
-401909871,2026-10-26T23:30:00Z,Miami Heat,Dallas Mavericks,109.0,113.0,True,Final
 401909870,2026-10-26T23:30:00Z,Boston Celtics,Chicago Bulls,134.0,99.0,True,Final
+401909871,2026-10-26T23:30:00Z,Miami Heat,Dallas Mavericks,109.0,113.0,True,Final
 401909872,2026-10-27T00:00:00Z,Milwaukee Bucks,Indiana Pacers,110.0,102.0,True,Final
 401909873,2026-10-27T00:00:00Z,Oklahoma City Thunder,Phoenix Suns,125.0,114.0,True,Final
 401909874,2026-10-27T00:30:00Z,Houston Rockets,Atlanta Hawks,120.0,110.0,True,Final
@@ -1453,21 +1453,21 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909883,2026-10-28T23:00:00Z,Detroit Pistons,Charlotte Hornets,97.0,89.0,True,Final
 401909884,2026-10-28T23:00:00Z,Indiana Pacers,Philadelphia 76ers,109.0,114.0,True,Final
 401909885,2026-10-28T23:30:00Z,Toronto Raptors,Orlando Magic,129.0,99.0,True,Final
-401909889,2026-10-29T00:00:00Z,New Orleans Pelicans,Denver Nuggets,91.0,104.0,True,Final
-401909888,2026-10-29T00:00:00Z,Minnesota Timberwolves,Golden State Warriors,114.0,119.0,True,Final
-401909887,2026-10-29T00:00:00Z,Milwaukee Bucks,Houston Rockets,100.0,132.0,True,Final
 401909886,2026-10-29T00:00:00Z,Chicago Bulls,New York Knicks,127.0,133.0,True,Final
+401909887,2026-10-29T00:00:00Z,Milwaukee Bucks,Houston Rockets,100.0,132.0,True,Final
+401909888,2026-10-29T00:00:00Z,Minnesota Timberwolves,Golden State Warriors,114.0,119.0,True,Final
+401909889,2026-10-29T00:00:00Z,New Orleans Pelicans,Denver Nuggets,91.0,104.0,True,Final
 401909890,2026-10-29T01:00:00Z,Utah Jazz,San Antonio Spurs,111.0,117.0,True,Final
 401909891,2026-10-29T01:30:00Z,Dallas Mavericks,Oklahoma City Thunder,120.0,96.0,True,Final
 401909892,2026-10-29T02:30:00Z,LA Clippers,Los Angeles Lakers,87.0,103.0,True,Final
-401909893,2026-10-30T00:00:00Z,Atlanta Hawks,Cleveland Cavaliers,114.0,111.0,True,Final
 401909894,2026-10-30T00:00:00Z,New Orleans Pelicans,Sacramento Kings,132.0,120.0,True,Final
+401909893,2026-10-30T00:00:00Z,Atlanta Hawks,Cleveland Cavaliers,114.0,111.0,True,Final
 401909895,2026-10-30T02:00:00Z,Portland Trail Blazers,Memphis Grizzlies,103.0,124.0,True,Final
 401909277,2026-10-30T23:00:00Z,Washington Wizards,Charlotte Hornets,95.0,79.0,True,Final
+401909281,2026-10-30T23:30:00Z,Toronto Raptors,Orlando Magic,114.0,121.0,True,Final
 401909280,2026-10-30T23:30:00Z,Philadelphia 76ers,New York Knicks,98.0,93.0,True,Final
 401909279,2026-10-30T23:30:00Z,Brooklyn Nets,Detroit Pistons,94.0,110.0,True,Final
 401909278,2026-10-30T23:30:00Z,Boston Celtics,Chicago Bulls,125.0,111.0,True,Final
-401909281,2026-10-30T23:30:00Z,Toronto Raptors,Orlando Magic,114.0,121.0,True,Final
 401909283,2026-10-31T00:00:00Z,Dallas Mavericks,Houston Rockets,116.0,111.0,True,Final
 401909284,2026-10-31T00:00:00Z,Minnesota Timberwolves,LA Clippers,127.0,101.0,True,Final
 401909282,2026-10-31T00:00:00Z,Miami Heat,Indiana Pacers,145.0,125.0,True,Final
@@ -1476,9 +1476,9 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909896,2026-10-31T19:00:00Z,Utah Jazz,Portland Trail Blazers,90.0,112.0,True,Final
 401909897,2026-10-31T22:00:00Z,Charlotte Hornets,Philadelphia 76ers,104.0,109.0,True,Final
 401909898,2026-10-31T23:00:00Z,New Orleans Pelicans,Atlanta Hawks,121.0,99.0,True,Final
-401909899,2026-11-01T00:00:00Z,Memphis Grizzlies,Sacramento Kings,136.0,105.0,True,Final
 401909901,2026-11-01T00:00:00Z,San Antonio Spurs,Minnesota Timberwolves,121.0,111.0,True,Final
 401909900,2026-11-01T00:00:00Z,Milwaukee Bucks,Cleveland Cavaliers,111.0,136.0,True,Final
+401909899,2026-11-01T00:00:00Z,Memphis Grizzlies,Sacramento Kings,136.0,105.0,True,Final
 401909902,2026-11-01T00:30:00Z,Houston Rockets,Oklahoma City Thunder,119.0,98.0,True,Final
 401909903,2026-11-01T20:30:00Z,Orlando Magic,Boston Celtics,97.0,108.0,True,Final
 401909904,2026-11-01T22:00:00Z,Indiana Pacers,Brooklyn Nets,90.0,98.0,True,Final
@@ -1490,26 +1490,26 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909910,2026-11-03T00:30:00Z,New York Knicks,Brooklyn Nets,103.0,90.0,True,Final
 401909911,2026-11-03T00:30:00Z,Orlando Magic,Washington Wizards,94.0,103.0,True,Final
 401909912,2026-11-03T00:30:00Z,Philadelphia 76ers,Chicago Bulls,126.0,107.0,True,Final
-401909913,2026-11-03T01:00:00Z,Dallas Mavericks,Sacramento Kings,100.0,115.0,True,Final
 401909914,2026-11-03T01:00:00Z,Memphis Grizzlies,New Orleans Pelicans,134.0,135.0,True,Final
+401909913,2026-11-03T01:00:00Z,Dallas Mavericks,Sacramento Kings,100.0,115.0,True,Final
 401909915,2026-11-03T01:00:00Z,Minnesota Timberwolves,Milwaukee Bucks,112.0,100.0,True,Final
-401909916,2026-11-03T01:30:00Z,Houston Rockets,Boston Celtics,109.0,93.0,True,Final
 401909917,2026-11-03T01:30:00Z,San Antonio Spurs,Utah Jazz,119.0,97.0,True,Final
+401909916,2026-11-03T01:30:00Z,Houston Rockets,Boston Celtics,109.0,93.0,True,Final
 401909918,2026-11-03T02:00:00Z,Denver Nuggets,Portland Trail Blazers,110.0,118.0,True,Final
-401909921,2026-11-03T03:00:00Z,Los Angeles Lakers,Miami Heat,138.0,117.0,True,Final
 401909919,2026-11-03T03:00:00Z,Golden State Warriors,Phoenix Suns,116.0,113.0,True,Final
 401909920,2026-11-03T03:00:00Z,LA Clippers,Toronto Raptors,118.0,125.0,True,Final
+401909921,2026-11-03T03:00:00Z,Los Angeles Lakers,Miami Heat,138.0,117.0,True,Final
 401909922,2026-11-05T00:00:00Z,Detroit Pistons,Philadelphia 76ers,106.0,112.0,True,Final
 401909923,2026-11-05T00:00:00Z,Washington Wizards,Atlanta Hawks,105.0,120.0,True,Final
-401909924,2026-11-05T00:30:00Z,Boston Celtics,Milwaukee Bucks,109.0,102.0,True,Final
 401909925,2026-11-05T00:30:00Z,Brooklyn Nets,Charlotte Hornets,114.0,104.0,True,Final
+401909924,2026-11-05T00:30:00Z,Boston Celtics,Milwaukee Bucks,109.0,102.0,True,Final
 401909926,2026-11-05T00:30:00Z,New York Knicks,Chicago Bulls,135.0,105.0,True,Final
+401909929,2026-11-05T01:00:00Z,Oklahoma City Thunder,Cleveland Cavaliers,124.0,116.0,True,Final
 401909927,2026-11-05T01:00:00Z,Memphis Grizzlies,Indiana Pacers,103.0,107.0,True,Final
 401909928,2026-11-05T01:00:00Z,New Orleans Pelicans,Utah Jazz,120.0,113.0,True,Final
-401909929,2026-11-05T01:00:00Z,Oklahoma City Thunder,Cleveland Cavaliers,124.0,116.0,True,Final
 401909930,2026-11-05T01:30:00Z,Houston Rockets,Minnesota Timberwolves,107.0,117.0,True,Final
-401909931,2026-11-05T02:00:00Z,Denver Nuggets,Toronto Raptors,128.0,109.0,True,Final
 401909932,2026-11-05T02:00:00Z,Phoenix Suns,Portland Trail Blazers,119.0,132.0,True,Final
+401909931,2026-11-05T02:00:00Z,Denver Nuggets,Toronto Raptors,128.0,109.0,True,Final
 401909933,2026-11-05T02:30:00Z,San Antonio Spurs,Dallas Mavericks,112.0,111.0,True,Final
 401909934,2026-11-05T03:00:00Z,Sacramento Kings,Los Angeles Lakers,103.0,116.0,True,Final
 401909935,2026-11-05T03:30:00Z,LA Clippers,Miami Heat,116.0,117.0,True,Final
@@ -1536,5 +1536,5 @@ id,fecha_utc,local,visitante,puntos_local,puntos_visitante,finalizado,estado
 401909947,2026-11-09T00:00:00Z,Minnesota Timberwolves,Utah Jazz,115.0,100.0,True,Final
 401909948,2026-11-09T00:30:00Z,Dallas Mavericks,Brooklyn Nets,130.0,93.0,True,Final
 401909949,2026-11-09T01:00:00Z,Milwaukee Bucks,Boston Celtics,97.0,117.0,True,Final
-401909950,2026-11-09T02:00:00Z,LA Clippers,New Orleans Pelicans,139.0,123.0,True,Final
 401909951,2026-11-09T02:00:00Z,Sacramento Kings,Miami Heat,108.0,114.0,True,Final
+401909950,2026-11-09T02:00:00Z,LA Clippers,New Orleans Pelicans,139.0,123.0,True,Final
