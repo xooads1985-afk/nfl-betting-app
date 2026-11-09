@@ -1,0 +1,2 @@
+OK: 2 partidos evaluados; agregar partidos futuros no alteró features ni Modelo C.
+Esta prueba no cubre todos los modelos ni todas las fechas.
