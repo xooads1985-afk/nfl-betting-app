@@ -1,0 +1,54 @@
+
+name: NFL Laboratorio - Lanzador manual
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Cargar rama de laboratorio
+        uses: actions/checkout@v4
+        with:
+          ref: laboratorio-nfl-validacion
+          persist-credentials: false
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Verificar archivos
+        run: |
+          python -m compileall -q \
+            nfl_lab_precision.py \
+            ejecutar_pipeline.py \
+            descargar_nflverse.py \
+            comparacion_motor_real.py
+
+      - name: Ejecutar laboratorio NFL
+        run: |
+          python ejecutar_pipeline.py \
+            --seasons 2022 2023 2024 2025 \
+            --first-season 2024 \
+            --output resultados_nfl
+
+      - name: Guardar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfl-laboratorio-resultados
+          path: resultados_nfl/
+          if-no-files-found: warn
+          retention-days: 14
