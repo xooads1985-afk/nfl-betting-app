@@ -219,6 +219,10 @@ def mostrar():
     if 'id' in historico:
         historico['id'] = historico['id'].astype(str)
         historico = historico.drop_duplicates('id', keep='last')
+    # Auditoría experimental de posesiones: aislada de las proyecciones guardadas.
+    from nba_pace_panel import mostrar_auditoria_pace
+    mostrar_auditoria_pace(historico)
+
     futuros = estado['futuros']
     st.caption(f'Historial recuperado: {len(historico)} partidos. '
                'El avance se conserva mientras dure esta sesión de Streamlit.')
