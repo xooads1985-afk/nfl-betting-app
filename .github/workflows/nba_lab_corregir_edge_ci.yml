@@ -1,0 +1,32 @@
+name: NBA Laboratorio - Corregir Edge
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  corregir-edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Corregir Edge en archivos experimentales
+        run: python nba_lab_corregir_edge.py
+      - name: Verificar Edge corregido
+        run: |
+          python -m py_compile nba_lab_motor_futuro.py nba_lab_puente_futuro.py
+          python - <<'PY'
+          from pathlib import Path
+          m=Path('nba_lab_motor_futuro.py').read_text()
+          p=Path('nba_lab_puente_futuro.py').read_text()
+          assert "'edge_total_modelo_c_vs_base':round(total_c-total_base,2)" in m
+          assert "'edge_total_modelo_c_vs_base': resultado['edge_total_modelo_c_vs_base']" in p
+          print('Validacion de estructura: OK')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-edge-corregido
+          path: |
+            nba_lab_motor_futuro.py
+            nba_lab_puente_futuro.py
