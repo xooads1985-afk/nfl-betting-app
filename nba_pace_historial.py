@@ -83,7 +83,7 @@ def construir_historial(partidos,cargar_detalle,max_partidos=20):
     if not 1<=max_partidos<=50:raise ValueError('max_partidos fuera de rango')
     df=pd.DataFrame(partidos)
     if not {'id','finalizado','fecha_utc'}.issubset(df.columns):raise ValueError('Historial sin columnas necesarias')
-    df=df.loc[df['finalizado'].eq(True)].drop_duplicates('id').sort_values('fecha_utc').tail(max_partidos)
+    df=df.loc[df['finalizado'].eq(True)].drop_duplicates('id').sort_values('fecha_utc').head(max_partidos)
     good=[];errors=[]
     for r in df.to_dict('records'):
         pid=str(r['id'])

@@ -18,8 +18,36 @@ def mostrar_panel_predictivo(historico, juego=None):
         if not isinstance(estado, dict):
             estado = {'filas': [], 'consultados': [], 'fallidos': []}
             st.session_state[CLAVE] = estado
-        # No repetir consultas en la misma sesión. Los bloques más antiguos primero
+        # Recuperación opcional desde CSV para no perder avance al reiniciar Streamlit.
+        archivo = st.file_uploader('Restaurar historial pace CSV (opcional)', type=['csv'], key='pace_restaurar_csv')
+        if archivo is not None and st.button('Restaurar CSV sin duplicados', key='pace_restaurar_btn'):
+            try:
+                previo = pd.read_csv(archivo, dtype={'partido_id': str})
+                obligatorias = {'partido_id', 'fecha_utc', 'pace_48', 'posesiones_local', 'posesiones_visitante'}
+                if not obligatorias.issubset(previo.columns):
+                    st.error('El CSV no tiene las columnas esperadas.')
+                else:
+                    actual = pd.DataFrame(estado['filas'])
+                    unido = pd.concat([actual, previo], ignore_index=True)
+                    unido['partido_id'] = unido['partido_id'].astype(str)
+                    unido = unido.drop_duplicates('partido_id', keep='first')
+                    estado['filas'] = unido.to_dict('records')
+                    estado['consultados'] = list(dict.fromkeys(
+                        [str(x) for x in estado['consultados']] + unido['partido_id'].tolist()))
+                    st.success(f'Restaurados {len(unido)} partidos únicos.')
+            except Exception as exc:
+                st.error(f'CSV inválido: {type(exc).__name__}: {exc}')
+        # Los bloques más antiguos primero
         # para dar antecedentes al modelo, nunca se consulta el partido objetivo.
+        # Reconciliar estado antiguo que pudo contener múltiples copias del mismo juego.
+        if estado['filas']:
+            unico = pd.DataFrame(estado['filas'])
+            if 'partido_id' in unico:
+                unico['partido_id'] = unico['partido_id'].astype(str)
+                unico = unico.drop_duplicates('partido_id', keep='first')
+                estado['filas'] = unico.to_dict('records')
+                estado['consultados'] = list(dict.fromkeys(
+                    [str(x) for x in estado['consultados']] + unico['partido_id'].tolist()))
         pendientes = historico.loc[historico['finalizado'].eq(True)].copy()
         pendientes['id'] = pendientes['id'].astype(str)
         pendientes = pendientes.drop_duplicates('id').sort_values('fecha_utc')
@@ -31,9 +59,11 @@ def mostrar_panel_predictivo(historico, juego=None):
                 with st.spinner('Recuperando boxscores finalizados...'):
                     nuevos, errores = construir_historial(pendientes, cargar_detalle, max_partidos=n)
                 seleccionados = pendientes.head(n)['id'].tolist()
-                estado['consultados'].extend(seleccionados)
+                estado['consultados'] = list(dict.fromkeys(estado['consultados'] + seleccionados))
                 if not nuevos.empty:
-                    estado['filas'].extend(nuevos.to_dict('records'))
+                    existente = {str(x['partido_id']) for x in estado['filas']}
+                    estado['filas'].extend(r for r in nuevos.to_dict('records')
+                                         if str(r['partido_id']) not in existente)
                 if not errores.empty:
                     estado['fallidos'].extend(errores.to_dict('records'))
                 st.success(f'Bloque procesado: {len(nuevos)} completos de {len(seleccionados)}.')
