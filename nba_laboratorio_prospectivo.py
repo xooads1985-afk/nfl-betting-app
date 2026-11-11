@@ -150,6 +150,7 @@ def mostrar():
     from resumen_inteligente_nba import _cargar_historial_temporada_nba, _calendario_proximos_nba
     from datetime import date, timedelta
     st.title('🧪 Laboratorio prospectivo NBA')
+st.info("VERSIÓN DE PRUEBA: CARGA POR BLOQUES")    
     st.caption('Página auxiliar dentro de la misma app. No modifica el resumen ni sus registros originales.')
     hoy = date.today()
     incluir_pasada = st.checkbox('Incluir temporada anterior para entrenar', value=False)
