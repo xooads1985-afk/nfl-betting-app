@@ -1,5 +1,5 @@
 Fechas seleccionadas: 20
-Partidos comprobados: 27
-Partidos omitidos: 1
+Partidos comprobados: 32
+Partidos omitidos: 0
 Errores: 0
 Alcance: características históricas y Modelo C. No verifica los demás algoritmos.
