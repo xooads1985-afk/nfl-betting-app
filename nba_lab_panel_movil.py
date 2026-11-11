@@ -71,6 +71,13 @@ def ganador(df, etiqueta):
     else:
         st.caption("El sesgo promedio está cerca de cero; esto no elimina errores grandes en partidos individuales.")
 
+from nba_lab_predicciones_panel import mostrar_predicciones_remotas
+
+with st.expander("📅 Predicciones futuras · En vivo desde GitHub", expanded=True):
+    mostrar_predicciones_remotas()
+
+st.divider()
+
 pred = leer_csv(DATA / "algoritmos_predicciones.csv")
 tot = leer_csv(AUD / "metricas_totales.csv")
 team = leer_csv(AUD / "metricas_por_equipo.csv")
