@@ -152,13 +152,74 @@ def mostrar():
     st.title('🧪 Laboratorio prospectivo NBA')
     st.caption('Página auxiliar dentro de la misma app. No modifica el resumen ni sus registros originales.')
     hoy = date.today()
-    incluir_pasada = st.checkbox('Incluir temporada anterior para entrenar', value=True)
+    incluir_pasada = st.checkbox('Incluir temporada anterior para entrenar', value=False)
     inicio = date(2025, 10, 21) if incluir_pasada else date(2026, 10, 20)
-    with st.spinner('Cargando historial y calendario...'):
-        historico, incidencias = _cargar_historial_temporada_nba(inicio, hoy)
-        futuros, _ = _calendario_proximos_nba(hoy.isoformat(), (hoy + timedelta(days=14)).isoformat())
-    if incidencias:
-        st.warning(f'Cobertura histórica parcial: {len(incidencias)} incidencias.')
+    clave_periodo = (inicio.isoformat(), hoy.isoformat())
+    clave = 'nba_prospectivo_carga_bloques_v2'
+    estado = st.session_state.get(clave)
+    if not isinstance(estado, dict) or estado.get('periodo') != clave_periodo:
+        estado = {'periodo': clave_periodo, 'siguiente': inicio,
+                  'fragmentos': [], 'incidencias': [], 'futuros': pd.DataFrame(),
+                  'completo': False}
+        st.session_state[clave] = estado
+
+    if st.button('📥 Cargar siguiente bloque (14 días)',
+                 disabled=estado['completo'], use_container_width=True):
+        desde = estado['siguiente']
+        hasta = min(desde + timedelta(days=13), hoy)
+        try:
+            # Una sola petición de rango por pulsación; no recorrer la temporada
+            # completa en un único ciclo de Streamlit.
+            from modulo_nba import cargar_partidos
+            with st.spinner(f'Consultando del {desde} al {hasta}...'):
+                bloque, errores = cargar_partidos(desde.isoformat(), hasta.isoformat())
+            if bloque is not None and not bloque.empty:
+                estado['fragmentos'].append(bloque)
+            estado['incidencias'].extend(
+                f'{desde} a {hasta}: {e}' for e in (errores or []))
+            estado['siguiente'] = hasta + timedelta(days=1)
+            estado['completo'] = estado['siguiente'] > hoy
+        except Exception as exc:
+            # No avanzar el cursor: se puede reintentar sin perder los bloques previos.
+            st.error(f'Bloque {desde} a {hasta}: {type(exc).__name__}: {exc}')
+
+    total_dias = (hoy - inicio).days + 1
+    dias_cargados = min(total_dias, max(0, (estado['siguiente'] - inicio).days))
+    st.progress(dias_cargados / max(1, total_dias))
+    st.caption(f'Cobertura consultada: {dias_cargados}/{total_dias} días. '
+               'Cada pulsación recupera como máximo 14 días; se conserva el avance en esta sesión.')
+    if estado['incidencias']:
+        st.warning(f'Consultas con incidencias: {len(estado["incidencias"])}. '
+                   'No se inventan partidos faltantes.')
+        with st.expander('Ver incidencias'):
+            st.write(estado['incidencias'][-30:])
+    if not estado['completo']:
+        st.info('Continúa con «Cargar siguiente bloque» hasta completar la cobertura. '
+                'Los modelos se habilitarán al finalizar.')
+        return
+
+    if not estado.get('calendario_consultado'):
+        if st.button('📅 Consultar próximos partidos', use_container_width=True):
+            try:
+                from modulo_nba import cargar_partidos
+                with st.spinner('Consultando próximos 14 días...'):
+                    futuros, errores = cargar_partidos(
+                        hoy.isoformat(), (hoy + timedelta(days=14)).isoformat())
+                estado['futuros'] = futuros if futuros is not None else pd.DataFrame()
+                estado['calendario_consultado'] = True
+                estado['incidencias'].extend(f'Calendario: {e}' for e in (errores or []))
+            except Exception as exc:
+                st.error(f'Calendario: {type(exc).__name__}: {exc}')
+        if not estado.get('calendario_consultado'):
+            return
+
+    historico = pd.concat(estado['fragmentos'], ignore_index=True) if estado['fragmentos'] else pd.DataFrame()
+    if 'id' in historico:
+        historico['id'] = historico['id'].astype(str)
+        historico = historico.drop_duplicates('id', keep='last')
+    futuros = estado['futuros']
+    st.caption(f'Historial recuperado: {len(historico)} partidos. '
+               'El avance se conserva mientras dure esta sesión de Streamlit.')
     if not futuros.empty:
         futuros = futuros.copy()
         fechas = pd.to_datetime(futuros['fecha_utc'], utc=True, errors='coerce')
