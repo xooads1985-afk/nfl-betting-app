@@ -51,6 +51,7 @@ def preparar_tarjeta(calendario: pd.DataFrame, historial: pd.DataFrame,
         'total_ensemble': resultado['total_ensemble'],
         'referencia_total_base': resultado['referencia_total_base'],
         'edge_total_vs_base': resultado['edge_total_vs_base'],
+        'edge_total_modelo_c_vs_base': resultado['edge_total_modelo_c_vs_base'],
         'pace_prepartido': resultado['pace_prepartido'],
         'detalle_motor': resultado,
         'nota': 'Estimación estadística experimental; no es un resultado garantizado.'
