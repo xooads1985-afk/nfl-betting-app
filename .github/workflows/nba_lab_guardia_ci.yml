@@ -1,0 +1,40 @@
+name: NBA Laboratorio - Validar Guardia Futura
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validar-guardia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar rama seleccionada
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: python -m pip install pandas numpy scikit-learn requests
+      - name: Verificar sintaxis de componentes experimentales
+        run: |
+          python -m py_compile nba_lab_clasificacion.py nba_lab_puente_futuro.py nba_lab_puente_seguro.py nba_lab_motor_futuro.py test_guardia.py
+      - name: Ejecutar pruebas de integridad
+        run: python -m unittest test_guardia.py -v
+      - name: Registrar resultado
+        if: success()
+        run: |
+          mkdir -p nba_guardia_ci_resultados
+          echo 'GUARDIA FUTURA: PRUEBAS APROBADAS' > nba_guardia_ci_resultados/resultado.txt
+          echo "Rama: ${GITHUB_REF_NAME}" >> nba_guardia_ci_resultados/resultado.txt
+          echo "Commit: ${GITHUB_SHA}" >> nba_guardia_ci_resultados/resultado.txt
+      - name: Publicar comprobante
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-guardia-futura-validacion
+          path: nba_guardia_ci_resultados/
+          if-no-files-found: ignore
