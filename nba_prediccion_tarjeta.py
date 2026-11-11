@@ -110,6 +110,17 @@ def mostrar_tarjeta(partido, referencias=None, pace=None):
         ens_local, ens_visita = valores[local]['Ensemble'], valores[visita]['Ensemble']
         total_ens = ens_local + ens_visita
         total_c = valores[local]['Modelo C'] + valores[visita]['Modelo C']
+        st.markdown('**Comparación de los tres modelos · puntos por equipo**')
+        filas = []
+        for modelo in MODELOS:
+            pl = valores[local][modelo]
+            pv = valores[visita][modelo]
+            filas.append({'Modelo': modelo, 'Local': round(pl, 2),
+                          'Visitante': round(pv, 2), 'Total': round(pl + pv, 2),
+                          'Diferencia local − visitante': round(pl - pv, 2)})
+        st.caption(f'Local: {local} · Visitante: {visita}')
+        st.dataframe(filas, hide_index=True, use_container_width=True)
+        st.caption('Cada valor procede del registro guardado; no se recalculan modelos.')
         c1, c2 = st.columns(2)
         c1.metric(f'{local} · Ensemble', f'{ens_local:.1f}')
         c2.metric(f'{visita} · Ensemble', f'{ens_visita:.1f}')
@@ -128,6 +139,13 @@ def mostrar_tarjeta(partido, referencias=None, pace=None):
         except (TypeError, ValueError):
             pace_txt = 'N/D'
         st.caption(f'Pace estimado: {pace_txt}')
+        st.markdown('**Auditoría de consistencia de modelos**')
+        total_base = valores[local]['Base'] + valores[visita]['Base']
+        totales = {'Base': total_base, 'Modelo C': total_c, 'Ensemble': total_ens}
+        dispersion = max(totales.values()) - min(totales.values())
+        st.caption(f'Diferencia entre el mayor y el menor total: {dispersion:.2f} pts.')
+        st.caption('Las diferencias respecto a capturas anteriores pueden indicar registros de otra ejecución; '
+                   'esta tarjeta muestra únicamente lo almacenado para el ID seleccionado.')
         diferencia = total_ens - total_c
         if abs(diferencia) < 3:
             interpretacion = 'Ensemble y Modelo C coinciden aproximadamente en el total.'
