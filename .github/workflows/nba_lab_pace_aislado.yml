@@ -13,27 +13,58 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Configurar Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - run: pip install pandas requests numpy scikit-learn
+      - name: Instalar dependencias
+        run: pip install pandas requests numpy scikit-learn
 
       - name: Descargar y clasificar historial
         run: |
           python nba_lab_descargar_cache.py --desde 2025-10-21 --hasta "$(date -u +%Y-%m-%d)"
           python nba_lab_reentrenar_depurado.py
 
-      - name: Conectar boxscores y calcular Pace cronológico
+      - name: Conectar boxscores y calcular Pace cronologico
         run: python nba_lab_pace_conectar.py
 
-      - uses: actions/upload-artifact@v4
+      - name: Verificar reproducibilidad completa
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python nba_lab_reentrenar_depurado.py --salida /tmp/nba_repro_1
+          python nba_lab_reentrenar_depurado.py --salida /tmp/nba_repro_2
+
+          mkdir -p nba_lab_resultados_depurados/reproducibilidad
+
+          for archivo in \
+            historial_clasificado.csv \
+            historial_regular.csv \
+            predicciones_reentrenadas.csv \
+            resumen_reentrenado.csv \
+            estado_reentrenamiento.json
+          do
+            cmp "/tmp/nba_repro_1/$archivo" "/tmp/nba_repro_2/$archivo"
+          done
+
+          sha256sum /tmp/nba_repro_1/* \
+            > nba_lab_resultados_depurados/reproducibilidad/sha256.txt
+
+          echo "REPRODUCIBILIDAD COMPLETA: OK" \
+            > nba_lab_resultados_depurados/reproducibilidad/resultado.txt
+
+      - name: Subir resultados de auditoria
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: nba-lab-pace-auditoria
           path: |
             nba_lab_resultados_depurados/pace/
             nba_lab_resultados_depurados/reentrenamiento/estado_reentrenamiento.json
+            nba_lab_resultados_depurados/reproducibilidad/
           if-no-files-found: warn
