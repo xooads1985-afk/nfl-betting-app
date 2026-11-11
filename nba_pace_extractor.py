@@ -9,8 +9,8 @@ import re
 from typing import Any
 
 ALIASES = {
-    'fga': {'fieldgoalsattempted', 'fieldgoalattempts', 'fga'},
-    'fta': {'freethrowsattempted', 'freethrowattempts', 'fta'},
+    'fga': {'fieldgoalsattempted', 'fieldgoalattempts', 'fga', 'fieldgoalsmadefieldgoalsattempted'},
+    'fta': {'freethrowsattempted', 'freethrowattempts', 'fta', 'freethrowsmadefreethrowsattempted'},
     'oreb': {'offensiverebounds', 'offensiverebound', 'offreb', 'oreb'},
     'tov': {'turnovers', 'turnover', 'to', 'tov'},
 }
@@ -45,7 +45,18 @@ def _stats_team(team: dict) -> dict:
         for field, aliases in ALIASES.items():
             if field in out or not any(_norm(label) in aliases for label in labels):
                 continue
-            n = _number(entry.get('value', entry.get('displayValue')))
+            raw = entry.get('value', entry.get('displayValue'))
+            # ESPN publica FG/FT como 'anotados-intentados', p. ej. '48-95'.
+            # Extraemos únicamente el segundo valor (intentos).
+            nombre = _norm(entry.get('name'))
+            if field in ('fga', 'fta') and nombre in (
+                'fieldgoalsmadefieldgoalsattempted',
+                'freethrowsmadefreethrowsattempted',
+            ):
+                match = re.fullmatch(r'\s*(\d+)\s*[-/]\s*(\d+)\s*', str(entry.get('displayValue', '')))
+                n = float(match.group(2)) if match and int(match.group(1)) <= int(match.group(2)) else None
+            else:
+                n = _number(raw)
             if n is not None:
                 out[field] = n
     return out
