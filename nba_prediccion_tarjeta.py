@@ -87,7 +87,43 @@ def _referencia(referencias, modelo):
         return None
 
 
-def mostrar_tarjeta(partido, referencias=None, pace=None):
+def referencias_desde_historial(partidos, partido, minimo=5):
+    """Promedio de puntos anotados en los 5 partidos anteriores por equipo.
+
+    Referencia descriptiva de marcador completo (puede incluir prórrogas).
+    No consulta APIs ni modifica los datos recibidos.
+    """
+    import pandas as pd
+    if partidos is None or not hasattr(partidos, 'columns'):
+        return None
+    requeridas = {'local', 'visitante', 'fecha_utc', 'finalizado',
+                  'puntos_local', 'puntos_visitante'}
+    if not requeridas.issubset(partidos.columns):
+        return None
+    fecha = pd.to_datetime(partido.get('fecha_utc'), utc=True, errors='coerce')
+    if pd.isna(fecha):
+        return None
+    d = partidos.copy()
+    d['_fecha_ref'] = pd.to_datetime(d['fecha_utc'], utc=True, errors='coerce')
+    d = d.loc[d['_fecha_ref'].notna() & d['_fecha_ref'].lt(fecha) &
+              d['finalizado'].eq(True)].copy()
+    if 'id' in d.columns:
+        d = d.sort_values('_fecha_ref').drop_duplicates('id', keep='last')
+    d = d.sort_values('_fecha_ref')
+    salida = {}
+    for equipo in (str(partido['local']), str(partido['visitante'])):
+        propio = d.loc[d['local'].eq(equipo) | d['visitante'].eq(equipo)].copy()
+        puntos = pd.to_numeric(propio['puntos_local'], errors='coerce').where(
+            propio['local'].eq(equipo),
+            pd.to_numeric(propio['puntos_visitante'], errors='coerce'))
+        puntos = puntos.dropna().tail(minimo)
+        if len(puntos) != minimo or (puntos < 0).any():
+            return None
+        salida[equipo] = float(puntos.mean())
+    return salida
+
+
+def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
     """Pinta una tarjeta móvil; referencias = {'Ensemble': n, 'Modelo C': n}.
 
     Las referencias y el pace deben ser valores prepartido de una fuente validada;
@@ -127,11 +163,27 @@ def mostrar_tarjeta(partido, referencias=None, pace=None):
         c1, c2 = st.columns(2)
         c1.metric('Total Ensemble', f'{total_ens:.1f}')
         c2.metric('Total Modelo C', f'{total_c:.1f}')
+        refs_equipo = referencias_desde_historial(partidos, partido) if partidos is not None else None
+        if refs_equipo is not None:
+            ref_total = sum(refs_equipo.values())
+            st.markdown('**📐 Referencia histórica y Edge · marcador completo**')
+            st.caption('Referencia = promedio de puntos anotados en los 5 partidos anteriores de cada equipo. '
+                       'Los marcadores históricos pueden incluir prórrogas.')
+            for equipo in (local, visita):
+                st.caption(f'{equipo} · referencia: {refs_equipo[equipo]:.1f} pts')
+            for modelo in MODELOS:
+                proy_total = valores[local][modelo] + valores[visita][modelo]
+                st.caption(f'{modelo} · proyección: {proy_total:.1f} · referencia: {ref_total:.1f} · '
+                           f'Edge estadístico: {proy_total-ref_total:+.1f} pts')
+            st.caption('El Edge es una diferencia descriptiva, no una medida de precisión. '
+                       'No compara directamente con los totales reglamentarios por cuartos.')
+        else:
+            st.caption('Referencia histórica y Edge: N/D · se requieren 5 marcadores previos válidos por equipo.')
         for modelo, total in (('Ensemble', total_ens), ('Modelo C', total_c)):
             ref = _referencia(referencias, modelo)
             if ref is None:
-                st.caption(f'{modelo}: referencia histórica y Edge N/D')
-            else:
+                continue
+            elif refs_equipo is None:
                 st.caption(f'{modelo}: referencia {ref:.1f} · Edge estadístico {total-ref:+.1f} pts')
         try:
             pace_num = float(pace)
