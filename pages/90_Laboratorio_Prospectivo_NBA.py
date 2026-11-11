@@ -1,4 +1,3 @@
-
 """Página del Laboratorio prospectivo NBA."""
 from pathlib import Path
 import sys
