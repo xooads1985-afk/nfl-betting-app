@@ -3,6 +3,7 @@ No importa Streamlit, no consulta ESPN, no modifica archivos estables.
 """
 from __future__ import annotations
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd
 from nba_lab_motor_futuro import predecir
@@ -40,6 +41,7 @@ def preparar_tarjeta(calendario: pd.DataFrame, historial: pd.DataFrame,
     resultado = predecir(historial, local, visita, fecha.isoformat(), posesiones)
     return {
         'esquema': 'nba_tarjeta_futura_v1',
+        'generado_utc': datetime.now(timezone.utc).isoformat(),
         'partido_id': str(partido_id),
         'fecha_utc': fecha.isoformat(),
         'estado': 'experimental_prepartido',
@@ -64,3 +66,4 @@ def guardar_tarjeta(tarjeta: dict, destino: str | Path) -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(json.dumps(tarjeta, ensure_ascii=False, indent=2), encoding='utf-8')
     return destino
+
