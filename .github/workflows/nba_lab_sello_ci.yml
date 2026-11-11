@@ -1,0 +1,30 @@
+name: NBA Laboratorio - Sello de Tarjetas
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sello:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Aplicar parche experimental
+        run: python nba_lab_agregar_sello.py
+      - name: Validar lector y parche
+        run: |
+          python -m unittest test_lector_tarjetas.py -v
+          python -m py_compile nba_lab_puente_futuro.py
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('nba_lab_puente_futuro.py').read_text(encoding='utf-8')
+          assert "'generado_utc': datetime.now(timezone.utc).isoformat()" in s
+          print('SELLO DE GENERACION: OK')
+          PY
+      - name: Publicar archivo actualizado
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-puente-con-sello
+          path: nba_lab_puente_futuro.py
