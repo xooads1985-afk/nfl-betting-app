@@ -1,0 +1,68 @@
+name: NBA Laboratorio - Calendario y Guardia
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencias
+        run: python -m pip install pandas numpy scikit-learn requests
+      - name: Pruebas de guardia
+        run: python -m unittest test_guardia.py -v
+      - name: Verificar calendario real y contrato de puente
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p nba_lab_resultados_futuro
+          python - <<'PY'
+          import json, requests, pandas as pd
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          from nba_lab_puente_futuro import preparar_tarjeta
+          from nba_lab_puente_seguro import preparar_tarjeta_segura
+          now=datetime.now(timezone.utc)
+          report={'fecha_consulta_utc':now.isoformat(),'fuente':'ESPN scoreboard','partidos_pendientes':[],'prueba_contrato':'pendiente'}
+          for offset in range(0,7):
+              day=(now+timedelta(days=offset)).strftime('%Y%m%d')
+              response=requests.get('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',params={'dates':day,'limit':100},timeout=20)
+              response.raise_for_status()
+              for ev in response.json().get('events',[]):
+                  comps=(ev.get('competitions') or [{}])[0].get('competitors',[])
+                  home=next((c for c in comps if c.get('homeAway')=='home'),{})
+                  away=next((c for c in comps if c.get('homeAway')=='away'),{})
+                  status=(ev.get('status') or {}).get('type') or {}
+                  start=pd.to_datetime(ev.get('date'),utc=True,errors='coerce')
+                  if pd.isna(start) or start.to_pydatetime()<=now or status.get('completed'):
+                      continue
+                  report['partidos_pendientes'].append({'id':str(ev.get('id')),'fecha_utc':start.isoformat(),'local':home.get('team',{}).get('displayName',''),'visitante':away.get('team',{}).get('displayName',''),'finalizado':False,'estado':status.get('description','Scheduled')})
+          if not report['partidos_pendientes']:
+              raise RuntimeError('No se encontraron partidos futuros: no declarar integración aprobada')
+          chosen=report['partidos_pendientes'][0]
+          calendar=pd.DataFrame([chosen])
+          # Prueba del contrato sin usar marcadores ni entrenar con historial falso.
+          from unittest.mock import patch
+          mock_prediction={'equipos':{chosen['local']:{'ensemble':110},chosen['visitante']:{'ensemble':108}},'total_modelo_c':219,'total_ensemble':218,'referencia_total_base':217,'edge_total_vs_base':2,'pace_prepartido':None}
+          with patch('nba_lab_puente_futuro.predecir',return_value=mock_prediction) as predictor:
+              card=preparar_tarjeta(calendar,pd.DataFrame(),chosen['id'],ahora_utc=now.isoformat())
+              assert card['partido_id']==chosen['id']
+              assert card['esquema']=='nba_tarjeta_futura_v1'
+              assert predictor.call_args.args[2]==chosen['visitante']
+          report['prueba_contrato']='OK_CON_MOTOR_SIMULADO'
+          report['nota']='Esta prueba verifica calendario y contrato del puente, NO una prediccion real del motor con historial.'
+          Path('nba_lab_resultados_futuro/informe_calendario.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'partidos_pendientes':len(report['partidos_pendientes']),'primer_id':chosen['id'],'prueba_contrato':report['prueba_contrato']},ensure_ascii=False))
+          PY
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-calendario-guardia-informe
+          path: nba_lab_resultados_futuro/
+          if-no-files-found: warn
