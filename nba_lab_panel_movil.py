@@ -20,9 +20,17 @@ div[data-testid="stTabs"] button {font-size:.84rem;padding-left:.45rem;padding-r
 st.title("🏀 Laboratorio NBA")
 st.caption("Panel experimental 3.12.19 · Solo lectura · Historial")
 
-@st.cache_data(ttl=180)
+@st.cache_data(ttl=180, show_spinner=False)
 def leer_csv(path):
-    return pd.read_csv(path) if path.exists() else pd.DataFrame()
+    """Lectura defensiva: nunca cargar CSV ilimitados por accidente."""
+    if not path.is_file():
+        return pd.DataFrame(), f"No existe: {path.name}"
+    if path.stat().st_size > 25 * 1024 * 1024:
+        return pd.DataFrame(), f"{path.name} supera 25 MB; se omite para proteger la aplicación"
+    try:
+        return pd.read_csv(path, low_memory=False), None
+    except Exception as exc:
+        return pd.DataFrame(), f"{path.name}: {type(exc).__name__}: {exc}"
 
 def comprobar(df, columnas, nombre):
     if df.empty:
@@ -63,7 +71,7 @@ def ganador(df, etiqueta):
     st.markdown(f"**{etiqueta}: {b['modelo']}**")
     c1, c2 = st.columns(2)
     c1.metric("MAE", f"{b['MAE']:.3f} pts")
-    c2.metric("Muestra", f"{int(b['muestra']):,}")
+    c2.metric("Muestra", f"{int(b['muestra']):,}" if pd.notna(b["muestra"]) else "N/D")
     st.caption(f"RMSE {b['RMSE']:.3f} · Sesgo {b['sesgo']:+.3f} pts")
     if abs(b["sesgo"]) >= 1:
         sentido = "sobreestima" if b["sesgo"] > 0 else "subestima"
@@ -71,14 +79,31 @@ def ganador(df, etiqueta):
     else:
         st.caption("El sesgo promedio está cerca de cero; esto no elimina errores grandes en partidos individuales.")
 
-pred = leer_csv(DATA / "algoritmos_predicciones.csv")
-tot = leer_csv(AUD / "metricas_totales.csv")
-team = leer_csv(AUD / "metricas_por_equipo.csv")
-localia = leer_csv(AUD / "metricas_localia.csv")
-integridad = leer_csv(AUD / "control_integridad.csv")
-incidencias = leer_csv(AUD / "incidencias.csv")
+st.caption("Esta pantalla solo consulta resultados CSV existentes; no descarga temporadas ni ejecuta entrenamiento.")
+st.info("Temporada prioritaria: 2026-2027. La temporada anterior no se carga automáticamente.")
+if not st.button("📂 Abrir resultados del laboratorio", type="primary", use_container_width=True):
+    st.caption("Presiona el botón para leer los resultados guardados. El laboratorio ya está abierto y no está ejecutando cálculos.")
+    st.stop()
+
+with st.spinner("Leyendo archivos de resultados guardados..."):
+    archivos = {
+        "pred": DATA / "algoritmos_predicciones.csv",
+        "tot": AUD / "metricas_totales.csv",
+        "team": AUD / "metricas_por_equipo.csv",
+        "localia": AUD / "metricas_localia.csv",
+        "integridad": AUD / "control_integridad.csv",
+        "incidencias": AUD / "incidencias.csv",
+    }
+    lecturas = {nombre: leer_csv(ruta) for nombre, ruta in archivos.items()}
+    pred, tot, team, localia, integridad, incidencias = (lecturas[k][0] for k in archivos)
+    problemas = [e for _, e in lecturas.values() if e]
+if problemas:
+    with st.expander(f"Diagnóstico de archivos ({len(problemas)})", expanded=True):
+        for problema in problemas:
+            st.warning(problema)
 
 if not comprobar(pred, ["partido", "equipo", "real", "fecha"], "predicciones"):
+    st.info("El panel está operativo, pero faltan resultados válidos. Ejecutar el motor offline es una tarea independiente; no se ejecuta aquí.")
     st.stop()
 
 a, b = st.columns(2)
@@ -89,14 +114,15 @@ st.caption("Resultados de CSV del repositorio, no datos en vivo.")
 temporadas = sorted(set(str(v) for d in (tot, team, localia)
                        if "temporada" in d.columns
                        for v in d["temporada"].dropna().unique() if str(v) != "Todas"))
-temporada = st.selectbox("Temporada", ["Todas"] + temporadas)
+opciones = (["2026-2027"] if "2026-2027" not in temporadas else []) + temporadas
+temporada = st.selectbox("Temporada", opciones if opciones else ["Todas"], index=0)
 tabs = st.tabs(["📊 Modelos", "🏠 Localía", "🛡️ Controles"])
 
 with tabs[0]:
     modo = st.radio("Evaluación", ["Por equipo", "Puntos totales"], horizontal=True)
     origen = team if modo == "Por equipo" else tot
     if comprobar(origen, ["temporada", "modelo", "MAE", "RMSE", "sesgo", "muestra"], modo):
-        datos = ordenar(origen[origen["temporada"].astype(str).eq(temporada)])
+        datos = ordenar(origen if temporada == "Todas" else origen[origen["temporada"].astype(str).eq(temporada)])
         if datos.empty:
             st.info("Sin datos para la temporada seleccionada.")
         else:
@@ -108,7 +134,7 @@ with tabs[0]:
 
 with tabs[1]:
     if comprobar(localia, ["temporada", "grupo", "modelo", "muestra", "MAE", "RMSE", "sesgo"], "localía"):
-        datos = localia[localia["temporada"].astype(str).eq(temporada)]
+        datos = localia if temporada == "Todas" else localia[localia["temporada"].astype(str).eq(temporada)]
         for sede in ("Local", "Visitante"):
             grupo = ordenar(datos[datos["grupo"].eq(sede)])
             ganador(grupo, sede)
