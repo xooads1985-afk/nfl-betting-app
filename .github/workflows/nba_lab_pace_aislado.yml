@@ -1,0 +1,39 @@
+
+name: NBA Laboratorio - Conectar Pace
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install pandas requests numpy scikit-learn
+
+      - name: Descargar y clasificar historial
+        run: |
+          python nba_lab_descargar_cache.py --desde 2025-10-21 --hasta "$(date -u +%Y-%m-%d)"
+          python nba_lab_reentrenar_depurado.py
+
+      - name: Conectar boxscores y calcular Pace cronológico
+        run: python nba_lab_pace_conectar.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nba-lab-pace-auditoria
+          path: |
+            nba_lab_resultados_depurados/pace/
+            nba_lab_resultados_depurados/reentrenamiento/estado_reentrenamiento.json
+          if-no-files-found: warn
