@@ -1,0 +1,58 @@
+
+name: NBA Laboratorio - Reentrenamiento aislado
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nba-lab-reentrenamiento-aislado
+  cancel-in-progress: false
+
+jobs:
+  reentrenamiento:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Obtener rama de pruebas
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pandas numpy requests scikit-learn
+
+      - name: Descargar metadatos ESPN
+        run: |
+          python - <<'PY'
+          from datetime import date
+          from nba_lab_descargar_cache import descargar_periodo
+
+          total = descargar_periodo(
+              "2025-10-21",
+              date.today().isoformat()
+          )
+          print(f"Fechas verificadas: {total}")
+          PY
+
+      - name: Ejecutar reentrenamiento aislado
+        run: |
+          python nba_lab_reentrenar_depurado.py
+
+      - name: Guardar resultados experimentales
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-lab-reentrenamiento-depurado
+          path: |
+            nba_lab_resultados_depurados/
+          if-no-files-found: warn
+          retention-days: 14
