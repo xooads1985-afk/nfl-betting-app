@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-11T14:18:35.064116+00:00",
+  "partido_id": "401909970",
+  "fecha_utc": "2026-11-12T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Memphis Grizzlies",
+  "visitante": "Denver Nuggets",
+  "proyeccion_local_ensemble": 116.34,
+  "proyeccion_visitante_ensemble": 112.0,
+  "total_modelo_c": 229.47,
+  "total_ensemble": 228.34,
+  "referencia_total_base": 228.5,
+  "edge_total_vs_base": -0.16,
+  "edge_total_modelo_c_vs_base": 0.97,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-12T01:00:00+00:00",
+    "local": "Memphis Grizzlies",
+    "visitante": "Denver Nuggets",
+    "equipos": {
+      "Memphis Grizzlies": {
+        "ensemble": 116.34,
+        "modelo_c": 114.56,
+        "referencia_base": 115.6,
+        "edge_vs_base": 0.74,
+        "partidos_previos": 92
+      },
+      "Denver Nuggets": {
+        "ensemble": 112.0,
+        "modelo_c": 114.91,
+        "referencia_base": 112.9,
+        "edge_vs_base": -0.9,
+        "partidos_previos": 91
+      }
+    },
+    "total_modelo_c": 229.47,
+    "total_ensemble": 228.34,
+    "referencia_total_base": 228.5,
+    "edge_total_vs_base": -0.16,
+    "edge_total_modelo_c_vs_base": 0.97,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
