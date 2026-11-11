@@ -1984,7 +1984,7 @@ def _tarjeta_unica_partido(partidos, partido):
     # Panel prospectivo aislado: solo lectura, sin alterar estimaciones estables.
     try:
         from nba_prediccion_tarjeta import mostrar_tarjeta
-        mostrar_tarjeta(partido, referencias=None, pace=None)
+        mostrar_tarjeta(partido, referencias=None, pace=None, partidos=partidos)
     except Exception as exc:
         # Un fallo externo nunca debe impedir mostrar la tarjeta NBA original.
         with st.expander('🧠 Predicción Inteligente NBA · diagnóstico'):
