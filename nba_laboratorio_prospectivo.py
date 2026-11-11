@@ -145,14 +145,15 @@ def evaluar(historial, guardados):
             continue
     return pd.DataFrame(evaluados)
 
-
 def mostrar():
     from resumen_inteligente_nba import _cargar_historial_temporada_nba, _calendario_proximos_nba
     from datetime import date, timedelta
+
     st.title('🧪 Laboratorio prospectivo NBA')
-st.info("VERSIÓN DE PRUEBA: CARGA POR BLOQUES")    
+    st.info("VERSIÓN DE PRUEBA: CARGA POR BLOQUES")
     st.caption('Página auxiliar dentro de la misma app. No modifica el resumen ni sus registros originales.')
     hoy = date.today()
+
     incluir_pasada = st.checkbox('Incluir temporada anterior para entrenar', value=False)
     inicio = date(2025, 10, 21) if incluir_pasada else date(2026, 10, 20)
     clave_periodo = (inicio.isoformat(), hoy.isoformat())
