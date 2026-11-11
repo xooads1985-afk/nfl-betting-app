@@ -1,0 +1,100 @@
+name: NBA Laboratorio - Prueba Motor Futuro
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probar-motor-futuro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: python -m pip install pandas numpy scikit-learn requests
+      - name: Actualizar metadatos para clasificacion
+        run: python nba_lab_descargar_cache.py --desde 2025-10-21 --hasta "$(date -u +%Y-%m-%d)"
+      - name: Probar prediccion futura sin marcador
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          from nba_lab_reentrenar_depurado import preparar, clasificaciones_cache
+          from nba_lab_motor_futuro import predecir
+
+          salida = Path('nba_lab_resultados_futuro')
+          salida.mkdir(exist_ok=True)
+          raw = pd.read_csv('nba_lab_resultados/partidos_historicos.csv', dtype={'id': str})
+          audit, regular = preparar(raw, clasificaciones_cache(Path('nba_lab_cache')))
+          if len(regular) < 50:
+              raise AssertionError('Historial regular insuficiente')
+          regular = regular.sort_values(['fecha_utc','id'])
+          ultimo = regular.iloc[-1]
+          local, visitante = str(ultimo['local']), str(ultimo['visitante'])
+          ahora = pd.Timestamp.now(tz='UTC') + pd.Timedelta(days=1)
+          fecha = max(ahora, pd.Timestamp(ultimo['fecha_utc']) + pd.Timedelta(days=1))
+          # Es una pareja de equipos de prueba; no se afirma que exista un partido programado.
+          r = predecir(regular, local, visitante, fecha.isoformat())
+          assert r['local'] == local and r['visitante'] == visitante
+          assert set(r['equipos']) == {local, visitante}
+          assert r['historial_partidos'] == len(regular)
+          assert r['entrenamiento_observaciones'] >= 24
+          assert r['pace_prepartido'] is None  # Sin boxscores específicos no inventar Pace
+          for equipo in (local, visitante):
+              d = r['equipos'][equipo]
+              assert 60 <= d['ensemble'] <= 180
+              assert 60 <= d['modelo_c'] <= 180
+              assert d['partidos_previos'] >= 3
+          assert abs(r['total_modelo_c'] - sum(r['equipos'][e]['modelo_c'] for e in (local, visitante))) < .011
+
+          # Prueba contra filtración temporal: agregar un resultado POSTERIOR no cambia la predicción.
+          extra = regular.iloc[[-1]].copy()
+          extra.loc[:, 'id'] = 'PRUEBA_POSTERIOR_NO_USAR'
+          extra.loc[:, 'fecha_utc'] = fecha + pd.Timedelta(days=1)
+          extra.loc[:, 'puntos_local'] = 180
+          extra.loc[:, 'puntos_visitante'] = 60
+          extra.loc[:, 'finalizado'] = True
+          con_futuro = pd.concat([regular, extra], ignore_index=True)
+          r2 = predecir(con_futuro, local, visitante, fecha.isoformat())
+          assert r == r2, 'ERROR: el motor cambió al agregar resultados futuros'
+
+          # Un equipo sin antecedentes debe ser rechazado.
+          try:
+              predecir(regular, 'EQUIPO_SIN_HISTORIAL_999', visitante, fecha.isoformat())
+          except ValueError:
+              pass
+          else:
+              raise AssertionError('Se aceptó un equipo sin historial')
+
+          (salida / 'prediccion_prueba.json').write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding='utf-8')
+          informe = {
+              'estado': 'OK',
+              'tipo': 'prueba_tecnica_pareja_no_confirmada_en_calendario',
+              'historial_regular': len(regular),
+              'fecha_objetivo_utc': fecha.isoformat(),
+              'sin_marcador_objetivo': True,
+              'invariancia_ante_resultado_posterior': True,
+              'rechazo_historial_insuficiente': True,
+              'pace_sin_datos': None,
+              'pendiente': 'Conectar calendario real y boxscores prepartido; validar fixture real antes de producción'
+          }
+          (salida / 'informe_prueba.json').write_text(json.dumps(informe, ensure_ascii=False, indent=2), encoding='utf-8')
+          print(json.dumps(informe, ensure_ascii=False, indent=2))
+          PY
+      - name: Publicar resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-lab-motor-futuro-prueba
+          path: nba_lab_resultados_futuro/
+          if-no-files-found: warn
