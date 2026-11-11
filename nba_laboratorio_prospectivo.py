@@ -250,6 +250,8 @@ def mostrar():
                     st.success(f'{n} registros nuevos confirmados; los existentes no se modificaron.')
                 except Exception as exc:
                     st.error(str(exc))
+    from nba_pace_panel_predictivo import mostrar_panel_predictivo
+    mostrar_panel_predictivo(historico, juego if not futuros.empty else None)
     st.subheader('Validación prospectiva')
     if st.button('Consultar registros y evaluar', use_container_width=True):
         try:
