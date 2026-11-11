@@ -1,0 +1,97 @@
+
+name: NBA Laboratorio - Integracion Experimental
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integracion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: python -m pip install pandas numpy requests scikit-learn
+
+      - name: Reconstruir historial y modelos experimentales
+        run: |
+          python nba_lab_descargar_cache.py --desde 2025-10-21 --hasta "$(date -u +%Y-%m-%d)"
+          python nba_lab_reentrenar_depurado.py
+
+      - name: Calcular Pace cronologico
+        run: python nba_lab_pace_conectar.py
+
+      - name: Integrar modelos sin tocar modulos estables
+        run: |
+          python nba_lab_integracion_experimental.py \
+            --predicciones nba_lab_resultados_depurados/pace/predicciones_con_pace.csv \
+            --salida nba_lab_integracion_resultados
+
+      - name: Validar resultados y cobertura
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, math
+          from pathlib import Path
+          import pandas as pd
+
+          base = Path('nba_lab_integracion_resultados')
+          m = json.loads(
+              (base / 'informe_integracion.json').read_text(encoding='utf-8')
+          )
+          e = pd.read_csv(
+              base / 'proyecciones_equipos.csv', dtype={'partido': str}
+          )
+          p = pd.read_csv(
+              base / 'proyecciones_partidos.csv', dtype={'partido': str}
+          )
+
+          assert len(e) == m['filas']
+          assert len(p) == m['partidos']
+          assert len(e) == 2 * len(p), 'Cada partido requiere dos equipos'
+          assert not e.duplicated(['partido', 'equipo']).any(), 'Duplicados'
+          assert e['partido'].nunique() == len(p), 'Cobertura inconsistente'
+          assert m['minimo_antecedentes'] >= 3, 'Historial insuficiente'
+
+          for k in (
+              'mae_equipo_ensemble',
+              'mae_equipo_modelo_c',
+              'mae_equipo_pace',
+              'mae_total_modelo_c',
+              'mae_total_ensemble'
+          ):
+              assert math.isfinite(m[k]) and m[k] >= 0, \
+                  f'Metrica invalida: {k}'
+
+          assert m['pace_usado_como_ajuste'] is False
+
+          (base / 'validacion_workflow.txt').write_text(
+              'INTEGRACION EXPERIMENTAL: OK\n',
+              encoding='utf-8'
+          )
+          print('INTEGRACION EXPERIMENTAL: OK')
+          print(json.dumps(m, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Publicar resultados para descarga
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-lab-integracion-experimental
+          path: |
+            nba_lab_integracion_resultados/
+            nba_lab_resultados_depurados/pace/estado_pace.json
+            nba_lab_resultados_depurados/reentrenamiento/estado_reentrenamiento.json
+          if-no-files-found: warn
