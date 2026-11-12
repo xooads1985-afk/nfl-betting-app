@@ -1,6 +1,7 @@
 """Laboratorio prospectivo NBA. Auxiliar: no altera modelos ni registro principal."""
 from datetime import datetime, timezone
 import json
+import hashlib
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -122,31 +123,89 @@ def guardar(juego, pronosticos):
 
 
 def evaluar(historial, guardados):
-    """Evaluación de puntos por equipo: no usa marcador final de prórroga."""
+    """Evaluar únicamente registros anteriores al inicio, con resultado reglamentario."""
     from modulo_nba import cargar_detalle
     from resumen_inteligente_nba import _puntos_periodos
+    columnas = ['Partido', 'Equipo', 'Modelo', 'Proyección', 'Real (reglamentario)', 'Error']
+    if historial is None or historial.empty:
+        return pd.DataFrame(columns=columnas)
     por_id = {str(r['id']): r for r in historial.to_dict('records')}
+    cache_periodos = {}
     evaluados = []
+    vistos = set()
     for registro in guardados:
-        partido = por_id.get(str(registro['partido_id']))
-        if not partido or not bool(partido.get('finalizado')):
-            continue
         try:
-            detalle = _puntos_periodos(cargar_detalle(str(registro['partido_id'])))
-            periodos = detalle.get(registro['equipo'])
+            pid = str(registro['partido_id'])
+            equipo = str(registro['equipo'])
+            modelo = str(registro['modelo'])
+            llave = (pid, equipo, modelo)
+            if llave in vistos or modelo not in (*MODELOS, 'Pace + Eficiencia'):
+                continue
+            partido = por_id.get(pid)
+            if partido is None or not bool(partido.get('finalizado')):
+                continue
+            if equipo not in (str(partido['local']), str(partido['visitante'])):
+                continue
+            inicio = pd.to_datetime(partido['fecha_utc'], utc=True, errors='coerce')
+            inicio_guardado = pd.to_datetime(registro['inicio_utc'], utc=True, errors='coerce')
+            registrado = pd.to_datetime(registro['registrado_utc'], utc=True, errors='coerce')
+            if pd.isna(inicio) or pd.isna(inicio_guardado) or pd.isna(registrado):
+                continue
+            if inicio != inicio_guardado or registrado >= inicio:
+                continue
+            proyeccion = float(registro['proyeccion'])
+            if not np.isfinite(proyeccion):
+                continue
+            if pid not in cache_periodos:
+                cache_periodos[pid] = _puntos_periodos(cargar_detalle(pid))
+            periodos = cache_periodos[pid].get(equipo)
             if not isinstance(periodos, dict) or not all(k in periodos for k in (1, 2, 3, 4)):
                 continue
             real = sum(float(periodos[k]) for k in (1, 2, 3, 4))
-            error = float(registro['proyeccion']) - real
-            evaluados.append({'Partido': registro['partido_id'], 'Equipo': registro['equipo'],
-                              'Modelo': registro['modelo'], 'Proyección': float(registro['proyeccion']),
-                              'Real (reglamentario)': real, 'Error': error})
-        except (ValueError, TypeError, KeyError, RuntimeError):
+            if not np.isfinite(real):
+                continue
+            vistos.add(llave)
+            evaluados.append({'Partido': pid, 'Equipo': equipo, 'Modelo': modelo,
+                              'Proyección': proyeccion, 'Real (reglamentario)': real,
+                              'Error': proyeccion - real})
+        except (ValueError, TypeError, KeyError, RuntimeError, OverflowError):
             continue
-    return pd.DataFrame(evaluados)
+    return pd.DataFrame(evaluados, columns=columnas)
+
+
+def comparar_cuatro_modelos(tabla):
+    """Misma muestra (partido, equipo) para los cuatro modelos; sin duplicados."""
+    columnas = ['Modelo', 'N', 'MAE', 'RMSE', 'Sesgo']
+    if tabla is None or tabla.empty:
+        return pd.DataFrame(columns=columnas), pd.DataFrame()
+    modelos = [*MODELOS, 'Pace + Eficiencia']
+    t = tabla.loc[tabla['Modelo'].isin(modelos)].copy()
+    # No incluir errores ni resultados no finitos en la muestra comparable.
+    for campo in ('Error', 'Real (reglamentario)', 'Proyección'):
+        t[campo] = pd.to_numeric(t[campo], errors='coerce')
+    t = t.loc[np.isfinite(t[['Error', 'Real (reglamentario)', 'Proyección']]).all(axis=1)]
+    # El error debe corresponder a la proyección y al resultado registrado.
+    t = t.loc[np.isclose(t['Error'], t['Proyección'] - t['Real (reglamentario)'], atol=1e-6)]
+    if t.duplicated(['Partido', 'Equipo', 'Modelo']).any():
+        t = t.drop_duplicates(['Partido', 'Equipo', 'Modelo'], keep=False)
+    completos = t.groupby(['Partido', 'Equipo'])['Modelo'].nunique()
+    completos = completos[completos.eq(len(modelos))].index
+    if len(completos) == 0:
+        return pd.DataFrame(columns=columnas), pd.DataFrame(columns=t.columns)
+    t = t.set_index(['Partido', 'Equipo']).loc[completos].reset_index()
+    # Rechazar resultados reales discrepantes para el mismo partido/equipo.
+    consistentes = t.groupby(['Partido', 'Equipo'])['Real (reglamentario)'].nunique()
+    t = t.set_index(['Partido', 'Equipo']).loc[consistentes[consistentes.eq(1)].index].reset_index()
+    if t.empty:
+        return pd.DataFrame(columns=columnas), pd.DataFrame(columns=tabla.columns)
+    resumen = t.groupby('Modelo').agg(
+        N=('Error', 'size'), MAE=('Error', lambda x: x.abs().mean()),
+        RMSE=('Error', lambda x: np.sqrt(np.mean(x ** 2))),
+        Sesgo=('Error', 'mean')).reindex(modelos).reset_index()
+    return resumen, t
 
 def mostrar():
-    from resumen_inteligente_nba import _cargar_historial_temporada_nba, _calendario_proximos_nba
+    # Las dependencias del resumen estable se importan solo al evaluar resultados.
     from datetime import date, timedelta
 
     st.title('🧪 Laboratorio prospectivo NBA')
@@ -196,9 +255,7 @@ def mostrar():
         with st.expander('Ver incidencias'):
             st.write(estado['incidencias'][-30:])
     if not estado['completo']:
-        st.info('Continúa con «Cargar siguiente bloque» hasta completar la cobertura. '
-                'Los modelos se habilitarán al finalizar.')
-        return
+        st.info('El historial de los tres modelos aún está incompleto; Pace y la validación siguen accesibles.')
 
     if not estado.get('calendario_consultado'):
         if st.button('📅 Consultar próximos partidos', use_container_width=True):
@@ -213,7 +270,7 @@ def mostrar():
             except Exception as exc:
                 st.error(f'Calendario: {type(exc).__name__}: {exc}')
         if not estado.get('calendario_consultado'):
-            return
+            st.info('Consulta el calendario cuando quieras calcular proyecciones futuras.')
 
     historico = pd.concat(estado['fragmentos'], ignore_index=True) if estado['fragmentos'] else pd.DataFrame()
     if 'id' in historico:
@@ -222,6 +279,45 @@ def mostrar():
     # Auditoría experimental de posesiones: aislada de las proyecciones guardadas.
     from nba_pace_panel import mostrar_auditoria_pace
     mostrar_auditoria_pace(historico)
+
+    # Cuarto modelo experimental: historial cargado por CSV, sin alterar el histórico ESPN.
+    st.subheader('Pace + Eficiencia · registro prospectivo')
+    archivo_pace = st.file_uploader('Cargar historial pace CSV (160 partidos)', type=['csv'], key='nba_lab_pace_csv_v1')
+    historial_pace = pd.DataFrame()
+    huella_pace = None
+    if archivo_pace is not None:
+        try:
+            contenido_csv = archivo_pace.getvalue()
+            huella_pace = hashlib.sha256(contenido_csv).hexdigest()
+            historial_pace = pd.read_csv(archivo_pace)
+            columnas = {'partido_id', 'fecha_utc', 'local', 'visitante', 'finalizado',
+                        'puntos_local', 'puntos_visitante', 'posesiones_local',
+                        'posesiones_visitante', 'minutos_partido'}
+            faltantes = columnas.difference(historial_pace.columns)
+            if faltantes:
+                raise ValueError('Faltan columnas: ' + ', '.join(sorted(faltantes)))
+            historial_pace['partido_id'] = historial_pace['partido_id'].astype(str)
+            historial_pace['finalizado'] = historial_pace['finalizado'].astype(str).str.lower().eq('true')
+            fechas_pace = pd.to_datetime(historial_pace['fecha_utc'], utc=True, errors='coerce')
+            if fechas_pace.isna().any() or not historial_pace['finalizado'].all():
+                raise ValueError('Hay fechas inválidas o partidos sin finalizar en el CSV.')
+            for columna in ('puntos_local', 'puntos_visitante', 'posesiones_local', 'posesiones_visitante', 'minutos_partido'):
+                valores = pd.to_numeric(historial_pace[columna], errors='coerce')
+                if valores.isna().any() or (valores <= 0).any():
+                    raise ValueError(f'Valores faltantes o no positivos en {columna}.')
+                historial_pace[columna] = valores
+            if historial_pace['partido_id'].duplicated().any():
+                st.warning('Se encontraron IDs duplicados; se conserva la primera aparición.')
+            historial_pace = historial_pace.drop_duplicates('partido_id', keep='first')
+            st.success(f'Historial Pace: {len(historial_pace)} partidos únicos cargados.')
+        except (ValueError, pd.errors.ParserError, UnicodeError) as exc:
+            st.error(f'CSV Pace inválido: {exc}')
+            historial_pace = pd.DataFrame()
+            huella_pace = None
+    # Nunca mostrar ni guardar una predicción calculada con otro CSV.
+    if st.session_state.get('nba_lab_pace_huella') != huella_pace:
+        st.session_state.pop('nba_lab_pace_prospectivo', None)
+        st.session_state['nba_lab_pace_huella'] = huella_pace
 
     futuros = estado['futuros']
     st.caption(f'Historial recuperado: {len(historico)} partidos. '
@@ -236,13 +332,55 @@ def mostrar():
         opciones = {f"{r['visitante']} @ {r['local']} · {r['fecha_utc']}": r for r in futuros.to_dict('records')}
         elegido = st.selectbox('Partido', list(opciones))
         juego = opciones[elegido]
-        if st.button('Calcular tres modelos', use_container_width=True):
+        if not historial_pace.empty:
+            if st.button('🧠 Calcular Pace + Eficiencia', use_container_width=True):
+                try:
+                    from nba_pace_prospectivo import preparar_prediccion
+                    calculo_pace = preparar_prediccion(historial_pace, juego)
+                    calculo_pace['huella_csv'] = huella_pace
+                    st.session_state['nba_lab_pace_prospectivo'] = calculo_pace
+                except (ValueError, KeyError, TypeError) as exc:
+                    st.error(f'Pace: {exc}')
+            calculo_pace = st.session_state.get('nba_lab_pace_prospectivo', {})
+            if (calculo_pace.get('partido_id') == str(juego['id'])
+                    and calculo_pace.get('huella_csv') == huella_pace
+                    and pd.to_datetime(calculo_pace.get('inicio_utc'), utc=True, errors='coerce')
+                        == pd.to_datetime(juego['fecha_utc'], utc=True, errors='coerce')):
+                st.dataframe(pd.DataFrame([
+                    {'Equipo': equipo, 'Puntos proyectados': puntos,
+                     'Antecedentes': calculo_pace['antecedentes'][equipo]}
+                    for equipo, puntos in calculo_pace['equipos'].items()
+                ]), hide_index=True, use_container_width=True)
+                st.caption(f"Pace proyectado: {calculo_pace['pace_48']:.2f} posesiones/48 min")
+                if st.button('💾 Guardar Pace en Supabase', use_container_width=True):
+                    try:
+                        from nba_pace_prospectivo import guardar_pace
+                        n = guardar_pace(calculo_pace)
+                        st.success(f'{n} registros nuevos confirmados; duplicados conservados.')
+                    except (RuntimeError, ValueError, KeyError) as exc:
+                        st.error(f'No se pudo guardar Pace: {exc}')
+        # Asociar las predicciones de los tres motores al historial exacto y al inicio.
+        firma_historial = hashlib.sha256(
+            pd.util.hash_pandas_object(
+                historico.sort_values('id').reset_index(drop=True), index=False
+            ).values.tobytes()
+        ).hexdigest() if not historico.empty else None
+        inicio_juego = pd.to_datetime(juego['fecha_utc'], utc=True, errors='coerce')
+        if st.button('Calcular tres modelos', use_container_width=True, disabled=not estado['completo']):
             try:
-                st.session_state['nba_lab_prospectivo'] = {'id': str(juego['id']), 'valores': calcular(historico, juego)}
+                valores = calcular(historico, juego)
+                st.session_state['nba_lab_prospectivo'] = {
+                    'id': str(juego['id']), 'inicio_utc': inicio_juego.isoformat(),
+                    'firma_historial': firma_historial, 'valores': valores,
+                }
             except Exception as exc:
+                st.session_state.pop('nba_lab_prospectivo', None)
                 st.error(str(exc))
         calculado = st.session_state.get('nba_lab_prospectivo', {})
-        if calculado.get('id') == str(juego['id']):
+        vigente = (estado['completo'] and calculado.get('id') == str(juego['id'])
+                   and calculado.get('firma_historial') == firma_historial
+                   and calculado.get('inicio_utc') == inicio_juego.isoformat())
+        if vigente:
             st.dataframe(pd.DataFrame(calculado['valores']).T, use_container_width=True)
             if st.button('💾 Guardar los tres modelos en Supabase', use_container_width=True):
                 try:
@@ -252,6 +390,9 @@ def mostrar():
                     st.error(str(exc))
     from nba_pace_panel_predictivo import mostrar_panel_predictivo
     mostrar_panel_predictivo(historico, juego if not futuros.empty else None)
+    # Diagnóstico sin escrituras ni exposición de secretos.
+    from nba_supabase_diagnostico import mostrar_diagnostico
+    mostrar_diagnostico()
     st.subheader('Validación prospectiva')
     if st.button('Consultar registros y evaluar', use_container_width=True):
         try:
@@ -267,6 +408,17 @@ def mostrar():
                     RMSE=('Error', lambda s: np.sqrt(np.mean(s ** 2))),
                     Sesgo=('Error', 'mean')).reset_index()
                 st.dataframe(resumen.round(3), hide_index=True, use_container_width=True)
+                st.caption('Métricas individuales: las muestras pueden ser diferentes.')
+                comparacion, comunes = comparar_cuatro_modelos(tabla)
+                st.subheader('Comparación justa · cuatro modelos')
+                if comparacion.empty:
+                    st.info('Aún no hay partidos/equipos con predicciones válidas de los cuatro modelos.')
+                else:
+                    st.caption(f'Misma muestra: {len(comunes) // 4} partido-equipo, {len(comunes)} registros.')
+                    st.dataframe(comparacion.round(3), hide_index=True, use_container_width=True)
+                    st.download_button('Descargar comparación CSV',
+                        comparacion.to_csv(index=False).encode('utf-8'),
+                        file_name='nba_cuatro_modelos_prospectivo.csv', mime='text/csv')
         except Exception as exc:
             st.error(str(exc))
 
