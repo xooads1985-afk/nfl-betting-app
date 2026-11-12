@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 import json
 import hashlib
+from io import BytesIO
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -282,7 +284,16 @@ def mostrar():
 
     # Cuarto modelo experimental: historial cargado por CSV, sin alterar el histórico ESPN.
     st.subheader('Pace + Eficiencia · registro prospectivo')
-    archivo_pace = st.file_uploader('Cargar historial pace CSV (160 partidos)', type=['csv'], key='nba_lab_pace_csv_v1')
+    archivo_pace = st.file_uploader('Cargar historial pace CSV (opcional)', type=['csv'], key='nba_lab_pace_csv_v1')
+    # El historial versionado en GitHub evita depender del selector de Android.
+    # La carga manual tiene prioridad para poder probar una actualización del CSV.
+    if archivo_pace is None:
+        ruta_pace = Path(__file__).resolve().parent / 'nba_historial_pace.csv'
+        if ruta_pace.is_file():
+            archivo_pace = BytesIO(ruta_pace.read_bytes())
+            st.caption('Fuente Pace: nba_historial_pace.csv del repositorio.')
+        else:
+            st.warning('No existe nba_historial_pace.csv en la raíz del repositorio.')
     historial_pace = pd.DataFrame()
     huella_pace = None
     if archivo_pace is not None:
@@ -425,3 +436,4 @@ def mostrar():
 
 if __name__ == '__main__':
     mostrar()
+
