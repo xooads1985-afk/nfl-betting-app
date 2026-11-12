@@ -42,38 +42,6 @@ def _sigla(nombre):
     return sigla.upper() if sigla else 'EQ'
 
 
-def _resumen_movil(local, visitante, puntos_local, puntos_visitante, total, diferencia, favorito):
-    """Diseño compacto en dos columnas incluso en pantallas pequeñas."""
-    def equipo(nombre, puntos):
-        logo = _logo_equipo(nombre)
-        img = (f'<img src="{escape(logo, quote=True)}" alt="Escudo de {escape(nombre, quote=True)}" '
-               'style="width:52px;height:52px;object-fit:contain"/>' if logo else '')
-        return (f'<div class="nba-tarjeta-equipo">{img}'
-                f'<div class="nba-nombre">{escape(nombre)}</div>'
-                f'<div class="nba-puntos">{puntos:.1f}</div></div>')
-    margen = ('Empate proyectado' if diferencia == 0
-              else f'{abs(diferencia):.1f} · {escape(favorito)}')
-    html = f"""<style>
-    .nba-tarjeta-equipos,.nba-tarjeta-totales {{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;margin:10px 0}}
-    .nba-tarjeta-equipo,.nba-tarjeta-indicador {{min-width:0;border:1px solid #343d4b;border-radius:12px;padding:10px;background:#151b23}}
-    .nba-tarjeta-equipo {{text-align:center}}
-    .nba-nombre {{font-size:12px;line-height:1.3;overflow-wrap:anywhere;margin-top:5px;color:#d1d5db}}
-    .nba-puntos {{font-size:25px;font-weight:750;color:#fff;margin-top:4px}}
-    .nba-tarjeta-indicador .nba-etiqueta {{font-size:12px;color:#cbd5e1}}
-    .nba-tarjeta-indicador .nba-valor {{font-size:19px;font-weight:700;color:#fff;overflow-wrap:anywhere;margin-top:5px}}
-    .nba-periodos {{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}}
-    .nba-periodos th,.nba-periodos td {{border:1px solid #394150;padding:8px 3px;text-align:center;white-space:nowrap}}
-    .nba-periodos th:first-child,.nba-periodos td:first-child {{width:34%;text-align:left;padding-left:7px}}
-    .nba-periodos th {{background:#252a33;color:#e5e7eb}}
-    </style>
-    <div class="nba-tarjeta-equipos">{equipo(visitante,puntos_visitante)}{equipo(local,puntos_local)}</div>
-    <div class="nba-tarjeta-totales">
-    <div class="nba-tarjeta-indicador"><div class="nba-etiqueta">Total proyectado</div><div class="nba-valor">{total:.1f}</div></div>
-    <div class="nba-tarjeta-indicador"><div class="nba-etiqueta">Diferencia proyectada</div><div class="nba-valor">{margen}</div></div>
-    </div>"""
-    return html
-
-
 def _tabla_periodos(periodos, local, visitante):
     """La tabla visual no modifica ni rellena datos de los períodos."""
     def valor(v):
@@ -160,9 +128,25 @@ def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
         p = datos['principal']
         local, visitante = datos['local'], datos['visitante']
         st.caption(f'{visitante} @ {local} · Ensemble · registros anteriores al partido')
-        st.markdown(_resumen_movil(local, visitante, p['local'], p['visitante'],
-                                  p['total'], p['diferencia_local'], datos['favorito']),
-                    unsafe_allow_html=True)
+        # Componentes nativos: evita que Streamlit muestre HTML como texto.
+        col_visitante, col_local = st.columns(2, gap='small')
+        for columna, equipo, puntos in (
+            (col_visitante, visitante, p['visitante']),
+            (col_local, local, p['local']),
+        ):
+            with columna:
+                logo = _logo_equipo(equipo)
+                if logo:
+                    st.image(logo, width=64)
+                st.caption(equipo)
+                st.metric('Puntos proyectados', f'{puntos:.1f}')
+        col_total, col_diferencia = st.columns(2, gap='small')
+        with col_total:
+            st.metric('Total proyectado', f"{p['total']:.1f}")
+        with col_diferencia:
+            diferencia = abs(p['diferencia_local'])
+            etiqueta = 'Empate' if diferencia == 0 else f"{diferencia:.1f} · {datos['favorito']}"
+            st.metric('Diferencia proyectada', etiqueta)
         st.markdown('**Proyecciones por período**')
         st.markdown(_tabla_periodos(datos['periodos'], local, visitante),
                     unsafe_allow_html=True)
