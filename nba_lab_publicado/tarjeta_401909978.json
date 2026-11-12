@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-12T01:40:27.720598+00:00",
+  "partido_id": "401909978",
+  "fecha_utc": "2026-11-13T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Minnesota Timberwolves",
+  "visitante": "Dallas Mavericks",
+  "proyeccion_local_ensemble": 112.5,
+  "proyeccion_visitante_ensemble": 110.67,
+  "total_modelo_c": 224.08,
+  "total_ensemble": 223.17,
+  "referencia_total_base": 223.9,
+  "edge_total_vs_base": -0.73,
+  "edge_total_modelo_c_vs_base": 0.18,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-13T01:00:00+00:00",
+    "local": "Minnesota Timberwolves",
+    "visitante": "Dallas Mavericks",
+    "equipos": {
+      "Minnesota Timberwolves": {
+        "ensemble": 112.5,
+        "modelo_c": 113.31,
+        "referencia_base": 112.65,
+        "edge_vs_base": -0.15,
+        "partidos_previos": 93
+      },
+      "Dallas Mavericks": {
+        "ensemble": 110.67,
+        "modelo_c": 110.77,
+        "referencia_base": 111.25,
+        "edge_vs_base": -0.58,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 224.08,
+    "total_ensemble": 223.17,
+    "referencia_total_base": 223.9,
+    "edge_total_vs_base": -0.73,
+    "edge_total_modelo_c_vs_base": 0.18,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

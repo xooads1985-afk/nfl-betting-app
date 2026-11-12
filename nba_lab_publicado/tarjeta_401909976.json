@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-12T01:39:38.534906+00:00",
+  "partido_id": "401909976",
+  "fecha_utc": "2026-11-13T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Philadelphia 76ers",
+  "visitante": "Toronto Raptors",
+  "proyeccion_local_ensemble": 113.93,
+  "proyeccion_visitante_ensemble": 111.62,
+  "total_modelo_c": 226.73,
+  "total_ensemble": 225.55,
+  "referencia_total_base": 225.05,
+  "edge_total_vs_base": 0.5,
+  "edge_total_modelo_c_vs_base": 1.68,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-13T00:00:00+00:00",
+    "local": "Philadelphia 76ers",
+    "visitante": "Toronto Raptors",
+    "equipos": {
+      "Philadelphia 76ers": {
+        "ensemble": 113.93,
+        "modelo_c": 114.59,
+        "referencia_base": 112.4,
+        "edge_vs_base": 1.53,
+        "partidos_previos": 93
+      },
+      "Toronto Raptors": {
+        "ensemble": 111.62,
+        "modelo_c": 112.14,
+        "referencia_base": 112.65,
+        "edge_vs_base": -1.03,
+        "partidos_previos": 92
+      }
+    },
+    "total_modelo_c": 226.73,
+    "total_ensemble": 225.55,
+    "referencia_total_base": 225.05,
+    "edge_total_vs_base": 0.5,
+    "edge_total_modelo_c_vs_base": 1.68,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
