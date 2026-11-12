@@ -3,6 +3,7 @@ Compatible con mostrar_tarjeta(partido, referencias=None, pace=None, partidos=No
 No escribe en Supabase. Mantiene fuera proyecciones de períodos no validadas.
 """
 import json
+from html import escape
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
@@ -32,11 +33,59 @@ def _logo_equipo(nombre):
     return f'https://a.espncdn.com/i/teamlogos/nba/500/{sigla}.png' if sigla else None
 
 
-def _encabezado_equipo(columna, nombre, puntos):
-    logo = _logo_equipo(nombre)
-    if logo:
-        columna.image(logo, width=66)
-    columna.metric(nombre, f'{puntos:.1f}')
+def _sigla(nombre):
+    """Abreviatura compacta y segura; evita encabezados extensos en móvil."""
+    codigos = {'Washington Wizards': 'WAS', 'Detroit Pistons': 'DET'}
+    if nombre in codigos:
+        return codigos[nombre]
+    sigla = SIGLAS_NBA.get(nombre)
+    return sigla.upper() if sigla else 'EQ'
+
+
+def _resumen_movil(local, visitante, puntos_local, puntos_visitante, total, diferencia, favorito):
+    """Diseño compacto en dos columnas incluso en pantallas pequeñas."""
+    def equipo(nombre, puntos):
+        logo = _logo_equipo(nombre)
+        img = (f'<img src="{escape(logo, quote=True)}" alt="Escudo de {escape(nombre, quote=True)}" '
+               'style="width:52px;height:52px;object-fit:contain"/>' if logo else '')
+        return (f'<div class="nba-tarjeta-equipo">{img}'
+                f'<div class="nba-nombre">{escape(nombre)}</div>'
+                f'<div class="nba-puntos">{puntos:.1f}</div></div>')
+    margen = ('Empate proyectado' if diferencia == 0
+              else f'{abs(diferencia):.1f} · {escape(favorito)}')
+    html = f"""<style>
+    .nba-tarjeta-equipos,.nba-tarjeta-totales {{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;margin:10px 0}}
+    .nba-tarjeta-equipo,.nba-tarjeta-indicador {{min-width:0;border:1px solid #343d4b;border-radius:12px;padding:10px;background:#151b23}}
+    .nba-tarjeta-equipo {{text-align:center}}
+    .nba-nombre {{font-size:12px;line-height:1.3;overflow-wrap:anywhere;margin-top:5px;color:#d1d5db}}
+    .nba-puntos {{font-size:25px;font-weight:750;color:#fff;margin-top:4px}}
+    .nba-tarjeta-indicador .nba-etiqueta {{font-size:12px;color:#cbd5e1}}
+    .nba-tarjeta-indicador .nba-valor {{font-size:19px;font-weight:700;color:#fff;overflow-wrap:anywhere;margin-top:5px}}
+    .nba-periodos {{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}}
+    .nba-periodos th,.nba-periodos td {{border:1px solid #394150;padding:8px 3px;text-align:center;white-space:nowrap}}
+    .nba-periodos th:first-child,.nba-periodos td:first-child {{width:34%;text-align:left;padding-left:7px}}
+    .nba-periodos th {{background:#252a33;color:#e5e7eb}}
+    </style>
+    <div class="nba-tarjeta-equipos">{equipo(visitante,puntos_visitante)}{equipo(local,puntos_local)}</div>
+    <div class="nba-tarjeta-totales">
+    <div class="nba-tarjeta-indicador"><div class="nba-etiqueta">Total proyectado</div><div class="nba-valor">{total:.1f}</div></div>
+    <div class="nba-tarjeta-indicador"><div class="nba-etiqueta">Diferencia proyectada</div><div class="nba-valor">{margen}</div></div>
+    </div>"""
+    return html
+
+
+def _tabla_periodos(periodos, local, visitante):
+    """La tabla visual no modifica ni rellena datos de los períodos."""
+    def valor(v):
+        return 'N/D' if v is None else f'{v:.1f}'
+    filas = ''.join(
+        f'<tr><td>{escape(r["periodo"])}</td><td>{valor(r["visitante"])}</td>'
+        f'<td>{valor(r["local"])}</td><td>{valor(r["ambos"])}</td></tr>'
+        for r in periodos
+    )
+    return (f'<table class="nba-periodos"><thead><tr><th>Período</th>'
+            f'<th>{_sigla(visitante)}</th><th>{_sigla(local)}</th><th>Ambos</th>'
+            f'</tr></thead><tbody>{filas}</tbody></table>')
 
 
 def consultar(partido_id):
@@ -111,21 +160,12 @@ def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
         p = datos['principal']
         local, visitante = datos['local'], datos['visitante']
         st.caption(f'{visitante} @ {local} · Ensemble · registros anteriores al partido')
-        c1, c2 = st.columns(2)
-        _encabezado_equipo(c1, local, p['local'])
-        _encabezado_equipo(c2, visitante, p['visitante'])
-        c1, c2 = st.columns(2)
-        c1.metric('Total proyectado', f"{p['total']:.1f}")
-        if p['diferencia_local'] == 0:
-            margen = 'Empate proyectado'
-        else:
-            margen = f"{abs(p['diferencia_local']):.1f} · {datos['favorito']}"
-        c2.metric('Diferencia proyectada', margen)
+        st.markdown(_resumen_movil(local, visitante, p['local'], p['visitante'],
+                                  p['total'], p['diferencia_local'], datos['favorito']),
+                    unsafe_allow_html=True)
         st.markdown('**Proyecciones por período**')
-        st.dataframe([{'Período': r['periodo'], local: 'N/D' if r['local'] is None else f"{r['local']:.1f}",
-                       visitante: 'N/D' if r['visitante'] is None else f"{r['visitante']:.1f}",
-                       'Ambos': 'N/D' if r['ambos'] is None else f"{r['ambos']:.1f}"}
-                      for r in datos['periodos']], hide_index=True, use_container_width=True)
+        st.markdown(_tabla_periodos(datos['periodos'], local, visitante),
+                    unsafe_allow_html=True)
         st.caption('Primer cuarto y primera mitad: sin predicciones validadas. No se distribuyen puntos artificialmente.')
         with st.expander('Auditoría · cuatro motores'):
             st.dataframe([{'Motor': r['modelo'], local: round(r['local'], 3),
