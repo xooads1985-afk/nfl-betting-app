@@ -41,7 +41,23 @@ def _consulta(method, query='', payload=None, prefer=None):
             raw = response.read()
             return json.loads(raw) if raw else []
     except HTTPError as exc:
-        raise RuntimeError(f'Supabase HTTP {exc.code}; verifica que exista la tabla y sus permisos.') from exc
+        # Mostrar el error estructurado de PostgREST sin exponer secretos ni la petición.
+        try:
+            respuesta = json.loads(exc.read().decode('utf-8', errors='replace'))
+        except (ValueError, UnicodeError, OSError):
+            respuesta = {}
+        if not isinstance(respuesta, dict):
+            respuesta = {}
+        campos = ('code', 'message', 'details', 'hint')
+        partes = []
+        for campo in campos:
+            valor = respuesta.get(campo)
+            if isinstance(valor, str) and valor.strip():
+                # Evitar que el mensaje refleje accidentalmente las credenciales.
+                seguro = valor.replace(key, '[OCULTO]').replace(url, '[URL OCULTA]')
+                partes.append(f'{campo}: {seguro[:350]}')
+        detalle = ' | '.join(partes) if partes else 'Sin detalle estructurado disponible.'
+        raise RuntimeError(f'Supabase HTTP {exc.code}: {detalle}') from exc
     except (URLError, TimeoutError) as exc:
         raise RuntimeError('No se pudo contactar Supabase.') from exc
 
@@ -436,4 +452,3 @@ def mostrar():
 
 if __name__ == '__main__':
     mostrar()
-
