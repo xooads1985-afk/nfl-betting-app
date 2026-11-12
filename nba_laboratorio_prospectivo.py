@@ -346,6 +346,26 @@ def mostrar():
         st.session_state.pop('nba_lab_pace_prospectivo', None)
         st.session_state['nba_lab_pace_huella'] = huella_pace
 
+    # El CSV Pace validado también contiene el esquema histórico requerido por
+    # Base, Modelo C y Ensemble. No cambia ninguna fórmula de los motores.
+    historial_tres_listo = estado['completo']
+    if not historial_tres_listo and not historial_pace.empty:
+        historico_csv = historial_pace.rename(columns={'partido_id': 'id'}).copy()
+        historico_csv['id'] = historico_csv['id'].astype(str)
+        historico_csv['fecha_utc'] = pd.to_datetime(
+            historico_csv['fecha_utc'], utc=True, errors='coerce')
+        historico_csv = historico_csv.loc[
+            historico_csv['finalizado'].eq(True)
+            & historico_csv['fecha_utc'].notna()
+            & historico_csv['fecha_utc'].lt(pd.Timestamp.now(tz='UTC'))
+        ].sort_values('fecha_utc').drop_duplicates('id')
+        if len(historico_csv) >= 20:
+            historico = historico_csv
+            historial_tres_listo = True
+            st.success(f'Historial de los tres modelos: {len(historico)} partidos únicos del CSV.')
+        else:
+            st.warning('El CSV no contiene suficientes partidos previos para los tres modelos.')
+
     futuros = estado['futuros']
     st.caption(f'Historial recuperado: {len(historico)} partidos. '
                'El avance se conserva mientras dure esta sesión de Streamlit.')
@@ -393,7 +413,7 @@ def mostrar():
             ).values.tobytes()
         ).hexdigest() if not historico.empty else None
         inicio_juego = pd.to_datetime(juego['fecha_utc'], utc=True, errors='coerce')
-        if st.button('Calcular tres modelos', use_container_width=True, disabled=not estado['completo']):
+        if st.button('Calcular tres modelos', use_container_width=True, disabled=not historial_tres_listo):
             try:
                 valores = calcular(historico, juego)
                 st.session_state['nba_lab_prospectivo'] = {
@@ -404,7 +424,7 @@ def mostrar():
                 st.session_state.pop('nba_lab_prospectivo', None)
                 st.error(str(exc))
         calculado = st.session_state.get('nba_lab_prospectivo', {})
-        vigente = (estado['completo'] and calculado.get('id') == str(juego['id'])
+        vigente = (historial_tres_listo and calculado.get('id') == str(juego['id'])
                    and calculado.get('firma_historial') == firma_historial
                    and calculado.get('inicio_utc') == inicio_juego.isoformat())
         if vigente:
