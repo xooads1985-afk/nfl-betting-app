@@ -1,0 +1,58 @@
+name: NBA - Corregir tarjeta guardada
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  corregir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Conectar resultados guardados
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          a = Path("nba_tarjeta_auto.py")
+          b = Path("nba_prediccion_tarjeta.py")
+          x = a.read_text(encoding="utf-8")
+          y = b.read_text(encoding="utf-8")
+          marca = "NBA_GUARDADOS_COMPARTIDOS_V1"
+          if marca in x and marca in y:
+              print("Ya instalado")
+              raise SystemExit(0)
+          if marca in x or marca in y:
+              raise RuntimeError("Cambio parcial: revisar antes de continuar")
+          anterior = "    mostrar_tarjeta(\n        partido,\n        referencias=referencias,\n        pace=pace,\n        partidos=partidos,\n    )"
+          nuevo = "    # NBA_GUARDADOS_COMPARTIDOS_V1\n    datos_guardados = mostrar_tarjeta(\n        partido,\n        referencias=referencias,\n        pace=pace,\n        partidos=partidos,\n    )\n    if isinstance(datos_guardados, dict):\n        compartido = _publicar_resultado(\n            st, partido, datos_guardados, periodos_resumen\n        )\n        _mostrar_edge(st, compartido)"
+          if x.count(anterior) != 1:
+              raise RuntimeError("No coincide llamada de tarjeta")
+          x = x.replace(anterior, nuevo, 1)
+          anterior_b = "        st.caption('Estimaciones estadísticas; no garantizan el resultado final.')"
+          nuevo_b = anterior_b + "\n        # NBA_GUARDADOS_COMPARTIDOS_V1\n        return datos"
+          if y.count(anterior_b) != 1:
+              raise RuntimeError("No coincide salida de tarjeta")
+          y = y.replace(anterior_b, nuevo_b, 1)
+          compile(x, str(a), "exec")
+          compile(y, str(b), "exec")
+          a.write_text(x, encoding="utf-8")
+          b.write_text(y, encoding="utf-8")
+          print("Cambios verificados")
+          PY
+      - name: Verificar Python
+        run: python -m py_compile nba_tarjeta_auto.py nba_prediccion_tarjeta.py
+      - name: Guardar en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_tarjeta_auto.py nba_prediccion_tarjeta.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: compartir resultados guardados"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
