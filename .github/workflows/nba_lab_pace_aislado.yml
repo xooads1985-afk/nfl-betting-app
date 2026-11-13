@@ -1,39 +1,47 @@
-
 name: NBA Laboratorio - Conectar Pace
-
 on:
   workflow_dispatch:
-
+  schedule:
+    - cron: '15 13 * * *'
 permissions:
-  contents: read
-
+  contents: write
+concurrency:
+  group: nba-pace-incremental-experimental
+  cancel-in-progress: false
 jobs:
   pace:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Obtener rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          fetch-depth: 0
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - run: pip install pandas requests numpy scikit-learn
-
-      - name: Descargar y clasificar historial
+      - name: Dependencias
+        run: pip install pandas numpy requests streamlit
+      - name: Validar sintaxis
+        run: python -m py_compile actualizar_pace_incremental_nba.py nba_pace_historial.py
+      - name: Actualizar historial Pace validado
+        run: python actualizar_pace_incremental_nba.py --dias 7 --max-partidos 100
+      - name: Publicar únicamente historial Pace
         run: |
-          python nba_lab_descargar_cache.py --desde 2025-10-21 --hasta "$(date -u +%Y-%m-%d)"
-          python nba_lab_reentrenar_depurado.py
-
-      - name: Conectar boxscores y calcular Pace cronológico
-        run: python nba_lab_pace_conectar.py
-
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- nba_historial_pace.csv
+          if git diff --cached --quiet; then
+            echo 'Sin nuevos partidos Pace'
+          else
+            git commit -m 'NBA: actualizar historial Pace incremental verificado'
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nba-lab-pace-auditoria
-          path: |
-            nba_lab_resultados_depurados/pace/
-            nba_lab_resultados_depurados/reentrenamiento/estado_reentrenamiento.json
+          name: nba-pace-historial-auditable
+          path: nba_historial_pace.csv
           if-no-files-found: warn
