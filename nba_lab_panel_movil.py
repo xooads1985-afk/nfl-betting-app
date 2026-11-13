@@ -83,25 +83,45 @@ def ganador(df, etiqueta):
 with st.expander("🧪 Tarjeta automática NBA — prueba", expanded=False):
     st.caption("Consulta el calendario solo al pulsar el botón. Guardado desactivado.")
     if st.button("📅 Consultar próximos partidos NBA", key="nba_lab_consultar_calendario"):
-        from datetime import datetime, timedelta
-        from zoneinfo import ZoneInfo
-        from modulo_nba import cargar_partidos
+        import requests
         hoy = datetime.now(ZoneInfo("America/Mazatlan")).date()
+        st.session_state["nba_lab_agenda_prueba"] = []
         try:
-            with st.spinner("Consultando calendario ESPN..."):
-                agenda, avisos = cargar_partidos(hoy.isoformat(), (hoy + timedelta(days=3)).isoformat())
-            if avisos:
-                st.warning("Calendario: " + " | ".join(str(a) for a in avisos[:2]))
-            if agenda is not None and not agenda.empty:
-                futuros = agenda.loc[~agenda["finalizado"].fillna(False)].copy()
-                futuros["fecha_utc_dt"] = pd.to_datetime(futuros["fecha_utc"], utc=True, errors="coerce")
-                futuros = futuros.loc[futuros["fecha_utc_dt"].notna() &
-                                      (futuros["fecha_utc_dt"] > pd.Timestamp.now(tz="UTC"))]
-                st.session_state["nba_lab_agenda_prueba"] = futuros.drop(columns=["fecha_utc_dt"]).to_dict("records")
+            with st.spinner("Consultando un día de ESPN (máximo 8 segundos)..."):
+                respuesta = requests.get(
+                    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+                    params={"dates": hoy.strftime("%Y%m%d"), "limit": 100},
+                    timeout=(3, 8),
+                )
+                respuesta.raise_for_status()
+                datos = respuesta.json()
+            eventos = datos.get("events", [])
+            agenda = []
+            for evento in eventos if isinstance(eventos, list) else []:
+                competidores = (evento.get("competitions") or [{}])[0].get("competitors", [])
+                local = next((x for x in competidores if x.get("homeAway") == "home"), {})
+                visita = next((x for x in competidores if x.get("homeAway") == "away"), {})
+                agenda.append({
+                    "id": str(evento.get("id", "")),
+                    "fecha_utc": evento.get("date", ""),
+                    "local": local.get("team", {}).get("displayName", ""),
+                    "visitante": visita.get("team", {}).get("displayName", ""),
+                    "finalizado": bool(evento.get("status", {}).get("type", {}).get("completed", False)),
+                })
+            futuros = pd.DataFrame(agenda)
+            if not futuros.empty:
+                fechas = pd.to_datetime(futuros["fecha_utc"], utc=True, errors="coerce")
+                futuros = futuros.loc[(~futuros["finalizado"]) & fechas.notna() &
+                                      (fechas > pd.Timestamp.now(tz="UTC"))]
+                st.session_state["nba_lab_agenda_prueba"] = futuros.to_dict("records")
+            if st.session_state["nba_lab_agenda_prueba"]:
+                st.success(f"ESPN respondió: {len(st.session_state['nba_lab_agenda_prueba'])} encuentros futuros.")
             else:
-                st.session_state["nba_lab_agenda_prueba"] = []
-        except (ImportError, ValueError, KeyError, OSError, RuntimeError) as exc:
-            st.error(f"No se pudo consultar el calendario: {type(exc).__name__}: {exc}")
+                st.info("ESPN respondió, pero hoy no hay encuentros futuros. Se puede consultar otro día.")
+        except requests.RequestException as exc:
+            st.error(f"Consulta ESPN no disponible: {type(exc).__name__}. No se ejecutaron los motores.")
+        except (ValueError, KeyError, TypeError, IndexError) as exc:
+            st.error(f"Formato inesperado del calendario: {type(exc).__name__}: {exc}")
     agenda_prueba = st.session_state.get("nba_lab_agenda_prueba", [])
     if agenda_prueba:
         opciones = {str(p["id"]): p for p in agenda_prueba if p.get("id")}
