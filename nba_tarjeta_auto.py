@@ -445,12 +445,18 @@ def mostrar_tarjeta_auto(
         )
         return resultado
 
-    mostrar_tarjeta(
+    # NBA_GUARDADOS_COMPARTIDOS_V1
+    datos_guardados = mostrar_tarjeta(
         partido,
         referencias=referencias,
         pace=pace,
         partidos=partidos,
     )
+    if isinstance(datos_guardados, dict):
+        compartido = _publicar_resultado(
+            st, partido, datos_guardados, periodos_resumen
+        )
+        _mostrar_edge(st, compartido)
 
     if periodos_resumen is not None:
         _mostrar_periodos_resumen(

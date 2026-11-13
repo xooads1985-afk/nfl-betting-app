@@ -160,3 +160,5 @@ def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
             else:
                 st.caption('Referencia histórica: N/D (requiere cinco partidos previos por equipo).')
         st.caption('Estimaciones estadísticas; no garantizan el resultado final.')
+        # NBA_GUARDADOS_COMPARTIDOS_V1
+        return datos
