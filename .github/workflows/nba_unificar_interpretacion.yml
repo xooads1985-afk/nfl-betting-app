@@ -1,0 +1,185 @@
+name: NBA - Unificar interpretacion inteligente
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Obtener rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Integrar resultado compartido
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ruta = Path("resumen_inteligente_nba.py")
+          texto = ruta.read_text(encoding="utf-8")
+
+          marca = "NBA_INTERPRETACION_UNIFICADA_V1"
+
+          if marca in texto:
+              print("Integracion ya instalada.")
+              raise SystemExit(0)
+
+          original = (
+              "    _interpretacion_inteligente_nba("
+              "local, visita, historiales, proy, "
+              "tabla_periodos, muestras, partidos, fecha)"
+          )
+
+          if texto.count(original) != 1:
+              raise RuntimeError(
+                  "No se encontro exactamente una llamada "
+                  "a la interpretacion original. "
+                  "No se modifico el archivo."
+              )
+
+          nuevo = '''
+              # NBA_INTERPRETACION_UNIFICADA_V1
+              from nba_tarjeta_auto import obtener_resultado_compartido
+
+              consolidado = obtener_resultado_compartido(partido)
+
+              if (
+                  consolidado is not None
+                  and consolidado.get("total") is not None
+                  and consolidado.get("puntos_local") is not None
+                  and consolidado.get("puntos_visitante") is not None
+              ):
+                  st.markdown(
+                      "### 🧠 Interpretación Inteligente NBA"
+                  )
+                  st.caption(
+                      "Resultados compartidos con la Tarjeta Inteligente"
+                  )
+
+                  total_motor = float(consolidado["total"])
+                  puntos_local = float(
+                      consolidado["puntos_local"]
+                  )
+                  puntos_visita = float(
+                      consolidado["puntos_visitante"]
+                  )
+
+                  diferencia = puntos_local - puntos_visita
+
+                  st.caption(
+                      f"Total: {total_motor:.1f} pts · "
+                      f"{consolidado.get('motor_total') or 'Motor no identificado'}"
+                  )
+
+                  st.caption(
+                      f"{visita}: {puntos_visita:.1f} pts · "
+                      f"{local}: {puntos_local:.1f} pts"
+                  )
+
+                  if abs(diferencia) < 0.05:
+                      st.info(
+                          "Los equipos presentan equilibrio matemático."
+                      )
+                  else:
+                      superior = (
+                          local if diferencia > 0 else visita
+                      )
+                      st.info(
+                          f"{superior} presenta una proyección "
+                          f"superior por {abs(diferencia):.1f} puntos."
+                      )
+
+                  referencia = consolidado.get(
+                      "referencia_total"
+                  )
+                  edge = consolidado.get("edge_total")
+
+                  if referencia is not None and edge is not None:
+                      st.caption(
+                          f"Referencia histórica: "
+                          f"{float(referencia):.1f} pts · "
+                          f"Edge total: {float(edge):+.1f} pts"
+                      )
+                  else:
+                      st.caption(
+                          "Edge total pendiente de referencia "
+                          "histórica válida."
+                      )
+
+                  st.caption(
+                      "Los puntos por equipo y el total pueden "
+                      "proceder de motores diferentes. "
+                      "El Edge es descriptivo, no una probabilidad."
+                  )
+
+              else:
+                  _interpretacion_inteligente_nba(
+                      local,
+                      visita,
+                      historiales,
+                      proy,
+                      tabla_periodos,
+                      muestras,
+                      partidos,
+                      fecha,
+                  )
+          '''
+
+          import textwrap
+
+          nuevo = textwrap.dedent(nuevo)
+          nuevo = textwrap.indent(nuevo, "    ")
+
+          actualizado = texto.replace(original, nuevo, 1)
+
+          compile(
+              actualizado,
+              str(ruta),
+              "exec",
+          )
+
+          ruta.write_text(
+              actualizado,
+              encoding="utf-8",
+          )
+
+          print("Interpretacion integrada correctamente.")
+          PY
+
+      - name: Verificar sintaxis
+        run: |
+          python -m py_compile \
+            resumen_inteligente_nba.py \
+            nba_tarjeta_auto.py
+
+      - name: Guardar cambio experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- resumen_inteligente_nba.py
+
+          if git diff --cached --quiet; then
+            echo "No hay cambios pendientes."
+          else
+            git commit -m \
+              "NBA: conectar interpretacion con tarjeta consolidada"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
+
