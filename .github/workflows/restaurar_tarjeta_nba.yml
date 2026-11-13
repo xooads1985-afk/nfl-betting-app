@@ -1,0 +1,27 @@
+name: Restaurar tarjeta NBA final
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  restaurar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python restaurar_tarjeta_nba.py
+          python -m py_compile nba_tarjeta_puente.py nba_tarjeta_auto.py resumen_inteligente_nba.py
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add nba_tarjeta_puente.py nba_tarjeta_auto.py resumen_inteligente_nba.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'Restaurar tarjeta NBA completa y compacta'
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
