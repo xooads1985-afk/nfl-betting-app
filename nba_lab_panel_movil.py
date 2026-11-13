@@ -84,6 +84,8 @@ with st.expander("🧪 Tarjeta automática NBA — prueba", expanded=False):
     st.caption("Consulta el calendario solo al pulsar el botón. Guardado desactivado.")
     if st.button("📅 Consultar próximos partidos NBA", key="nba_lab_consultar_calendario"):
         import requests
+                from datetime import datetime
+                from zoneinfo import ZoneInfo
         hoy = datetime.now(ZoneInfo("America/Mazatlan")).date()
         st.session_state["nba_lab_agenda_prueba"] = []
         try:
