@@ -2173,9 +2173,58 @@ def _tarjeta_unica_partido(partidos, partido):
         st.dataframe(tabla_periodos[['Período', 'Visitante', 'Local', 'Total']],
                      hide_index=True, use_container_width=True)
     st.markdown('**📐 Proyección, referencia y Edge · cada período**')
-    tabla_edge_periodos = tabla_periodos[['Período', 'Total', 'Referencia total', 'Edge descriptivo']].copy()
-    tabla_edge_periodos.columns = ['Período', 'Proy.', 'Ref.', 'Edge']
-    st.dataframe(tabla_edge_periodos, hide_index=True, use_container_width=True)
+    # NBA_EDGE_FINAL_UNIFICADO_V1
+    tabla_edge_periodos = tabla_periodos[
+        ['Período', 'Total', 'Referencia total', 'Edge descriptivo']
+    ].copy()
+    tabla_edge_periodos.columns = [
+        'Período', 'Proy.', 'Ref.', 'Edge'
+    ]
+
+    if consolidado is not None:
+        total_motor = consolidado.get('total')
+        referencia_motor = consolidado.get('referencia_total')
+
+        if total_motor is not None:
+            mascara = tabla_edge_periodos[
+                'Período'
+            ].eq('Final reglamentario')
+
+            if mascara.any():
+                tabla_edge_periodos.loc[
+                    mascara, 'Proy.'
+                ] = float(total_motor)
+
+                if referencia_motor is not None:
+                    tabla_edge_periodos.loc[
+                        mascara, 'Ref.'
+                    ] = float(referencia_motor)
+                    tabla_edge_periodos.loc[
+                        mascara, 'Edge'
+                    ] = (
+                        float(total_motor)
+                        - float(referencia_motor)
+                    )
+                else:
+                    tabla_edge_periodos.loc[
+                        mascara, 'Ref.'
+                    ] = float('nan')
+                    tabla_edge_periodos.loc[
+                        mascara, 'Edge'
+                    ] = float('nan')
+
+    st.dataframe(
+        tabla_edge_periodos,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    st.caption(
+        'Final reglamentario: motor seleccionado '
+        'cuando está disponible. '
+        'Otros períodos: estimaciones históricas. '
+        'Edge = proyección − referencia.'
+    )
     with st.expander('🔎 Muestra histórica por período'):
         st.dataframe(tabla_periodos[['Período', 'Muestra mínima']],
                      hide_index=True, use_container_width=True)
