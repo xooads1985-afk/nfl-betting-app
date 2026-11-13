@@ -2006,13 +2006,15 @@ def _tarjeta_unica_partido(partidos, partido):
             juegos[str(fila.id)] = str(fila.fecha_utc)[:10]
     cache = st.session_state.setdefault('ri_nba_cache_cuartos_v17', {})
     cache_detalles = st.session_state.setdefault('ri_nba_detalles_triples_v39', {})
+    # NBA_CARGA_RAPIDA_SIN_ESPN_HISTORICO_V1
+    # Reutilizar únicamente boxscores que ya estén en la sesión.
+    # No descargar 20 partidos históricos mientras se construye la tarjeta.
+    # Si falta cobertura, Q1/primera mitad se muestran como N/D.
     for ident in juegos:
-        if ident not in cache:
+        if ident not in cache and ident in cache_detalles:
             try:
-                detalle = cargar_detalle(ident)
-                cache[ident] = _puntos_periodos(detalle)
-                cache_detalles[ident] = detalle
-            except Exception:
+                cache[ident] = _puntos_periodos(cache_detalles[ident])
+            except (ValueError, TypeError, KeyError):
                 cache[ident] = None
     muestras = {e: [] for e in (local, visita)}
     for e, hist in historiales.items():
