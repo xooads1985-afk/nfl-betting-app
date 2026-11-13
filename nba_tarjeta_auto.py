@@ -53,6 +53,9 @@ def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
                   and timedelta(0) <= ahora - anterior['hora'] < timedelta(minutes=intervalo_minutos)
                   and anterior.get('resultado', {}).get('ok') is True
                   and anterior['resultado'].get('estado') in ('completo', 'simulacion'))
+    # NBA_DIAGNOSTICO_TIEMPOS_V1
+    from time import perf_counter
+    _inicio_motores = perf_counter()
     if reutilizar:
         resultado = anterior['resultado']
     else:
@@ -70,6 +73,10 @@ def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
         else:
             cache.pop(clave, None)
 
+    _segundos_motores = perf_counter() - _inicio_motores
+    with st.expander('⏱️ Diagnóstico de velocidad · tarjeta NBA'):
+        st.caption(f"Motores y fuentes: {_segundos_motores:.2f} s · {'caché de tarjeta' if reutilizar else 'cálculo/consulta'}")
+        st.caption('Este tiempo incluye el controlador y sus fuentes, no la preparación previa de períodos ESPN.')
     if not resultado.get('ok'):
         st.warning('Automatización no disponible: ' + resultado.get('mensaje', 'Error desconocido'))
         return resultado
