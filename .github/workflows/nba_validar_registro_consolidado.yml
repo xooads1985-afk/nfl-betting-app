@@ -1,0 +1,187 @@
+name: NBA - Validar registro consolidado
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Crear validador y conectar auditoria
+        shell: bash
+        run: |
+          cat > nba_registro_consolidado.py <<'PY'
+          """Validación pura del registro NBA; no accede a Supabase."""
+          from datetime import datetime, timezone
+          import hashlib
+          import json
+          import math
+          
+          VERSION = "nba-consolidado-v1"
+          
+          
+          def _fecha(valor):
+              if not isinstance(valor, str):
+                  raise ValueError("Fecha UTC ausente")
+              dt = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+              if dt.tzinfo is None:
+                  raise ValueError("La fecha requiere zona horaria")
+              return dt.astimezone(timezone.utc)
+          
+          
+          def _numero(valor, nombre):
+              if isinstance(valor, bool) or not isinstance(valor, (float, int)):
+                  raise ValueError(f"{nombre}: valor numérico requerido")
+              if not math.isfinite(valor):
+                  raise ValueError(f"{nombre}: valor no finito")
+              return round(float(valor), 3)
+          
+          
+          def construir_registro(auditoria, ahora=None):
+              """Construye una instantánea verificable; no la persiste."""
+              ahora = ahora or datetime.now(timezone.utc)
+              if ahora.tzinfo is None:
+                  raise ValueError("El reloj debe incluir zona horaria")
+              inicio = _fecha(auditoria.get("inicio_utc"))
+              if ahora.astimezone(timezone.utc) >= inicio:
+                  raise ValueError("Partido iniciado: guardado bloqueado")
+          
+              partido = str(auditoria.get("partido_id") or "").strip()
+              if not partido:
+                  raise ValueError("Identificador de partido ausente")
+              equipos = auditoria.get("equipos") or {}
+              local = str(equipos.get("local") or "").strip()
+              visitante = str(equipos.get("visitante") or "").strip()
+              if not local or not visitante or local == visitante:
+                  raise ValueError("Equipos no válidos")
+          
+              seleccion = auditoria.get("seleccion") or {}
+              motores = {}
+              for objetivo in ("puntos_por_equipo", "total"):
+                  info = seleccion.get(objetivo) or {}
+                  motor = str(info.get("motor") or "").strip()
+                  if not motor:
+                      raise ValueError(f"Falta motor de {objetivo}")
+                  muestra = info.get("muestra")
+                  if isinstance(muestra, bool) or not isinstance(muestra, int) or muestra <= 0:
+                      raise ValueError(f"Muestra histórica inválida: {objetivo}")
+                  mae = _numero(info.get("MAE"), f"MAE {objetivo}")
+                  if mae < 0:
+                      raise ValueError(f"MAE inválido: {objetivo}")
+                  motores[objetivo] = {
+                      "motor": motor,
+                      "MAE": mae,
+                      "muestra": muestra,
+                      "sesgo": None if info.get("sesgo") is None else _numero(info["sesgo"], f"sesgo {objetivo}"),
+                  }
+          
+              campos = ("local", "visitante", "total")
+              proy = auditoria.get("proyecciones") or {}
+              refs = auditoria.get("referencias") or {}
+              edges = auditoria.get("edge") or {}
+              proyecciones = {k: _numero(proy.get(k), f"proyección {k}") for k in campos}
+              referencias = {k: _numero(refs.get(k), f"referencia {k}") for k in campos}
+              edge = {k: _numero(edges.get(k), f"Edge {k}") for k in campos}
+              for k in campos:
+                  if abs(edge[k] - (proyecciones[k] - referencias[k])) > 0.002:
+                      raise ValueError(f"Edge inconsistente: {k}")
+              if any(v < 0 for v in proyecciones.values()):
+                  raise ValueError("Proyecciones negativas")
+          
+              modelos = auditoria.get("cuatro_motores")
+              if not isinstance(modelos, list) or len(modelos) != 4:
+                  raise ValueError("Se requieren cuatro motores")
+              registro = {
+                  "version": VERSION,
+                  "partido_id": partido,
+                  "inicio_utc": inicio.isoformat().replace("+00:00", "Z"),
+                  "equipos": {"local": local, "visitante": visitante},
+                  "seleccion": motores,
+                  "proyecciones": proyecciones,
+                  "referencias": referencias,
+                  "edge": edge,
+                  "cuatro_motores": modelos,
+              }
+              canon = json.dumps(registro, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+              return {
+                  "clave_unica": f"{VERSION}:{partido}",
+                  "huella_sha256": hashlib.sha256(canon.encode("utf-8")).hexdigest(),
+                  "registro": registro,
+                  "estado": "validado_sin_guardar",
+              }
+          PY
+          python - <<'PATCH'
+          from pathlib import Path
+          p = Path("nba_tarjeta_auto.py")
+          s = p.read_text(encoding="utf-8")
+          marca = "NBA_PREGUARDADO_SEGURO_V1"
+          if marca in s:
+              print("Integración ya existente")
+              raise SystemExit(0)
+          ancla = '        st.json(registro, expanded=False)\n'
+          if s.count(ancla) != 1:
+              raise RuntimeError("Ancla de auditoría no coincide; sin cambios")
+          nuevo = ancla + """        # NBA_PREGUARDADO_SEGURO_V1
+                  from nba_registro_consolidado import construir_registro
+                  try:
+                      preparado = construir_registro(registro)
+                      st.success("Registro validado · sin guardar")
+                      st.caption("Clave única: " + preparado["clave_unica"])
+                      st.caption("SHA-256: " + preparado["huella_sha256"])
+                  except (ValueError, TypeError, KeyError) as exc:
+                      st.warning("Registro aún no apto para guardar: " + str(exc))
+          """
+          s = s.replace(ancla, nuevo, 1)
+          compile(s, str(p), "exec")
+          p.write_text(s, encoding="utf-8")
+          PATCH
+      - name: Verificar sintaxis y validaciones
+        shell: bash
+        run: |
+          python -m py_compile nba_tarjeta_auto.py nba_registro_consolidado.py
+          python - <<'TEST'
+          from datetime import datetime, timezone
+          from nba_registro_consolidado import construir_registro
+          caso = {
+              "partido_id": "401909297", "inicio_utc": "2026-11-14T00:00:00Z",
+              "equipos": {"local": "Orlando Magic", "visitante": "Milwaukee Bucks"},
+              "seleccion": {
+                  "puntos_por_equipo": {"motor": "Ensemble", "MAE": 9.693, "muestra": 2248, "sesgo": None},
+                  "total": {"motor": "Modelo C", "MAE": 15.274, "muestra": 1124, "sesgo": None},
+              },
+              "proyecciones": {"local": 114.91, "visitante": 109.741, "total": 221.642},
+              "referencias": {"local": 107.6, "visitante": 100.6, "total": 208.2},
+              "edge": {"local": 7.310000000000002, "visitante": 9.141000000000005, "total": 13.442000000000007},
+              "cuatro_motores": [{}, {}, {}, {}],
+          }
+          previo = datetime(2026, 11, 13, 22, tzinfo=timezone.utc)
+          a = construir_registro(caso, ahora=previo)
+          b = construir_registro(caso, ahora=previo)
+          assert a["huella_sha256"] == b["huella_sha256"]
+          assert a["registro"]["edge"]["local"] == 7.31
+          try:
+              construir_registro(caso, ahora=datetime(2026, 11, 14, 1, tzinfo=timezone.utc))
+          except ValueError:
+              pass
+          else:
+              raise AssertionError("No bloqueó partido iniciado")
+          print("Pruebas superadas")
+          TEST
+      - name: Guardar solo en rama experimental
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_tarjeta_auto.py nba_registro_consolidado.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: validar registro consolidado sin persistencia"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
