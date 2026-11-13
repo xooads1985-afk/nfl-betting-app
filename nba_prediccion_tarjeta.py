@@ -1,11 +1,11 @@
-"""Tarjeta NBA móvil: cuatro motores, consulta de solo lectura y diseño de dos columnas."""
+"""Tarjeta NBA móvil: selección por objetivo, lectura de Supabase, auditoría."""
 import json
 from html import escape
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import streamlit as st
-from tarjeta_motor_cuatro import MODELOS, preparar
+from tarjeta_motor_cuatro import preparar
 
 TABLA = 'nba_laboratorio_prospectivo'
 SIGLAS_NBA = {
@@ -23,48 +23,46 @@ SIGLAS_NBA = {
 }
 ABREVIATURAS = {'Washington Wizards':'WAS','Detroit Pistons':'DET'}
 
+
 def _logo_equipo(nombre):
     codigo = SIGLAS_NBA.get(str(nombre))
     return f'https://a.espncdn.com/i/teamlogos/nba/500/{codigo}.png' if codigo else None
 
+
 def _sigla(nombre):
     return ABREVIATURAS.get(nombre, SIGLAS_NBA.get(nombre, 'EQ').upper())
 
+
 def _cabecera_compacta(visitante, local, p, favorito):
-    """Una sola línea HTML evita bloques de código y el apilamiento de st.columns."""
     def equipo(nombre, puntos):
         logo = _logo_equipo(nombre)
         img = (f'<img src="{escape(logo, quote=True)}" alt="{escape(nombre, quote=True)}" '
                'style="width:54px;height:54px;object-fit:contain;display:block;margin:0 auto 6px">' if logo else '')
+        valor = 'N/D' if puntos is None else f'{puntos:.1f}'
         return (f'<div style="min-width:0;text-align:center;padding:9px 4px;'
                 'border:1px solid #34404e;border-radius:12px">'
                 f'{img}<div style="font-size:12px;overflow-wrap:anywhere;min-height:32px">{escape(nombre)}</div>'
-                f'<div style="font-size:24px;font-weight:700">{puntos:.1f}</div></div>')
+                f'<div style="font-size:24px;font-weight:700">{valor}</div></div>')
     def indicador(titulo, valor):
         return ('<div style="min-width:0;padding:10px 8px;border:1px solid #34404e;border-radius:12px">'
                 f'<div style="font-size:12px;color:#b7bec7">{titulo}</div>'
                 f'<div style="font-size:19px;font-weight:700;overflow-wrap:anywhere">{valor}</div></div>')
-    diferencia = abs(p['diferencia_local'])
-    favorito_txt = 'Empate' if diferencia == 0 else escape(str(favorito))
-    piezas = [
-        equipo(visitante, p['visitante']), equipo(local, p['local']),
-        indicador('Total proyectado', f"{p['total']:.1f}"),
-        indicador('Diferencia proyectada', f"{diferencia:.1f} · {favorito_txt}"),
-    ]
+    piezas = [equipo(visitante, p['visitante']), equipo(local, p['local']),
+              indicador('Total proyectado', 'N/D' if p['total'] is None else f"{p['total']:.1f}"),
+              indicador('Margen validado', 'N/D')]
     return ('<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));'
             'gap:8px;width:100%;margin:10px 0 16px">' + ''.join(piezas) + '</div>')
+
 
 def _tabla_periodos(periodos, local, visitante):
     def valor(v):
         return 'N/D' if v is None else f'{v:.1f}'
-    filas = ''.join(
-        f'<tr><td>{escape(r["periodo"])}</td><td>{valor(r["visitante"])}</td>'
-        f'<td>{valor(r["local"])}</td><td>{valor(r["ambos"])}</td></tr>'
-        for r in periodos
-    )
+    filas = ''.join(f'<tr><td>{escape(r["periodo"])}</td><td>{valor(r["visitante"])}</td>'
+                   f'<td>{valor(r["local"])}</td><td>{valor(r["ambos"])}</td></tr>' for r in periodos)
     return ('<table class="nba-periodos"><thead><tr><th>Período</th>'
-            f'<th>{_sigla(visitante)}</th><th>{_sigla(local)}</th><th>Ambos</th>'
+            f'<th>{escape(_sigla(visitante))}</th><th>{escape(_sigla(local))}</th><th>Ambos</th>'
             f'</tr></thead><tbody>{filas}</tbody></table>')
+
 
 def consultar(partido_id):
     url = str(st.secrets.get('SUPABASE_URL', '')).rstrip('/')
@@ -84,6 +82,7 @@ def consultar(partido_id):
     except (URLError,TimeoutError) as exc:
         raise RuntimeError('No fue posible consultar Supabase.') from exc
 
+
 def validar(partido, registros):
     try:
         datos = preparar(partido, registros)
@@ -91,6 +90,7 @@ def validar(partido, registros):
                    for r in datos['modelos']} for e in (datos['local'],datos['visitante'])},None
     except (ValueError,TypeError,KeyError) as exc:
         return None,str(exc)
+
 
 def referencias_desde_historial(partidos, partido, minimo=5):
     import pandas as pd
@@ -104,8 +104,7 @@ def referencias_desde_historial(partidos, partido, minimo=5):
         return None
     d = partidos.copy()
     d['_fecha_ref'] = pd.to_datetime(d['fecha_utc'],utc=True,errors='coerce')
-    d = d.loc[d['_fecha_ref'].notna() & d['_fecha_ref'].lt(fecha) &
-              d['finalizado'].eq(True)].copy()
+    d = d.loc[d['_fecha_ref'].notna() & d['_fecha_ref'].lt(fecha) & d['finalizado'].eq(True)].copy()
     if 'id' in d.columns:
         d = d.sort_values('_fecha_ref').drop_duplicates('id',keep='last')
     d = d.sort_values('_fecha_ref')
@@ -120,6 +119,7 @@ def referencias_desde_historial(partidos, partido, minimo=5):
         salida[equipo] = float(puntos.mean())
     return salida
 
+
 def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
     with st.container(border=True):
         st.markdown('### 🏀 Proyección Inteligente NBA')
@@ -129,16 +129,17 @@ def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
             st.info('Predicción pendiente de registros verificables de los cuatro motores.')
             st.caption(str(exc))
             return
-        p = datos['principal']
+        p, seleccion = datos['principal'], datos['seleccion_objetivos']
         local, visitante = datos['local'],datos['visitante']
-        st.caption(f'{visitante} @ {local} · Ensemble · registros anteriores al partido')
-        # Una sola línea evita que Streamlit lo trate como bloque de código Markdown.
-        st.markdown(_cabecera_compacta(visitante,local,p,datos['favorito']),
-                    unsafe_allow_html=True)
+        st.caption(f'{visitante} @ {local} · registros anteriores al partido')
+        st.markdown(_cabecera_compacta(visitante,local,p,datos['favorito']),unsafe_allow_html=True)
+        equipo, total = seleccion['equipo'], seleccion['total']
+        st.caption('Puntos por equipo: '+(f"{equipo['modelo']} · MAE {equipo['mae']:.3f} · n={equipo['muestra']}" if equipo else 'sin validación suficiente'))
+        st.caption('Total: '+(f"{total['modelo']} · MAE {total['mae']:.3f} · n={total['muestra']}" if total else 'sin validación suficiente'))
+        st.caption('Margen: pendiente de validación específica. El total puede diferir de la suma de puntos por equipo porque se selecciona otro motor.')
         st.markdown('**Proyecciones por período**')
-        st.markdown(_tabla_periodos(datos['periodos'],local,visitante),
-                    unsafe_allow_html=True)
-        st.caption('Primer cuarto y primera mitad: sin predicciones validadas. No se distribuyen puntos artificialmente.')
+        st.markdown(_tabla_periodos(datos['periodos'],local,visitante),unsafe_allow_html=True)
+        st.caption('Primer cuarto y primera mitad: sin predicciones validadas; no se reparten puntos artificialmente.')
         with st.expander('Auditoría · cuatro motores'):
             st.dataframe([{'Motor':r['modelo'],local:round(r['local'],3),
                            visitante:round(r['visitante'],3),'Total':round(r['total'],3)}

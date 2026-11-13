@@ -1,6 +1,8 @@
 """Adaptador puro de datos para tarjeta NBA, sin Streamlit ni conexiones externas."""
 from datetime import datetime, timezone
 from math import isfinite
+from pathlib import Path
+from nba_selector_objetivos import seleccionar
 
 MODELOS = ('Base', 'Modelo C', 'Pace + Eficiencia', 'Ensemble')
 
@@ -14,7 +16,7 @@ def fecha_utc(v):
 
 
 def preparar(partido, registros):
-    """Devuelve datos de tarjeta validados, o ValueError. Sin inventar períodos."""
+    """Valida ocho registros previos al inicio y selecciona objetivos sin inventar datos."""
     if not isinstance(registros, list):
         raise ValueError('Registros inválidos')
     inicio = fecha_utc(partido.get('fecha_utc'))
@@ -51,13 +53,21 @@ def preparar(partido, registros):
         a, b = valores[local, modelo], valores[visita, modelo]
         resumen.append({'modelo': modelo, 'local': a, 'visitante': b,
                         'total': a + b, 'diferencia_local': a - b})
-    elegido = next(x for x in resumen if x['modelo'] == 'Ensemble')
+    seleccion = seleccionar(resumen, Path(__file__).resolve().parent / 'nba_lab_auditoria_resultados')
+    equipo = seleccion['equipo']
+    total = seleccion['total']
+    principal = {'modelo': 'Selección por objetivo',
+                 'local': equipo['local'] if equipo else None,
+                 'visitante': equipo['visitante'] if equipo else None,
+                 'total': total['valor'] if total else None,
+                 'diferencia_local': None}
+    # No inferir un ganador del margen sin validación histórica específica.
     return {'partido_id': str(partido['id']), 'local': local, 'visitante': visita,
-            'modelos': resumen, 'principal': elegido,
-            'favorito': local if elegido['diferencia_local'] > 0 else visita if elegido['diferencia_local'] < 0 else 'Empate proyectado',
+            'modelos': resumen, 'principal': principal, 'seleccion_objetivos': seleccion,
+            'favorito': 'Margen no validado',
             'dispersion_total': max(x['total'] for x in resumen) - min(x['total'] for x in resumen),
             'periodos': [
                 {'periodo': '1.er cuarto', 'local': None, 'visitante': None, 'ambos': None},
                 {'periodo': '1.ª mitad', 'local': None, 'visitante': None, 'ambos': None},
-                {'periodo': 'Partido', 'local': elegido['local'], 'visitante': elegido['visitante'], 'ambos': elegido['total']},
+                {'periodo': 'Partido', 'local': principal['local'], 'visitante': principal['visitante'], 'ambos': principal['total']},
             ]}
