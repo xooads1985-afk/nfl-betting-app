@@ -29,7 +29,10 @@ def _publicar_resultado(st, partido, datos, tabla=None):
     principal = datos["principal"]
     seleccion = datos["seleccion_objetivos"]
 
+    # NBA_EDGE_EQUIPOS_V2
     referencia_total = None
+    referencia_local = None
+    referencia_visitante = None
 
     if tabla is not None and hasattr(tabla, "columns"):
         requeridas = {"Período", "Referencia total"}
@@ -40,9 +43,10 @@ def _publicar_resultado(st, partido, datos, tabla=None):
             ]
 
             if not filas.empty:
-                referencia_total = _numero(
-                    filas.iloc[0]["Referencia total"]
-                )
+                fila = filas.iloc[0]
+                referencia_total = _numero(fila["Referencia total"])
+                referencia_local = _numero(fila.get("Referencia local"))
+                referencia_visitante = _numero(fila.get("Referencia visitante"))
 
     total = _numero(principal.get("total"))
 
@@ -57,6 +61,18 @@ def _publicar_resultado(st, partido, datos, tabla=None):
         ),
         "total": total,
         "referencia_total": referencia_total,
+        "referencia_local": referencia_local,
+        "referencia_visitante": referencia_visitante,
+        "edge_local": (
+            _numero(principal.get("local")) - referencia_local
+            if _numero(principal.get("local")) is not None and referencia_local is not None
+            else None
+        ),
+        "edge_visitante": (
+            _numero(principal.get("visitante")) - referencia_visitante
+            if _numero(principal.get("visitante")) is not None and referencia_visitante is not None
+            else None
+        ),
         "edge_total": (
             total - referencia_total
             if total is not None
@@ -98,45 +114,24 @@ def obtener_resultado_compartido(partido):
 
 
 def _mostrar_edge(st, compartido):
-    """Presenta Edge solo cuando existe referencia verificable."""
-
+    """Edge por equipo y total, sin nuevas consultas."""
+    import pandas as pd
     st.markdown("**📐 Proyección, referencia y Edge**")
-
-    total = compartido["total"]
-    referencia = compartido["referencia_total"]
-    edge = compartido["edge_total"]
-
-    if (
-        total is not None
-        and referencia is not None
-        and edge is not None
+    filas = []
+    for nombre, proy, ref, edge, motor in (
+        (compartido["visitante"], compartido.get("puntos_visitante"), compartido.get("referencia_visitante"), compartido.get("edge_visitante"), compartido.get("motor_equipos")),
+        (compartido["local"], compartido.get("puntos_local"), compartido.get("referencia_local"), compartido.get("edge_local"), compartido.get("motor_equipos")),
+        ("Total del partido", compartido.get("total"), compartido.get("referencia_total"), compartido.get("edge_total"), compartido.get("motor_total")),
     ):
-        import pandas as pd
-
-        tabla = pd.DataFrame([{
-            "Estadística": "Total del partido",
-            "Referencia": round(referencia, 1),
-            "Proyección": round(total, 1),
-            "Edge": round(edge, 1),
-        }])
-
-        st.dataframe(
-            tabla,
-            hide_index=True,
-            use_container_width=True,
-        )
-    else:
-        st.caption(
-            "Edge del total pendiente: no hay una "
-            "referencia histórica válida."
-        )
-
-    st.caption(
-        "Edge = proyección del motor seleccionado "
-        "menos referencia histórica. "
-        "No representa probabilidad."
-    )
-
+        filas.append({
+            "Estadística": nombre,
+            "Motor": motor or "Sin validar",
+            "Proyección": round(proy, 1) if proy is not None else None,
+            "Referencia": round(ref, 1) if ref is not None else None,
+            "Edge": round(edge, 1) if edge is not None else None,
+        })
+    st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
+    st.caption("Edge = proyección seleccionada − referencia histórica. No representa probabilidad.")
 
 def _mostrar_previa(
     st,

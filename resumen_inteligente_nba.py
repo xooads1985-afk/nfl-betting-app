@@ -2058,6 +2058,9 @@ def _tarjeta_unica_partido(partidos, partido):
                       'Visitante': round(a['proyeccion'], 1) if a else None,
                       'Local': round(b['proyeccion'], 1) if b else None,
                       'Total': round(a['proyeccion'] + b['proyeccion'], 1) if a and b else None,
+                      # NBA_EDGE_EQUIPOS_V2
+                      'Referencia visitante': round(a['referencia'], 3) if a else None,
+                      'Referencia local': round(b['referencia'], 3) if b else None,
                       'Referencia total': round(a['referencia'] + b['referencia'], 1) if a and b else None,
                       'Edge descriptivo': round((a['proyeccion'] + b['proyeccion']) -
                                                 (a['referencia'] + b['referencia']), 1) if a and b else None,
@@ -2109,6 +2112,15 @@ def _tarjeta_unica_partido(partidos, partido):
         )
 
         diferencia = puntos_local - puntos_visita
+        # NBA_EDGE_EQUIPOS_V2
+        for nombre, referencia, edge in (
+            (visita, consolidado.get("referencia_visitante"), consolidado.get("edge_visitante")),
+            (local, consolidado.get("referencia_local"), consolidado.get("edge_local")),
+        ):
+            if referencia is not None and edge is not None:
+                st.caption(f"{nombre} · referencia: {float(referencia):.1f} pts · Edge: {float(edge):+.1f} pts")
+            else:
+                st.caption(f"{nombre} · Edge individual no disponible")
 
         st.caption(
             f"Total: {total_motor:.1f} pts · "
