@@ -1,3 +1,4 @@
+# NBA_OPTIMIZACION_MOVIL_V1
 """Tarjeta NBA móvil: selección por objetivo, lectura de Supabase, auditoría."""
 import json
 from html import escape
@@ -47,9 +48,14 @@ def _cabecera_compacta(visitante, local, p, favorito):
         return ('<div style="min-width:0;padding:10px 8px;border:1px solid #34404e;border-radius:12px">'
                 f'<div style="font-size:12px;color:#b7bec7">{titulo}</div>'
                 f'<div style="font-size:19px;font-weight:700;overflow-wrap:anywhere">{valor}</div></div>')
+    margen = 'N/D'
+    if p.get('local') is not None and p.get('visitante') is not None:
+        diferencia = float(p['local']) - float(p['visitante'])
+        nombre = _sigla(local if diferencia > 0 else visitante) if diferencia else 'Igualdad'
+        margen = f'{abs(diferencia):.1f} · {nombre}' if diferencia else '0.0 · Igualdad'
     piezas = [equipo(visitante, p['visitante']), equipo(local, p['local']),
               indicador('Total proyectado', 'N/D' if p['total'] is None else f"{p['total']:.1f}"),
-              indicador('Margen validado', 'N/D')]
+              indicador('Diferencia calculada (no validada)', margen)]
     return ('<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));'
             'gap:8px;width:100%;margin:10px 0 16px">' + ''.join(piezas) + '</div>')
 

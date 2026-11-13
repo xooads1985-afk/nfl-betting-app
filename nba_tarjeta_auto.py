@@ -1,3 +1,4 @@
+# NBA_OPTIMIZACION_MOVIL_V1
 """Entrada automática para la tarjeta NBA: lectura o vista previa sin escritura."""
 from datetime import datetime, timezone, timedelta
 
@@ -31,7 +32,7 @@ def _mostrar_previa(st, partido, resultado, periodos_resumen=None):
 
 def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
                          *, cargador_historial=None, escritura_habilitada=False,
-                         intervalo_minutos=10, historial_remoto_habilitado=False,
+                         intervalo_minutos=30, historial_remoto_habilitado=False,
                          periodos_resumen=None):
     import streamlit as st
     from nba_prediccion_tarjeta import mostrar_tarjeta
@@ -111,5 +112,9 @@ def _mostrar_periodos_resumen(st, tabla):
         st.caption('Primer cuarto y primera mitad sin datos históricos suficientes.')
         return
     datos = datos.rename(columns={'Referencia total': 'Referencia', 'Edge descriptivo': 'Edge'})
-    st.dataframe(datos, hide_index=True, use_container_width=True)
+    st.dataframe(datos[['Período', 'Visitante', 'Local', 'Total']],
+                 hide_index=True, use_container_width=True)
+    st.markdown('**Referencia histórica y Edge**')
+    st.dataframe(datos[['Período', 'Referencia', 'Edge']],
+                 hide_index=True, use_container_width=True)
     st.caption('Edge = proyección − referencia histórica; no representa probabilidad.')
