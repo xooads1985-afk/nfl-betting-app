@@ -1,76 +1,240 @@
 
-# NBA_OPTIMIZACION_MOVIL_V1
-"""Entrada automática para la tarjeta NBA: lectura o vista previa sin escritura."""
+"""Tarjeta automática NBA: cuatro motores y resultado compartido.
+
+NBA_TARJETA_COMPARTIDA_V1
+No escribe en Supabase por defecto.
+Conserva la validación previa al inicio del encuentro.
+"""
+
 from datetime import datetime, timezone, timedelta
+from time import perf_counter
+
+CLAVE_COMPARTIDA = "nba_proyeccion_consolidada_v1"
 
 
-def _mostrar_previa(st, partido, resultado, periodos_resumen=None):
+def _numero(valor):
+    """Convierte únicamente valores numéricos válidos."""
+    import math
+
+    try:
+        numero = float(valor)
+        return numero if math.isfinite(numero) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _publicar_resultado(st, partido, datos, tabla=None):
+    """Comparte la proyección sin ejecutar motores adicionales."""
+
+    principal = datos["principal"]
+    seleccion = datos["seleccion_objetivos"]
+
+    referencia_total = None
+
+    if tabla is not None and hasattr(tabla, "columns"):
+        requeridas = {"Período", "Referencia total"}
+
+        if requeridas.issubset(tabla.columns):
+            filas = tabla.loc[
+                tabla["Período"].eq("Final reglamentario")
+            ]
+
+            if not filas.empty:
+                referencia_total = _numero(
+                    filas.iloc[0]["Referencia total"]
+                )
+
+    total = _numero(principal.get("total"))
+
+    compartido = {
+        "partido_id": str(partido["id"]),
+        "fecha_utc": str(partido["fecha_utc"]),
+        "local": datos["local"],
+        "visitante": datos["visitante"],
+        "puntos_local": _numero(principal.get("local")),
+        "puntos_visitante": _numero(
+            principal.get("visitante")
+        ),
+        "total": total,
+        "referencia_total": referencia_total,
+        "edge_total": (
+            total - referencia_total
+            if total is not None
+            and referencia_total is not None
+            else None
+        ),
+        "motor_equipos": (
+            seleccion.get("equipo") or {}
+        ).get("modelo"),
+        "motor_total": (
+            seleccion.get("total") or {}
+        ).get("modelo"),
+        "modelos": datos["modelos"],
+    }
+
+    st.session_state[CLAVE_COMPARTIDA] = compartido
+
+    return compartido
+
+
+def obtener_resultado_compartido(partido):
+    """Devuelve datos solo si corresponden al partido solicitado."""
+    import streamlit as st
+
+    datos = st.session_state.get(CLAVE_COMPARTIDA)
+
+    if not isinstance(datos, dict):
+        return None
+
+    if str(datos.get("partido_id")) != str(partido.get("id")):
+        return None
+
+    if str(datos.get("fecha_utc")) != str(
+        partido.get("fecha_utc")
+    ):
+        return None
+
+    return datos
+
+
+def _mostrar_edge(st, compartido):
+    """Presenta Edge solo cuando existe referencia verificable."""
+
+    st.markdown("**📐 Proyección, referencia y Edge**")
+
+    total = compartido["total"]
+    referencia = compartido["referencia_total"]
+    edge = compartido["edge_total"]
+
+    if (
+        total is not None
+        and referencia is not None
+        and edge is not None
+    ):
+        import pandas as pd
+
+        tabla = pd.DataFrame([{
+            "Estadística": "Total del partido",
+            "Referencia": round(referencia, 1),
+            "Proyección": round(total, 1),
+            "Edge": round(edge, 1),
+        }])
+
+        st.dataframe(
+            tabla,
+            hide_index=True,
+            use_container_width=True,
+        )
+    else:
+        st.caption(
+            "Edge del total pendiente: no hay una "
+            "referencia histórica válida."
+        )
+
+    st.caption(
+        "Edge = proyección del motor seleccionado "
+        "menos referencia histórica. "
+        "No representa probabilidad."
+    )
+
+
+def _mostrar_previa(
+    st,
+    partido,
+    resultado,
+    periodos_resumen=None,
+):
     from nba_tarjeta_vista_previa import preparar_vista_previa
-    from nba_prediccion_tarjeta import _cabecera_compacta, _tabla_periodos
+    from nba_prediccion_tarjeta import _cabecera_compacta
 
     datos = preparar_vista_previa(partido, resultado)
-    p, seleccion = datos['principal'], datos['seleccion_objetivos']
+
+    principal = datos["principal"]
+    seleccion = datos["seleccion_objetivos"]
+
+    compartido = _publicar_resultado(
+        st,
+        partido,
+        datos,
+        periodos_resumen,
+    )
 
     with st.container(border=True):
-        st.markdown('### 🏀 Proyección Inteligente NBA')
-        st.caption('Vista previa · no guardada en Supabase · antes del inicio')
+        st.markdown("### 🏀 Proyección Inteligente NBA")
+        st.caption(
+            "Cuatro motores · resultado consolidado · "
+            "vista previa anterior al inicio"
+        )
 
         st.markdown(
             _cabecera_compacta(
-                datos['visitante'],
-                datos['local'],
-                p,
-                datos['favorito']
+                datos["visitante"],
+                datos["local"],
+                principal,
+                datos["favorito"],
             ),
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         for etiqueta, clave in (
-            ('Puntos por equipo', 'equipo'),
-            ('Total', 'total')
+            ("Puntos por equipo", "equipo"),
+            ("Total del partido", "total"),
         ):
-            motor = seleccion[clave]
-            st.caption(
-                etiqueta + ': ' +
-                (
-                    f"{motor['modelo']} · MAE {motor['mae']:.3f} · n={motor['muestra']}"
-                    if motor else 'sin validación suficiente'
+            motor = seleccion.get(clave)
+
+            if motor:
+                st.caption(
+                    f"{etiqueta}: {motor['modelo']} · "
+                    f"MAE {motor['mae']:.3f} · "
+                    f"n={motor['muestra']}"
                 )
+            else:
+                st.caption(
+                    f"{etiqueta}: sin validación suficiente"
+                )
+
+        local = compartido["puntos_local"]
+        visitante = compartido["puntos_visitante"]
+
+        if local is not None and visitante is not None:
+            diferencia = local - visitante
+
+            superior = (
+                datos["local"] if diferencia > 0
+                else datos["visitante"] if diferencia < 0
+                else "Equilibrio matemático"
             )
 
-        if p.get('local') is not None and p.get('visitante') is not None:
-            diferencia = p['local'] - p['visitante']
-            favorito = (
-                datos['local'] if diferencia > 0
-                else datos['visitante'] if diferencia < 0
-                else 'Empate proyectado'
-            )
             st.caption(
-                f'Diferencia matemática: {abs(diferencia):.1f} pts · '
-                f'{favorito}. No es un margen validado.'
+                f"Diferencia: {abs(diferencia):.1f} pts · "
+                f"{superior}. Margen no validado."
             )
 
         st.caption(
-            'El total puede diferir de la suma de equipos '
-            'porque proviene de otro motor.'
+            "El total puede diferir de la suma de equipos "
+            "porque procede de un motor distinto."
         )
+
+        _mostrar_edge(st, compartido)
 
         _periodos_compactos(
             st,
             periodos_resumen,
-            datos['visitante'],
-            datos['local'],
-            p
+            datos["visitante"],
+            datos["local"],
+            principal,
         )
 
-        with st.expander('Auditoría · cuatro motores'):
+        with st.expander("🔎 Auditoría · cuatro motores"):
             st.dataframe(
-                datos['modelos'],
+                datos["modelos"],
                 hide_index=True,
-                use_container_width=True
+                use_container_width=True,
             )
+
             st.caption(
-                f"Predicciones calculadas sin guardar: {datos['provisionales']}"
+                "Predicciones calculadas sin guardar: "
+                f"{datos['provisionales']}"
             )
 
     return datos
@@ -86,63 +250,71 @@ def mostrar_tarjeta_auto(
     escritura_habilitada=False,
     intervalo_minutos=30,
     historial_remoto_habilitado=False,
-    periodos_resumen=None
+    periodos_resumen=None,
 ):
     import streamlit as st
-    from time import perf_counter
+
     from nba_prediccion_tarjeta import mostrar_tarjeta
-    from nba_tarjeta_interfaz import obtener_tarjeta, adaptadores_reales
-    from nba_validacion_calendario import validar_partido_calendario
+    from nba_tarjeta_interfaz import (
+        obtener_tarjeta,
+        adaptadores_reales,
+    )
+    from nba_validacion_calendario import (
+        validar_partido_calendario,
+    )
+
+    # Impedir que una tarjeta anterior se use en otro partido.
+    st.session_state.pop(CLAVE_COMPARTIDA, None)
 
     try:
         validar_partido_calendario(partido, partidos)
     except (ValueError, TypeError, KeyError) as exc:
         st.warning(
-            f'No se puede verificar el encuentro en calendario: {exc}'
+            f"No se puede verificar el encuentro: {exc}"
         )
         return {
-            'ok': False,
-            'estado': 'identidad_invalida',
-            'mensaje': str(exc)
+            "ok": False,
+            "estado": "identidad_invalida",
+            "mensaje": str(exc),
         }
 
     clave = (
-        'nba_auto_v3',
-        str(partido.get('id')),
-        str(partido.get('fecha_utc')),
-        bool(escritura_habilitada)
+        "nba_auto_v3",
+        str(partido.get("id")),
+        str(partido.get("fecha_utc")),
+        bool(escritura_habilitada),
     )
 
     ahora = datetime.now(timezone.utc)
 
     cache = st.session_state.setdefault(
-        'nba_auto_intentos_por_partido_v3',
-        {}
+        "nba_auto_intentos_por_partido_v3",
+        {},
     )
 
     anterior = cache.get(clave)
 
     reutilizar = (
         isinstance(anterior, dict)
-        and isinstance(anterior.get('hora'), datetime)
-        and timedelta(0) <= ahora - anterior['hora']
+        and isinstance(anterior.get("hora"), datetime)
+        and timedelta(0)
+        <= ahora - anterior["hora"]
         < timedelta(minutes=intervalo_minutos)
-        and anterior.get('resultado', {}).get('ok') is True
-        and anterior['resultado'].get('estado')
-        in ('completo', 'simulacion')
+        and anterior.get("resultado", {}).get("ok") is True
+        and anterior["resultado"].get("estado")
+        in ("completo", "simulacion")
     )
 
-    # NBA_DIAGNOSTICO_TIEMPOS_V1
-    _inicio_motores = perf_counter()
+    inicio_motores = perf_counter()
 
     if reutilizar:
-        resultado = anterior['resultado']
+        resultado = anterior["resultado"]
     else:
         try:
             if historial_remoto_habilitado:
                 raise ValueError(
-                    'Fuente Pace remota no instalada: '
-                    'desactive NBA_PACE_REMOTO'
+                    "Fuente Pace remota no instalada: "
+                    "desactive NBA_PACE_REMOTO"
                 )
 
             dependencias = adaptadores_reales(
@@ -153,124 +325,128 @@ def mostrar_tarjeta_auto(
                 partido,
                 escritura_habilitada=escritura_habilitada,
                 solicitar_remoto=None,
-                **dependencias
+                **dependencias,
             )
 
         except Exception as exc:
             resultado = {
-                'ok': False,
-                'estado': 'error',
-                'mensaje': f'{type(exc).__name__}: {exc}'
+                "ok": False,
+                "estado": "error",
+                "mensaje": (
+                    f"{type(exc).__name__}: {exc}"
+                ),
             }
 
         if (
-            resultado.get('ok')
-            and resultado.get('estado')
-            in ('completo', 'simulacion')
+            resultado.get("ok")
+            and resultado.get("estado")
+            in ("completo", "simulacion")
         ):
             cache[clave] = {
-                'hora': ahora,
-                'resultado': resultado
+                "hora": ahora,
+                "resultado": resultado,
             }
         else:
             cache.pop(clave, None)
 
-    _segundos_motores = perf_counter() - _inicio_motores
-
-    # NBA_DIAGNOSTICO_DESGLOSE_V1
-    # CORRECCION_FORMATO_DIAGNOSTICO_V1
+    segundos_motores = perf_counter() - inicio_motores
 
     with st.expander(
-        '⏱️ Diagnóstico de velocidad · tarjeta NBA'
+        "⏱️ Diagnóstico de velocidad · tarjeta NBA"
     ):
         st.caption(
-            f"Motores y fuentes: {_segundos_motores:.2f} s · "
+            f"Motores y fuentes: {segundos_motores:.2f} s · "
             f"{'caché de tarjeta' if reutilizar else 'cálculo/consulta'}"
         )
 
         st.caption(
-            'Este tiempo incluye el controlador y sus fuentes, '
-            'no la preparación previa de períodos ESPN.'
+            "No incluye la preparación previa "
+            "de períodos ESPN."
         )
 
-        _desglose = resultado.get('diagnostico_tiempos') or {}
+        desglose = (
+            resultado.get("diagnostico_tiempos") or {}
+        )
 
-        if _desglose:
-            for _etapa, _segundos in _desglose.items():
-
+        if desglose:
+            for etapa, valor in desglose.items():
                 if (
-                    isinstance(_segundos, (int, float))
-                    and not isinstance(_segundos, bool)
+                    isinstance(valor, (int, float))
+                    and not isinstance(valor, bool)
                 ):
                     st.caption(
-                        f'{_etapa}: {_segundos:.2f} s'
+                        f"{etapa}: {valor:.2f} s"
                     )
                 else:
                     st.caption(
-                        f'{_etapa}: {_segundos}'
+                        f"{etapa}: {valor}"
                     )
 
             if reutilizar:
                 st.caption(
-                    'Desglose de la ejecución original '
-                    'conservada en caché.'
+                    "Desglose original conservado en caché."
                 )
         else:
             st.caption(
-                'Desglose no disponible para esta ejecución.'
+                "Desglose no disponible."
             )
 
-    if not resultado.get('ok'):
+    if not resultado.get("ok"):
         st.warning(
-            'Automatización no disponible: ' +
-            resultado.get('mensaje', 'Error desconocido')
+            "Automatización no disponible: "
+            + resultado.get(
+                "mensaje",
+                "Error desconocido",
+            )
         )
         return resultado
 
-    if resultado.get('estado') == 'simulacion':
+    if resultado.get("estado") == "simulacion":
         try:
             _mostrar_previa(
                 st,
                 partido,
                 resultado,
-                periodos_resumen=periodos_resumen
+                periodos_resumen=periodos_resumen,
             )
             return resultado
 
         except (ValueError, KeyError, TypeError) as exc:
             st.info(
-                'Vista previa pendiente: ' + str(exc)
+                "Vista previa pendiente: " + str(exc)
             )
 
             incidencias = (
-                resultado.get('incidencias_fuentes') or {}
+                resultado.get("incidencias_fuentes") or {}
             )
 
             if incidencias:
-                with st.expander('Diagnóstico de motores'):
+                with st.expander(
+                    "Diagnóstico de motores"
+                ):
                     for nombre, detalle in sorted(
                         incidencias.items()
                     ):
                         st.caption(
-                            f'{nombre}: {detalle}'
+                            f"{nombre}: {detalle}"
                         )
 
             return resultado
 
-    if resultado.get('estado') == 'incompleto':
+    if resultado.get("estado") == "incompleto":
         st.info(
-            'Registros incompletos; no se presentan '
-            'proyecciones sin verificar.'
+            "Registros incompletos; no se presentan "
+            "proyecciones sin verificar."
         )
         return resultado
 
     if (
-        resultado.get('estado') == 'iniciado'
-        and resultado.get('faltantes')
+        resultado.get("estado") == "iniciado"
+        and resultado.get("faltantes")
     ):
         st.info(
-            'Partido iniciado: no se generan '
-            'predicciones retrospectivas.'
+            "Partido iniciado: no se generan "
+            "predicciones retrospectivas."
         )
         return resultado
 
@@ -278,157 +454,165 @@ def mostrar_tarjeta_auto(
         partido,
         referencias=referencias,
         pace=pace,
-        partidos=partidos
+        partidos=partidos,
     )
 
     if periodos_resumen is not None:
         _mostrar_periodos_resumen(
             st,
-            periodos_resumen
+            periodos_resumen,
         )
 
     return resultado
 
 
 def _mostrar_periodos_resumen(st, tabla):
-    """Q1 y mitad del resumen original. No hace consultas ni predicciones."""
+    """Muestra períodos existentes sin recalcularlos."""
 
     st.markdown(
-        '**Primer cuarto y primera mitad · Resumen Inteligente NBA**'
+        "**Primer cuarto y primera mitad · "
+        "Resumen Inteligente NBA**"
     )
 
-    if tabla is None or not hasattr(tabla, 'columns'):
-        st.caption(
-            'Períodos del resumen no disponibles en esta vista.'
-        )
+    if tabla is None or not hasattr(tabla, "columns"):
+        st.caption("Períodos no disponibles.")
         return
 
     columnas = [
-        'Período',
-        'Visitante',
-        'Local',
-        'Total',
-        'Referencia total',
-        'Edge descriptivo'
+        "Período",
+        "Visitante",
+        "Local",
+        "Total",
+        "Referencia total",
+        "Edge descriptivo",
     ]
 
     if not set(columnas).issubset(tabla.columns):
         st.caption(
-            'Faltan columnas del resumen para mostrar los períodos.'
+            "Faltan columnas históricas para los períodos."
         )
         return
 
     datos = tabla.loc[
-        tabla['Período'].isin(['Q1', 'Primera mitad']),
-        columnas
+        tabla["Período"].isin(
+            ["Q1", "Primera mitad"]
+        ),
+        columnas,
     ].copy()
 
     if datos.empty:
         st.caption(
-            'Primer cuarto y primera mitad '
-            'sin datos históricos suficientes.'
+            "Sin antecedentes suficientes por período."
         )
         return
 
-    datos = datos.rename(
-        columns={
-            'Referencia total': 'Referencia',
-            'Edge descriptivo': 'Edge'
-        }
+    st.dataframe(
+        datos[
+            ["Período", "Visitante", "Local", "Total"]
+        ],
+        hide_index=True,
+        use_container_width=True,
     )
 
-    st.dataframe(
-        datos[['Período', 'Visitante', 'Local', 'Total']],
-        hide_index=True,
-        use_container_width=True
-    )
-
-    st.markdown('**Referencia histórica y Edge**')
+    st.markdown("**Referencia histórica y Edge**")
 
     st.dataframe(
-        datos[['Período', 'Referencia', 'Edge']],
+        datos[
+            [
+                "Período",
+                "Referencia total",
+                "Edge descriptivo",
+            ]
+        ],
         hide_index=True,
-        use_container_width=True
+        use_container_width=True,
     )
 
     st.caption(
-        'Edge = proyección − referencia histórica; '
-        'no representa probabilidad.'
+        "Edge descriptivo de los períodos históricos; "
+        "no corresponde al motor del total del partido."
     )
 
 
-def _periodos_compactos(st, tabla, visitante, local, p):
+def _periodos_compactos(
+    st,
+    tabla,
+    visitante,
+    local,
+    principal,
+):
     import pandas as pd
 
-    if tabla is None or not hasattr(tabla, 'columns'):
+    if tabla is None or not hasattr(tabla, "columns"):
         st.caption(
-            'Periodos pendientes de datos historicos.'
+            "Períodos pendientes de datos históricos."
         )
         return
 
     campos = {
-        'Período',
-        'Visitante',
-        'Local',
-        'Total'
+        "Período",
+        "Visitante",
+        "Local",
+        "Total",
     }
 
     if not campos.issubset(tabla.columns):
         st.caption(
-            'Periodos pendientes de datos historicos.'
+            "Períodos pendientes de datos históricos."
         )
         return
 
     filas = []
 
-    for clave, nombre in [
-        ('Q1', '1.er cuarto'),
-        ('Primera mitad', '1.ª mitad')
-    ]:
-        t = tabla.loc[
-            tabla['Período'].eq(clave)
+    for clave, nombre in (
+        ("Q1", "1.er cuarto"),
+        ("Primera mitad", "1.ª mitad"),
+    ):
+        encontrados = tabla.loc[
+            tabla["Período"].eq(clave)
         ]
 
-        if not t.empty:
-            r = t.iloc[0]
+        if not encontrados.empty:
+            fila = encontrados.iloc[0]
 
             filas.append({
-                'Período': nombre,
-                visitante: r['Visitante'],
-                local: r['Local'],
-                'Ambos': r['Total']
+                "Período": nombre,
+                visitante: fila["Visitante"],
+                local: fila["Local"],
+                "Ambos": fila["Total"],
             })
 
     filas.append({
-        'Período': 'Partido',
-        visitante: p.get('visitante'),
-        local: p.get('local'),
-        'Ambos': p.get('total')
+        "Período": "Partido",
+        visitante: principal.get("visitante"),
+        local: principal.get("local"),
+        "Ambos": principal.get("total"),
     })
 
     st.dataframe(
         pd.DataFrame(filas),
         hide_index=True,
-        use_container_width=True
+        use_container_width=True,
     )
 
     if {
-        'Referencia total',
-        'Edge descriptivo'
+        "Referencia total",
+        "Edge descriptivo",
     }.issubset(tabla.columns):
-
-        with st.expander('Referencia y Edge'):
+        with st.expander(
+            "Referencia y Edge por períodos"
+        ):
             st.dataframe(
                 tabla.loc[
-                    tabla['Período'].isin(
-                        ['Q1', 'Primera mitad']
+                    tabla["Período"].isin(
+                        ["Q1", "Primera mitad"]
                     ),
                     [
-                        'Período',
-                        'Referencia total',
-                        'Edge descriptivo'
-                    ]
+                        "Período",
+                        "Referencia total",
+                        "Edge descriptivo",
+                    ],
                 ],
                 hide_index=True,
-                use_container_width=True
+                use_container_width=True,
             )
