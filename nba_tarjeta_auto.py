@@ -86,6 +86,7 @@ def _publicar_resultado(st, partido, datos, tabla=None):
             seleccion.get("total") or {}
         ).get("modelo"),
         "modelos": datos["modelos"],
+        "seleccion_objetivos": seleccion,
     }
 
     st.session_state[CLAVE_COMPARTIDA] = compartido
@@ -132,6 +133,49 @@ def _mostrar_edge(st, compartido):
         })
     st.dataframe(pd.DataFrame(filas), hide_index=True, use_container_width=True)
     st.caption("Edge = proyección seleccionada − referencia histórica. No representa probabilidad.")
+
+    # NBA_AUDITORIA_SOLO_LECTURA_V1
+    with st.expander("🧾 Auditoría consolidada · solo lectura"):
+        seleccion = compartido.get("seleccion_objetivos") or {}
+        def validacion(objetivo):
+            fila = seleccion.get(objetivo) or {}
+            return {
+                "motor": fila.get("modelo"),
+                "MAE": fila.get("mae"),
+                "muestra": fila.get("muestra"),
+                "sesgo": fila.get("sesgo"),
+            }
+        registro = {
+            "partido_id": compartido.get("partido_id"),
+            "inicio_utc": compartido.get("fecha_utc"),
+            "estado": "vista de auditoría, no guardada",
+            "equipos": {
+                "local": compartido.get("local"),
+                "visitante": compartido.get("visitante"),
+            },
+            "seleccion": {
+                "puntos_por_equipo": validacion("equipo"),
+                "total": validacion("total"),
+            },
+            "proyecciones": {
+                "local": compartido.get("puntos_local"),
+                "visitante": compartido.get("puntos_visitante"),
+                "total": compartido.get("total"),
+            },
+            "referencias": {
+                "local": compartido.get("referencia_local"),
+                "visitante": compartido.get("referencia_visitante"),
+                "total": compartido.get("referencia_total"),
+            },
+            "edge": {
+                "local": compartido.get("edge_local"),
+                "visitante": compartido.get("edge_visitante"),
+                "total": compartido.get("edge_total"),
+            },
+            "cuatro_motores": compartido.get("modelos"),
+        }
+        st.json(registro, expanded=False)
+        st.caption("No escribe ni modifica registros en Supabase.")
 
 def _mostrar_previa(
     st,
