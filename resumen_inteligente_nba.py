@@ -1981,25 +1981,6 @@ def _tarjeta_unica_partido(partidos, partido):
     fecha = pd.to_datetime(partido['fecha_utc'], utc=True, errors='coerce')
     st.markdown(f'### 🏀 {visita} vs. {local}')
     st.caption(f"Próximo partido · {str(partido['fecha_utc'])[:16]} UTC · estimaciones exploratorias")
-    # Panel prospectivo aislado: solo lectura, sin alterar estimaciones estables.
-    try:
-        # Integración automática de los cuatro motores, habilitable desde Secrets.
-        # Sin activación explícita se conserva la tarjeta original de solo lectura.
-        if bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
-            from nba_conexion_tarjeta import mostrar_tarjeta_conectada
-            mostrar_tarjeta_conectada(
-                partido, partidos=partidos,
-                escritura_habilitada=bool(st.secrets.get('NBA_TARJETA_ESCRITURA', False)),
-                historial_remoto_habilitado=bool(st.secrets.get('NBA_PACE_REMOTO', False)),
-            )
-        else:
-            from nba_prediccion_tarjeta import mostrar_tarjeta
-            mostrar_tarjeta(partido, referencias=None, pace=None, partidos=partidos)
-    except Exception as exc:
-        # Un fallo externo nunca debe impedir mostrar la tarjeta NBA original.
-        with st.expander('🧠 Predicción Inteligente NBA · diagnóstico'):
-            st.warning('No se pudo consultar el laboratorio prospectivo. El resumen original sigue disponible.')
-            st.caption(f'{type(exc).__name__}: {exc}')
     _nba_panel_disponibilidad_jugadores([local, visita])
     historiales = {e: _historial_equipo(partidos, e, fecha) for e in (local, visita)}
     # Los marcadores completos pueden incluir prórrogas.
@@ -2010,12 +1991,14 @@ def _tarjeta_unica_partido(partidos, partido):
             pf, pc = _media_rango(a['PF']), _media_rango(b['PC'])
             if pf and pc:
                 proy[equipo] = (pf['media'] + pc['media']) / 2
-    st.markdown('**🏆 Partido completo · puntos esperados**')
-    if len(proy) == 2:
-        st.metric('Media ataque/defensa (marcadores finales históricos)', f"{sum(proy.values()):.1f} pts")
-        st.caption(f"{visita}: {proy[visita]:.1f} · {local}: {proy[local]:.1f} · diferencia: {proy[local]-proy[visita]:+.1f} local")
-    else:
-        st.info('Faltan al menos 3 partidos anteriores por equipo para estimar el marcador completo.')
+    if not bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
+        st.markdown('**🏆 Partido completo · puntos esperados**')
+    if not bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
+        if len(proy) == 2:
+            st.metric('Media ataque/defensa (marcadores finales históricos)', f"{sum(proy.values()):.1f} pts")
+            st.caption(f"{visita}: {proy[visita]:.1f} · {local}: {proy[local]:.1f} · diferencia: {proy[local]-proy[visita]:+.1f} local")
+        else:
+            st.info('Faltan al menos 3 partidos anteriores por equipo para estimar el marcador completo.')
     st.markdown('**⏱️ Proyección integrada · equipos y períodos**')
     juegos = {}
     for e, hist in historiales.items():
@@ -2080,6 +2063,19 @@ def _tarjeta_unica_partido(partidos, partido):
                                                 (a['referencia'] + b['referencia']), 1) if a and b else None,
                       'Muestra mínima': min(a['n'], b['n']) if a and b else None})
     tabla_periodos = pd.DataFrame(filas)
+    # NBA_TARJETA_INTEGRADA_Q1_MITAD_V1: reutiliza cálculos existentes, sin recálculo.
+    if bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
+        try:
+            from nba_conexion_tarjeta import mostrar_tarjeta_conectada
+            mostrar_tarjeta_conectada(
+                partido, partidos=partidos,
+                escritura_habilitada=bool(st.secrets.get('NBA_TARJETA_ESCRITURA', False)),
+                historial_remoto_habilitado=bool(st.secrets.get('NBA_PACE_REMOTO', False)),
+                periodos_resumen=tabla_periodos,
+            )
+        except Exception as exc:
+            with st.expander('Tarjeta automática · diagnóstico'):
+                st.warning(f'{type(exc).__name__}: {exc}')
     with st.expander('💾 Guardar proyección previa al partido'):
         st.caption('Registro manual antes del inicio: conserva la primera proyección y no altera los cálculos.')
         if st.button('Guardar proyección original', key=f"ri_nba_guardar_{partido['id']}"):
@@ -2087,8 +2083,9 @@ def _tarjeta_unica_partido(partidos, partido):
             (st.success if correcto else st.info)(mensaje)
     _interpretacion_inteligente_nba(local, visita, historiales, proy, tabla_periodos, muestras, partidos, fecha)
     _nba_lab_panel(partidos, partido, historiales, cache_detalles)
-    st.dataframe(tabla_periodos[['Período', 'Visitante', 'Local', 'Total']],
-                 hide_index=True, use_container_width=True)
+    if not bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
+        st.dataframe(tabla_periodos[['Período', 'Visitante', 'Local', 'Total']],
+                     hide_index=True, use_container_width=True)
     st.markdown('**📐 Proyección, referencia y Edge · cada período**')
     tabla_edge_periodos = tabla_periodos[['Período', 'Total', 'Referencia total', 'Edge descriptivo']].copy()
     tabla_edge_periodos.columns = ['Período', 'Proy.', 'Ref.', 'Edge']

@@ -2,7 +2,7 @@
 from datetime import datetime, timezone, timedelta
 
 
-def _mostrar_previa(st, partido, resultado):
+def _mostrar_previa(st, partido, resultado, periodos_resumen=None):
     from nba_tarjeta_vista_previa import preparar_vista_previa
     from nba_prediccion_tarjeta import _cabecera_compacta, _tabla_periodos
     datos = preparar_vista_previa(partido, resultado)
@@ -17,11 +17,12 @@ def _mostrar_previa(st, partido, resultado):
             st.caption(etiqueta + ': ' +
                        (f"{motor['modelo']} · MAE {motor['mae']:.3f} · n={motor['muestra']}"
                         if motor else 'sin validación suficiente'))
-        st.caption('Margen: pendiente de validación. El total puede diferir de la suma de equipos.')
-        st.markdown('**Proyecciones por período**')
-        st.markdown(_tabla_periodos(datos['periodos'], datos['local'], datos['visitante']),
-                    unsafe_allow_html=True)
-        st.caption('Cuartos y mitades: N/D por falta de validación.')
+        if p.get('local') is not None and p.get('visitante') is not None:
+            diferencia = p['local'] - p['visitante']
+            favorito = datos['local'] if diferencia > 0 else datos['visitante'] if diferencia < 0 else 'Empate proyectado'
+            st.caption(f'Diferencia matemática: {abs(diferencia):.1f} pts · {favorito}. No es un margen validado.')
+        st.caption('El total puede diferir de la suma de equipos porque proviene de otro motor.')
+        _mostrar_periodos_resumen(st, periodos_resumen)
         with st.expander('Auditoría · cuatro motores'):
             st.dataframe(datos['modelos'], hide_index=True, use_container_width=True)
             st.caption(f"Predicciones calculadas sin guardar: {datos['provisionales']}")
@@ -30,7 +31,8 @@ def _mostrar_previa(st, partido, resultado):
 
 def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
                          *, cargador_historial=None, escritura_habilitada=False,
-                         intervalo_minutos=10, historial_remoto_habilitado=False):
+                         intervalo_minutos=10, historial_remoto_habilitado=False,
+                         periodos_resumen=None):
     import streamlit as st
     from nba_prediccion_tarjeta import mostrar_tarjeta
     from nba_tarjeta_interfaz import obtener_tarjeta, adaptadores_reales
@@ -72,7 +74,7 @@ def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
         return resultado
     if resultado.get('estado') == 'simulacion':
         try:
-            _mostrar_previa(st, partido, resultado)
+            _mostrar_previa(st, partido, resultado, periodos_resumen=periodos_resumen)
             return resultado  # No mostrar segunda tarjeta con registros incompletos.
         except (ValueError, KeyError, TypeError) as exc:
             st.info('Vista previa pendiente: ' + str(exc))
@@ -89,4 +91,25 @@ def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
         st.info('Partido iniciado: no se generan predicciones retrospectivas.')
         return resultado
     mostrar_tarjeta(partido, referencias=referencias, pace=pace, partidos=partidos)
+    if periodos_resumen is not None:
+        _mostrar_periodos_resumen(st, periodos_resumen)
     return resultado
+
+
+def _mostrar_periodos_resumen(st, tabla):
+    """Q1 y mitad del resumen original. No hace consultas ni predicciones."""
+    st.markdown('**Primer cuarto y primera mitad · Resumen Inteligente NBA**')
+    if tabla is None or not hasattr(tabla, 'columns'):
+        st.caption('Períodos del resumen no disponibles en esta vista.')
+        return
+    columnas = ['Período', 'Visitante', 'Local', 'Total', 'Referencia total', 'Edge descriptivo']
+    if not set(columnas).issubset(tabla.columns):
+        st.caption('Faltan columnas del resumen para mostrar los períodos.')
+        return
+    datos = tabla.loc[tabla['Período'].isin(['Q1', 'Primera mitad']), columnas].copy()
+    if datos.empty:
+        st.caption('Primer cuarto y primera mitad sin datos históricos suficientes.')
+        return
+    datos = datos.rename(columns={'Referencia total': 'Referencia', 'Edge descriptivo': 'Edge'})
+    st.dataframe(datos, hide_index=True, use_container_width=True)
+    st.caption('Edge = proyección − referencia histórica; no representa probabilidad.')

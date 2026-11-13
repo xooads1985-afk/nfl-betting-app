@@ -14,10 +14,11 @@ def cargador_historial(desde, hasta):
     return tabla.copy(), list(incidencias)
 
 def mostrar_tarjeta_conectada(partido, *, partidos=None, escritura_habilitada=False,
-                              historial_remoto_habilitado=False):
+                              historial_remoto_habilitado=False, periodos_resumen=None):
     """Entrada para la tarjeta seleccionada. Escritura requiere habilitación explícita."""
     from nba_tarjeta_auto import mostrar_tarjeta_auto
     return mostrar_tarjeta_auto(partido, partidos=partidos,
                                cargador_historial=cargador_historial,
                                escritura_habilitada=escritura_habilitada,
-                               historial_remoto_habilitado=historial_remoto_habilitado)
+                               historial_remoto_habilitado=historial_remoto_habilitado,
+                               periodos_resumen=periodos_resumen)
