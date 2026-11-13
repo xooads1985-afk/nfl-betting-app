@@ -20,6 +20,7 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
     # Conservamos la consulta para permitir mostrar predicciones ya guardadas.
     # NBA_DIAGNOSTICO_DESGLOSE_V1
     _tiempos = {}
+    _inicio_puente = perf_counter()
     _t = perf_counter()
     registros = consultar(partido['id'])
     _tiempos['Consulta de registros'] = round(perf_counter()-_t, 2)
@@ -53,7 +54,12 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
                 from nba_pace_actualizacion_auto import completar_pace
                 import pandas as pd
                 if tres is None:
-                    tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
+                    # NBA_DIAGNOSTICO_SEGUNDA_CARGA_V1
+                    _t = perf_counter()
+                    try:
+                        tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
+                    finally:
+                        _tiempos['Segunda carga histórica para Pace'] = round(perf_counter()-_t, 2)
                 ruta = Path(ruta_pace)
                 previo = pd.read_csv(ruta, encoding='utf-8-sig') if ruta.is_file() else pd.DataFrame()
                 _t = perf_counter()
@@ -94,6 +100,10 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
                     _tiempos['Cálculo Pace'] = round(perf_counter()-_t, 2)
             except (ValueError, KeyError, TypeError, RuntimeError, OSError, TimeoutError) as exc:
                 incidencias['motor_pace'] = f'{type(exc).__name__}: {exc}'
+        _tiempos['Total puente'] = round(perf_counter()-_inicio_puente, 2)
+        _tiempos['Estado historial tres motores'] = ('disponible' if tres is not None else 'no disponible')
+        _tiempos['Estado Pace'] = ('disponible' if pace is not None else 'no disponible')
+        _tiempos['Incidencias detectadas'] = len(incidencias)
         return {'estado':'simulacion', 'faltantes':tuple(sorted(faltantes)),
                 'nuevos':0, 'registros':registros, 'calculados':calculados,
                 'incidencias_fuentes':incidencias, 'diagnostico_tiempos':_tiempos}
