@@ -2081,7 +2081,93 @@ def _tarjeta_unica_partido(partidos, partido):
         if st.button('Guardar proyección original', key=f"ri_nba_guardar_{partido['id']}"):
             correcto, mensaje = _nba_registrar_proyeccion(partido, tabla_periodos)
             (st.success if correcto else st.info)(mensaje)
-    _interpretacion_inteligente_nba(local, visita, historiales, proy, tabla_periodos, muestras, partidos, fecha)
+
+    # NBA_INTERPRETACION_UNIFICADA_V1
+    from nba_tarjeta_auto import obtener_resultado_compartido
+
+    consolidado = obtener_resultado_compartido(partido)
+
+    if (
+        consolidado is not None
+        and consolidado.get("total") is not None
+        and consolidado.get("puntos_local") is not None
+        and consolidado.get("puntos_visitante") is not None
+    ):
+        st.markdown(
+            "### 🧠 Interpretación Inteligente NBA"
+        )
+        st.caption(
+            "Resultados compartidos con la Tarjeta Inteligente"
+        )
+
+        total_motor = float(consolidado["total"])
+        puntos_local = float(
+            consolidado["puntos_local"]
+        )
+        puntos_visita = float(
+            consolidado["puntos_visitante"]
+        )
+
+        diferencia = puntos_local - puntos_visita
+
+        st.caption(
+            f"Total: {total_motor:.1f} pts · "
+            f"{consolidado.get('motor_total') or 'Motor no identificado'}"
+        )
+
+        st.caption(
+            f"{visita}: {puntos_visita:.1f} pts · "
+            f"{local}: {puntos_local:.1f} pts"
+        )
+
+        if abs(diferencia) < 0.05:
+            st.info(
+                "Los equipos presentan equilibrio matemático."
+            )
+        else:
+            superior = (
+                local if diferencia > 0 else visita
+            )
+            st.info(
+                f"{superior} presenta una proyección "
+                f"superior por {abs(diferencia):.1f} puntos."
+            )
+
+        referencia = consolidado.get(
+            "referencia_total"
+        )
+        edge = consolidado.get("edge_total")
+
+        if referencia is not None and edge is not None:
+            st.caption(
+                f"Referencia histórica: "
+                f"{float(referencia):.1f} pts · "
+                f"Edge total: {float(edge):+.1f} pts"
+            )
+        else:
+            st.caption(
+                "Edge total pendiente de referencia "
+                "histórica válida."
+            )
+
+        st.caption(
+            "Los puntos por equipo y el total pueden "
+            "proceder de motores diferentes. "
+            "El Edge es descriptivo, no una probabilidad."
+        )
+
+    else:
+        _interpretacion_inteligente_nba(
+            local,
+            visita,
+            historiales,
+            proy,
+            tabla_periodos,
+            muestras,
+            partidos,
+            fecha,
+        )
+
     _nba_lab_panel(partidos, partido, historiales, cache_detalles)
     if not bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
         st.dataframe(tabla_periodos[['Período', 'Visitante', 'Local', 'Total']],
