@@ -1983,8 +1983,18 @@ def _tarjeta_unica_partido(partidos, partido):
     st.caption(f"Próximo partido · {str(partido['fecha_utc'])[:16]} UTC · estimaciones exploratorias")
     # Panel prospectivo aislado: solo lectura, sin alterar estimaciones estables.
     try:
-        from nba_prediccion_tarjeta import mostrar_tarjeta
-        mostrar_tarjeta(partido, referencias=None, pace=None, partidos=partidos)
+        # Integración automática de los cuatro motores, habilitable desde Secrets.
+        # Sin activación explícita se conserva la tarjeta original de solo lectura.
+        if bool(st.secrets.get('NBA_TARJETA_AUTOMATICA', False)):
+            from nba_conexion_tarjeta import mostrar_tarjeta_conectada
+            mostrar_tarjeta_conectada(
+                partido, partidos=partidos,
+                escritura_habilitada=bool(st.secrets.get('NBA_TARJETA_ESCRITURA', False)),
+                historial_remoto_habilitado=bool(st.secrets.get('NBA_PACE_REMOTO', False)),
+            )
+        else:
+            from nba_prediccion_tarjeta import mostrar_tarjeta
+            mostrar_tarjeta(partido, referencias=None, pace=None, partidos=partidos)
     except Exception as exc:
         # Un fallo externo nunca debe impedir mostrar la tarjeta NBA original.
         with st.expander('🧠 Predicción Inteligente NBA · diagnóstico'):
