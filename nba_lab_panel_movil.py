@@ -79,6 +79,51 @@ def ganador(df, etiqueta):
     else:
         st.caption("El sesgo promedio está cerca de cero; esto no elimina errores grandes en partidos individuales.")
 
+# Integración experimental aislada: no altera el laboratorio histórico.
+with st.expander("🧪 Tarjeta automática NBA — prueba", expanded=False):
+    st.caption("Consulta el calendario solo al pulsar el botón. Guardado desactivado.")
+    if st.button("📅 Consultar próximos partidos NBA", key="nba_lab_consultar_calendario"):
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        from modulo_nba import cargar_partidos
+        hoy = datetime.now(ZoneInfo("America/Mazatlan")).date()
+        try:
+            with st.spinner("Consultando calendario ESPN..."):
+                agenda, avisos = cargar_partidos(hoy.isoformat(), (hoy + timedelta(days=3)).isoformat())
+            if avisos:
+                st.warning("Calendario: " + " | ".join(str(a) for a in avisos[:2]))
+            if agenda is not None and not agenda.empty:
+                futuros = agenda.loc[~agenda["finalizado"].fillna(False)].copy()
+                futuros["fecha_utc_dt"] = pd.to_datetime(futuros["fecha_utc"], utc=True, errors="coerce")
+                futuros = futuros.loc[futuros["fecha_utc_dt"].notna() &
+                                      (futuros["fecha_utc_dt"] > pd.Timestamp.now(tz="UTC"))]
+                st.session_state["nba_lab_agenda_prueba"] = futuros.drop(columns=["fecha_utc_dt"]).to_dict("records")
+            else:
+                st.session_state["nba_lab_agenda_prueba"] = []
+        except (ImportError, ValueError, KeyError, OSError, RuntimeError) as exc:
+            st.error(f"No se pudo consultar el calendario: {type(exc).__name__}: {exc}")
+    agenda_prueba = st.session_state.get("nba_lab_agenda_prueba", [])
+    if agenda_prueba:
+        opciones = {str(p["id"]): p for p in agenda_prueba if p.get("id")}
+        elegido = st.selectbox(
+            "Partido futuro",
+            list(opciones),
+            format_func=lambda pid: (
+                f'{opciones[pid].get("visitante", "?")} vs '
+                f'{opciones[pid].get("local", "?")} · '
+                f'{opciones[pid].get("fecha_utc", "")}'
+            ),
+            key="nba_lab_partido_automatico",
+        )
+        if st.button("🔬 Generar tarjeta con cuatro motores", key="nba_lab_generar_tarjeta"):
+            from nba_conexion_tarjeta import mostrar_tarjeta_conectada
+            mostrar_tarjeta_conectada(
+                opciones[elegido], partidos=pd.DataFrame(agenda_prueba),
+                escritura_habilitada=False, historial_remoto_habilitado=False,
+            )
+    else:
+        st.caption("Consulta el calendario para seleccionar un encuentro futuro.")
+
 st.caption("Esta pantalla solo consulta resultados CSV existentes; no descarga temporadas ni ejecuta entrenamiento.")
 st.info("Temporada prioritaria: 2026-2027. La temporada anterior no se carga automáticamente.")
 if not st.button("📂 Abrir resultados del laboratorio", type="primary", use_container_width=True):
