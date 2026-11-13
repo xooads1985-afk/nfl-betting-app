@@ -175,6 +175,15 @@ def _mostrar_edge(st, compartido):
             "cuatro_motores": compartido.get("modelos"),
         }
         st.json(registro, expanded=False)
+        # NBA_PREGUARDADO_SEGURO_V1
+        from nba_registro_consolidado import construir_registro
+        try:
+            preparado = construir_registro(registro)
+            st.success("Registro validado · sin guardar")
+            st.caption("Clave única: " + preparado["clave_unica"])
+            st.caption("SHA-256: " + preparado["huella_sha256"])
+        except (ValueError, TypeError, KeyError) as exc:
+            st.warning("Registro aún no apto para guardar: " + str(exc))
         st.caption("No escribe ni modifica registros en Supabase.")
 
 def _mostrar_previa(
