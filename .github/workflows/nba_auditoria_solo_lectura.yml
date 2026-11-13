@@ -1,0 +1,101 @@
+name: NBA - Auditar tarjeta sin guardar
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Incorporar auditoria de solo lectura
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          
+          ruta = Path("nba_tarjeta_auto.py")
+          texto = ruta.read_text(encoding="utf-8")
+          marca = "NBA_AUDITORIA_SOLO_LECTURA_V1"
+          
+          if marca in texto:
+              print("Auditoría ya instalada.")
+              raise SystemExit(0)
+          
+          ancla = '        "modelos": datos["modelos"],\n'
+          nuevo = ancla + '        "seleccion_objetivos": seleccion,\n'
+          if texto.count(ancla) != 1:
+              raise RuntimeError("Estructura de resultados inesperada.")
+          texto = texto.replace(ancla, nuevo, 1)
+          
+          ancla2 = '    st.caption("Edge = proyección seleccionada − referencia histórica. No representa probabilidad.")\n'
+          nuevo2 = ancla2 + """
+              # NBA_AUDITORIA_SOLO_LECTURA_V1
+              with st.expander("🧾 Auditoría consolidada · solo lectura"):
+                  seleccion = compartido.get("seleccion_objetivos") or {}
+                  def validacion(objetivo):
+                      fila = seleccion.get(objetivo) or {}
+                      return {
+                          "motor": fila.get("modelo"),
+                          "MAE": fila.get("mae"),
+                          "muestra": fila.get("muestra"),
+                          "sesgo": fila.get("sesgo"),
+                      }
+                  registro = {
+                      "partido_id": compartido.get("partido_id"),
+                      "inicio_utc": compartido.get("fecha_utc"),
+                      "estado": "vista de auditoría, no guardada",
+                      "equipos": {
+                          "local": compartido.get("local"),
+                          "visitante": compartido.get("visitante"),
+                      },
+                      "seleccion": {
+                          "puntos_por_equipo": validacion("equipo"),
+                          "total": validacion("total"),
+                      },
+                      "proyecciones": {
+                          "local": compartido.get("puntos_local"),
+                          "visitante": compartido.get("puntos_visitante"),
+                          "total": compartido.get("total"),
+                      },
+                      "referencias": {
+                          "local": compartido.get("referencia_local"),
+                          "visitante": compartido.get("referencia_visitante"),
+                          "total": compartido.get("referencia_total"),
+                      },
+                      "edge": {
+                          "local": compartido.get("edge_local"),
+                          "visitante": compartido.get("edge_visitante"),
+                          "total": compartido.get("edge_total"),
+                      },
+                      "cuatro_motores": compartido.get("modelos"),
+                  }
+                  st.json(registro, expanded=False)
+                  st.caption("No escribe ni modifica registros en Supabase.")
+          """
+          if texto.count(ancla2) != 1:
+              raise RuntimeError("No se encontró el bloque Edge esperado.")
+          texto = texto.replace(ancla2, nuevo2, 1)
+          compile(texto, str(ruta), "exec")
+          ruta.write_text(texto, encoding="utf-8")
+          print("Auditoría de solo lectura instalada.")
+          PY
+      - name: Validar sintaxis
+        run: python -m py_compile nba_tarjeta_auto.py
+      - name: Publicar solo en rama experimental
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_tarjeta_auto.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: auditoria consolidada de solo lectura"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
