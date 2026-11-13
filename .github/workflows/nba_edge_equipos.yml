@@ -1,0 +1,270 @@
+
+name: NBA - Integrar Edge por equipos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Obtener rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Incorporar referencias individuales
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          resumen = Path("resumen_inteligente_nba.py")
+          tarjeta = Path("nba_tarjeta_auto.py")
+
+          a = resumen.read_text(encoding="utf-8")
+          b = tarjeta.read_text(encoding="utf-8")
+
+          marca = "NBA_EDGE_EQUIPOS_V1"
+
+          if marca in a and marca in b:
+              print("Integración ya instalada.")
+              raise SystemExit(0)
+
+          if marca in a or marca in b:
+              raise RuntimeError(
+                  "Integración parcial detectada. "
+                  "No se modificó ningún archivo."
+              )
+
+          def cambiar(texto, anterior, nuevo, nombre):
+              cantidad = texto.count(anterior)
+              if cantidad != 1:
+                  raise RuntimeError(
+                      f"{nombre}: se esperaban 1 coincidencia "
+                      f"y se encontraron {cantidad}."
+                  )
+              return texto.replace(anterior, nuevo, 1)
+
+          # 1. Referencias por equipo obtenidas del
+          # mismo historial ya cargado por el resumen.
+          a = cambiar(
+              a,
+              """                      'Referencia total': round(a['referencia'] + b['referencia'], 1) if a and b else None,""",
+              """                      # NBA_EDGE_EQUIPOS_V1
+                      'Referencia visitante': round(a['referencia'], 3) if a else None,
+                      'Referencia local': round(b['referencia'], 3) if b else None,
+                      'Referencia total': round(a['referencia'] + b['referencia'], 1) if a and b else None,""",
+              "Referencias históricas",
+          )
+
+          # 2. Compartir las referencias con la tarjeta.
+          b = cambiar(
+              b,
+              """    referencia_total = None
+
+    if tabla is not None and hasattr(tabla, "columns"):""",
+              """    # NBA_EDGE_EQUIPOS_V1
+    referencia_total = None
+    referencia_local = None
+    referencia_visitante = None
+
+    if tabla is not None and hasattr(tabla, "columns"):""",
+              "Inicialización de referencias",
+          )
+
+          b = cambiar(
+              b,
+              """            if not filas.empty:
+                referencia_total = _numero(
+                    filas.iloc[0]["Referencia total"]
+                )""",
+              """            if not filas.empty:
+                fila = filas.iloc[0]
+                referencia_total = _numero(
+                    fila["Referencia total"]
+                )
+                referencia_local = _numero(
+                    fila.get("Referencia local")
+                )
+                referencia_visitante = _numero(
+                    fila.get("Referencia visitante")
+                )""",
+              "Lectura de referencias",
+          )
+
+          b = cambiar(
+              b,
+              """        "referencia_total": referencia_total,""",
+              """        "referencia_total": referencia_total,
+        "referencia_local": referencia_local,
+        "referencia_visitante": referencia_visitante,
+        "edge_local": (
+            _numero(principal.get("local")) - referencia_local
+            if _numero(principal.get("local")) is not None
+            and referencia_local is not None
+            else None
+        ),
+        "edge_visitante": (
+            _numero(principal.get("visitante")) - referencia_visitante
+            if _numero(principal.get("visitante")) is not None
+            and referencia_visitante is not None
+            else None
+        ),""",
+              "Resultado compartido",
+          )
+
+          # 3. Mostrar Edge por equipo y total.
+          inicio = b.index("def _mostrar_edge(st, compartido):")
+          fin = b.index("\ndef _mostrar_previa(", inicio)
+
+          reemplazo = '''
+          def _mostrar_edge(st, compartido):
+              """Edge individual y total, sin consultas adicionales."""
+              import pandas as pd
+
+              st.markdown("**📐 Proyección, referencia y Edge**")
+
+              filas = []
+
+              for nombre, proy, ref, edge, motor in (
+                  (
+                      compartido["visitante"],
+                      compartido.get("puntos_visitante"),
+                      compartido.get("referencia_visitante"),
+                      compartido.get("edge_visitante"),
+                      compartido.get("motor_equipos"),
+                  ),
+                  (
+                      compartido["local"],
+                      compartido.get("puntos_local"),
+                      compartido.get("referencia_local"),
+                      compartido.get("edge_local"),
+                      compartido.get("motor_equipos"),
+                  ),
+                  (
+                      "Total del partido",
+                      compartido.get("total"),
+                      compartido.get("referencia_total"),
+                      compartido.get("edge_total"),
+                      compartido.get("motor_total"),
+                  ),
+              ):
+                  filas.append({
+                      "Estadística": nombre,
+                      "Motor": motor or "Sin validar",
+                      "Proyección": (
+                          round(proy, 1) if proy is not None
+                          else None
+                      ),
+                      "Referencia": (
+                          round(ref, 1) if ref is not None
+                          else None
+                      ),
+                      "Edge": (
+                          round(edge, 1) if edge is not None
+                          else None
+                      ),
+                  })
+
+              st.dataframe(
+                  pd.DataFrame(filas),
+                  hide_index=True,
+                  use_container_width=True,
+              )
+
+              st.caption(
+                  "Edge = proyección seleccionada menos "
+                  "referencia histórica. Cada objetivo puede "
+                  "utilizar un motor distinto. "
+                  "No representa probabilidad."
+              )
+
+          '''
+
+          import textwrap
+          reemplazo = textwrap.dedent(reemplazo)
+
+          b = b[:inicio] + reemplazo + b[fin:]
+
+          # 4. Añadir Edge individual a la interpretación.
+          ancla = '''        diferencia = puntos_local - puntos_visita'''
+
+          adicional = '''        diferencia = puntos_local - puntos_visita
+
+          # Edge individual del mismo resultado compartido.
+          for nombre, referencia, edge in (
+              (
+                  visita,
+                  consolidado.get("referencia_visitante"),
+                  consolidado.get("edge_visitante"),
+              ),
+              (
+                  local,
+                  consolidado.get("referencia_local"),
+                  consolidado.get("edge_local"),
+              ),
+          ):
+              if referencia is not None and edge is not None:
+                  st.caption(
+                      f"{nombre} · referencia: "
+                      f"{float(referencia):.1f} pts · "
+                      f"Edge: {float(edge):+.1f} pts"
+                  )
+              else:
+                  st.caption(
+                      f"{nombre} · Edge individual no disponible"
+                  )'''
+
+          a = cambiar(
+              a,
+              ancla,
+              adicional,
+              "Interpretación inteligente",
+          )
+
+          # Verificar ambos archivos antes de escribir.
+          compile(a, str(resumen), "exec")
+          compile(b, str(tarjeta), "exec")
+
+          resumen.write_text(a, encoding="utf-8")
+          tarjeta.write_text(b, encoding="utf-8")
+
+          print("Edge individual integrado en ambos archivos.")
+          PY
+
+      - name: Comprobar sintaxis
+        run: |
+          python -m py_compile \
+            resumen_inteligente_nba.py \
+            nba_tarjeta_auto.py
+
+      - name: Guardar cambios experimentales
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- \
+            resumen_inteligente_nba.py \
+            nba_tarjeta_auto.py
+
+          if git diff --cached --quiet; then
+            echo "No hay cambios pendientes."
+          else
+            git commit -m \
+              "NBA: Edge individual de equipos y total"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
