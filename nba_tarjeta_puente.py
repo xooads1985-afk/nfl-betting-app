@@ -4,6 +4,7 @@ Por defecto no escribe en Supabase. La UI debe activar escrituras sólo tras
 validar cobertura, hora de inicio y configuración del despliegue.
 """
 from pathlib import Path
+from time import perf_counter
 from datetime import datetime, timezone
 
 from nba_tarjeta_controlador import diagnosticar, ejecutar, fecha_utc
@@ -17,7 +18,11 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
     """Lee primero Supabase; carga cada fuente sólo si faltan sus motores."""
     # Un encuentro marcado como finalizado nunca debe activar cálculos nuevos.
     # Conservamos la consulta para permitir mostrar predicciones ya guardadas.
+    # NBA_DIAGNOSTICO_DESGLOSE_V1
+    _tiempos = {}
+    _t = perf_counter()
     registros = consultar(partido['id'])
+    _tiempos['Consulta de registros'] = round(perf_counter()-_t, 2)
     faltantes = diagnosticar(partido, registros)
     if not faltantes:
         return {'estado':'completo', 'faltantes':(), 'nuevos':0, 'registros':registros}
@@ -33,7 +38,11 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
     incidencias = {}
     if any(modelo in ('Base','Modelo C','Ensemble') for _,modelo in faltantes):
         try:
-            tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
+            _t = perf_counter()
+            try:
+                tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
+            finally:
+                _tiempos['Historial tres motores'] = round(perf_counter()-_t, 2)
         except (ValueError, RuntimeError, OSError, TimeoutError, ImportError) as exc:
             incidencias['tres'] = f'{type(exc).__name__}: {exc}'
     if any(modelo == 'Pace + Eficiencia' for _,modelo in faltantes):
@@ -47,8 +56,12 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
                     tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
                 ruta = Path(ruta_pace)
                 previo = pd.read_csv(ruta, encoding='utf-8-sig') if ruta.is_file() else pd.DataFrame()
-                pace, cobertura = completar_pace(
-                    tres, previo, partido, cargar_detalle, corte_utc=ahora)
+                _t = perf_counter()
+                try:
+                    pace, cobertura = completar_pace(
+                        tres, previo, partido, cargar_detalle, corte_utc=ahora)
+                finally:
+                    _tiempos['Pace / detalles ESPN'] = round(perf_counter()-_t, 2)
                 # Revalidar esquema y antecedentes con el mismo adaptador.
                 # No escribir el CSV: pasar el DataFrame mediante una fuente local.
                 from nba_tarjeta_fuentes import COLUMNAS_PACE
@@ -65,17 +78,25 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
         calculados = {}
         if tres is not None and any(m in ('Base', 'Modelo C', 'Ensemble') for _, m in faltantes):
             try:
-                calculados['tres'] = calcular_tres(tres, partido)
+                _t = perf_counter()
+                try:
+                    calculados['tres'] = calcular_tres(tres, partido)
+                finally:
+                    _tiempos['Cálculo Base / C / Ensemble'] = round(perf_counter()-_t, 2)
             except (ValueError, KeyError, TypeError, RuntimeError, OSError, TimeoutError) as exc:
                 incidencias['motor_tres'] = f'{type(exc).__name__}: {exc}'
         if pace is not None and any(m == 'Pace + Eficiencia' for _, m in faltantes):
             try:
-                calculados['pace'] = calcular_pace(pace, partido, ahora=ahora)
+                _t = perf_counter()
+                try:
+                    calculados['pace'] = calcular_pace(pace, partido, ahora=ahora)
+                finally:
+                    _tiempos['Cálculo Pace'] = round(perf_counter()-_t, 2)
             except (ValueError, KeyError, TypeError, RuntimeError, OSError, TimeoutError) as exc:
                 incidencias['motor_pace'] = f'{type(exc).__name__}: {exc}'
         return {'estado':'simulacion', 'faltantes':tuple(sorted(faltantes)),
                 'nuevos':0, 'registros':registros, 'calculados':calculados,
-                'incidencias_fuentes':incidencias}
+                'incidencias_fuentes':incidencias, 'diagnostico_tiempos':_tiempos}
     resultado = ejecutar(partido, consultar, calcular_tres, guardar_tres,
                         calcular_pace, guardar_pace, historial_tres=tres,
                         historial_pace=pace, modo_prueba=False, ahora=ahora, reloj=reloj)

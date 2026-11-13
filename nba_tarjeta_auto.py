@@ -77,6 +77,15 @@ def mostrar_tarjeta_auto(partido, referencias=None, pace=None, partidos=None,
     with st.expander('⏱️ Diagnóstico de velocidad · tarjeta NBA'):
         st.caption(f"Motores y fuentes: {_segundos_motores:.2f} s · {'caché de tarjeta' if reutilizar else 'cálculo/consulta'}")
         st.caption('Este tiempo incluye el controlador y sus fuentes, no la preparación previa de períodos ESPN.')
+        # NBA_DIAGNOSTICO_DESGLOSE_V1
+        _desglose = resultado.get('diagnostico_tiempos') or {}
+        if _desglose:
+            for _etapa, _segundos in _desglose.items():
+                st.caption(f'{_etapa}: {_segundos:.2f} s')
+            if reutilizar:
+                st.caption('Desglose de la ejecución original conservada en caché.')
+        else:
+            st.caption('Desglose no disponible para esta ejecución.')
     if not resultado.get('ok'):
         st.warning('Automatización no disponible: ' + resultado.get('mensaje', 'Error desconocido'))
         return resultado
