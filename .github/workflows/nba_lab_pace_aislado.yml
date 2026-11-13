@@ -27,7 +27,10 @@ jobs:
       - name: Validar sintaxis
         run: python -m py_compile actualizar_pace_incremental_nba.py nba_pace_historial.py
       - name: Actualizar historial Pace validado
-        run: python actualizar_pace_incremental_nba.py --dias 7 --max-partidos 100
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python actualizar_pace_incremental_nba.py --dias 7 --max-partidos 100 
       - name: Publicar únicamente historial Pace
         run: |
           git config user.name 'github-actions[bot]'
