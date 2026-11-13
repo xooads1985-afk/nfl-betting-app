@@ -1,4 +1,3 @@
-# NBA_OPTIMIZACION_MOVIL_V1
 """Puente aislado para integrar tarjeta NBA; no se instala automáticamente.
 
 Por defecto no escribe en Supabase. La UI debe activar escrituras sólo tras
@@ -37,16 +36,31 @@ def preparar_y_ejecutar(partido, *, consultar, cargador_historial,
             tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
         except (ValueError, RuntimeError, OSError, TimeoutError, ImportError) as exc:
             incidencias['tres'] = f'{type(exc).__name__}: {exc}'
-    # NBA_CARGA_RAPIDA_SIN_ESPN_HISTORICO_V1
-    # Durante la presentación solo usar historial Pace local ya validado.
-    # La actualización de ESPN corresponde al proceso de actualización diaria.
-    if any(modelo == 'Pace + Eficiencia' for _, modelo in faltantes):
+    if any(modelo == 'Pace + Eficiencia' for _,modelo in faltantes):
         try:
-            pace = cargar_pace(Path(ruta_pace), partido,
-                              solicitar_remoto=None, corte_utc=ahora)
+            # Si hay acceso a detalles ESPN, completar el historial Pace sin
+            # botones manuales ni cambios al CSV versionado.
+            if cargar_detalle is not None:
+                from nba_pace_actualizacion_auto import completar_pace
+                import pandas as pd
+                if tres is None:
+                    tres = cargar_tres(cargador_historial, partido, corte_utc=ahora)
+                ruta = Path(ruta_pace)
+                previo = pd.read_csv(ruta, encoding='utf-8-sig') if ruta.is_file() else pd.DataFrame()
+                pace, cobertura = completar_pace(
+                    tres, previo, partido, cargar_detalle, corte_utc=ahora)
+                # Revalidar esquema y antecedentes con el mismo adaptador.
+                # No escribir el CSV: pasar el DataFrame mediante una fuente local.
+                from nba_tarjeta_fuentes import COLUMNAS_PACE
+                if not COLUMNAS_PACE.issubset(pace.columns):
+                    raise ValueError('Historial Pace incompleto después de actualizar ESPN')
+                for equipo in (str(partido['local']), str(partido['visitante'])):
+                    if (pace['local'].eq(equipo) | pace['visitante'].eq(equipo)).sum() < 3:
+                        raise ValueError('Insuficientes antecedentes Pace para ' + equipo)
+            else:
+                pace = cargar_pace(Path(ruta_pace), partido, solicitar_remoto=solicitar_remoto, corte_utc=ahora)
         except (ValueError, RuntimeError, OSError, TimeoutError, ImportError) as exc:
-            incidencias['pace'] = ('Pendiente de actualización histórica externa: '
-                                   + f'{type(exc).__name__}: {exc}')
+            incidencias['pace'] = f'{type(exc).__name__}: {exc}'
     if modo_prueba:
         calculados = {}
         if tres is not None and any(m in ('Base', 'Modelo C', 'Ensemble') for _, m in faltantes):

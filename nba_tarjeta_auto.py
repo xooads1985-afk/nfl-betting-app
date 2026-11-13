@@ -23,7 +23,7 @@ def _mostrar_previa(st, partido, resultado, periodos_resumen=None):
             favorito = datos['local'] if diferencia > 0 else datos['visitante'] if diferencia < 0 else 'Empate proyectado'
             st.caption(f'Diferencia matemática: {abs(diferencia):.1f} pts · {favorito}. No es un margen validado.')
         st.caption('El total puede diferir de la suma de equipos porque proviene de otro motor.')
-        _mostrar_periodos_resumen(st, periodos_resumen)
+        _periodos_compactos(st, periodos_resumen, datos['visitante'], datos['local'], p)
         with st.expander('Auditoría · cuatro motores'):
             st.dataframe(datos['modelos'], hide_index=True, use_container_width=True)
             st.caption(f"Predicciones calculadas sin guardar: {datos['provisionales']}")
@@ -118,3 +118,25 @@ def _mostrar_periodos_resumen(st, tabla):
     st.dataframe(datos[['Período', 'Referencia', 'Edge']],
                  hide_index=True, use_container_width=True)
     st.caption('Edge = proyección − referencia histórica; no representa probabilidad.')
+
+
+def _periodos_compactos(st, tabla, visitante, local, p):
+    import pandas as pd
+    if tabla is None or not hasattr(tabla, 'columns'):
+        st.caption('Periodos pendientes de datos historicos.')
+        return
+    campos={'Período','Visitante','Local','Total'}
+    if not campos.issubset(tabla.columns):
+        st.caption('Periodos pendientes de datos historicos.')
+        return
+    filas=[]
+    for clave,nombre in [('Q1','1.er cuarto'),('Primera mitad','1.ª mitad')]:
+        t=tabla.loc[tabla['Período'].eq(clave)]
+        if not t.empty:
+            r=t.iloc[0]
+            filas.append({'Período':nombre,visitante:r['Visitante'],local:r['Local'],'Ambos':r['Total']})
+    filas.append({'Período':'Partido',visitante:p.get('visitante'),local:p.get('local'),'Ambos':p.get('total')})
+    st.dataframe(pd.DataFrame(filas),hide_index=True,use_container_width=True)
+    if {'Referencia total','Edge descriptivo'}.issubset(tabla.columns):
+        with st.expander('Referencia y Edge'):
+            st.dataframe(tabla.loc[tabla['Período'].isin(['Q1','Primera mitad']),['Período','Referencia total','Edge descriptivo']],hide_index=True,use_container_width=True)
