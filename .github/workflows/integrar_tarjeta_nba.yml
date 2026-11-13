@@ -1,0 +1,35 @@
+name: Integrar tarjeta NBA (rama de pruebas)
+on:
+  push:
+    branches: [pruebas-integracion-nba-4-motores]
+    paths:
+      - integrar_tarjeta_nba.py
+      - .github/workflows/integrar_tarjeta_nba.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  integrar:
+    if: github.ref_name == 'pruebas-integracion-nba-4-motores'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Integrar y validar sintaxis
+        run: |
+          python integrar_tarjeta_nba.py
+          python -m py_compile resumen_inteligente_nba.py nba_tarjeta_auto.py nba_conexion_tarjeta.py
+      - name: Confirmar cambios en rama de pruebas
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add resumen_inteligente_nba.py nba_tarjeta_auto.py nba_conexion_tarjeta.py
+          if ! git diff --cached --quiet; then
+            git commit -m 'Integrar Q1 primera mitad y Edge en tarjeta NBA'
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
