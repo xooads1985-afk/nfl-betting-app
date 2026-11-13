@@ -1,0 +1,151 @@
+
+name: NBA - Unificar Edge final
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Obtener rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Unificar tabla de periodos
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ruta = Path("resumen_inteligente_nba.py")
+          texto = ruta.read_text(encoding="utf-8")
+
+          marca = "NBA_EDGE_FINAL_UNIFICADO_V1"
+
+          if marca in texto:
+              print("Cambio ya instalado.")
+              raise SystemExit(0)
+
+          original = """    tabla_edge_periodos = tabla_periodos[['Período', 'Total', 'Referencia total', 'Edge descriptivo']].copy()
+              tabla_edge_periodos.columns = ['Período', 'Proy.', 'Ref.', 'Edge']
+              st.dataframe(tabla_edge_periodos, hide_index=True, use_container_width=True)"""
+
+          original = original.replace(
+              "\n        tabla_edge_periodos",
+              "\n    tabla_edge_periodos"
+          ).replace(
+              "\n        st.dataframe",
+              "\n    st.dataframe"
+          )
+
+          if texto.count(original) != 1:
+              raise RuntimeError(
+                  "No se encontró exactamente el bloque esperado. "
+                  "No se modificó el archivo."
+              )
+
+          nuevo = """    # NBA_EDGE_FINAL_UNIFICADO_V1
+              tabla_edge_periodos = tabla_periodos[
+                  ['Período', 'Total', 'Referencia total', 'Edge descriptivo']
+              ].copy()
+              tabla_edge_periodos.columns = [
+                  'Período', 'Proy.', 'Ref.', 'Edge'
+              ]
+
+              if consolidado is not None:
+                  total_motor = consolidado.get('total')
+                  referencia_motor = consolidado.get('referencia_total')
+
+                  if total_motor is not None:
+                      mascara = tabla_edge_periodos[
+                          'Período'
+                      ].eq('Final reglamentario')
+
+                      if mascara.any():
+                          tabla_edge_periodos.loc[
+                              mascara, 'Proy.'
+                          ] = float(total_motor)
+
+                          if referencia_motor is not None:
+                              tabla_edge_periodos.loc[
+                                  mascara, 'Ref.'
+                              ] = float(referencia_motor)
+                              tabla_edge_periodos.loc[
+                                  mascara, 'Edge'
+                              ] = (
+                                  float(total_motor)
+                                  - float(referencia_motor)
+                              )
+                          else:
+                              tabla_edge_periodos.loc[
+                                  mascara, 'Ref.'
+                              ] = float('nan')
+                              tabla_edge_periodos.loc[
+                                  mascara, 'Edge'
+                              ] = float('nan')
+
+              st.dataframe(
+                  tabla_edge_periodos,
+                  hide_index=True,
+                  use_container_width=True
+              )
+
+              st.caption(
+                  'Final reglamentario: motor seleccionado '
+                  'cuando está disponible. '
+                  'Otros períodos: estimaciones históricas. '
+                  'Edge = proyección − referencia.'
+              )"""
+
+          import textwrap
+
+          nuevo = textwrap.dedent(nuevo)
+          nuevo = textwrap.indent(nuevo, "    ")
+
+          actualizado = texto.replace(original, nuevo, 1)
+
+          compile(actualizado, str(ruta), "exec")
+
+          ruta.write_text(
+              actualizado,
+              encoding="utf-8"
+          )
+
+          print("Tabla de Edge unificada.")
+          PY
+
+      - name: Verificar sintaxis
+        run: |
+          python -m py_compile \
+            resumen_inteligente_nba.py \
+            nba_tarjeta_auto.py
+
+      - name: Guardar en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- resumen_inteligente_nba.py
+
+          if git diff --cached --quiet; then
+            echo "Sin cambios pendientes."
+          else
+            git commit -m \
+              "NBA: unificar total y Edge final"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
