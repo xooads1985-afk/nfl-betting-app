@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "historial_sha256": "c42c2a643995a6ac1238b39ac3cb522a099b04469491e2c370cd75f30a8041c5",
+  "vectores_sha256": "c523ecec6538c3b42b728df136ee4092383a73ba4ac89f6a39c4c21f4dfd70c6",
+  "partidos": 1576,
+  "vectores": 3046,
+  "validacion_independiente_partidos": 123,
+  "estado": "preparado_no_conectado_a_tarjeta",
+  "nota": "Solo se valida la equivalencia en muestra; la lectura por Streamlit requiere validacion adicional"
+}
