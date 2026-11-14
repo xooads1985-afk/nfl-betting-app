@@ -16,6 +16,11 @@ VISTAS_NBA = {
     "🏠 Resumen Inteligente NBA": (
         "resumen_inteligente_nba", "mostrar_resumen_inteligente_nba"
     ),
+    "🏀 Tarjeta Inteligente · 4 motores": (
+    "nba_tarjeta_produccion",
+    "mostrar_tarjeta_nba_produccion"
+),
+
     "🩺 Diagnóstico NBA 4.0": ("diagnostico_nba_v4_0", "mostrar_diagnostico_nba"),
 }
 
