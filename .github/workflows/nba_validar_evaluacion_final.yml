@@ -1,0 +1,35 @@
+name: NBA - Validar evaluacion cuatro motores
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluar:
+    if: github.ref_name == 'pruebas-integracion-nba-4-motores'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Comprobar evaluador y dependencias
+        run: |
+          python -m py_compile nba_evaluacion_consolidada.py nba_evaluacion_cuatro_motores.py test_evaluacion_cuatro_motores.py
+          python -m unittest -v test_evaluacion_cuatro_motores
+      - name: Verificar contrato de salida
+        run: |
+          python - <<'PY'
+          from nba_evaluacion_cuatro_motores import evaluar_cuatro_motores, MODELOS, OBJETIVOS
+          assert len(MODELOS) == 4 and len(OBJETIVOS) == 4
+          r = evaluar_cuatro_motores([], [])
+          assert r['partidos_evaluados'] == 0
+          assert r['detalle'] == [] and r['resumen'] == []
+          print('PASS: evaluador disponible, cuatro motores, sin inventar resultados')
+          PY
