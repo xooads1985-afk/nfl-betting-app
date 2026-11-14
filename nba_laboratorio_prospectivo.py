@@ -84,6 +84,18 @@ _PERFIL_TRES = _NBAContextVar("nba_perfil_tres", default=None)
 def ultimo_perfil_tres():
     return _PERFIL_TRES.get()
 
+# NBA_CACHE_FEATURES_VALIDADO_V1
+@st.cache_data(ttl=3600, max_entries=8, show_spinner=False)
+def _nba_entrenamiento_indexado_cache(datos):
+    """La clave de cache incluye el DataFrame completo ya cortado por fecha."""
+    from nba_features_indexadas import preparar_indice
+    indice = preparar_indice(datos)
+    filas = []
+    for anterior in datos.to_dict('records'):
+        filas.extend(indice(anterior))
+    return filas
+
+
 def calcular(historico, juego):
     """Solo historial previo a la hora del encuentro. Sin resultado objetivo futuro."""
     _PERFIL_TRES.set(None)
@@ -101,11 +113,7 @@ def calcular(historico, juego):
     # Entrenar solo con ejemplos históricos cuyas variables usan juegos anteriores.
     # NBA_INDEXACION_ENTRENAMIENTO_V1
     # El índice mantiene el mismo corte temporal y los mismos vectores.
-    from nba_features_indexadas import preparar_indice
-    _calcular_indexado = preparar_indice(datos)
-    entrenamiento = []
-    for anterior in datos.to_dict('records'):
-        entrenamiento.extend(_calcular_indexado(anterior))
+    entrenamiento = _nba_entrenamiento_indexado_cache(datos)
     if len(entrenamiento) < 24:
         raise ValueError('Faltan ejemplos históricos válidos para entrenar Ensemble.')
     _t_features = _nba_perf()
