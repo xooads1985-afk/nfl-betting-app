@@ -1,0 +1,25 @@
+name: NBA Lab - recuperar periodos ESPN
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recuperar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recuperar marcadores historicos Q1 y Q2
+        run: python enriquecer_historial_pace.py --entrada nba_historial_pace.csv --salida nba_historial_pace_periodos_validado.csv --informe nba_pace_periodos_cobertura.json
+      - name: Descargar resultados sin modificar rama
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-pace-periodos-historicos
+          path: |
+            nba_historial_pace_periodos_validado.csv
+            nba_pace_periodos_cobertura.json
+          if-no-files-found: warn
