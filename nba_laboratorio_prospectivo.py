@@ -99,9 +99,13 @@ def calcular(historico, juego):
         raise ValueError('No hay suficiente historial anterior al encuentro.')
     _t_hist = _nba_perf()
     # Entrenar solo con ejemplos históricos cuyas variables usan juegos anteriores.
+    # NBA_INDEXACION_ENTRENAMIENTO_V1
+    # El índice mantiene el mismo corte temporal y los mismos vectores.
+    from nba_features_indexadas import preparar_indice
+    _calcular_indexado = preparar_indice(datos)
     entrenamiento = []
     for anterior in datos.to_dict('records'):
-        entrenamiento.extend(_nba_lab_ml_caracteristicas(datos, anterior))
+        entrenamiento.extend(_calcular_indexado(anterior))
     if len(entrenamiento) < 24:
         raise ValueError('Faltan ejemplos históricos válidos para entrenar Ensemble.')
     _t_features = _nba_perf()
