@@ -1,0 +1,76 @@
+name: NBA - Guardado consolidado manual
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar modulo de guardado
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          Path("nba_guardado_consolidado.py").write_bytes(base64.b64decode("IiIiR3VhcmRhZG8gbWFudWFsIGUgaW5tdXRhYmxlIGRlIHByb3llY2Npb25lcyBOQkEgZW4gdGFibGEgaW5kZXBlbmRpZW50ZS4iIiIKaW1wb3J0IGpzb24KZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWUsIHRpbWV6b25lCmZyb20gdXJsbGliLmVycm9yIGltcG9ydCBIVFRQRXJyb3IsIFVSTEVycm9yCmZyb20gdXJsbGliLnJlcXVlc3QgaW1wb3J0IFJlcXVlc3QsIHVybG9wZW4KZnJvbSB1cmxsaWIucGFyc2UgaW1wb3J0IHVybGVuY29kZQoKVEFCTEEgPSAibmJhX3Byb3llY2Npb25lc19jb25zb2xpZGFkYXMiCgoKZGVmIGd1YXJkYXJfcHJlcGFyYWRvKHByZXBhcmFkbywgKiwgdXJsLCBjbGF2ZSwgYWJyaXI9dXJsb3BlbiwgYWhvcmE9Tm9uZSk6CiAgICAiIiJTb2xvIElOU0VSVC4gTGEgUEsgeSBVTklRVUUgZGUgU3VwYWJhc2UgcmVzdWVsdmVuIGNhcnJlcmFzL2R1cGxpY2Fkb3MuIiIiCiAgICBpZiBub3QgdXJsLnN0YXJ0c3dpdGgoImh0dHBzOi8vIikgb3Igbm90IGNsYXZlOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoIkNvbmV4acOzbiBTdXBhYmFzZSBubyBkaXNwb25pYmxlIikKICAgIGlmIHByZXBhcmFkby5nZXQoImVzdGFkbyIpICE9ICJ2YWxpZGFkb19zaW5fZ3VhcmRhciI6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigiU2UgcmVxdWllcmUgdW4gcmVnaXN0cm8gcHJldmlhbWVudGUgdmFsaWRhZG8iKQogICAgcmVnaXN0cm8gPSBwcmVwYXJhZG9bInJlZ2lzdHJvIl0KICAgIGluc3RhbnRlID0gYWhvcmEgb3IgZGF0ZXRpbWUubm93KHRpbWV6b25lLnV0YykKICAgIGlmIGluc3RhbnRlLnR6aW5mbyBpcyBOb25lOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoIlJlbG9qIHNpbiB6b25hIGhvcmFyaWEiKQogICAgaW5pY2lvID0gZGF0ZXRpbWUuZnJvbWlzb2Zvcm1hdChyZWdpc3Ryb1siaW5pY2lvX3V0YyJdLnJlcGxhY2UoIloiLCAiKzAwOjAwIikpCiAgICBpZiBpbnN0YW50ZS5hc3RpbWV6b25lKHRpbWV6b25lLnV0YykgPj0gaW5pY2lvOgogICAgICAgIHJldHVybiB7ImVzdGFkbyI6ICJwYXJ0aWRvX2luaWNpYWRvIn0KICAgIGNsYXZlX3VuaWNhID0gcHJlcGFyYWRvWyJjbGF2ZV91bmljYSJdCiAgICBpZiBjbGF2ZV91bmljYSAhPSAibmJhLWNvbnNvbGlkYWRvLXYxOiIgKyBzdHIocmVnaXN0cm9bInBhcnRpZG9faWQiXSk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigiSWRlbnRpZGFkIGRlIHBhcnRpZG8gaW5jb25zaXN0ZW50ZSIpCiAgICBmcm9tIG5iYV9yZWdpc3Ryb19jb25zb2xpZGFkbyBpbXBvcnQgY29uc3RydWlyX3JlZ2lzdHJvCiAgICBudWV2byA9IGNvbnN0cnVpcl9yZWdpc3Rybyh7CiAgICAgICAgInBhcnRpZG9faWQiOiByZWdpc3Ryb1sicGFydGlkb19pZCJdLCAiaW5pY2lvX3V0YyI6IHJlZ2lzdHJvWyJpbmljaW9fdXRjIl0sCiAgICAgICAgImVxdWlwb3MiOiByZWdpc3Ryb1siZXF1aXBvcyJdLCAic2VsZWNjaW9uIjogcmVnaXN0cm9bInNlbGVjY2lvbiJdLAogICAgICAgICJwcm95ZWNjaW9uZXMiOiByZWdpc3Ryb1sicHJveWVjY2lvbmVzIl0sICJyZWZlcmVuY2lhcyI6IHJlZ2lzdHJvWyJyZWZlcmVuY2lhcyJdLAogICAgICAgICJlZGdlIjogcmVnaXN0cm9bImVkZ2UiXSwgImN1YXRyb19tb3RvcmVzIjogcmVnaXN0cm9bImN1YXRyb19tb3RvcmVzIl0sCiAgICB9LCBhaG9yYT1pbnN0YW50ZSkKICAgIGlmIG51ZXZvWyJodWVsbGFfc2hhMjU2Il0gIT0gcHJlcGFyYWRvWyJodWVsbGFfc2hhMjU2Il06CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigiSHVlbGxhIGluY29uc2lzdGVudGU7IHJlZ2lzdHJvIGFsdGVyYWRvIikKICAgIHBheWxvYWQgPSB7CiAgICAgICAgImNsYXZlX3VuaWNhIjogY2xhdmVfdW5pY2EsCiAgICAgICAgInBhcnRpZG9faWQiOiBzdHIocmVnaXN0cm9bInBhcnRpZG9faWQiXSksCiAgICAgICAgImluaWNpb191dGMiOiByZWdpc3Ryb1siaW5pY2lvX3V0YyJdLAogICAgICAgICJodWVsbGFfc2hhMjU2IjogcHJlcGFyYWRvWyJodWVsbGFfc2hhMjU2Il0sCiAgICAgICAgInJlZ2lzdHJvIjogcmVnaXN0cm8sCiAgICB9CiAgICByZXF1ZXN0ID0gUmVxdWVzdCgKICAgICAgICB1cmwucnN0cmlwKCIvIikgKyAiL3Jlc3QvdjEvIiArIFRBQkxBLAogICAgICAgIGRhdGE9anNvbi5kdW1wcyhwYXlsb2FkLCBlbnN1cmVfYXNjaWk9RmFsc2UsIGFsbG93X25hbj1GYWxzZSkuZW5jb2RlKCJ1dGYtOCIpLAogICAgICAgIGhlYWRlcnM9eyJhcGlrZXkiOiBjbGF2ZSwgIkF1dGhvcml6YXRpb24iOiAiQmVhcmVyICIgKyBjbGF2ZSwKICAgICAgICAgICAgICAgICAiQ29udGVudC1UeXBlIjogImFwcGxpY2F0aW9uL2pzb24iLCAiQWNjZXB0IjogImFwcGxpY2F0aW9uL2pzb24iLAogICAgICAgICAgICAgICAgICJQcmVmZXIiOiAicmV0dXJuPXJlcHJlc2VudGF0aW9uIn0sCiAgICAgICAgbWV0aG9kPSJQT1NUIiwKICAgICkKICAgIHRyeToKICAgICAgICB3aXRoIGFicmlyKHJlcXVlc3QsIHRpbWVvdXQ9MTUpIGFzIHJlc3B1ZXN0YToKICAgICAgICAgICAgZmlsYXMgPSBqc29uLmxvYWQocmVzcHVlc3RhKQogICAgZXhjZXB0IEhUVFBFcnJvciBhcyBleGM6CiAgICAgICAgaWYgZXhjLmNvZGUgPT0gNDA5OgogICAgICAgICAgICByZXR1cm4geyJlc3RhZG8iOiAieWFfZXhpc3RlIiwgImRldGFsbGUiOiAiUmVnaXN0cm8gb3JpZ2luYWwgcHJvdGVnaWRvIn0KICAgICAgICByZXR1cm4geyJlc3RhZG8iOiAiZXJyb3JfaHR0cCIsICJjb2RpZ29faHR0cCI6IGV4Yy5jb2RlfQogICAgZXhjZXB0IChVUkxFcnJvciwgVGltZW91dEVycm9yKToKICAgICAgICByZXR1cm4geyJlc3RhZG8iOiAic2luX2NvbmZpcm1hY2lvbiIsICJkZXRhbGxlIjogIkNvbnN1bHRhciBhbnRlcyBkZSByZWludGVudGFyIn0KICAgIGlmIG5vdCBpc2luc3RhbmNlKGZpbGFzLCBsaXN0KSBvciBsZW4oZmlsYXMpICE9IDE6CiAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogInNpbl9jb25maXJtYWNpb24ifQogICAgZmlsYSA9IGZpbGFzWzBdCiAgICBpZiAoZmlsYS5nZXQoImNsYXZlX3VuaWNhIikgIT0gY2xhdmVfdW5pY2Egb3IKICAgICAgICAgICAgZmlsYS5nZXQoImh1ZWxsYV9zaGEyNTYiKSAhPSBwcmVwYXJhZG9bImh1ZWxsYV9zaGEyNTYiXSBvcgogICAgICAgICAgICBmaWxhLmdldCgicmVnaXN0cm8iKSAhPSByZWdpc3Rybyk6CiAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogInZlcmlmaWNhY2lvbl9mYWxsaWRhIn0KICAgIHJldHVybiB7ImVzdGFkbyI6ICJndWFyZGFkb192ZXJpZmljYWRvIiwgImNsYXZlX3VuaWNhIjogY2xhdmVfdW5pY2EsCiAgICAgICAgICAgICJodWVsbGFfc2hhMjU2IjogcHJlcGFyYWRvWyJodWVsbGFfc2hhMjU2Il19Cg=="))
+          PY
+      - name: Integrar boton de guardado manual
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("nba_tarjeta_auto.py")
+          s = p.read_text(encoding="utf-8")
+          marca = "NBA_GUARDADO_CONSOLIDADO_MANUAL_V1"
+          if marca not in s:
+              ancla = '        st.caption("No escribe ni modifica registros en Supabase.")'
+              if s.count(ancla) != 1:
+                  raise RuntimeError("Ancla de preguardado no encontrada; no se cambia archivo")
+              bloque = """
+                  # NBA_GUARDADO_CONSOLIDADO_MANUAL_V1
+                  if 'preparado' in locals() and preparado.get("estado") == "validado_sin_guardar":
+                      if st.button("💾 Guardar proyección consolidada", key="nba_guardar_consolidado_" + str(compartido["partido_id"])):
+                          from nba_guardado_consolidado import guardar_preparado
+                          url_guardado = str(st.secrets.get("SUPABASE_URL", ""))
+                          clave_guardado = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+                          try:
+                              resultado_guardado = guardar_preparado(
+                                  preparado, url=url_guardado, clave=clave_guardado
+                              )
+                              estado_guardado = resultado_guardado["estado"]
+                              if estado_guardado == "guardado_verificado":
+                                  st.success("Proyección guardada y verificada en Supabase.")
+                              elif estado_guardado == "ya_existe":
+                                  st.info("Este partido ya tiene una proyección; no se sobrescribió.")
+                              elif estado_guardado == "partido_iniciado":
+                                  st.warning("El partido ya comenzó: guardado bloqueado.")
+                              else:
+                                  st.warning("Guardado sin confirmar: " + estado_guardado)
+                          except (ValueError, KeyError, TypeError) as exc:
+                              st.error("Guardado bloqueado: " + str(exc))
+          """
+              s=s.replace(ancla,ancla+"\n"+bloque.rstrip(),1)
+              compile(s,str(p),"exec")
+              p.write_text(s,encoding="utf-8")
+              print("Botón manual instalado")
+          else:
+              print("Botón ya instalado")
+          PY
+      - name: Verificar sintaxis
+        run: python -m py_compile nba_guardado_consolidado.py nba_tarjeta_auto.py
+      - name: Guardar en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_guardado_consolidado.py nba_tarjeta_auto.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: guardado manual consolidado sin sobrescritura"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
