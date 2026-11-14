@@ -113,7 +113,11 @@ def calcular(historico, juego):
     # Entrenar solo con ejemplos históricos cuyas variables usan juegos anteriores.
     # NBA_INDEXACION_ENTRENAMIENTO_V1
     # El índice mantiene el mismo corte temporal y los mismos vectores.
-    entrenamiento = _nba_entrenamiento_indexado_cache(datos)
+    # NBA_VECTORES_PERSISTENTES_LECTURA_V1
+    from nba_vectores_persistentes import cargar_preparado
+    entrenamiento = cargar_preparado(datos)
+    if entrenamiento is None:
+        entrenamiento = _nba_entrenamiento_indexado_cache(datos)
     if len(entrenamiento) < 24:
         raise ValueError('Faltan ejemplos históricos válidos para entrenar Ensemble.')
     _t_features = _nba_perf()
