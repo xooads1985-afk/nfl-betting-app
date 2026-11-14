@@ -1,0 +1,78 @@
+name: NBA - Diagnostico Supabase solo lectura
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Crear consulta segura
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          Path("nba_consulta_consolidada.py").write_bytes(base64.b64decode("IiIiRGlhZ27Ds3N0aWNvIGRlIHNvbG8gbGVjdHVyYSBkZSBsYSB0YWJsYSBjb25zb2xpZGFkYSBOQkEuIiIiCmltcG9ydCBqc29uCmZyb20gdXJsbGliLmVycm9yIGltcG9ydCBIVFRQRXJyb3IsIFVSTEVycm9yCmZyb20gdXJsbGliLnBhcnNlIGltcG9ydCB1cmxlbmNvZGUKZnJvbSB1cmxsaWIucmVxdWVzdCBpbXBvcnQgUmVxdWVzdCwgdXJsb3BlbgoKVEFCTEEgPSAibmJhX3Byb3llY2Npb25lc19jb25zb2xpZGFkYXMiCgoKZGVmIGNvbXByb2Jhcl9yZWdpc3RybyhjbGF2ZV91bmljYSwgKiwgdXJsLCBjbGF2ZSwgYWJyaXI9dXJsb3Blbik6CiAgICAiIiJDb25zdWx0YSB1bmEgY2xhdmUuIE5vIGVqZWN1dGEgSU5TRVJULCBVUERBVEUgbmkgREVMRVRFLiIiIgogICAgaWYgbm90IGlzaW5zdGFuY2UoY2xhdmVfdW5pY2EsIHN0cikgb3Igbm90IGNsYXZlX3VuaWNhLnN0YXJ0c3dpdGgoIm5iYS1jb25zb2xpZGFkby12MToiKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJDbGF2ZSBkZSByZWdpc3RybyBpbnbDoWxpZGEiKQogICAgaWYgbm90IGlzaW5zdGFuY2UodXJsLCBzdHIpIG9yIG5vdCB1cmwuc3RhcnRzd2l0aCgiaHR0cHM6Ly8iKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJVUkwgZGUgU3VwYWJhc2UgaW52w6FsaWRhIikKICAgIGlmIG5vdCBjbGF2ZToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJDcmVkZW5jaWFsIGRlIGNvbnN1bHRhIGF1c2VudGUiKQogICAgcGFyYW1zID0gdXJsZW5jb2RlKHsic2VsZWN0IjogImNsYXZlX3VuaWNhLGh1ZWxsYV9zaGEyNTYscGFydGlkb19pZCxpbmljaW9fdXRjIiwKICAgICAgICAgICAgICAgICAgICAgICAgImNsYXZlX3VuaWNhIjogImVxLiIgKyBjbGF2ZV91bmljYSwgImxpbWl0IjogIjEifSkKICAgIHJlcSA9IFJlcXVlc3QodXJsLnJzdHJpcCgiLyIpICsgIi9yZXN0L3YxLyIgKyBUQUJMQSArICI/IiArIHBhcmFtcywKICAgICAgICAgICAgICAgICAgaGVhZGVycz17ImFwaWtleSI6IGNsYXZlLCAiQXV0aG9yaXphdGlvbiI6ICJCZWFyZXIgIiArIGNsYXZlLAogICAgICAgICAgICAgICAgICAgICAgICAgICAiQWNjZXB0IjogImFwcGxpY2F0aW9uL2pzb24ifSwgbWV0aG9kPSJHRVQiKQogICAgdHJ5OgogICAgICAgIHdpdGggYWJyaXIocmVxLCB0aW1lb3V0PTEwKSBhcyByZXNwb25zZToKICAgICAgICAgICAgZmlsYXMgPSBqc29uLmxvYWQocmVzcG9uc2UpCiAgICBleGNlcHQgSFRUUEVycm9yIGFzIGV4YzoKICAgICAgICBpZiBleGMuY29kZSBpbiAoNDAxLCA0MDMpOgogICAgICAgICAgICByZXR1cm4geyJlc3RhZG8iOiAic2luX3Blcm1pc29fbGVjdHVyYSIsICJjb2RpZ29faHR0cCI6IGV4Yy5jb2RlfQogICAgICAgIGlmIGV4Yy5jb2RlID09IDQwNDoKICAgICAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogInRhYmxhX25vX2Rpc3BvbmlibGUiLCAiY29kaWdvX2h0dHAiOiA0MDR9CiAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogImVycm9yX2h0dHAiLCAiY29kaWdvX2h0dHAiOiBleGMuY29kZX0KICAgIGV4Y2VwdCAoVVJMRXJyb3IsIFRpbWVvdXRFcnJvcik6CiAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogInNpbl9jb25leGlvbiJ9CiAgICBpZiBub3QgaXNpbnN0YW5jZShmaWxhcywgbGlzdCk6CiAgICAgICAgcmV0dXJuIHsiZXN0YWRvIjogInJlc3B1ZXN0YV9pbmVzcGVyYWRhIn0KICAgIGlmIG5vdCBmaWxhczoKICAgICAgICByZXR1cm4geyJlc3RhZG8iOiAic2luX3JlZ2lzdHJvIn0KICAgIHJldHVybiB7ImVzdGFkbyI6ICJyZWdpc3Ryb19leGlzdGVudGUiLAogICAgICAgICAgICAiY2xhdmVfdW5pY2EiOiBmaWxhc1swXS5nZXQoImNsYXZlX3VuaWNhIiksCiAgICAgICAgICAgICJodWVsbGFfc2hhMjU2IjogZmlsYXNbMF0uZ2V0KCJodWVsbGFfc2hhMjU2Iil9Cg=="))
+          PY
+      - name: Integrar diagnostico en tarjeta
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("nba_tarjeta_auto.py")
+          s = p.read_text(encoding="utf-8")
+          marca = "NBA_DIAGNOSTICO_SUPABASE_SOLO_GET_V1"
+          if marca in s:
+              print("Diagnóstico ya instalado.")
+              raise SystemExit(0)
+          ancla = '        st.caption("No escribe ni modifica registros en Supabase.")'
+          if s.count(ancla) != 1:
+              raise RuntimeError("No se encontró el ancla de auditoría. No se modificó nada.")
+          bloque = """
+                  # NBA_DIAGNOSTICO_SUPABASE_SOLO_GET_V1
+                  with st.expander("🔍 Supabase · diagnóstico de solo lectura"):
+                      from nba_consulta_consolidada import comprobar_registro
+                      clave_registro = "nba-consolidado-v1:" + str(compartido["partido_id"])
+                      url_sb = str(st.secrets.get("SUPABASE_URL", ""))
+                      clave_sb = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+                      if not url_sb or not clave_sb:
+                          st.warning("Falta la conexión existente de Supabase.")
+                      else:
+                          resultado_sb = comprobar_registro(
+                              clave_registro, url=url_sb, clave=clave_sb
+                          )
+                          st.write("Estado de consulta:", resultado_sb["estado"])
+                          if resultado_sb["estado"] == "registro_existente":
+                              st.caption("Clave: " + str(resultado_sb.get("clave_unica", "")))
+                              st.caption("SHA-256: " + str(resultado_sb.get("huella_sha256", "")))
+                          elif resultado_sb["estado"] == "tabla_no_disponible":
+                              st.info("La tabla consolidada aún no está disponible.")
+                          elif resultado_sb["estado"] == "sin_registro":
+                              st.info("La tabla responde, pero este partido aún no tiene registro.")
+                          else:
+                              st.caption("No se han modificado datos.")
+                      st.caption("Consulta GET exclusivamente; no guarda ni actualiza.")
+          """
+          s=s.replace(ancla,ancla+"\n"+bloque.rstrip(),1)
+          compile(s,str(p),"exec")
+          p.write_text(s,encoding="utf-8")
+          print("Diagnóstico conectado sin escrituras.")
+          PY
+      - name: Comprobar sintaxis
+        run: python -m py_compile nba_tarjeta_auto.py nba_consulta_consolidada.py
+      - name: Guardar solo en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_tarjeta_auto.py nba_consulta_consolidada.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: diagnostico Supabase sin escritura"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
