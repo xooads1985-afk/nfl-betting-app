@@ -1,5 +1,5 @@
 
-"""Tarjeta Inteligente NBA: cuatro motores y referencias históricas."""
+"""Tarjeta Inteligente NBA: cuatro motores y diagnóstico de referencias."""
 
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -222,6 +222,27 @@ def mostrar_tarjeta_nba_produccion():
             + str(exc)
         )
 
+    # DIAGNÓSTICO 1: datos históricos de entrada
+
+    with st.expander(
+        "🔬 Diagnóstico 1 · referencias de entrada"
+    ):
+        if periodos_resumen is None:
+            st.error(
+                "No se recibió tabla histórica."
+            )
+        else:
+            st.write(
+                "Columnas recibidas:",
+                list(periodos_resumen.columns),
+            )
+
+            st.dataframe(
+                periodos_resumen,
+                hide_index=True,
+                use_container_width=True,
+            )
+
     # Vista previa: nunca escribe en Supabase
 
     mostrar_tarjeta_conectada(
@@ -231,6 +252,50 @@ def mostrar_tarjeta_nba_produccion():
         historial_remoto_habilitado=False,
         periodos_resumen=periodos_resumen,
     )
+
+    # DIAGNÓSTICO 2: datos publicados por la tarjeta
+
+    with st.expander(
+        "🔬 Diagnóstico 2 · referencias publicadas"
+    ):
+        compartido = st.session_state.get(
+            "nba_proyeccion_consolidada_v1"
+        )
+
+        if not isinstance(compartido, dict):
+            st.error(
+                "No se publicó el resultado compartido."
+            )
+        else:
+            if (
+                str(compartido.get("partido_id"))
+                != str(partido["id"])
+            ):
+                st.error(
+                    "El resultado pertenece a otro partido."
+                )
+            elif (
+                str(compartido.get("fecha_utc"))
+                != str(partido["fecha_utc"])
+            ):
+                st.error(
+                    "La fecha del resultado no coincide."
+                )
+            else:
+                claves = [
+                    "partido_id",
+                    "referencia_local",
+                    "referencia_visitante",
+                    "referencia_total",
+                    "edge_local",
+                    "edge_visitante",
+                    "edge_total",
+                ]
+
+                st.json({
+                    clave: compartido.get(clave)
+                    for clave in claves
+                })
 
     st.caption(
         "El guardado de los motores es una "
