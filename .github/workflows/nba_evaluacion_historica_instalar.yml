@@ -1,0 +1,85 @@
+name: NBA - Evaluacion consolidada historica
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar evaluador y adaptador reglamentario
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          archivos = {
+          "nba_evaluacion_consolidada.py": "IiIiRXZhbHVhY2nDs24gaGlzdMOzcmljYSBkZSBpbnN0YW50w6FuZWFzIE5CQS4gTm8gcmVhbGl6YSBlc2NyaXR1cmFzLiIiIgppbXBvcnQgaGFzaGxpYgppbXBvcnQganNvbgppbXBvcnQgbWF0aApmcm9tIGRhdGV0aW1lIGltcG9ydCBkYXRldGltZSwgdGltZXpvbmUKZnJvbSB1cmxsaWIucGFyc2UgaW1wb3J0IHVybGVuY29kZQpmcm9tIHVybGxpYi5yZXF1ZXN0IGltcG9ydCBSZXF1ZXN0LCB1cmxvcGVuCgpUQUJMQSA9ICJuYmFfcHJveWVjY2lvbmVzX2NvbnNvbGlkYWRhcyIKCgpkZWYgX2ZlY2hhKHZhbG9yKToKICAgIGR0ID0gZGF0ZXRpbWUuZnJvbWlzb2Zvcm1hdChzdHIodmFsb3IpLnJlcGxhY2UoIloiLCAiKzAwOjAwIikpCiAgICBpZiBkdC50emluZm8gaXMgTm9uZToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJGZWNoYSBzaW4gem9uYSBob3JhcmlhIikKICAgIHJldHVybiBkdC5hc3RpbWV6b25lKHRpbWV6b25lLnV0YykKCgpkZWYgY29uc3VsdGFyX2d1YXJkYWRvcygqLCB1cmwsIGNsYXZlLCBhYnJpcj11cmxvcGVuKToKICAgICIiIkxlY3R1cmEgcGFnaW5hZGEgZGUgaW5zdGFudMOhbmVhcyBvcmlnaW5hbGVzLiIiIgogICAgaWYgbm90IHVybC5zdGFydHN3aXRoKCJodHRwczovLyIpIG9yIG5vdCBjbGF2ZToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJDcmVkZW5jaWFsZXMgU3VwYWJhc2UgYXVzZW50ZXMiKQogICAgc2FsaWRhID0gW10KICAgIG9mZnNldCA9IDAKICAgIHdoaWxlIFRydWU6CiAgICAgICAgcXVlcnkgPSB1cmxlbmNvZGUoeyJzZWxlY3QiOiAiY2xhdmVfdW5pY2EscGFydGlkb19pZCxpbmljaW9fdXRjLGNyZWFkb191dGMsaHVlbGxhX3NoYTI1NixyZWdpc3RybyIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICJvcmRlciI6ICJjcmVhZG9fdXRjLmFzYyIsICJsaW1pdCI6ICI1MDAiLCAib2Zmc2V0Ijogc3RyKG9mZnNldCl9KQogICAgICAgIHJlcSA9IFJlcXVlc3QodXJsLnJzdHJpcCgiLyIpICsgIi9yZXN0L3YxLyIgKyBUQUJMQSArICI/IiArIHF1ZXJ5LAogICAgICAgICAgICAgICAgICAgICAgaGVhZGVycz17ImFwaWtleSI6IGNsYXZlLCAiQXV0aG9yaXphdGlvbiI6ICJCZWFyZXIgIiArIGNsYXZlLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIkFjY2VwdCI6ICJhcHBsaWNhdGlvbi9qc29uIn0sIG1ldGhvZD0iR0VUIikKICAgICAgICB3aXRoIGFicmlyKHJlcSwgdGltZW91dD0yMCkgYXMgcmVzcG9uc2U6CiAgICAgICAgICAgIGxvdGUgPSBqc29uLmxvYWQocmVzcG9uc2UpCiAgICAgICAgaWYgbm90IGlzaW5zdGFuY2UobG90ZSwgbGlzdCk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoIlJlc3B1ZXN0YSBTdXBhYmFzZSBpbnbDoWxpZGEiKQogICAgICAgIHNhbGlkYS5leHRlbmQobG90ZSkKICAgICAgICBpZiBsZW4obG90ZSkgPCA1MDA6CiAgICAgICAgICAgIHJldHVybiBzYWxpZGEKICAgICAgICBvZmZzZXQgKz0gNTAwCgoKZGVmIGV2YWx1YXJfZ3VhcmRhZG9zKGd1YXJkYWRvcywgcmVzdWx0YWRvcyk6CiAgICAiIiJyZXN1bHRhZG9zOiBpdGVyYWJsZSBjb24gaWQsIGZlY2hhX3V0YywgbG9jYWwsIHZpc2l0YW50ZSwgZmluYWxpemFkbywKICAgIHB1bnRvc19sb2NhbCB5IHB1bnRvc192aXNpdGFudGUgcmVnbGFtZW50YXJpb3MgKHNpbiBwcsOzcnJvZ2FzKS4KICAgIFNvbG8gc2UgZXZhbMO6YW4gcmVzdWx0YWRvcyBjb21wbGV0b3MsIGNvaGVyZW50ZXMgeSBwb3N0ZXJpb3JlcyBhbCBndWFyZGFkby4KICAgICIiIgogICAgcGFydGlkb3MgPSB7c3RyKHBbImlkIl0pOiBwIGZvciBwIGluIHJlc3VsdGFkb3MgaWYgcC5nZXQoImlkIikgaXMgbm90IE5vbmV9CiAgICBmaWxhcyA9IFtdCiAgICBkZXNjYXJ0ZXMgPSB7fQogICAgdmlzdG9zID0gc2V0KCkKCiAgICBkZWYgZGVzY2FydGFyKG1vdGl2byk6CiAgICAgICAgZGVzY2FydGVzW21vdGl2b10gPSBkZXNjYXJ0ZXMuZ2V0KG1vdGl2bywgMCkgKyAxCgogICAgZm9yIGl0ZW0gaW4gZ3VhcmRhZG9zOgogICAgICAgIHRyeToKICAgICAgICAgICAgcmVnID0gaXRlbVsicmVnaXN0cm8iXQogICAgICAgICAgICBwaWQgPSBzdHIocmVnWyJwYXJ0aWRvX2lkIl0pCiAgICAgICAgICAgIGlmIHBpZCBpbiB2aXN0b3M6CiAgICAgICAgICAgICAgICBkZXNjYXJ0YXIoImR1cGxpY2FkbyIpCiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICB2aXN0b3MuYWRkKHBpZCkKICAgICAgICAgICAgaWYgaXRlbVsiY2xhdmVfdW5pY2EiXSAhPSAibmJhLWNvbnNvbGlkYWRvLXYxOiIgKyBwaWQgb3Igc3RyKGl0ZW1bInBhcnRpZG9faWQiXSkgIT0gcGlkOgogICAgICAgICAgICAgICAgZGVzY2FydGFyKCJpZGVudGlkYWQiKQogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgY2Fub24gPSBqc29uLmR1bXBzKHJlZywgc29ydF9rZXlzPVRydWUsIGVuc3VyZV9hc2NpaT1GYWxzZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlcGFyYXRvcnM9KCIsIiwgIjoiKSwgYWxsb3dfbmFuPUZhbHNlKQogICAgICAgICAgICBkaWdlc3QgPSBoYXNobGliLnNoYTI1NihjYW5vbi5lbmNvZGUoInV0Zi04IikpLmhleGRpZ2VzdCgpCiAgICAgICAgICAgIGlmIGRpZ2VzdCAhPSBpdGVtWyJodWVsbGFfc2hhMjU2Il06CiAgICAgICAgICAgICAgICBkZXNjYXJ0YXIoImh1ZWxsYSIpCiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICBpbmljaW8gPSBfZmVjaGEocmVnWyJpbmljaW9fdXRjIl0pCiAgICAgICAgICAgIGlmIF9mZWNoYShpdGVtWyJpbmljaW9fdXRjIl0pICE9IGluaWNpbyBvciBfZmVjaGEoaXRlbVsiY3JlYWRvX3V0YyJdKSA+PSBpbmljaW86CiAgICAgICAgICAgICAgICBkZXNjYXJ0YXIoInJlZ2lzdHJvX3RhcmRpbyIpCiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICByZWFsID0gcGFydGlkb3MuZ2V0KHBpZCkKICAgICAgICAgICAgaWYgbm90IHJlYWwgb3IgcmVhbC5nZXQoImZpbmFsaXphZG8iKSBpcyBub3QgVHJ1ZToKICAgICAgICAgICAgICAgIGRlc2NhcnRhcigic2luX3Jlc3VsdGFkb19maW5hbCIpCiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICBpZiBfZmVjaGEocmVhbFsiZmVjaGFfdXRjIl0pICE9IGluaWNpbzoKICAgICAgICAgICAgICAgIGRlc2NhcnRhcigiZmVjaGFfaW5jb25zaXN0ZW50ZSIpCiAgICAgICAgICAgICAgICBjb250aW51ZQogICAgICAgICAgICBpZiAoc3RyKHJlYWxbImxvY2FsIl0pICE9IHJlZ1siZXF1aXBvcyJdWyJsb2NhbCJdIG9yCiAgICAgICAgICAgICAgICAgICAgc3RyKHJlYWxbInZpc2l0YW50ZSJdKSAhPSByZWdbImVxdWlwb3MiXVsidmlzaXRhbnRlIl0pOgogICAgICAgICAgICAgICAgZGVzY2FydGFyKCJlcXVpcG9zX2luY29uc2lzdGVudGVzIikKICAgICAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgICAgIGxvY2FsZXMgPSBmbG9hdChyZWFsWyJwdW50b3NfbG9jYWwiXSkKICAgICAgICAgICAgdmlzaXRhbnRlcyA9IGZsb2F0KHJlYWxbInB1bnRvc192aXNpdGFudGUiXSkKICAgICAgICAgICAgaWYgbm90IGFsbChtYXRoLmlzZmluaXRlKHgpIGFuZCB4ID49IDAgZm9yIHggaW4gKGxvY2FsZXMsIHZpc2l0YW50ZXMpKToKICAgICAgICAgICAgICAgIGRlc2NhcnRhcigibWFyY2Fkb3JfaW52YWxpZG8iKQogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgZm9yIG9iamV0aXZvLCBwcm95LCBvYnNlcnZhZG8gaW4gKAogICAgICAgICAgICAgICAgKCJsb2NhbCIsIHJlZ1sicHJveWVjY2lvbmVzIl1bImxvY2FsIl0sIGxvY2FsZXMpLAogICAgICAgICAgICAgICAgKCJ2aXNpdGFudGUiLCByZWdbInByb3llY2Npb25lcyJdWyJ2aXNpdGFudGUiXSwgdmlzaXRhbnRlcyksCiAgICAgICAgICAgICAgICAoInRvdGFsIiwgcmVnWyJwcm95ZWNjaW9uZXMiXVsidG90YWwiXSwgbG9jYWxlcyArIHZpc2l0YW50ZXMpLAogICAgICAgICAgICApOgogICAgICAgICAgICAgICAgcCA9IGZsb2F0KHByb3kpCiAgICAgICAgICAgICAgICBpZiBub3QgbWF0aC5pc2Zpbml0ZShwKToKICAgICAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJQcm95ZWNjacOzbiBpbnbDoWxpZGEiKQogICAgICAgICAgICAgICAgZmlsYXMuYXBwZW5kKHsicGFydGlkb19pZCI6IHBpZCwgIm9iamV0aXZvIjogb2JqZXRpdm8sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJtb3RvciI6IHJlZ1sic2VsZWNjaW9uIl1bInRvdGFsIiBpZiBvYmpldGl2byA9PSAidG90YWwiIGVsc2UgInB1bnRvc19wb3JfZXF1aXBvIl1bIm1vdG9yIl0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICJwcm95ZWNjaW9uIjogcCwgInJlYWwiOiBvYnNlcnZhZG8sICJlcnJvciI6IHAgLSBvYnNlcnZhZG99KQogICAgICAgIGV4Y2VwdCAoVmFsdWVFcnJvciwgVHlwZUVycm9yLCBLZXlFcnJvciwgT3ZlcmZsb3dFcnJvcik6CiAgICAgICAgICAgIGRlc2NhcnRhcigiZGF0b3NfaW5jb21wbGV0b3MiKQogICAgcmVzdW1lbiA9IFtdCiAgICBmb3Igb2JqZXRpdm8gaW4gKCJsb2NhbCIsICJ2aXNpdGFudGUiLCAidG90YWwiKToKICAgICAgICBtdWVzdHJhID0gW3JbImVycm9yIl0gZm9yIHIgaW4gZmlsYXMgaWYgclsib2JqZXRpdm8iXSA9PSBvYmpldGl2b10KICAgICAgICBpZiBtdWVzdHJhOgogICAgICAgICAgICByZXN1bWVuLmFwcGVuZCh7Im9iamV0aXZvIjogb2JqZXRpdm8sICJuIjogbGVuKG11ZXN0cmEpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgIk1BRSI6IHJvdW5kKHN1bShhYnMoZSkgZm9yIGUgaW4gbXVlc3RyYSkgLyBsZW4obXVlc3RyYSksIDMpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgInNlc2dvIjogcm91bmQoc3VtKG11ZXN0cmEpIC8gbGVuKG11ZXN0cmEpLCAzKX0pCiAgICBlcXVpcG9zID0gW3JbImVycm9yIl0gZm9yIHIgaW4gZmlsYXMgaWYgclsib2JqZXRpdm8iXSBpbiAoImxvY2FsIiwgInZpc2l0YW50ZSIpXQogICAgaWYgZXF1aXBvczoKICAgICAgICByZXN1bWVuLmFwcGVuZCh7Im9iamV0aXZvIjogInB1bnRvc19wb3JfZXF1aXBvIiwgIm4iOiBsZW4oZXF1aXBvcyksCiAgICAgICAgICAgICAgICAgICAgICAgICJNQUUiOiByb3VuZChzdW0oYWJzKGUpIGZvciBlIGluIGVxdWlwb3MpIC8gbGVuKGVxdWlwb3MpLCAzKSwKICAgICAgICAgICAgICAgICAgICAgICAgInNlc2dvIjogcm91bmQoc3VtKGVxdWlwb3MpIC8gbGVuKGVxdWlwb3MpLCAzKX0pCiAgICByZXR1cm4geyJkZXRhbGxlIjogZmlsYXMsICJyZXN1bWVuIjogcmVzdW1lbiwgImRlc2NhcnRlcyI6IGRlc2NhcnRlc30K",
+          "nba_resultados_reglamentarios.py": "IiIiUmVzdWx0YWRvcyBOQkEgcmVnbGFtZW50YXJpb3MgcGFyYSBldmFsdWFjacOzbiBjb25zb2xpZGFkYSAoc29sbyBsZWN0dXJhKS4iIiIKaW1wb3J0IG1hdGgKCgpkZWYgcmVzdWx0YWRvc19yZWdsYW1lbnRhcmlvcyhwYXJ0aWRvcywgY2FyZ2FyX2RldGFsbGUsIGV4dHJhZXJfcGVyaW9kb3MpOgogICAgIiIiRGV2dWVsdmUgcmVzdWx0YWRvcyBkZSA0IGN1YXJ0b3MsIHNpbiBwcsOzcnJvZ2FzLCBjb24gZXJyb3JlcyBkaWFnbm9zdGljYWJsZXMuIiIiCiAgICBzYWxpZGEsIGRlc2NhcnRlcyA9IFtdLCB7fQogICAgZm9yIHBhcnRpZG8gaW4gcGFydGlkb3M6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBpZiBub3QgYm9vbChwYXJ0aWRvWyJmaW5hbGl6YWRvIl0pOgogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgcGlkID0gc3RyKHBhcnRpZG9bImlkIl0pCiAgICAgICAgICAgIGxvY2FsLCB2aXNpdGFudGUgPSBzdHIocGFydGlkb1sibG9jYWwiXSksIHN0cihwYXJ0aWRvWyJ2aXNpdGFudGUiXSkKICAgICAgICAgICAgZGV0YWxsZSA9IGNhcmdhcl9kZXRhbGxlKHBpZCkKICAgICAgICAgICAgcGVyaW9kb3MgPSBleHRyYWVyX3BlcmlvZG9zKGRldGFsbGUpCiAgICAgICAgICAgIGRlZiBjdWF0cm8oZXF1aXBvKToKICAgICAgICAgICAgICAgIHZhbG9yZXMgPSBwZXJpb2Rvc1tlcXVpcG9dCiAgICAgICAgICAgICAgICBpZiBub3QgaXNpbnN0YW5jZSh2YWxvcmVzLCBkaWN0KSBvciBub3QgYWxsKGsgaW4gdmFsb3JlcyBmb3IgayBpbiAoMSwyLDMsNCkpOgogICAgICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoImZhbHRhbiBjdWF0cm8gY3VhcnRvcyIpCiAgICAgICAgICAgICAgICBwdW50b3MgPSBbZmxvYXQodmFsb3Jlc1trXSkgZm9yIGsgaW4gKDEsMiwzLDQpXQogICAgICAgICAgICAgICAgaWYgbm90IGFsbChtYXRoLmlzZmluaXRlKHgpIGFuZCB4ID49IDAgZm9yIHggaW4gcHVudG9zKToKICAgICAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJjdWFydG9zIGludmFsaWRvcyIpCiAgICAgICAgICAgICAgICByZXR1cm4gc3VtKHB1bnRvcykKICAgICAgICAgICAgc2FsaWRhLmFwcGVuZCh7ImlkIjogcGlkLCAiZmVjaGFfdXRjIjogc3RyKHBhcnRpZG9bImZlY2hhX3V0YyJdKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgImxvY2FsIjogbG9jYWwsICJ2aXNpdGFudGUiOiB2aXNpdGFudGUsICJmaW5hbGl6YWRvIjogVHJ1ZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgInB1bnRvc19sb2NhbCI6IGN1YXRybyhsb2NhbCksICJwdW50b3NfdmlzaXRhbnRlIjogY3VhdHJvKHZpc2l0YW50ZSl9KQogICAgICAgIGV4Y2VwdCAoS2V5RXJyb3IsIFR5cGVFcnJvciwgVmFsdWVFcnJvciwgUnVudGltZUVycm9yLCBPdmVyZmxvd0Vycm9yKSBhcyBleGM6CiAgICAgICAgICAgIGRlc2NhcnRlc1tzdHIocGFydGlkby5nZXQoImlkIiwiZGVzY29ub2NpZG8iKSldID0gc3RyKGV4YylbOjE1MF0KICAgIHJldHVybiBzYWxpZGEsIGRlc2NhcnRlcwo=",
+          }
+          for nombre, contenido in archivos.items():
+              Path(nombre).write_bytes(base64.b64decode(contenido))
+          PY
+      - name: Integrar panel en laboratorio experimental
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("nba_laboratorio_prospectivo.py")
+          s=p.read_text(encoding="utf-8")
+          marca="NBA_EVALUACION_CONSOLIDADA_SOLO_LECTURA_V1"
+          if marca in s:
+              print("Panel ya instalado")
+          else:
+              ancla="    st.subheader('Validación prospectiva')"
+              if s.count(ancla)!=1:
+                  raise RuntimeError("Ancla no encontrada; no se modifica")
+              bloque = """
+              # NBA_EVALUACION_CONSOLIDADA_SOLO_LECTURA_V1
+              st.subheader("Evaluación histórica · proyección consolidada")
+              st.caption("Solo lectura. Resultados de los cuatro cuartos reglamentarios; sin prórrogas.")
+              if st.button("📊 Evaluar registros consolidados", key="nba_eval_consolidada_v1"):
+                  try:
+                      from nba_evaluacion_consolidada import consultar_guardados, evaluar_guardados
+                      from nba_resultados_reglamentarios import resultados_reglamentarios
+                      from modulo_nba import cargar_detalle
+                      from resumen_inteligente_nba import _puntos_periodos
+                      url = str(st.secrets.get("SUPABASE_URL", ""))
+                      clave = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+                      guardados = consultar_guardados(url=url, clave=clave)
+                      ids = {str(r.get("partido_id")) for r in guardados}
+                      partidos = historico.loc[historico["id"].astype(str).isin(ids)].to_dict("records") if "id" in historico.columns else []
+                      reales, errores = resultados_reglamentarios(partidos, cargar_detalle, _puntos_periodos)
+                      resultado = evaluar_guardados(guardados, reales)
+                      st.caption(f"Registros consolidados: {len(guardados)} · Partidos con resultado reglamentario: {len(reales)}")
+                      if resultado["resumen"]:
+                          st.dataframe(pd.DataFrame(resultado["resumen"]), hide_index=True, use_container_width=True)
+                          with st.expander("Detalle de errores"):
+                              st.dataframe(pd.DataFrame(resultado["detalle"]), hide_index=True, use_container_width=True)
+                      else:
+                          st.info("Aún no hay partidos finalizados con resultados reglamentarios verificables en el historial cargado.")
+                      with st.expander("Descartes y cobertura"):
+                          st.json({"descartes": resultado["descartes"], "detalle_no_disponible": errores})
+                  except (ValueError, TypeError, KeyError, RuntimeError, OSError) as exc:
+                      st.error("Evaluación no disponible: " + str(exc))
+          """
+              s=s.replace(ancla,bloque+"\n"+ancla,1)
+              compile(s,str(p),"exec")
+              p.write_text(s,encoding="utf-8")
+              print("Panel de evaluación integrado")
+          PY
+      - name: Verificar sintaxis
+        run: python -m py_compile nba_evaluacion_consolidada.py nba_resultados_reglamentarios.py nba_laboratorio_prospectivo.py
+      - name: Confirmar rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_evaluacion_consolidada.py nba_resultados_reglamentarios.py nba_laboratorio_prospectivo.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: evaluacion consolidada solo lectura y sin prorrogas"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
