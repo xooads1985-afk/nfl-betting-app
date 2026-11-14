@@ -1,0 +1,54 @@
+name: NBA - Historial mensual reutilizable
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          mod=base64.b64decode('ZnJvbSBjYWxlbmRhciBpbXBvcnQgbW9udGhyYW5nZQpmcm9tIGRhdGV0aW1lIGltcG9ydCBkYXRlCmltcG9ydCBwYW5kYXMgYXMgcGQKCmRlZiBjYXJnYXJfcG9yX2Jsb3F1ZXMoY2FyZ2Fkb3IsIGRlc2RlLCBoYXN0YSk6CiAgICBkZXNkZSwgaGFzdGEgPSBkYXRlLmZyb21pc29mb3JtYXQoc3RyKGRlc2RlKSksIGRhdGUuZnJvbWlzb2Zvcm1hdChzdHIoaGFzdGEpKQogICAgaWYgaGFzdGEgPCBkZXNkZToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCJJbnRlcnZhbG8gaW52YWxpZG8iKQogICAgZnJhZ21lbnRvcywgaW5jaWRlbmNpYXMgPSBbXSwgW10KICAgIGN1cnNvciA9IGRlc2RlCiAgICB3aGlsZSBjdXJzb3IgPD0gaGFzdGE6CiAgICAgICAgZmluID0gbWluKGRhdGUoY3Vyc29yLnllYXIsIGN1cnNvci5tb250aCwgbW9udGhyYW5nZShjdXJzb3IueWVhcixjdXJzb3IubW9udGgpWzFdKSwgaGFzdGEpCiAgICAgICAgdHJ5OgogICAgICAgICAgICB0YWJsYSwgZXJyb3JlcyA9IGNhcmdhZG9yKGN1cnNvciwgZmluKQogICAgICAgICAgICBpZiB0YWJsYSBpcyBub3QgTm9uZSBhbmQgbm90IHRhYmxhLmVtcHR5OgogICAgICAgICAgICAgICAgZnJhZ21lbnRvcy5hcHBlbmQodGFibGEpCiAgICAgICAgICAgIGluY2lkZW5jaWFzLmV4dGVuZChmIntjdXJzb3J9IGEge2Zpbn06IHtlfSIgZm9yIGUgaW4gKGVycm9yZXMgb3IgW10pKQogICAgICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZXhjOgogICAgICAgICAgICBpbmNpZGVuY2lhcy5hcHBlbmQoZiJ7Y3Vyc29yfSBhIHtmaW59OiB7dHlwZShleGMpLl9fbmFtZV9ffToge2V4Y30iKQogICAgICAgIGN1cnNvciA9IGRhdGUuZnJvbW9yZGluYWwoZmluLnRvb3JkaW5hbCgpKzEpCiAgICBpZiBub3QgZnJhZ21lbnRvczoKICAgICAgICByZXR1cm4gcGQuRGF0YUZyYW1lKCksIGluY2lkZW5jaWFzCiAgICBzYWxpZGEgPSBwZC5jb25jYXQoZnJhZ21lbnRvcywgaWdub3JlX2luZGV4PVRydWUpCiAgICBpZiAiaWQiIGluIHNhbGlkYS5jb2x1bW5zOgogICAgICAgIHNhbGlkYVsiaWQiXSA9IHNhbGlkYVsiaWQiXS5hc3R5cGUoc3RyKQogICAgICAgIHNhbGlkYSA9IHNhbGlkYS5kcm9wX2R1cGxpY2F0ZXMoImlkIiwga2VlcD0ibGFzdCIpCiAgICBpZiAiZmVjaGFfdXRjIiBpbiBzYWxpZGEuY29sdW1uczoKICAgICAgICBzYWxpZGEgPSBzYWxpZGEuc29ydF92YWx1ZXMoImZlY2hhX3V0YyIpLnJlc2V0X2luZGV4KGRyb3A9VHJ1ZSkKICAgIHJldHVybiBzYWxpZGEsIGluY2lkZW5jaWFzCg==').decode()
+          Path('nba_historial_bloques.py').write_text(mod,encoding='utf-8')
+          p=Path('nba_tarjeta_auto.py')
+          s=p.read_text(encoding='utf-8')
+          old='''            dependencias = adaptadores_reales(
+                          cargador_historial=cargador_historial
+                      )
+          '''
+          new='''            # NBA_HISTORIAL_MENSUAL_CACHE_V1
+                      from nba_historial_bloques import cargar_por_bloques
+                      def _historial_mensual(desde, hasta):
+                          return cargar_por_bloques(cargador_historial, desde, hasta)
+                      dependencias = adaptadores_reales(
+                          cargador_historial=_historial_mensual
+                      )
+          '''
+          if 'NBA_HISTORIAL_MENSUAL_CACHE_V1' not in s:
+              assert s.count(old)==1, 'Ancla no coincide; abortar'
+              s=s.replace(old,new,1)
+              compile(s,str(p),'exec')
+              p.write_text(s,encoding='utf-8')
+          compile(mod,'nba_historial_bloques.py','exec')
+          PY
+      - name: Verificar
+        run: python -m py_compile nba_historial_bloques.py nba_tarjeta_auto.py
+      - name: Guardar en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nba_historial_bloques.py nba_tarjeta_auto.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: cache historico por meses"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
