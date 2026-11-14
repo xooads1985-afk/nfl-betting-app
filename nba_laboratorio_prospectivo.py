@@ -440,6 +440,35 @@ def mostrar():
     # Diagnóstico sin escrituras ni exposición de secretos.
     from nba_supabase_diagnostico import mostrar_diagnostico
     mostrar_diagnostico()
+
+    # NBA_EVALUACION_CONSOLIDADA_SOLO_LECTURA_V1
+    st.subheader("Evaluación histórica · proyección consolidada")
+    st.caption("Solo lectura. Resultados de los cuatro cuartos reglamentarios; sin prórrogas.")
+    if st.button("📊 Evaluar registros consolidados", key="nba_eval_consolidada_v1"):
+        try:
+            from nba_evaluacion_consolidada import consultar_guardados, evaluar_guardados
+            from nba_resultados_reglamentarios import resultados_reglamentarios
+            from modulo_nba import cargar_detalle
+            from resumen_inteligente_nba import _puntos_periodos
+            url = str(st.secrets.get("SUPABASE_URL", ""))
+            clave = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+            guardados = consultar_guardados(url=url, clave=clave)
+            ids = {str(r.get("partido_id")) for r in guardados}
+            partidos = historico.loc[historico["id"].astype(str).isin(ids)].to_dict("records") if "id" in historico.columns else []
+            reales, errores = resultados_reglamentarios(partidos, cargar_detalle, _puntos_periodos)
+            resultado = evaluar_guardados(guardados, reales)
+            st.caption(f"Registros consolidados: {len(guardados)} · Partidos con resultado reglamentario: {len(reales)}")
+            if resultado["resumen"]:
+                st.dataframe(pd.DataFrame(resultado["resumen"]), hide_index=True, use_container_width=True)
+                with st.expander("Detalle de errores"):
+                    st.dataframe(pd.DataFrame(resultado["detalle"]), hide_index=True, use_container_width=True)
+            else:
+                st.info("Aún no hay partidos finalizados con resultados reglamentarios verificables en el historial cargado.")
+            with st.expander("Descartes y cobertura"):
+                st.json({"descartes": resultado["descartes"], "detalle_no_disponible": errores})
+        except (ValueError, TypeError, KeyError, RuntimeError, OSError) as exc:
+            st.error("Evaluación no disponible: " + str(exc))
+
     st.subheader('Validación prospectiva')
     if st.button('Consultar registros y evaluar', use_container_width=True):
         try:
