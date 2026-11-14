@@ -186,6 +186,30 @@ def _mostrar_edge(st, compartido):
             st.warning("Registro aún no apto para guardar: " + str(exc))
         st.caption("No escribe ni modifica registros en Supabase.")
 
+        # NBA_DIAGNOSTICO_SUPABASE_SOLO_GET_V1
+        with st.expander("🔍 Supabase · diagnóstico de solo lectura"):
+            from nba_consulta_consolidada import comprobar_registro
+            clave_registro = "nba-consolidado-v1:" + str(compartido["partido_id"])
+            url_sb = str(st.secrets.get("SUPABASE_URL", ""))
+            clave_sb = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+            if not url_sb or not clave_sb:
+                st.warning("Falta la conexión existente de Supabase.")
+            else:
+                resultado_sb = comprobar_registro(
+                    clave_registro, url=url_sb, clave=clave_sb
+                )
+                st.write("Estado de consulta:", resultado_sb["estado"])
+                if resultado_sb["estado"] == "registro_existente":
+                    st.caption("Clave: " + str(resultado_sb.get("clave_unica", "")))
+                    st.caption("SHA-256: " + str(resultado_sb.get("huella_sha256", "")))
+                elif resultado_sb["estado"] == "tabla_no_disponible":
+                    st.info("La tabla consolidada aún no está disponible.")
+                elif resultado_sb["estado"] == "sin_registro":
+                    st.info("La tabla responde, pero este partido aún no tiene registro.")
+                else:
+                    st.caption("No se han modificado datos.")
+            st.caption("Consulta GET exclusivamente; no guarda ni actualiza.")
+
 def _mostrar_previa(
     st,
     partido,
