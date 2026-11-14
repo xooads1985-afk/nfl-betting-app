@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import streamlit as st
 from tarjeta_motor_cuatro import preparar
+from nba_pace_periodos_tarjeta import completar_filas
 
 TABLA = 'nba_laboratorio_prospectivo'
 SIGLAS_NBA = {
@@ -144,8 +145,9 @@ def mostrar_tarjeta(partido, referencias=None, pace=None, partidos=None):
         st.caption('Total: '+(f"{total['modelo']} · MAE {total['mae']:.3f} · n={total['muestra']}" if total else 'sin validación suficiente'))
         st.caption('Margen: pendiente de validación específica. El total puede diferir de la suma de puntos por equipo porque se selecciona otro motor.')
         st.markdown('**Proyecciones por período**')
-        st.markdown(_tabla_periodos(datos['periodos'],local,visitante),unsafe_allow_html=True)
-        st.caption('Primer cuarto y primera mitad: sin predicciones validadas; no se reparten puntos artificialmente.')
+        filas_periodos, nota_periodos = completar_filas(datos['periodos'], partido)
+        st.markdown(_tabla_periodos(filas_periodos,local,visitante),unsafe_allow_html=True)
+        st.caption(nota_periodos)
         with st.expander('Auditoría · cuatro motores'):
             st.dataframe([{'Motor':r['modelo'],local:round(r['local'],3),
                            visitante:round(r['visitante'],3),'Total':round(r['total'],3)}
