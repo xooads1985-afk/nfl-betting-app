@@ -1,0 +1,57 @@
+name: NBA - Aplicar recuperacion tarjeta experimental
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    if: github.ref_name == 'pruebas-integracion-nba-4-motores'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Comprobar archivos y rama
+        shell: bash
+        run: |
+          test "$(git branch --show-current)" = "pruebas-integracion-nba-4-motores"
+          test -f aplicar_correccion.py
+          test -f nba_historial_snapshot_validado.py
+          test -f nba_tarjeta_auto.py
+          test -f nba_cache_preparada/manifiesto.json
+          test -f nba_cache_preparada/historial_finalizados.csv
+      - name: Aplicar correccion sin tocar estables
+        run: python aplicar_correccion.py
+      - name: Comprobar sintaxis y enlace con snapshot
+        shell: bash
+        run: |
+          python -m py_compile nba_tarjeta_auto.py nba_historial_snapshot_validado.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('nba_tarjeta_auto.py').read_text(encoding='utf-8')
+          assert 'NBA_SNAPSHOT_VERIFICADO_V1' in p
+          assert 'from nba_historial_snapshot_validado import cargar_snapshot' in p
+          print('PASS: tarjeta enlazada al historial persistente')
+          PY
+          test -z "$(git status --porcelain -- main.py modulo_nba.py modulo_nfl.py resumen_inteligente_nba.py)"
+      - name: Guardar solo la tarjeta experimental
+        shell: bash
+        run: |
+          if git diff --quiet -- nba_tarjeta_auto.py; then
+            echo 'Sin cambios: correccion ya aplicada.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- nba_tarjeta_auto.py
+          git commit -m 'NBA experimental: conectar tarjeta existente con snapshot verificado'
+          git push origin HEAD:pruebas-integracion-nba-4-motores
