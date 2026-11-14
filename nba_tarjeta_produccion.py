@@ -1,5 +1,5 @@
 
-"""Tarjeta Inteligente NBA: cuatro motores y diagnóstico de referencias."""
+"""Tarjeta Inteligente NBA: cuatro motores y referencias históricas."""
 
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -74,6 +74,86 @@ def _agenda(dia):
         })
 
     return salida
+
+
+def _mostrar_referencias_confirmadas(partido):
+    """Presenta el resultado compartido sin recalcular motores."""
+
+    compartido = st.session_state.get(
+        "nba_proyeccion_consolidada_v1"
+    )
+
+    if not isinstance(compartido, dict):
+        return
+
+    if str(compartido.get("partido_id")) != str(
+        partido["id"]
+    ):
+        return
+
+    if str(compartido.get("fecha_utc")) != str(
+        partido["fecha_utc"]
+    ):
+        return
+
+    filas = []
+
+    for nombre, clave_proy, clave_ref, clave_edge in (
+        (
+            partido["visitante"],
+            "puntos_visitante",
+            "referencia_visitante",
+            "edge_visitante",
+        ),
+        (
+            partido["local"],
+            "puntos_local",
+            "referencia_local",
+            "edge_local",
+        ),
+        (
+            "Total del partido",
+            "total",
+            "referencia_total",
+            "edge_total",
+        ),
+    ):
+        proyeccion = compartido.get(clave_proy)
+        referencia = compartido.get(clave_ref)
+        edge = compartido.get(clave_edge)
+
+        if any(
+            valor is None
+            for valor in (proyeccion, referencia, edge)
+        ):
+            st.warning(
+                "La referencia o el Edge no están "
+                "completos para este partido."
+            )
+            return
+
+        filas.append({
+            "Estadística": nombre,
+            "Proyección": round(float(proyeccion), 1),
+            "Referencia": round(float(referencia), 1),
+            "Edge": round(float(edge), 1),
+        })
+
+    st.markdown(
+        "### 📊 Referencias históricas confirmadas"
+    )
+
+    st.dataframe(
+        pd.DataFrame(filas),
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    st.caption(
+        "Edge = proyección menos referencia histórica. "
+        "Las referencias son descriptivas y no "
+        "representan probabilidades."
+    )
 
 
 def mostrar_tarjeta_nba_produccion():
@@ -153,8 +233,6 @@ def mostrar_tarjeta_nba_produccion():
 
     partido = opciones[pid]
 
-    # Fecha y hora oficial del encuentro
-
     inicio_utc = datetime.fromisoformat(
         partido["fecha_utc"].replace(
             "Z", "+00:00"
@@ -194,8 +272,6 @@ def mostrar_tarjeta_nba_produccion():
     ):
         return
 
-    # Referencias históricas verificadas
-
     from nba_referencias_tarjeta import (
         referencias_para_partido,
     )
@@ -222,28 +298,8 @@ def mostrar_tarjeta_nba_produccion():
             + str(exc)
         )
 
-    # DIAGNÓSTICO 1: datos históricos de entrada
-
-    with st.expander(
-        "🔬 Diagnóstico 1 · referencias de entrada"
-    ):
-        if periodos_resumen is None:
-            st.error(
-                "No se recibió tabla histórica."
-            )
-        else:
-            st.write(
-                "Columnas recibidas:",
-                list(periodos_resumen.columns),
-            )
-
-            st.dataframe(
-                periodos_resumen,
-                hide_index=True,
-                use_container_width=True,
-            )
-
-    # Vista previa: nunca escribe en Supabase
+    # Análisis de solo lectura.
+    # No guarda ni modifica proyecciones.
 
     mostrar_tarjeta_conectada(
         partido,
@@ -253,49 +309,9 @@ def mostrar_tarjeta_nba_produccion():
         periodos_resumen=periodos_resumen,
     )
 
-    # DIAGNÓSTICO 2: datos publicados por la tarjeta
+    # Presentación de los valores compartidos verificados.
 
-    with st.expander(
-        "🔬 Diagnóstico 2 · referencias publicadas"
-    ):
-        compartido = st.session_state.get(
-            "nba_proyeccion_consolidada_v1"
-        )
-
-        if not isinstance(compartido, dict):
-            st.error(
-                "No se publicó el resultado compartido."
-            )
-        else:
-            if (
-                str(compartido.get("partido_id"))
-                != str(partido["id"])
-            ):
-                st.error(
-                    "El resultado pertenece a otro partido."
-                )
-            elif (
-                str(compartido.get("fecha_utc"))
-                != str(partido["fecha_utc"])
-            ):
-                st.error(
-                    "La fecha del resultado no coincide."
-                )
-            else:
-                claves = [
-                    "partido_id",
-                    "referencia_local",
-                    "referencia_visitante",
-                    "referencia_total",
-                    "edge_local",
-                    "edge_visitante",
-                    "edge_total",
-                ]
-
-                st.json({
-                    clave: compartido.get(clave)
-                    for clave in claves
-                })
+    _mostrar_referencias_confirmadas(partido)
 
     st.caption(
         "El guardado de los motores es una "
@@ -314,8 +330,6 @@ def mostrar_tarjeta_nba_produccion():
         disabled=not confirmar,
         key="nba_prod_guardar_" + pid,
     ):
-
-        # Comprobar nuevamente la hora
 
         if datetime.now(timezone.utc) >= inicio_utc:
             st.error(
