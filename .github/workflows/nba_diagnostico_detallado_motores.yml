@@ -1,0 +1,95 @@
+name: NBA - Diagnostico detallado motores
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instrumentar tiempos sin cambiar predicciones
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("nba_laboratorio_prospectivo.py")
+          s=p.read_text(encoding="utf-8")
+          marker="NBA_PERFIL_TRES_MOTORES_V1"
+          if marker not in s:
+              anchor="def calcular(historico, juego):"
+              assert s.count(anchor)==1, "Función calcular no encontrada"
+              s=s.replace(anchor,'''# NBA_PERFIL_TRES_MOTORES_V1
+          from time import perf_counter as _nba_perf
+          from contextvars import ContextVar as _NBAContextVar
+          _PERFIL_TRES = _NBAContextVar("nba_perfil_tres", default=None)
+          
+          def ultimo_perfil_tres():
+              return _PERFIL_TRES.get()
+          
+          '''+anchor,1)
+              start=s.index(anchor)
+              end=s.index("\ndef guardar(",start)
+              fn=s[start:end]
+              fn=fn.replace("    fecha = pd.to_datetime(juego", "    _PERFIL_TRES.set(None)\n    _t0 = _nba_perf()\n    fecha = pd.to_datetime(juego",1)
+              fn=fn.replace("    # Entrenar solo con ejemplos históricos", "    _t_hist = _nba_perf()\n    # Entrenar solo con ejemplos históricos",1)
+              fn=fn.replace("    motor = _nba_lab_ml_entrenar(", "    _t_features = _nba_perf()\n    motor = _nba_lab_ml_entrenar(",1)
+              fn=fn.replace("    # La función histórica requiere campos", "    _t_train = _nba_perf()\n    # La función histórica requiere campos",1)
+              fn=fn.replace("    modelo_c = _nba_lab_modelo_c(", "    _t_vector = _nba_perf()\n    modelo_c = _nba_lab_modelo_c(",1)
+              fn=fn.replace("    salida = {}\n", "    _t_modeloc = _nba_perf()\n    salida = {}\n",1)
+              fn=fn.replace("    return salida\n", '''    _t_fin = _nba_perf()
+              _PERFIL_TRES.set({
+                  "Tres motores · filtrado historial": round(_t_hist - _t0, 2),
+                  "Tres motores · características entrenamiento": round(_t_features - _t_hist, 2),
+                  "Tres motores · entrenamiento Ensemble": round(_t_train - _t_features, 2),
+                  "Tres motores · vector partido": round(_t_vector - _t_train, 2),
+                  "Tres motores · Modelo C": round(_t_modeloc - _t_vector, 2),
+                  "Tres motores · predicción final": round(_t_fin - _t_modeloc, 2),
+              })
+              return salida
+          ''',1)
+              s=s[:start]+fn+s[end:]
+              compile(s,str(p),"exec")
+              p.write_text(s,encoding="utf-8")
+              print("Perfil de motores incorporado")
+          else:
+              print("Perfil ya instalado")
+          p=Path("nba_tarjeta_puente.py")
+          s=p.read_text(encoding="utf-8")
+          marker="NBA_PERFIL_PUENTE_V1"
+          if marker not in s:
+              anchor='''                finally:
+                              _tiempos[
+                                  "Cálculo Base / C / Ensemble"
+                              ] = round(perf_counter() - _t, 2)
+          '''
+              assert s.count(anchor)==1, "Ancla puente no encontrada"
+              replacement=anchor+'''
+                          # NBA_PERFIL_PUENTE_V1
+                          from nba_laboratorio_prospectivo import ultimo_perfil_tres
+                          perfil_tres = ultimo_perfil_tres()
+                          if perfil_tres:
+                              _tiempos.update(perfil_tres)
+          '''
+              s=s.replace(anchor,replacement,1)
+              compile(s,str(p),"exec")
+              p.write_text(s,encoding="utf-8")
+              print("Perfil conectado al diagnóstico de tarjeta")
+          else:
+              print("Perfil puente ya instalado")
+          PY
+      - name: Validar sintaxis
+        run: python -m py_compile nba_laboratorio_prospectivo.py nba_tarjeta_puente.py
+      - name: Publicar en rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_laboratorio_prospectivo.py nba_tarjeta_puente.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: medir fases del calculo de tres motores"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
