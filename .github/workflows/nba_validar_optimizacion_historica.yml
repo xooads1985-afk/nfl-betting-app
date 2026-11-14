@@ -14,21 +14,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Instalar dependencias de validacion
+      - name: Instalar dependencias
         run: pip install -r requirements.txt
-      - name: Comparar vectores originales y optimizados
-        env:
-          STREAMLIT_SERVER_HEADLESS: "true"
+      - name: Validar sin secretos Supabase
         run: |
           python - <<'PY'
-          import time
+          import time, requests
           import numpy as np
           import pandas as pd
           from datetime import date, timedelta
-          from modulo_nba import cargar_partidos
           from nba_lab_motor_offline import _nba_lab_ml_caracteristicas, _nba_lab_dias_descanso
-          
-          # Reproduce las mismas operaciones y cortes, pero precalcula el historial por equipo.
+
           def indexar(datos):
               equipos = pd.unique(pd.concat([datos['local'], datos['visitante']], ignore_index=True))
               grupos = {}
@@ -67,33 +63,40 @@ jobs:
                       filas.append({'equipo':str(equipo),'x':np.asarray(vector,dtype=float),'base':base,'n':len(propio),'liga':liga,'real':float(juego['puntos_local'] if local else juego['puntos_visitante'])})
                   return filas
               return calcular
-          
-          # ESPN: varias semanas de juegos finalizados; no se escriben resultados en Supabase.
-          h, avisos = cargar_partidos(date.today()-timedelta(days=30), date.today()-timedelta(days=1))
-          if avisos:
-              raise RuntimeError('Cobertura ESPN incompleta: ' + str(avisos[:3]))
-          h = h.loc[h['finalizado'].eq(True)].dropna(subset=['puntos_local','puntos_visitante']).copy()
-          h['_fecha_ml'] = pd.to_datetime(h['fecha_utc'],utc=True,errors='coerce')
-          h = h.dropna(subset=['_fecha_ml']).sort_values('_fecha_ml')
-          if len(h) < 30:
-              raise RuntimeError('Muestra insuficiente para equivalencia: '+str(len(h)))
-          juegos = h.to_dict('records')
-          t0=time.perf_counter()
+
+          registros=[]
+          for delta in range(30):
+              dia=date.today()-timedelta(days=30-delta)
+              respuesta=requests.get('https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard',params={'dates':dia.strftime('%Y%m%d'),'limit':100},timeout=20)
+              respuesta.raise_for_status()
+              for evento in respuesta.json().get('events',[]):
+                  comp=(evento.get('competitions') or [{}])[0]
+                  equipos=comp.get('competitors',[])
+                  casa=next((x for x in equipos if x.get('homeAway')=='home'),{})
+                  visita=next((x for x in equipos if x.get('homeAway')=='away'),{})
+                  if not evento.get('status',{}).get('type',{}).get('completed',False): continue
+                  registros.append({'id':str(evento.get('id','')),'fecha_utc':evento.get('date',''),'local':casa.get('team',{}).get('displayName',''),'visitante':visita.get('team',{}).get('displayName',''),'puntos_local':pd.to_numeric(casa.get('score'),errors='coerce'),'puntos_visitante':pd.to_numeric(visita.get('score'),errors='coerce'),'finalizado':True})
+          h=pd.DataFrame(registros)
+          if h.empty: raise RuntimeError('ESPN no devolvió partidos finalizados')
+          h=h.drop_duplicates('id').dropna(subset=['puntos_local','puntos_visitante']).copy()
+          h['_fecha_ml']=pd.to_datetime(h['fecha_utc'],utc=True,errors='coerce')
+          h=h.dropna(subset=['_fecha_ml']).sort_values('_fecha_ml')
+          if len(h)<30: raise RuntimeError('Muestra insuficiente: '+str(len(h)))
+          juegos=h.to_dict('records')
+          t=time.perf_counter()
           original=[_nba_lab_ml_caracteristicas(h,j) for j in juegos]
-          t_original=time.perf_counter()-t0
-          t0=time.perf_counter()
+          t_original=time.perf_counter()-t
+          t=time.perf_counter()
           rapido=indexar(h)
           optimizado=[rapido(j) for j in juegos]
-          t_optimizado=time.perf_counter()-t0
-          for idx,(a,b) in enumerate(zip(original,optimizado)):
-              if len(a)!=len(b): raise AssertionError(f'Juego {idx}: distinto número de vectores')
+          t_optimizado=time.perf_counter()-t
+          for i,(a,b) in enumerate(zip(original,optimizado)):
+              if len(a)!=len(b): raise AssertionError(f'Juego {i}: distinto número de vectores')
               for x,y in zip(a,b):
                   for k in ('equipo','n','real'):
-                      if x[k]!=y[k]: raise AssertionError(f'Juego {idx}: {k} diferente')
+                      if x[k]!=y[k]: raise AssertionError(f'Juego {i}: {k} diferente')
                   for k in ('x','base','liga'):
-                      if not np.allclose(x[k],y[k],rtol=0,atol=1e-10):
-                          raise AssertionError(f'Juego {idx}: {k} diferente')
-          print('EQUIVALENCIA CONFIRMADA para',len(juegos),'partidos')
+                      if not np.allclose(x[k],y[k],rtol=0,atol=1e-10): raise AssertionError(f'Juego {i}: {k} diferente')
+          print('EQUIVALENCIA CONFIRMADA:',len(juegos),'partidos')
           print('Original:',round(t_original,2),'s; indexado:',round(t_optimizado,2),'s')
-          print('Aceleración:',round(t_original/max(t_optimizado,0.00001),2),'x')
           PY
