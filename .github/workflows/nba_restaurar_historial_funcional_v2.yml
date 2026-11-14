@@ -1,0 +1,65 @@
+name: NBA - Restaurar historial funcional V2
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  restaurar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - name: Restaurar bloque identificado
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("nba_tarjeta_auto.py")
+          s = p.read_text(encoding="utf-8")
+          marker = "            # NBA_HISTORIAL_PERSISTENTE_RAPIDO_V1"
+          endmarker = "            resultado = obtener_tarjeta("
+          if s.count(marker) != 1:
+              raise SystemExit("No se encontro exactamente un marcador del lector rapido")
+          start = s.index(marker)
+          if s.count(endmarker, start) < 1:
+              raise SystemExit("No se encontro el final del bloque")
+          end = s.index(endmarker, start)
+          bloque = s[start:end]
+          for expected in (
+              "from nba_historial_persistente_rapido import cargar_historial_rapido",
+              "return cargar_historial_rapido(cargador_historial, desde, hasta)",
+              "dependencias = adaptadores_reales(",
+          ):
+              if expected not in bloque:
+                  raise SystemExit("Bloque inesperado: " + expected)
+          nuevo = (
+              "            # NBA_HISTORIAL_MENSUAL_CACHE_V1\n"
+              "            from nba_historial_bloques import cargar_por_bloques\n"
+              "            def _historial_mensual(desde, hasta):\n"
+              "                return cargar_por_bloques(cargador_historial, desde, hasta)\n"
+              "            dependencias = adaptadores_reales(\n"
+              "                cargador_historial=_historial_mensual\n"
+              "            )\n\n"
+          )
+          s = s[:start] + nuevo + s[end:]
+          compile(s, str(p), "exec")
+          p.write_text(s, encoding="utf-8")
+          print("Restaurado cargador mensual; sin alterar motores")
+          PY
+      - name: Verificar sintaxis y marcador
+        run: |
+          python -m py_compile nba_tarjeta_auto.py
+          grep -q 'NBA_HISTORIAL_MENSUAL_CACHE_V1' nba_tarjeta_auto.py
+          if grep -q 'NBA_HISTORIAL_PERSISTENTE_RAPIDO_V1' nba_tarjeta_auto.py; then
+            echo 'Marcador rapido aun presente'
+            exit 1
+          fi
+      - name: Publicar restauracion experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_tarjeta_auto.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: restaurar cargador mensual funcional V2"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
