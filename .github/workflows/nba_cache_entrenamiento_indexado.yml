@@ -1,0 +1,66 @@
+name: NBA - Cache entrenamiento indexado
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar cache de entrenamiento
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("nba_laboratorio_prospectivo.py")
+          s=p.read_text(encoding="utf-8")
+          marker="NBA_CACHE_FEATURES_VALIDADO_V1"
+          if marker not in s:
+              anchor="def calcular(historico, juego):"
+              assert s.count(anchor)==1, "Ancla calcular no coincide"
+              helper='''# NBA_CACHE_FEATURES_VALIDADO_V1
+          @st.cache_data(ttl=3600, max_entries=8, show_spinner=False)
+          def _nba_entrenamiento_indexado_cache(datos):
+              """La clave de cache incluye el DataFrame completo ya cortado por fecha."""
+              from nba_features_indexadas import preparar_indice
+              indice = preparar_indice(datos)
+              filas = []
+              for anterior in datos.to_dict('records'):
+                  filas.extend(indice(anterior))
+              return filas
+          
+          
+          '''
+              s=s.replace(anchor,helper+anchor,1)
+              old='''    from nba_features_indexadas import preparar_indice
+              _calcular_indexado = preparar_indice(datos)
+              entrenamiento = []
+              for anterior in datos.to_dict('records'):
+                  entrenamiento.extend(_calcular_indexado(anterior))
+          '''
+              new='''    entrenamiento = _nba_entrenamiento_indexado_cache(datos)
+          '''
+              assert s.count(old)==1, "Bloque entrenamiento no coincide"
+              s=s.replace(old,new,1)
+              compile(s,str(p),"exec")
+              p.write_text(s,encoding="utf-8")
+              print("Cache de features integrado")
+          else:
+              print("Cache de features ya instalado")
+          PY
+      - name: Verificar sintaxis
+        run: python -m py_compile nba_laboratorio_prospectivo.py
+      - name: Publicar solo rama experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- nba_laboratorio_prospectivo.py
+          if ! git diff --cached --quiet; then
+            git commit -m "NBA: cache por historial de features indexadas"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
