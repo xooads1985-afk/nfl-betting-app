@@ -255,6 +255,12 @@ def preparar_y_ejecutar(
                         "Cálculo Base / C / Ensemble"
                     ] = round(perf_counter() - _t, 2)
 
+                # NBA_PERFIL_PUENTE_V1
+                from nba_laboratorio_prospectivo import ultimo_perfil_tres
+                perfil_tres = ultimo_perfil_tres()
+                if perfil_tres:
+                    _tiempos.update(perfil_tres)
+
             except (
                 ValueError,
                 KeyError,

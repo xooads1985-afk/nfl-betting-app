@@ -76,8 +76,18 @@ def registros():
     return salida
 
 
+# NBA_PERFIL_TRES_MOTORES_V1
+from time import perf_counter as _nba_perf
+from contextvars import ContextVar as _NBAContextVar
+_PERFIL_TRES = _NBAContextVar("nba_perfil_tres", default=None)
+
+def ultimo_perfil_tres():
+    return _PERFIL_TRES.get()
+
 def calcular(historico, juego):
     """Solo historial previo a la hora del encuentro. Sin resultado objetivo futuro."""
+    _PERFIL_TRES.set(None)
+    _t0 = _nba_perf()
     fecha = pd.to_datetime(juego['fecha_utc'], utc=True, errors='coerce')
     if pd.isna(fecha) or fecha <= pd.Timestamp.now(tz='UTC'):
         raise ValueError('Solo se admiten encuentros futuros con fecha verificable.')
@@ -87,15 +97,18 @@ def calcular(historico, juego):
         subset=['puntos_local', 'puntos_visitante', '_fecha_ml']).sort_values('_fecha_ml')
     if len(datos) < 20:
         raise ValueError('No hay suficiente historial anterior al encuentro.')
+    _t_hist = _nba_perf()
     # Entrenar solo con ejemplos históricos cuyas variables usan juegos anteriores.
     entrenamiento = []
     for anterior in datos.to_dict('records'):
         entrenamiento.extend(_nba_lab_ml_caracteristicas(datos, anterior))
     if len(entrenamiento) < 24:
         raise ValueError('Faltan ejemplos históricos válidos para entrenar Ensemble.')
+    _t_features = _nba_perf()
     motor = _nba_lab_ml_entrenar([r['x'] for r in entrenamiento], [r['real'] for r in entrenamiento])
     if not motor:
         raise ValueError('No se pudo entrenar Ensemble.')
+    _t_train = _nba_perf()
     # La función histórica requiere campos de marcador para formar su estructura;
     # estos valores provisionales nunca entran en las características ni se guardan.
     objetivo = dict(juego)
@@ -106,9 +119,11 @@ def calcular(historico, juego):
         raise ValueError('Faltan antecedentes de uno de los equipos.')
     ajustes = {'forma': True, 'sede': True, 'descanso': True, 'pace': False,
                'fuerza': True, 'regresion': True}
+    _t_vector = _nba_perf()
     modelo_c = _nba_lab_modelo_c(datos, objetivo, ajustes)
     if modelo_c is None:
         raise ValueError('Modelo C no dispone de datos suficientes.')
+    _t_modeloc = _nba_perf()
     salida = {}
     for fila in vector:
         predicciones = _nba_lab_ml_predecir(motor, fila['x'], fila['base'], fila['n'], fila['liga'])
@@ -120,6 +135,15 @@ def calcular(historico, juego):
             'Modelo C': round(float(modelo_c[fila['equipo']]['pred']), 3),
             'Ensemble': round(float(ensemble), 3),
         }
+    _t_fin = _nba_perf()
+    _PERFIL_TRES.set({
+        "Tres motores · filtrado historial": round(_t_hist - _t0, 2),
+        "Tres motores · características entrenamiento": round(_t_features - _t_hist, 2),
+        "Tres motores · entrenamiento Ensemble": round(_t_train - _t_features, 2),
+        "Tres motores · vector partido": round(_t_vector - _t_train, 2),
+        "Tres motores · Modelo C": round(_t_modeloc - _t_vector, 2),
+        "Tres motores · predicción final": round(_t_fin - _t_modeloc, 2),
+    })
     return salida
 
 
