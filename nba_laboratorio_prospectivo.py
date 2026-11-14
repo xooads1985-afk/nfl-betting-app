@@ -454,8 +454,43 @@ def mostrar():
             clave = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
             guardados = consultar_guardados(url=url, clave=clave)
             ids = {str(r.get("partido_id")) for r in guardados}
-            partidos = historico.loc[historico["id"].astype(str).isin(ids)].to_dict("records") if "id" in historico.columns else []
+            # NBA_EVALUACION_DIRECTA_IDS_V1
+            # Consultar exclusivamente las fechas de los partidos guardados.
+            # No depende de cargar manualmente la temporada completa.
+            from modulo_nba import cargar_partidos
+            from datetime import datetime, timezone, timedelta
+            partidos = []
+            incidencias_consulta = {}
+            ahora_utc = datetime.now(timezone.utc)
+            por_dia = {}
+            for item in guardados:
+                try:
+                    fecha_reg = datetime.fromisoformat(
+                        str(item["inicio_utc"]).replace("Z", "+00:00")
+                    ).astimezone(timezone.utc)
+                    if fecha_reg > ahora_utc:
+                        continue
+                    # ESPN agrupa partidos por día de calendario; incluir día UTC
+                    # anterior para eventos cercanos a medianoche.
+                    for dia in (fecha_reg.date(), (fecha_reg - timedelta(days=1)).date()):
+                        por_dia.setdefault(dia.isoformat(), set()).add(str(item["partido_id"]))
+                except (ValueError, TypeError, KeyError) as exc:
+                    incidencias_consulta[str(item.get("partido_id"))] = type(exc).__name__
+            vistos_partidos = set()
+            for dia, ids_dia in sorted(por_dia.items()):
+                try:
+                    tabla_dia, avisos = cargar_partidos(dia, dia)
+                    if avisos:
+                        incidencias_consulta[dia] = "; ".join(str(x) for x in avisos)[:250]
+                    for fila in tabla_dia.to_dict("records"):
+                        pid = str(fila["id"])
+                        if pid in ids and pid not in vistos_partidos:
+                            partidos.append(fila)
+                            vistos_partidos.add(pid)
+                except (ValueError, RuntimeError, OSError, TimeoutError) as exc:
+                    incidencias_consulta[dia] = type(exc).__name__ + ": " + str(exc)[:150]
             reales, errores = resultados_reglamentarios(partidos, cargar_detalle, _puntos_periodos)
+            errores.update(incidencias_consulta)
             resultado = evaluar_guardados(guardados, reales)
             st.caption(f"Registros consolidados: {len(guardados)} · Partidos con resultado reglamentario: {len(reales)}")
             if resultado["resumen"]:
