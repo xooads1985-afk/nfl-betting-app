@@ -1,0 +1,99 @@
+name: NBA - Validar optimizacion historica
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Instalar dependencias de validacion
+        run: pip install -r requirements.txt
+      - name: Comparar vectores originales y optimizados
+        env:
+          STREAMLIT_SERVER_HEADLESS: "true"
+        run: |
+          python - <<'PY'
+          import time
+          import numpy as np
+          import pandas as pd
+          from datetime import date, timedelta
+          from modulo_nba import cargar_partidos
+          from nba_lab_motor_offline import _nba_lab_ml_caracteristicas, _nba_lab_dias_descanso
+          
+          # Reproduce las mismas operaciones y cortes, pero precalcula el historial por equipo.
+          def indexar(datos):
+              equipos = pd.unique(pd.concat([datos['local'], datos['visitante']], ignore_index=True))
+              grupos = {}
+              for equipo in equipos:
+                  t = datos.loc[datos['local'].eq(equipo) | datos['visitante'].eq(equipo)].copy()
+                  sede = t['local'].eq(equipo)
+                  t['PF'] = t['puntos_local'].where(sede, t['puntos_visitante'])
+                  t['PC'] = t['puntos_visitante'].where(sede, t['puntos_local'])
+                  t['Rival'] = t['visitante'].where(sede, t['local'])
+                  t['Sede'] = sede.map({True: 'Local', False: 'Visitante'})
+                  t['Resultado'] = ['V' if a > b else 'D' if a < b else 'E' for a,b in zip(t['PF'], t['PC'])]
+                  t = t.sort_values('fecha_utc')
+                  grupos[equipo] = (t, pd.to_datetime(t['fecha_utc'], utc=True, errors='coerce'))
+              fechas = datos['_fecha_ml']
+              def calcular(juego):
+                  fecha = pd.to_datetime(juego['fecha_utc'], utc=True, errors='coerce')
+                  if pd.isna(fecha): return []
+                  anteriores = datos.loc[fechas.lt(fecha)]
+                  if len(anteriores) < 10: return []
+                  liga = float(pd.concat([anteriores['puntos_local'], anteriores['puntos_visitante']]).mean())
+                  filas = []
+                  for equipo, rival, local in ((juego['local'], juego['visitante'], 1), (juego['visitante'], juego['local'], 0)):
+                      if equipo not in grupos or rival not in grupos: return []
+                      propio = grupos[equipo][0].loc[grupos[equipo][1].lt(fecha)]
+                      contrario = grupos[rival][0].loc[grupos[rival][1].lt(fecha)]
+                      if min(len(propio), len(contrario)) < 3: return []
+                      pf = pd.to_numeric(propio['PF'], errors='coerce').dropna().tail(10)
+                      pc = pd.to_numeric(propio['PC'], errors='coerce').dropna().tail(10)
+                      rp = pd.to_numeric(contrario['PF'], errors='coerce').dropna().tail(10)
+                      rc = pd.to_numeric(contrario['PC'], errors='coerce').dropna().tail(10)
+                      if min(len(pf),len(pc),len(rp),len(rc)) < 3: return []
+                      base = (float(pf.mean()) + float(rc.mean())) / 2
+                      descanso = _nba_lab_dias_descanso(propio, fecha)
+                      descanso_rival = _nba_lab_dias_descanso(contrario, fecha)
+                      vector = [base,float(pf.mean()),float(rc.mean()),float(pc.mean()),float(rp.mean()),float(pf.tail(5).mean()),float(rc.tail(5).mean()),float(local),float(max(-3,min(3,(descanso or 0)-(descanso_rival or 0)))),float(min(len(propio),20)),liga]
+                      filas.append({'equipo':str(equipo),'x':np.asarray(vector,dtype=float),'base':base,'n':len(propio),'liga':liga,'real':float(juego['puntos_local'] if local else juego['puntos_visitante'])})
+                  return filas
+              return calcular
+          
+          # ESPN: varias semanas de juegos finalizados; no se escriben resultados en Supabase.
+          h, avisos = cargar_partidos(date.today()-timedelta(days=30), date.today()-timedelta(days=1))
+          if avisos:
+              raise RuntimeError('Cobertura ESPN incompleta: ' + str(avisos[:3]))
+          h = h.loc[h['finalizado'].eq(True)].dropna(subset=['puntos_local','puntos_visitante']).copy()
+          h['_fecha_ml'] = pd.to_datetime(h['fecha_utc'],utc=True,errors='coerce')
+          h = h.dropna(subset=['_fecha_ml']).sort_values('_fecha_ml')
+          if len(h) < 30:
+              raise RuntimeError('Muestra insuficiente para equivalencia: '+str(len(h)))
+          juegos = h.to_dict('records')
+          t0=time.perf_counter()
+          original=[_nba_lab_ml_caracteristicas(h,j) for j in juegos]
+          t_original=time.perf_counter()-t0
+          t0=time.perf_counter()
+          rapido=indexar(h)
+          optimizado=[rapido(j) for j in juegos]
+          t_optimizado=time.perf_counter()-t0
+          for idx,(a,b) in enumerate(zip(original,optimizado)):
+              if len(a)!=len(b): raise AssertionError(f'Juego {idx}: distinto número de vectores')
+              for x,y in zip(a,b):
+                  for k in ('equipo','n','real'):
+                      if x[k]!=y[k]: raise AssertionError(f'Juego {idx}: {k} diferente')
+                  for k in ('x','base','liga'):
+                      if not np.allclose(x[k],y[k],rtol=0,atol=1e-10):
+                          raise AssertionError(f'Juego {idx}: {k} diferente')
+          print('EQUIVALENCIA CONFIRMADA para',len(juegos),'partidos')
+          print('Original:',round(t_original,2),'s; indexado:',round(t_optimizado,2),'s')
+          print('Aceleración:',round(t_original/max(t_optimizado,0.00001),2),'x')
+          PY
