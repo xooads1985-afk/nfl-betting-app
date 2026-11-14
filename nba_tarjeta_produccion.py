@@ -58,6 +58,27 @@ def mostrar_tarjeta_nba_produccion():
                        format_func=lambda k: f"{opciones[k]['visitante']} @ {opciones[k]['local']}",
                        key='nba_prod_partido')
     partido = opciones[pid]
+    
+    inicio_utc = datetime.fromisoformat(
+        partido["fecha_utc"].replace("Z", "+00:00")
+    )
+    inicio_local = inicio_utc.astimezone(TZ)
+
+    st.info(
+        "📅 **Fecha:** "
+        + inicio_local.strftime("%d/%m/%Y")
+        + "  |  🕒 **Hora:** "
+        + inicio_local.strftime("%I:%M %p")
+        + " (Mazatlán)"
+    )
+
+    if datetime.now(timezone.utc) >= inicio_utc:
+        st.warning(
+            "El partido ya comenzó. "
+            "No se permiten nuevas proyecciones."
+        )
+        return
+
     from nba_conexion_tarjeta import mostrar_tarjeta_conectada
     if st.button('🏀 Analizar partido', key='nba_prod_analizar'):
         st.session_state['nba_prod_analizado'] = pid
