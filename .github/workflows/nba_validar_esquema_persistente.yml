@@ -1,0 +1,33 @@
+name: NBA - Validar esquema persistente sin activar
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dependencias
+        run: python -m pip install -r requirements.txt
+      - name: Comparar motores con esquema adaptado
+        env:
+          SCRIPT_B64: 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCBoYXNobGliLGpzb24KaW1wb3J0IHBhbmRhcyBhcyBwZAppbXBvcnQgbnVtcHkgYXMgbnAKZnJvbSBuYmFfbGFiX21vdG9yX29mZmxpbmUgaW1wb3J0IF9uYmFfbGFiX21vZGVsb19jLCBfbmJhX2xhYl9tbF9jYXJhY3RlcmlzdGljYXMKCmJhc2U9UGF0aCgnbmJhX2NhY2hlX3ByZXBhcmFkYScpCm1hbmlmZXN0PWpzb24ubG9hZHMoKGJhc2UvJ21hbmlmaWVzdG8uanNvbicpLnJlYWRfdGV4dCgpKQpyYXc9KGJhc2UvJ2hpc3RvcmlhbF9maW5hbGl6YWRvcy5jc3YnKS5yZWFkX2J5dGVzKCkKYXNzZXJ0IGhhc2hsaWIuc2hhMjU2KHJhdykuaGV4ZGlnZXN0KCk9PW1hbmlmZXN0WydzaGEyNTYnXSwnU0hBIGluY29ycmVjdG8nCmRmPXBkLnJlYWRfY3N2KGJhc2UvJ2hpc3RvcmlhbF9maW5hbGl6YWRvcy5jc3YnLGR0eXBlPXsnaWQnOnN0cn0pCmFzc2VydCBsZW4oZGYpPT1tYW5pZmVzdFsncGFydGlkb3MnXQphc3NlcnQgZGZbJ2lkJ10uaXNfdW5pcXVlIGFuZCBkZlsnZmluYWxpemFkbyddLmVxKFRydWUpLmFsbCgpCmRmWydfZmVjaGFfbWwnXT1wZC50b19kYXRldGltZShkZlsnZmVjaGFfdXRjJ10sdXRjPVRydWUsZXJyb3JzPSdyYWlzZScpCmRmPWRmLnNvcnRfdmFsdWVzKCdfZmVjaGFfbWwnKS5yZXNldF9pbmRleChkcm9wPVRydWUpCiMgTm8gaW52ZW50YXIgSURzLiBMYXMgY29sdW1uYXMgYWdyZWdhZGFzIHNvbiBzb2xvIGRlIGNvbXBhdGliaWxpZGFkIGRlIGVzcXVlbWEuCmFkYXB0YWRvPWRmLmNvcHkoKQphZGFwdGFkb1snbG9jYWxfaWQnXT0nJwphZGFwdGFkb1sndmlzaXRhbnRlX2lkJ109JycKYWRhcHRhZG9bJ2VzdGFkbyddPSdGaW5hbGl6YWRvJwpjb2x1bW5hcz1bJ2lkJywnZmVjaGFfdXRjJywnbG9jYWwnLCd2aXNpdGFudGUnLCdsb2NhbF9pZCcsJ3Zpc2l0YW50ZV9pZCcsJ3B1bnRvc19sb2NhbCcsJ3B1bnRvc192aXNpdGFudGUnLCdlc3RhZG8nLCdmaW5hbGl6YWRvJywnX2ZlY2hhX21sJ10KYWRhcHRhZG89YWRhcHRhZG9bY29sdW1uYXNdCnNlbGVjY2lvbj1ucC5saW5zcGFjZShtYXgoNTAsbGVuKGRmKS0xODApLGxlbihkZiktMSwxMixkdHlwZT1pbnQpCmNvbXBhcmFkb3M9MApmb3IgaSBpbiBzZWxlY2Npb246CiAgICBqdWVnbz1kZi5pbG9jW2ludChpKV0udG9fZGljdCgpCiAgICBhbnRlcz1kZi5pbG9jWzppbnQoaSldLmNvcHkoKQogICAgZGVzcHVlcz1hZGFwdGFkby5pbG9jWzppbnQoaSldLmNvcHkoKQogICAgYT1fbmJhX2xhYl9tbF9jYXJhY3RlcmlzdGljYXMoYW50ZXMsanVlZ28pCiAgICBiPV9uYmFfbGFiX21sX2NhcmFjdGVyaXN0aWNhcyhkZXNwdWVzLGp1ZWdvKQogICAgYXNzZXJ0IGxlbihhKT09bGVuKGIpLGYnQ2FyYWN0ZXJpc3RpY2FzIGRpc3RpbnRhcyBlbiB7aX0nCiAgICBmb3IgeCx5IGluIHppcChhLGIpOgogICAgICAgIGFzc2VydCB4WydlcXVpcG8nXT09eVsnZXF1aXBvJ10KICAgICAgICBhc3NlcnQgbnAuYWxsY2xvc2UoeFsneCddLHlbJ3gnXSxydG9sPTAsYXRvbD0xZS0xMCkKICAgICAgICBhc3NlcnQgbnAuaXNjbG9zZSh4WydyZWFsJ10seVsncmVhbCddLHJ0b2w9MCxhdG9sPTFlLTEwKQogICAgYWp1c3Rlcz17J2Zvcm1hJzpUcnVlLCdzZWRlJzpUcnVlLCdkZXNjYW5zbyc6VHJ1ZSwnZnVlcnphJzpUcnVlLCdyZWdyZXNpb24nOlRydWV9CiAgICBjPV9uYmFfbGFiX21vZGVsb19jKGFudGVzLGp1ZWdvLGFqdXN0ZXMpCiAgICBkPV9uYmFfbGFiX21vZGVsb19jKGRlc3B1ZXMsanVlZ28sYWp1c3RlcykKICAgIGFzc2VydCAoYyBpcyBOb25lKT09KGQgaXMgTm9uZSksZidNb2RlbG8gQyBwcmVzZW5jaWEgZGlzdGludGEgZW4ge2l9JwogICAgaWYgYyBpcyBub3QgTm9uZToKICAgICAgICBmb3IgZXF1aXBvIGluIChqdWVnb1snbG9jYWwnXSxqdWVnb1sndmlzaXRhbnRlJ10pOgogICAgICAgICAgICBhc3NlcnQgbnAuaXNjbG9zZShjW2VxdWlwb11bJ3ByZWQnXSxkW2VxdWlwb11bJ3ByZWQnXSxydG9sPTAsYXRvbD0xZS0xMCkKICAgIGNvbXBhcmFkb3MrPTEKb3V0PXsncmVzdWx0YWRvJzonUEFTUycsJ3BhcnRpZG9zX3NuYXBzaG90JzpsZW4oZGYpLCdjYXNvc19jb21wYXJhZG9zJzpjb21wYXJhZG9zLCdpZGVudGlmaWNhZG9yZXNfb2ZpY2lhbGVzX3JlY3VwZXJhZG9zJzpGYWxzZSwnbW9kaWZpY2FfdGFyamV0YSc6RmFsc2UsJ25vdGEnOidFcXVpdmFsZW5jaWEgZGUgY29sdW1uYXMgYWdyZWdhZGFzIGZyZW50ZSBhIHNuYXBzaG90LCBOTyBlcXVpdmFsZW5jaWEgY29uIEVTUE4gb3JpZ2luYWwgbmkgY29iZXJ0dXJhIHJlY2llbnRlJ30KcHJpbnQoanNvbi5kdW1wcyhvdXQsaW5kZW50PTIsZW5zdXJlX2FzY2lpPUZhbHNlKSkKUGF0aCgnYXVkaXRvcmlhX2VzcXVlbWFfbmJhLmpzb24nKS53cml0ZV90ZXh0KGpzb24uZHVtcHMob3V0LGluZGVudD0yLGVuc3VyZV9hc2NpaT1GYWxzZSkpCg=='
+        run: |
+          python - <<'PYCODE'
+          import base64,os
+          exec(compile(base64.b64decode(os.environ['SCRIPT_B64']),'validar_esquema','exec'))
+          PYCODE
+      - name: Publicar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-validacion-esquema
+          path: auditoria_esquema_nba.json
+          if-no-files-found: ignore
