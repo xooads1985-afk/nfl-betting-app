@@ -1,0 +1,51 @@
+name: NBA - Auditar compatibilidad historial
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pandas
+      - name: Auditar historial sin modificar codigo
+        run: |
+          python - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          import pandas as pd
+          base=Path('nba_cache_preparada')
+          m=json.loads((base/'manifiesto.json').read_text())
+          raw=(base/'historial_finalizados.csv').read_bytes()
+          t=pd.read_csv(base/'historial_finalizados.csv', dtype={'id':str})
+          columnas={'id','fecha_utc','local','visitante','local_id','visitante_id','puntos_local','puntos_visitante','estado','finalizado'}
+          faltantes=sorted(columnas-set(t.columns))
+          fechas=pd.to_datetime(t['fecha_utc'],utc=True,errors='coerce')
+          checks={
+              'sha256':hashlib.sha256(raw).hexdigest()==m['sha256'],
+              'cantidad':len(t)==m['partidos'],
+              'ids_unicos':not t['id'].duplicated().any(),
+              'fechas_validas':not fechas.isna().any(),
+              'finalizados':bool(t['finalizado'].eq(True).all()),
+              'marcadores':bool(t[['puntos_local','puntos_visitante']].notna().all().all()),
+          }
+          reporte={'partidos':len(t),'faltan_columnas_del_cargador_original':faltantes,'verificaciones':checks,'nota':'Solo auditoria estructural. No demuestra equivalencia de predicciones.'}
+          Path('nba_auditoria_compatibilidad.json').write_text(json.dumps(reporte,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(reporte,ensure_ascii=False,indent=2))
+          if not all(checks.values()):
+              raise SystemExit('Integridad no validada; no activar lector rapido')
+          PY
+      - name: Adjuntar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-auditoria-compatibilidad
+          path: nba_auditoria_compatibilidad.json
+          if-no-files-found: ignore
+
