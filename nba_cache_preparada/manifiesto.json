@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "fuente": "ESPN scoreboard",
+  "generado_utc": "2026-11-14T13:49:05.132299+00:00",
+  "desde": "2025-10-21",
+  "hasta": "2026-11-14",
+  "partidos": 1576,
+  "sha256": "c42c2a643995a6ac1238b39ac3cb522a099b04469491e2c370cd75f30a8041c5",
+  "columnas": [
+    "id",
+    "fecha_utc",
+    "local",
+    "visitante",
+    "finalizado",
+    "puntos_local",
+    "puntos_visitante"
+  ],
+  "estado": "solo_finalizados",
+  "nota": "Instantánea preparatoria; la tarjeta aún no la consume"
+}
