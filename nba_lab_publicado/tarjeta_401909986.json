@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-14T06:47:36.783978+00:00",
+  "partido_id": "401909986",
+  "fecha_utc": "2026-11-15T21:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Phoenix Suns",
+  "visitante": "Los Angeles Lakers",
+  "proyeccion_local_ensemble": 114.29,
+  "proyeccion_visitante_ensemble": 118.09,
+  "total_modelo_c": 233.37,
+  "total_ensemble": 232.38,
+  "referencia_total_base": 233.4,
+  "edge_total_vs_base": -1.02,
+  "edge_total_modelo_c_vs_base": -0.03,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-15T21:00:00+00:00",
+    "local": "Phoenix Suns",
+    "visitante": "Los Angeles Lakers",
+    "equipos": {
+      "Phoenix Suns": {
+        "ensemble": 114.29,
+        "modelo_c": 114.5,
+        "referencia_base": 114.05,
+        "edge_vs_base": 0.24,
+        "partidos_previos": 91
+      },
+      "Los Angeles Lakers": {
+        "ensemble": 118.09,
+        "modelo_c": 118.87,
+        "referencia_base": 119.35,
+        "edge_vs_base": -1.26,
+        "partidos_previos": 94
+      }
+    },
+    "total_modelo_c": 233.37,
+    "total_ensemble": 232.38,
+    "referencia_total_base": 233.4,
+    "edge_total_vs_base": -1.02,
+    "edge_total_modelo_c_vs_base": -0.03,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

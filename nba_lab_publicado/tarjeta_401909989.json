@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-14T06:48:24.813562+00:00",
+  "partido_id": "401909989",
+  "fecha_utc": "2026-11-15T23:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Boston Celtics",
+  "visitante": "Dallas Mavericks",
+  "proyeccion_local_ensemble": 112.07,
+  "proyeccion_visitante_ensemble": 109.43,
+  "total_modelo_c": 221.54,
+  "total_ensemble": 221.5,
+  "referencia_total_base": 221.6,
+  "edge_total_vs_base": -0.1,
+  "edge_total_modelo_c_vs_base": -0.06,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-15T23:00:00+00:00",
+    "local": "Boston Celtics",
+    "visitante": "Dallas Mavericks",
+    "equipos": {
+      "Boston Celtics": {
+        "ensemble": 112.07,
+        "modelo_c": 112.85,
+        "referencia_base": 111.75,
+        "edge_vs_base": 0.32,
+        "partidos_previos": 92
+      },
+      "Dallas Mavericks": {
+        "ensemble": 109.43,
+        "modelo_c": 108.69,
+        "referencia_base": 109.85,
+        "edge_vs_base": -0.42,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 221.54,
+    "total_ensemble": 221.5,
+    "referencia_total_base": 221.6,
+    "edge_total_vs_base": -0.1,
+    "edge_total_modelo_c_vs_base": -0.06,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

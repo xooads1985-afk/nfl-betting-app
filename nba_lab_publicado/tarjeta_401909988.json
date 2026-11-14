@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-14T06:48:08.839418+00:00",
+  "partido_id": "401909988",
+  "fecha_utc": "2026-11-15T22:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Utah Jazz",
+  "visitante": "San Antonio Spurs",
+  "proyeccion_local_ensemble": 107.89,
+  "proyeccion_visitante_ensemble": 118.62,
+  "total_modelo_c": 225.09,
+  "total_ensemble": 226.51,
+  "referencia_total_base": 225.2,
+  "edge_total_vs_base": 1.31,
+  "edge_total_modelo_c_vs_base": -0.11,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-15T22:00:00+00:00",
+    "local": "Utah Jazz",
+    "visitante": "San Antonio Spurs",
+    "equipos": {
+      "Utah Jazz": {
+        "ensemble": 107.89,
+        "modelo_c": 106.66,
+        "referencia_base": 106.15,
+        "edge_vs_base": 1.74,
+        "partidos_previos": 92
+      },
+      "San Antonio Spurs": {
+        "ensemble": 118.62,
+        "modelo_c": 118.43,
+        "referencia_base": 119.05,
+        "edge_vs_base": -0.43,
+        "partidos_previos": 94
+      }
+    },
+    "total_modelo_c": 225.09,
+    "total_ensemble": 226.51,
+    "referencia_total_base": 225.2,
+    "edge_total_vs_base": 1.31,
+    "edge_total_modelo_c_vs_base": -0.11,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
