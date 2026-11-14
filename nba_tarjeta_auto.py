@@ -186,6 +186,28 @@ def _mostrar_edge(st, compartido):
             st.warning("Registro aún no apto para guardar: " + str(exc))
         st.caption("No escribe ni modifica registros en Supabase.")
 
+        # NBA_GUARDADO_CONSOLIDADO_MANUAL_V1
+        if 'preparado' in locals() and preparado.get("estado") == "validado_sin_guardar":
+            if st.button("💾 Guardar proyección consolidada", key="nba_guardar_consolidado_" + str(compartido["partido_id"])):
+                from nba_guardado_consolidado import guardar_preparado
+                url_guardado = str(st.secrets.get("SUPABASE_URL", ""))
+                clave_guardado = str(st.secrets.get("SUPABASE_SECRET_KEY", ""))
+                try:
+                    resultado_guardado = guardar_preparado(
+                        preparado, url=url_guardado, clave=clave_guardado
+                    )
+                    estado_guardado = resultado_guardado["estado"]
+                    if estado_guardado == "guardado_verificado":
+                        st.success("Proyección guardada y verificada en Supabase.")
+                    elif estado_guardado == "ya_existe":
+                        st.info("Este partido ya tiene una proyección; no se sobrescribió.")
+                    elif estado_guardado == "partido_iniciado":
+                        st.warning("El partido ya comenzó: guardado bloqueado.")
+                    else:
+                        st.warning("Guardado sin confirmar: " + estado_guardado)
+                except (ValueError, KeyError, TypeError) as exc:
+                    st.error("Guardado bloqueado: " + str(exc))
+
         # NBA_DIAGNOSTICO_SUPABASE_SOLO_GET_V1
         with st.expander("🔍 Supabase · diagnóstico de solo lectura"):
             from nba_consulta_consolidada import comprobar_registro
