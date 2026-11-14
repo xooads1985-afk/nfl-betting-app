@@ -1,0 +1,44 @@
+
+name: NBA - Integrar Pace Q1 y mitad
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar rama seleccionada
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Aplicar integración
+        run: python integrar_tarjeta_pace.py
+
+      - name: Verificar sintaxis
+        run: |
+          python -m py_compile \
+            nba_prediccion_tarjeta.py \
+            nba_pace_periodos_modelo.py \
+            nba_pace_periodos_tarjeta.py
+
+      - name: Guardar cambios
+        run: |
+          if git diff --quiet -- nba_prediccion_tarjeta.py; then
+            echo "Sin cambios pendientes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nba_prediccion_tarjeta.py
+          git commit -m "Integrar Pace Q1 y primera mitad en tarjeta NBA"
+          git push origin HEAD:${{ github.ref_name }}
