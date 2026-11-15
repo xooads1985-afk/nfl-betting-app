@@ -99,7 +99,7 @@ def ejecutar():
         if pd.isna(fecha) or fecha.to_pydatetime()<=ahora+timedelta(minutes=10):continue
         estado=(e.get('status') or {}).get('type') or {}
         if estado.get('completed') or estado.get('state')!='pre':continue
-        pred=proyectar_periodos(h,p,ventana=10,minimo=5)
+        pred=proyectar_periodos(h,p,ventana=10,minimo=5,corte_utc=ahora)
         if pred is None:pendientes+=1;continue
         registro={'partido_id':pid,'fecha_utc':p['fecha_utc'],'generado_utc':ahora.isoformat(),
                   'local':p['local'],'visitante':p['visitante'],

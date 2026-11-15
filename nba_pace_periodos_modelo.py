@@ -46,7 +46,7 @@ def _preparar(historial, fecha, excluir=None):
     return h.sort_values('_fecha')
 
 
-def proyectar_periodos(historial, partido, *, ventana=10, minimo=5):
+def proyectar_periodos(historial, partido, *, ventana=10, minimo=5, corte_utc=None):
     """Pronostica Q1 y 1H con tasas históricas reales por posesión.
 
     Se emplea el promedio de ataque propio y defensa rival, multiplicado por
@@ -58,7 +58,13 @@ def proyectar_periodos(historial, partido, *, ventana=10, minimo=5):
     local, visitante = str(partido['local']), str(partido['visitante'])
     if local == visitante or not local or not visitante:
         raise ValueError('Equipos inválidos')
-    h = _preparar(historial, partido['fecha_utc'], partido.get('id'))
+    # El corte de generación evita usar partidos posteriores al pronóstico.
+    limite = partido['fecha_utc']
+    if corte_utc is not None:
+        fecha_objetivo = pd.to_datetime(partido['fecha_utc'], utc=True, errors='raise')
+        fecha_corte = pd.to_datetime(corte_utc, utc=True, errors='raise')
+        limite = min(fecha_objetivo, fecha_corte)
+    h = _preparar(historial, limite, partido.get('id'))
     datos = {}
     for equipo in (local, visitante):
         filas = h.loc[h['local'].eq(equipo) | h['visitante'].eq(equipo)].tail(ventana)
