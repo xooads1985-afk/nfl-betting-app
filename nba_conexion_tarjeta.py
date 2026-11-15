@@ -32,6 +32,9 @@ def mostrar_tarjeta_conectada(partido, *, partidos=None, escritura_habilitada=Fa
                               historial_remoto_habilitado=False, periodos_resumen=None):
     """Entrada para la tarjeta seleccionada. Escritura requiere habilitación explícita."""
     from nba_tarjeta_auto import mostrar_tarjeta_auto
+    if periodos_resumen is None:
+        from nba_q1_integracion_tarjeta import periodos_para_tarjeta
+        periodos_resumen = periodos_para_tarjeta(partido)
     return mostrar_tarjeta_auto(partido, partidos=partidos,
                                cargador_historial=cargador_historial,
                                escritura_habilitada=escritura_habilitada,
