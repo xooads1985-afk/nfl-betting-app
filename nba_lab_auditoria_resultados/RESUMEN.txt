@@ -1,4 +1,4 @@
-Predicciones verificadas: 2440
-Partidos: 1220
+Predicciones verificadas: 2538
+Partidos: 1269
 Incidencias: 0
 La prueba de invariancia temporal se ejecuta aparte y no demuestra ausencia absoluta de fuga de datos.
