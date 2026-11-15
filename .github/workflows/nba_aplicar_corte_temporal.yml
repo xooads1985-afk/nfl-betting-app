@@ -1,0 +1,40 @@
+name: NBA Lab - aplicar corte temporal prospectivo
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Aplicar correccion
+        run: python aplicar_corte_prospectivo.py
+      - name: Verificar sintaxis y corte
+        run: |
+          python -m py_compile nba_pace_periodos_modelo.py nba_seguimiento_periodos.py
+          python - <<'PY'
+          from pathlib import Path
+          m=Path('nba_pace_periodos_modelo.py').read_text()
+          s=Path('nba_seguimiento_periodos.py').read_text()
+          assert 'corte_utc=None' in m
+          assert 'corte_utc=ahora' in s
+          print('Corte temporal presente y sintaxis correcta')
+          PY
+      - name: Guardar solo los dos scripts experimentales
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nba_pace_periodos_modelo.py nba_seguimiento_periodos.py
+          if git diff --cached --quiet; then
+            echo "La correccion ya estaba aplicada"
+          else
+            git commit -m "Aplicar corte temporal a pronosticos prospectivos NBA"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
