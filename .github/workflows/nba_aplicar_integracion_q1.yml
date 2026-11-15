@@ -1,0 +1,39 @@
+name: NBA - Aplicar integracion Q1 y mitad
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  integrar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout rama experimental
+        uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validar archivos y aplicar conexion
+        run: |
+          python -m py_compile nba_q1_integracion_tarjeta.py aplicar_integracion_q1.py nba_conexion_tarjeta.py nba_tarjeta_auto.py
+          python aplicar_integracion_q1.py
+          python -m py_compile nba_conexion_tarjeta.py
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('nba_conexion_tarjeta.py').read_text(encoding='utf-8')
+          assert 'periodos_resumen = periodos_para_tarjeta(partido)' in s
+          print('OK: Q1/mitad conectados a tarjeta automatica')
+          PY
+      - name: Guardar exclusivamente la conexion experimental
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nba_conexion_tarjeta.py
+          if git diff --cached --quiet; then
+            echo "Sin cambios; conexion ya integrada"
+          else
+            git commit -m "NBA: conectar Q1 y primera mitad a tarjeta experimental"
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
