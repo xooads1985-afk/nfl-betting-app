@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-15T06:51:59.859293+00:00",
+  "partido_id": "401909991",
+  "fecha_utc": "2026-11-16T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Washington Wizards",
+  "visitante": "Houston Rockets",
+  "proyeccion_local_ensemble": 108.08,
+  "proyeccion_visitante_ensemble": 114.45,
+  "total_modelo_c": 221.88,
+  "total_ensemble": 222.53,
+  "referencia_total_base": 219.7,
+  "edge_total_vs_base": 2.83,
+  "edge_total_modelo_c_vs_base": 2.18,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-16T00:00:00+00:00",
+    "local": "Washington Wizards",
+    "visitante": "Houston Rockets",
+    "equipos": {
+      "Washington Wizards": {
+        "ensemble": 108.08,
+        "modelo_c": 106.8,
+        "referencia_base": 106.05,
+        "edge_vs_base": 2.03,
+        "partidos_previos": 93
+      },
+      "Houston Rockets": {
+        "ensemble": 114.45,
+        "modelo_c": 115.08,
+        "referencia_base": 113.65,
+        "edge_vs_base": 0.8,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 221.88,
+    "total_ensemble": 222.53,
+    "referencia_total_base": 219.7,
+    "edge_total_vs_base": 2.83,
+    "edge_total_modelo_c_vs_base": 2.18,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

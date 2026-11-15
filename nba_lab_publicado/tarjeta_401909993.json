@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-15T06:52:31.315845+00:00",
+  "partido_id": "401909993",
+  "fecha_utc": "2026-11-16T02:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Sacramento Kings",
+  "visitante": "Oklahoma City Thunder",
+  "proyeccion_local_ensemble": 107.96,
+  "proyeccion_visitante_ensemble": 118.19,
+  "total_modelo_c": 225.28,
+  "total_ensemble": 226.15,
+  "referencia_total_base": 223.95,
+  "edge_total_vs_base": 2.2,
+  "edge_total_modelo_c_vs_base": 1.33,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-16T02:00:00+00:00",
+    "local": "Sacramento Kings",
+    "visitante": "Oklahoma City Thunder",
+    "equipos": {
+      "Sacramento Kings": {
+        "ensemble": 107.96,
+        "modelo_c": 107.35,
+        "referencia_base": 106.65,
+        "edge_vs_base": 1.31,
+        "partidos_previos": 92
+      },
+      "Oklahoma City Thunder": {
+        "ensemble": 118.19,
+        "modelo_c": 117.93,
+        "referencia_base": 117.3,
+        "edge_vs_base": 0.89,
+        "partidos_previos": 92
+      }
+    },
+    "total_modelo_c": 225.28,
+    "total_ensemble": 226.15,
+    "referencia_total_base": 223.95,
+    "edge_total_vs_base": 2.2,
+    "edge_total_modelo_c_vs_base": 1.33,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

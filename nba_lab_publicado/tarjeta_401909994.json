@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-15T06:52:46.949652+00:00",
+  "partido_id": "401909994",
+  "fecha_utc": "2026-11-17T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Boston Celtics",
+  "visitante": "Orlando Magic",
+  "proyeccion_local_ensemble": 116.89,
+  "proyeccion_visitante_ensemble": 106.93,
+  "total_modelo_c": 221.64,
+  "total_ensemble": 223.82,
+  "referencia_total_base": 221.15,
+  "edge_total_vs_base": 2.67,
+  "edge_total_modelo_c_vs_base": 0.49,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-17T00:00:00+00:00",
+    "local": "Boston Celtics",
+    "visitante": "Orlando Magic",
+    "equipos": {
+      "Boston Celtics": {
+        "ensemble": 116.89,
+        "modelo_c": 114.45,
+        "referencia_base": 115.45,
+        "edge_vs_base": 1.44,
+        "partidos_previos": 92
+      },
+      "Orlando Magic": {
+        "ensemble": 106.93,
+        "modelo_c": 107.19,
+        "referencia_base": 105.7,
+        "edge_vs_base": 1.23,
+        "partidos_previos": 91
+      }
+    },
+    "total_modelo_c": 221.64,
+    "total_ensemble": 223.82,
+    "referencia_total_base": 221.15,
+    "edge_total_vs_base": 2.67,
+    "edge_total_modelo_c_vs_base": 0.49,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
