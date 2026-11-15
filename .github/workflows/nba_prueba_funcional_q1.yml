@@ -1,0 +1,26 @@
+name: NBA - Prueba funcional Q1 y mitad
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: pip install pandas streamlit
+      - name: Ejecutar pruebas aisladas
+        run: python probar_integracion_q1.py
+      - name: Guardar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-prueba-funcional-q1
+          path: nba_prueba_funcional_reporte.json
+          if-no-files-found: warn
