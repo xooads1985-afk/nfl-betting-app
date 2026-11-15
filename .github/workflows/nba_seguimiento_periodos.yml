@@ -1,0 +1,42 @@
+name: NBA Lab - seguimiento prospectivo Q1 y mitad
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: nba-seguimiento-prospectivo-experimental
+  cancel-in-progress: false
+jobs:
+  seguimiento:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pruebas-integracion-nba-4-motores
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar pandas
+        run: python -m pip install 'pandas>=2.0,<3'
+      - name: Registrar y evaluar pronosticos
+        run: python nba_seguimiento_periodos.py
+      - name: Publicar reporte
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-seguimiento-prospectivo-q1-mitad
+          path: nba_seguimiento_prospectivo/
+          if-no-files-found: error
+      - name: Guardar seguimiento solo en rama experimental
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add nba_seguimiento_prospectivo/
+          if git diff --cached --quiet; then
+            echo 'Sin cambios'
+          else
+            git commit -m 'Registrar pronosticos prospectivos NBA Q1 y mitad'
+            git push origin HEAD:pruebas-integracion-nba-4-motores
+          fi
