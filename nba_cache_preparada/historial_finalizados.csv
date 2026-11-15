@@ -1575,3 +1575,8 @@ id,fecha_utc,local,visitante,finalizado,puntos_local,puntos_visitante
 401909302,2026-11-14T02:30:00+00:00,San Antonio Spurs,Golden State Warriors,True,123,85
 401909303,2026-11-14T03:00:00+00:00,Sacramento Kings,Portland Trail Blazers,True,107,120
 401909304,2026-11-14T03:30:00+00:00,LA Clippers,Oklahoma City Thunder,True,113,112
+401909980,2026-11-15T00:00:00+00:00,New Orleans Pelicans,Denver Nuggets,True,108,116
+401909981,2026-11-15T00:30:00+00:00,Cleveland Cavaliers,Dallas Mavericks,True,127,117
+401909982,2026-11-15T01:00:00+00:00,Miami Heat,Detroit Pistons,True,137,117
+401909983,2026-11-15T01:00:00+00:00,Memphis Grizzlies,Brooklyn Nets,True,129,110
+401909984,2026-11-15T01:00:00+00:00,Minnesota Timberwolves,Chicago Bulls,True,106,117
