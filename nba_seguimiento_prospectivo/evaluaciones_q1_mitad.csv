@@ -1,1 +1,4 @@
 ﻿partido_id,fecha_utc,local,visitante,evaluado_utc,q1_local_real,q1_visitante_real,q1_total_real,mitad_local_real,mitad_visitante_real,mitad_total_real,q1_local_error,q1_visitante_error,q1_total_error,mitad_local_error,mitad_visitante_error,mitad_total_error
+401909985,2026-11-15T18:00Z,Philadelphia 76ers,Indiana Pacers,2026-11-15T23:57:55.404104+00:00,29,35,64,58,57,115,-1.898,-6.687,-8.585,-1.135,-1.926,-3.061
+401909986,2026-11-15T21:00Z,Phoenix Suns,Los Angeles Lakers,2026-11-15T23:57:55.404104+00:00,24,33,57,54,64,118,3.182,-4.011,-0.829,2.011,-3.923,-1.912
+401909987,2026-11-15T21:30Z,LA Clippers,Charlotte Hornets,2026-11-15T23:57:55.404104+00:00,22,21,43,51,52,103,5.236,5.669,10.905,4.625,3.905,8.53
