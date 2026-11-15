@@ -1,0 +1,45 @@
+{
+  "generado_utc": "2026-11-15T06:10:03.118238+00:00",
+  "pronosticos_guardados": 22,
+  "nuevos_pronosticos": 22,
+  "partidos_evaluados": 0,
+  "nuevas_evaluaciones": 0,
+  "sin_muestra_suficiente": 0,
+  "metricas": {
+    "q1": {
+      "local": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      },
+      "visitante": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      },
+      "total": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      }
+    },
+    "mitad": {
+      "local": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      },
+      "visitante": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      },
+      "total": {
+        "n": 0,
+        "mae": null,
+        "sesgo": null
+      }
+    }
+  },
+  "nota": "Solo se evalúan predicciones registradas en ejecuciones anteriores."
+}
