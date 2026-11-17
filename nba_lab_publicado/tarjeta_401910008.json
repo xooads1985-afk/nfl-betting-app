@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-17T08:11:58.567194+00:00",
+  "partido_id": "401910008",
+  "fecha_utc": "2026-11-19T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Indiana Pacers",
+  "visitante": "Houston Rockets",
+  "proyeccion_local_ensemble": 109.16,
+  "proyeccion_visitante_ensemble": 115.45,
+  "total_modelo_c": 221.07,
+  "total_ensemble": 224.61,
+  "referencia_total_base": 222.55,
+  "edge_total_vs_base": 2.06,
+  "edge_total_modelo_c_vs_base": -1.48,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-19T00:00:00+00:00",
+    "local": "Indiana Pacers",
+    "visitante": "Houston Rockets",
+    "equipos": {
+      "Indiana Pacers": {
+        "ensemble": 109.16,
+        "modelo_c": 107.15,
+        "referencia_base": 108.1,
+        "edge_vs_base": 1.06,
+        "partidos_previos": 93
+      },
+      "Houston Rockets": {
+        "ensemble": 115.45,
+        "modelo_c": 113.92,
+        "referencia_base": 114.45,
+        "edge_vs_base": 1.0,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 221.07,
+    "total_ensemble": 224.61,
+    "referencia_total_base": 222.55,
+    "edge_total_vs_base": 2.06,
+    "edge_total_modelo_c_vs_base": -1.48,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

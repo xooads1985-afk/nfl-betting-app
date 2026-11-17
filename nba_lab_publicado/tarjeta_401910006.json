@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-17T08:11:13.641811+00:00",
+  "partido_id": "401910006",
+  "fecha_utc": "2026-11-18T03:30:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "LA Clippers",
+  "visitante": "Utah Jazz",
+  "proyeccion_local_ensemble": 116.77,
+  "proyeccion_visitante_ensemble": 112.31,
+  "total_modelo_c": 227.58,
+  "total_ensemble": 229.08,
+  "referencia_total_base": 226.3,
+  "edge_total_vs_base": 2.78,
+  "edge_total_modelo_c_vs_base": 1.28,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-18T03:30:00+00:00",
+    "local": "LA Clippers",
+    "visitante": "Utah Jazz",
+    "equipos": {
+      "LA Clippers": {
+        "ensemble": 116.77,
+        "modelo_c": 116.63,
+        "referencia_base": 115.3,
+        "edge_vs_base": 1.47,
+        "partidos_previos": 91
+      },
+      "Utah Jazz": {
+        "ensemble": 112.31,
+        "modelo_c": 110.95,
+        "referencia_base": 111.0,
+        "edge_vs_base": 1.31,
+        "partidos_previos": 92
+      }
+    },
+    "total_modelo_c": 227.58,
+    "total_ensemble": 229.08,
+    "referencia_total_base": 226.3,
+    "edge_total_vs_base": 2.78,
+    "edge_total_modelo_c_vs_base": 1.28,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
