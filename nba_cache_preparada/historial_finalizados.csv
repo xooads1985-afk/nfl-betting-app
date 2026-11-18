@@ -1597,3 +1597,8 @@ id,fecha_utc,local,visitante,finalizado,puntos_local,puntos_visitante
 401909999,2026-11-17T01:00:00+00:00,Minnesota Timberwolves,Portland Trail Blazers,True,106,98
 401910000,2026-11-17T01:00:00+00:00,New Orleans Pelicans,Golden State Warriors,True,115,94
 401910001,2026-11-17T02:00:00+00:00,Denver Nuggets,Phoenix Suns,True,105,117
+401910002,2026-11-18T00:30:00+00:00,Toronto Raptors,New York Knicks,True,102,111
+401910003,2026-11-18T01:00:00+00:00,Minnesota Timberwolves,Portland Trail Blazers,True,106,105
+401910004,2026-11-18T01:00:00+00:00,San Antonio Spurs,Detroit Pistons,True,93,105
+401910006,2026-11-18T03:30:00+00:00,LA Clippers,Utah Jazz,True,107,132
+401910005,2026-11-18T04:00:00+00:00,Los Angeles Lakers,Charlotte Hornets,True,118,114
