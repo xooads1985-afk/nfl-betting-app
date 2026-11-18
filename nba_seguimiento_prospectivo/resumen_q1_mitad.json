@@ -1,43 +1,43 @@
 {
-  "generado_utc": "2026-11-18T01:37:05.468845+00:00",
+  "generado_utc": "2026-11-18T10:08:29.141391+00:00",
   "pronosticos_guardados": 47,
-  "nuevos_pronosticos": 9,
-  "partidos_evaluados": 17,
-  "nuevas_evaluaciones": 0,
+  "nuevos_pronosticos": 0,
+  "partidos_evaluados": 22,
+  "nuevas_evaluaciones": 5,
   "sin_muestra_suficiente": 0,
   "metricas": {
     "q1": {
       "local": {
-        "n": 17,
-        "mae": 5.686,
-        "sesgo": 0.372
+        "n": 22,
+        "mae": 4.722,
+        "sesgo": -0.04
       },
       "visitante": {
-        "n": 17,
-        "mae": 7.126,
-        "sesgo": 2.736
+        "n": 22,
+        "mae": 7.032,
+        "sesgo": 2.125
       },
       "total": {
-        "n": 17,
-        "mae": 8.05,
-        "sesgo": 3.107
+        "n": 22,
+        "mae": 7.78,
+        "sesgo": 2.085
       }
     },
     "mitad": {
       "local": {
-        "n": 17,
-        "mae": 5.353,
-        "sesgo": 0.461
+        "n": 22,
+        "mae": 5.174,
+        "sesgo": 0.984
       },
       "visitante": {
-        "n": 17,
-        "mae": 7.954,
-        "sesgo": 3.057
+        "n": 22,
+        "mae": 7.381,
+        "sesgo": 2.325
       },
       "total": {
-        "n": 17,
-        "mae": 10.368,
-        "sesgo": 3.518
+        "n": 22,
+        "mae": 10.283,
+        "sesgo": 3.309
       }
     }
   },
