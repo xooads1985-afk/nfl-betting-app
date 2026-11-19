@@ -1602,3 +1602,15 @@ id,fecha_utc,local,visitante,finalizado,puntos_local,puntos_visitante
 401910004,2026-11-18T01:00:00+00:00,San Antonio Spurs,Detroit Pistons,True,93,105
 401910006,2026-11-18T03:30:00+00:00,LA Clippers,Utah Jazz,True,107,132
 401910005,2026-11-18T04:00:00+00:00,Los Angeles Lakers,Charlotte Hornets,True,118,114
+401910007,2026-11-19T00:00:00+00:00,Cleveland Cavaliers,Memphis Grizzlies,True,121,124
+401910008,2026-11-19T00:00:00+00:00,Indiana Pacers,Houston Rockets,True,104,119
+401910009,2026-11-19T00:00:00+00:00,Miami Heat,Milwaukee Bucks,True,137,130
+401910010,2026-11-19T00:00:00+00:00,Orlando Magic,Philadelphia 76ers,True,116,121
+401910011,2026-11-19T00:30:00+00:00,Brooklyn Nets,Chicago Bulls,True,107,137
+401910012,2026-11-19T00:30:00+00:00,Toronto Raptors,Washington Wizards,True,99,103
+401910013,2026-11-19T01:00:00+00:00,New Orleans Pelicans,Detroit Pistons,True,109,122
+401910014,2026-11-19T01:00:00+00:00,Oklahoma City Thunder,Atlanta Hawks,True,112,117
+401910016,2026-11-19T01:00:00+00:00,Dallas Mavericks,Golden State Warriors,True,116,94
+401910015,2026-11-19T02:30:00+00:00,Denver Nuggets,Boston Celtics,True,105,101
+401910017,2026-11-19T03:00:00+00:00,Los Angeles Lakers,Utah Jazz,True,97,109
+401910018,2026-11-19T03:00:00+00:00,Sacramento Kings,Phoenix Suns,True,107,128
