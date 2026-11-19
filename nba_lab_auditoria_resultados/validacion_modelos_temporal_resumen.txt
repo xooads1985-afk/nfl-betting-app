@@ -1,4 +1,4 @@
 Fechas comprobadas: 4
-Comparaciones: 80
+Comparaciones: 96
 Errores: 0
 Alcance: invariancia ante agregar partidos posteriores, en fechas muestreadas. No garantiza ausencia absoluta de filtraciones.
