@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-21T07:27:23.620015+00:00",
+  "partido_id": "401910025",
+  "fecha_utc": "2026-11-22T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Dallas Mavericks",
+  "visitante": "LA Clippers",
+  "proyeccion_local_ensemble": 116.96,
+  "proyeccion_visitante_ensemble": 110.28,
+  "total_modelo_c": 229.25,
+  "total_ensemble": 227.24,
+  "referencia_total_base": 226.2,
+  "edge_total_vs_base": 1.04,
+  "edge_total_modelo_c_vs_base": 3.05,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-22T01:00:00+00:00",
+    "local": "Dallas Mavericks",
+    "visitante": "LA Clippers",
+    "equipos": {
+      "Dallas Mavericks": {
+        "ensemble": 116.96,
+        "modelo_c": 116.63,
+        "referencia_base": 115.6,
+        "edge_vs_base": 1.36,
+        "partidos_previos": 93
+      },
+      "LA Clippers": {
+        "ensemble": 110.28,
+        "modelo_c": 112.62,
+        "referencia_base": 110.6,
+        "edge_vs_base": -0.32,
+        "partidos_previos": 91
+      }
+    },
+    "total_modelo_c": 229.25,
+    "total_ensemble": 227.24,
+    "referencia_total_base": 226.2,
+    "edge_total_vs_base": 1.04,
+    "edge_total_modelo_c_vs_base": 3.05,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

@@ -1,87 +1,87 @@
 {
   "esquema": "nba_indice_publicado_v1",
-  "generado_utc": "2026-11-20T20:38:14.686889+00:00",
+  "generado_utc": "2026-11-21T07:29:14.915197+00:00",
   "cantidad": 10,
   "tarjetas": [
-    {
-      "id": "401909305",
-      "archivo": "tarjeta_401909305.json",
-      "fecha_utc": "2026-11-21T00:00:00+00:00",
-      "generado_utc": "2026-11-20T20:34:32.831286+00:00",
-      "local": "Atlanta Hawks",
-      "visitante": "Charlotte Hornets"
-    },
-    {
-      "id": "401909306",
-      "archivo": "tarjeta_401909306.json",
-      "fecha_utc": "2026-11-21T00:30:00+00:00",
-      "generado_utc": "2026-11-20T20:34:57.467163+00:00",
-      "local": "Brooklyn Nets",
-      "visitante": "Orlando Magic"
-    },
-    {
-      "id": "401909307",
-      "archivo": "tarjeta_401909307.json",
-      "fecha_utc": "2026-11-21T00:30:00+00:00",
-      "generado_utc": "2026-11-20T20:35:22.085090+00:00",
-      "local": "Cleveland Cavaliers",
-      "visitante": "Indiana Pacers"
-    },
-    {
-      "id": "401909308",
-      "archivo": "tarjeta_401909308.json",
-      "fecha_utc": "2026-11-21T00:30:00+00:00",
-      "generado_utc": "2026-11-20T20:35:46.915540+00:00",
-      "local": "Detroit Pistons",
-      "visitante": "Toronto Raptors"
-    },
-    {
-      "id": "401909309",
-      "archivo": "tarjeta_401909309.json",
-      "fecha_utc": "2026-11-21T01:00:00+00:00",
-      "generado_utc": "2026-11-20T20:36:11.629128+00:00",
-      "local": "Chicago Bulls",
-      "visitante": "Washington Wizards"
-    },
-    {
-      "id": "401909310",
-      "archivo": "tarjeta_401909310.json",
-      "fecha_utc": "2026-11-21T01:00:00+00:00",
-      "generado_utc": "2026-11-20T20:36:36.355608+00:00",
-      "local": "Oklahoma City Thunder",
-      "visitante": "New Orleans Pelicans"
-    },
-    {
-      "id": "401909311",
-      "archivo": "tarjeta_401909311.json",
-      "fecha_utc": "2026-11-21T02:30:00+00:00",
-      "generado_utc": "2026-11-20T20:37:01.001191+00:00",
-      "local": "Utah Jazz",
-      "visitante": "Phoenix Suns"
-    },
-    {
-      "id": "401909312",
-      "archivo": "tarjeta_401909312.json",
-      "fecha_utc": "2026-11-21T03:00:00+00:00",
-      "generado_utc": "2026-11-20T20:37:25.487167+00:00",
-      "local": "Denver Nuggets",
-      "visitante": "Houston Rockets"
-    },
-    {
-      "id": "401909313",
-      "archivo": "tarjeta_401909313.json",
-      "fecha_utc": "2026-11-21T03:00:00+00:00",
-      "generado_utc": "2026-11-20T20:37:49.963668+00:00",
-      "local": "Los Angeles Lakers",
-      "visitante": "Sacramento Kings"
-    },
     {
       "id": "401910023",
       "archivo": "tarjeta_401910023.json",
       "fecha_utc": "2026-11-21T18:00:00+00:00",
-      "generado_utc": "2026-11-20T20:38:14.456982+00:00",
+      "generado_utc": "2026-11-21T07:26:51.855132+00:00",
       "local": "Philadelphia 76ers",
       "visitante": "Milwaukee Bucks"
+    },
+    {
+      "id": "401910024",
+      "archivo": "tarjeta_401910024.json",
+      "fecha_utc": "2026-11-22T00:30:00+00:00",
+      "generado_utc": "2026-11-21T07:27:07.712477+00:00",
+      "local": "New York Knicks",
+      "visitante": "Portland Trail Blazers"
+    },
+    {
+      "id": "401910025",
+      "archivo": "tarjeta_401910025.json",
+      "fecha_utc": "2026-11-22T01:00:00+00:00",
+      "generado_utc": "2026-11-21T07:27:23.620015+00:00",
+      "local": "Dallas Mavericks",
+      "visitante": "LA Clippers"
+    },
+    {
+      "id": "401910026",
+      "archivo": "tarjeta_401910026.json",
+      "fecha_utc": "2026-11-22T01:00:00+00:00",
+      "generado_utc": "2026-11-21T07:27:39.560401+00:00",
+      "local": "Minnesota Timberwolves",
+      "visitante": "Memphis Grizzlies"
+    },
+    {
+      "id": "401910027",
+      "archivo": "tarjeta_401910027.json",
+      "fecha_utc": "2026-11-22T01:00:00+00:00",
+      "generado_utc": "2026-11-21T07:27:55.506027+00:00",
+      "local": "San Antonio Spurs",
+      "visitante": "New Orleans Pelicans"
+    },
+    {
+      "id": "401910028",
+      "archivo": "tarjeta_401910028.json",
+      "fecha_utc": "2026-11-22T03:00:00+00:00",
+      "generado_utc": "2026-11-21T07:28:11.400446+00:00",
+      "local": "Sacramento Kings",
+      "visitante": "Boston Celtics"
+    },
+    {
+      "id": "401910029",
+      "archivo": "tarjeta_401910029.json",
+      "fecha_utc": "2026-11-22T20:30:00+00:00",
+      "generado_utc": "2026-11-21T07:28:27.251780+00:00",
+      "local": "Atlanta Hawks",
+      "visitante": "Detroit Pistons"
+    },
+    {
+      "id": "401910030",
+      "archivo": "tarjeta_401910030.json",
+      "fecha_utc": "2026-11-22T23:00:00+00:00",
+      "generado_utc": "2026-11-21T07:28:43.040054+00:00",
+      "local": "Miami Heat",
+      "visitante": "Oklahoma City Thunder"
+    },
+    {
+      "id": "401910031",
+      "archivo": "tarjeta_401910031.json",
+      "fecha_utc": "2026-11-23T00:00:00+00:00",
+      "generado_utc": "2026-11-21T07:28:58.879420+00:00",
+      "local": "Washington Wizards",
+      "visitante": "Orlando Magic"
+    },
+    {
+      "id": "401910032",
+      "archivo": "tarjeta_401910032.json",
+      "fecha_utc": "2026-11-23T00:00:00+00:00",
+      "generado_utc": "2026-11-21T07:29:14.716409+00:00",
+      "local": "Chicago Bulls",
+      "visitante": "Denver Nuggets"
     }
   ],
   "errores": []

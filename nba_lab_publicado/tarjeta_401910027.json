@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-21T07:27:55.506027+00:00",
+  "partido_id": "401910027",
+  "fecha_utc": "2026-11-22T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "San Antonio Spurs",
+  "visitante": "New Orleans Pelicans",
+  "proyeccion_local_ensemble": 121.71,
+  "proyeccion_visitante_ensemble": 110.11,
+  "total_modelo_c": 232.83,
+  "total_ensemble": 231.82,
+  "referencia_total_base": 232.9,
+  "edge_total_vs_base": -1.08,
+  "edge_total_modelo_c_vs_base": -0.07,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-22T01:00:00+00:00",
+    "local": "San Antonio Spurs",
+    "visitante": "New Orleans Pelicans",
+    "equipos": {
+      "San Antonio Spurs": {
+        "ensemble": 121.71,
+        "modelo_c": 121.69,
+        "referencia_base": 121.25,
+        "edge_vs_base": 0.46,
+        "partidos_previos": 94
+      },
+      "New Orleans Pelicans": {
+        "ensemble": 110.11,
+        "modelo_c": 111.14,
+        "referencia_base": 111.65,
+        "edge_vs_base": -1.54,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 232.83,
+    "total_ensemble": 231.82,
+    "referencia_total_base": 232.9,
+    "edge_total_vs_base": -1.08,
+    "edge_total_modelo_c_vs_base": -0.07,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
