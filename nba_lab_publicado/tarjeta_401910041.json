@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-23T07:55:37.593504+00:00",
+  "partido_id": "401910041",
+  "fecha_utc": "2026-11-24T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Chicago Bulls",
+  "visitante": "Cleveland Cavaliers",
+  "proyeccion_local_ensemble": 114.82,
+  "proyeccion_visitante_ensemble": 123.76,
+  "total_modelo_c": 238.6,
+  "total_ensemble": 238.58,
+  "referencia_total_base": 239.1,
+  "edge_total_vs_base": -0.52,
+  "edge_total_modelo_c_vs_base": -0.5,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-24T01:00:00+00:00",
+    "local": "Chicago Bulls",
+    "visitante": "Cleveland Cavaliers",
+    "equipos": {
+      "Chicago Bulls": {
+        "ensemble": 114.82,
+        "modelo_c": 116.27,
+        "referencia_base": 114.65,
+        "edge_vs_base": 0.17,
+        "partidos_previos": 91
+      },
+      "Cleveland Cavaliers": {
+        "ensemble": 123.76,
+        "modelo_c": 122.33,
+        "referencia_base": 124.45,
+        "edge_vs_base": -0.69,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 238.6,
+    "total_ensemble": 238.58,
+    "referencia_total_base": 239.1,
+    "edge_total_vs_base": -0.52,
+    "edge_total_modelo_c_vs_base": -0.5,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
