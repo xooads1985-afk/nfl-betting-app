@@ -1640,3 +1640,13 @@ id,fecha_utc,local,visitante,finalizado,puntos_local,puntos_visitante
 401910033,2026-11-23T00:00:00+00:00,Utah Jazz,Dallas Mavericks,True,114,116
 401910034,2026-11-23T01:00:00+00:00,New York Knicks,Indiana Pacers,True,113,106
 401910035,2026-11-23T01:30:00+00:00,Golden State Warriors,Boston Celtics,True,88,87
+401910036,2026-11-24T00:00:00+00:00,Charlotte Hornets,Memphis Grizzlies,True,111,117
+401910037,2026-11-24T00:00:00+00:00,Philadelphia 76ers,Portland Trail Blazers,True,111,128
+401910038,2026-11-24T00:30:00+00:00,Indiana Pacers,Oklahoma City Thunder,True,125,120
+401910039,2026-11-24T00:30:00+00:00,Toronto Raptors,Milwaukee Bucks,True,111,116
+401910040,2026-11-24T00:30:00+00:00,Minnesota Timberwolves,Brooklyn Nets,True,142,116
+401910041,2026-11-24T01:00:00+00:00,Chicago Bulls,Cleveland Cavaliers,True,122,108
+401910042,2026-11-24T01:00:00+00:00,New Orleans Pelicans,Phoenix Suns,True,119,123
+401910043,2026-11-24T01:30:00+00:00,Houston Rockets,LA Clippers,True,116,104
+401910044,2026-11-24T03:00:00+00:00,Los Angeles Lakers,Utah Jazz,True,109,94
+401910045,2026-11-24T03:00:00+00:00,Sacramento Kings,San Antonio Spurs,True,107,123
