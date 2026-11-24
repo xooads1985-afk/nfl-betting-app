@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-24T00:06:45.023962+00:00",
+  "partido_id": "401909318",
+  "fecha_utc": "2026-11-26T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Charlotte Hornets",
+  "visitante": "Chicago Bulls",
+  "proyeccion_local_ensemble": 118.13,
+  "proyeccion_visitante_ensemble": 111.9,
+  "total_modelo_c": 228.82,
+  "total_ensemble": 230.03,
+  "referencia_total_base": 227.15,
+  "edge_total_vs_base": 2.88,
+  "edge_total_modelo_c_vs_base": 1.67,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-26T00:00:00+00:00",
+    "local": "Charlotte Hornets",
+    "visitante": "Chicago Bulls",
+    "equipos": {
+      "Charlotte Hornets": {
+        "ensemble": 118.13,
+        "modelo_c": 114.56,
+        "referencia_base": 114.5,
+        "edge_vs_base": 3.63,
+        "partidos_previos": 93
+      },
+      "Chicago Bulls": {
+        "ensemble": 111.9,
+        "modelo_c": 114.26,
+        "referencia_base": 112.65,
+        "edge_vs_base": -0.75,
+        "partidos_previos": 91
+      }
+    },
+    "total_modelo_c": 228.82,
+    "total_ensemble": 230.03,
+    "referencia_total_base": 227.15,
+    "edge_total_vs_base": 2.88,
+    "edge_total_modelo_c_vs_base": 1.67,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

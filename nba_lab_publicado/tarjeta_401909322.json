@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-24T00:07:45.592729+00:00",
+  "partido_id": "401909322",
+  "fecha_utc": "2026-11-26T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Milwaukee Bucks",
+  "visitante": "Brooklyn Nets",
+  "proyeccion_local_ensemble": 113.48,
+  "proyeccion_visitante_ensemble": 114.83,
+  "total_modelo_c": 225.39,
+  "total_ensemble": 228.31,
+  "referencia_total_base": 226.2,
+  "edge_total_vs_base": 2.11,
+  "edge_total_modelo_c_vs_base": -0.81,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-26T01:00:00+00:00",
+    "local": "Milwaukee Bucks",
+    "visitante": "Brooklyn Nets",
+    "equipos": {
+      "Milwaukee Bucks": {
+        "ensemble": 113.48,
+        "modelo_c": 111.64,
+        "referencia_base": 112.05,
+        "edge_vs_base": 1.43,
+        "partidos_previos": 92
+      },
+      "Brooklyn Nets": {
+        "ensemble": 114.83,
+        "modelo_c": 113.75,
+        "referencia_base": 114.15,
+        "edge_vs_base": 0.68,
+        "partidos_previos": 92
+      }
+    },
+    "total_modelo_c": 225.39,
+    "total_ensemble": 228.31,
+    "referencia_total_base": 226.2,
+    "edge_total_vs_base": 2.11,
+    "edge_total_modelo_c_vs_base": -0.81,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-24T00:07:15.263985+00:00",
+  "partido_id": "401909320",
+  "fecha_utc": "2026-11-26T00:30:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Oklahoma City Thunder",
+  "visitante": "Minnesota Timberwolves",
+  "proyeccion_local_ensemble": 110.65,
+  "proyeccion_visitante_ensemble": 110.24,
+  "total_modelo_c": 222.22,
+  "total_ensemble": 220.89,
+  "referencia_total_base": 220.15,
+  "edge_total_vs_base": 0.74,
+  "edge_total_modelo_c_vs_base": 2.07,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-26T00:30:00+00:00",
+    "local": "Oklahoma City Thunder",
+    "visitante": "Minnesota Timberwolves",
+    "equipos": {
+      "Oklahoma City Thunder": {
+        "ensemble": 110.65,
+        "modelo_c": 112.14,
+        "referencia_base": 109.65,
+        "edge_vs_base": 1.0,
+        "partidos_previos": 92
+      },
+      "Minnesota Timberwolves": {
+        "ensemble": 110.24,
+        "modelo_c": 110.08,
+        "referencia_base": 110.5,
+        "edge_vs_base": -0.26,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 222.22,
+    "total_ensemble": 220.89,
+    "referencia_total_base": 220.15,
+    "edge_total_vs_base": 0.74,
+    "edge_total_modelo_c_vs_base": 2.07,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

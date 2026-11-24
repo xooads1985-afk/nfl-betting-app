@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-24T00:05:44.478727+00:00",
+  "partido_id": "401909314",
+  "fecha_utc": "2026-11-25T00:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Orlando Magic",
+  "visitante": "Detroit Pistons",
+  "proyeccion_local_ensemble": 108.14,
+  "proyeccion_visitante_ensemble": 114.76,
+  "total_modelo_c": 222.79,
+  "total_ensemble": 222.9,
+  "referencia_total_base": 220.15,
+  "edge_total_vs_base": 2.75,
+  "edge_total_modelo_c_vs_base": 2.64,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-25T00:00:00+00:00",
+    "local": "Orlando Magic",
+    "visitante": "Detroit Pistons",
+    "equipos": {
+      "Orlando Magic": {
+        "ensemble": 108.14,
+        "modelo_c": 108.57,
+        "referencia_base": 105.85,
+        "edge_vs_base": 2.29,
+        "partidos_previos": 91
+      },
+      "Detroit Pistons": {
+        "ensemble": 114.76,
+        "modelo_c": 114.22,
+        "referencia_base": 114.3,
+        "edge_vs_base": 0.46,
+        "partidos_previos": 92
+      }
+    },
+    "total_modelo_c": 222.79,
+    "total_ensemble": 222.9,
+    "referencia_total_base": 220.15,
+    "edge_total_vs_base": 2.75,
+    "edge_total_modelo_c_vs_base": 2.64,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
