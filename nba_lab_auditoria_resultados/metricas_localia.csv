@@ -1,20 +1,20 @@
 temporada,grupo,modelo,muestra,MAE,RMSE,sesgo
-Todas,Local,Base,1533,9.873,12.295,-0.668
-Todas,Local,Modelo C,1533,9.804,12.24,-0.337
-Todas,Local,Ridge,1533,9.846,12.326,0.697
-Todas,Local,Bayesiano,1533,9.87,12.301,-0.563
-Todas,Local,Gradient Boosting,1533,9.907,12.383,-0.217
-Todas,Local,Ensemble,1533,9.815,12.276,-0.028
-Todas,Local,Regresión lineal,1533,9.861,12.348,0.671
-Todas,Local,Binomial negativa,1533,9.861,12.348,0.671
-Todas,Visitante,Base,1533,9.772,12.288,1.063
-Todas,Visitante,Modelo C,1533,9.738,12.211,1.056
-Todas,Visitante,Ridge,1533,9.716,12.235,0.614
-Todas,Visitante,Bayesiano,1533,9.833,12.352,1.162
-Todas,Visitante,Gradient Boosting,1533,9.83,12.363,1.095
-Todas,Visitante,Ensemble,1533,9.754,12.267,0.957
-Todas,Visitante,Regresión lineal,1533,9.721,12.253,0.547
-Todas,Visitante,Binomial negativa,1533,9.721,12.253,0.547
+Todas,Local,Base,1543,9.862,12.287,-0.693
+Todas,Local,Modelo C,1543,9.791,12.23,-0.361
+Todas,Local,Ridge,1543,9.834,12.314,0.671
+Todas,Local,Bayesiano,1543,9.857,12.292,-0.588
+Todas,Local,Gradient Boosting,1543,9.89,12.372,-0.239
+Todas,Local,Ensemble,1543,9.8,12.266,-0.052
+Todas,Local,Regresión lineal,1543,9.849,12.336,0.645
+Todas,Local,Binomial negativa,1543,9.849,12.336,0.645
+Todas,Visitante,Base,1543,9.762,12.271,1.053
+Todas,Visitante,Modelo C,1543,9.728,12.194,1.046
+Todas,Visitante,Ridge,1543,9.704,12.217,0.605
+Todas,Visitante,Bayesiano,1543,9.822,12.335,1.151
+Todas,Visitante,Gradient Boosting,1543,9.815,12.343,1.086
+Todas,Visitante,Ensemble,1543,9.742,12.249,0.947
+Todas,Visitante,Regresión lineal,1543,9.709,12.235,0.538
+Todas,Visitante,Binomial negativa,1543,9.709,12.235,0.538
 2025-26,Local,Base,1219,9.797,12.25,-0.637
 2025-26,Local,Modelo C,1219,9.771,12.239,-0.327
 2025-26,Local,Ridge,1219,9.765,12.274,0.687
@@ -31,19 +31,19 @@ Todas,Visitante,Binomial negativa,1533,9.721,12.253,0.547
 2025-26,Visitante,Ensemble,1219,9.672,12.221,0.953
 2025-26,Visitante,Regresión lineal,1219,9.634,12.213,0.494
 2025-26,Visitante,Binomial negativa,1219,9.634,12.213,0.494
-2026-27,Local,Base,314,10.17,12.469,-0.787
-2026-27,Local,Modelo C,314,9.929,12.245,-0.375
-2026-27,Local,Ridge,314,10.159,12.528,0.733
-2026-27,Local,Bayesiano,314,10.138,12.412,-0.705
-2026-27,Local,Gradient Boosting,314,10.22,12.518,-0.018
-2026-27,Local,Ensemble,314,10.134,12.428,0.003
-2026-27,Local,Regresión lineal,314,10.161,12.531,0.746
-2026-27,Local,Binomial negativa,314,10.161,12.531,0.746
-2026-27,Visitante,Base,314,10.044,12.47,0.819
-2026-27,Visitante,Modelo C,314,9.976,12.3,0.827
-2026-27,Visitante,Ridge,314,10.059,12.406,0.751
-2026-27,Visitante,Bayesiano,314,10.04,12.466,0.894
-2026-27,Visitante,Gradient Boosting,314,10.208,12.579,1.277
-2026-27,Visitante,Ensemble,314,10.073,12.443,0.974
-2026-27,Visitante,Regresión lineal,314,10.06,12.408,0.753
-2026-27,Visitante,Binomial negativa,314,10.06,12.408,0.753
+2026-27,Local,Base,324,10.106,12.425,-0.905
+2026-27,Local,Modelo C,324,9.864,12.2,-0.485
+2026-27,Local,Ridge,324,10.094,12.466,0.611
+2026-27,Local,Bayesiano,324,10.068,12.366,-0.821
+2026-27,Local,Gradient Boosting,324,10.129,12.463,-0.129
+2026-27,Local,Ensemble,324,10.054,12.373,-0.113
+2026-27,Local,Regresión lineal,324,10.096,12.469,0.623
+2026-27,Local,Binomial negativa,324,10.096,12.469,0.623
+2026-27,Visitante,Base,324,9.988,12.386,0.775
+2026-27,Visitante,Modelo C,324,9.922,12.219,0.784
+2026-27,Visitante,Ridge,324,9.992,12.315,0.702
+2026-27,Visitante,Bayesiano,324,9.984,12.381,0.849
+2026-27,Visitante,Gradient Boosting,324,10.126,12.48,1.23
+2026-27,Visitante,Ensemble,324,10.006,12.351,0.927
+2026-27,Visitante,Regresión lineal,324,9.993,12.316,0.703
+2026-27,Visitante,Binomial negativa,324,9.993,12.316,0.703
