@@ -1,6 +1,6 @@
-Filas: 3086
-Partidos únicos: 1543
-Pares válidos: 1543
+Filas: 3092
+Partidos únicos: 1546
+Pares válidos: 1546
 Incidencias detectadas: 0
 
 Nota: la comprobación de ausencia de fuga temporal requiere además pruebas sobre el código y datos fuente.
