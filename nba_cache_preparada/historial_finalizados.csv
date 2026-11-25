@@ -1650,3 +1650,6 @@ id,fecha_utc,local,visitante,finalizado,puntos_local,puntos_visitante
 401910043,2026-11-24T01:30:00+00:00,Houston Rockets,LA Clippers,True,116,104
 401910044,2026-11-24T03:00:00+00:00,Los Angeles Lakers,Utah Jazz,True,109,94
 401910045,2026-11-24T03:00:00+00:00,Sacramento Kings,San Antonio Spurs,True,107,123
+401909314,2026-11-25T00:00:00+00:00,Orlando Magic,Detroit Pistons,True,86,104
+401909315,2026-11-25T01:00:00+00:00,Washington Wizards,Boston Celtics,True,116,131
+401909316,2026-11-25T03:00:00+00:00,Denver Nuggets,Dallas Mavericks,True,101,120
