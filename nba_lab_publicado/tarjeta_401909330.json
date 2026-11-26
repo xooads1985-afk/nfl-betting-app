@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-26T08:40:17.826021+00:00",
+  "partido_id": "401909330",
+  "fecha_utc": "2026-11-28T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Boston Celtics",
+  "visitante": "Atlanta Hawks",
+  "proyeccion_local_ensemble": 117.98,
+  "proyeccion_visitante_ensemble": 109.09,
+  "total_modelo_c": 226.28,
+  "total_ensemble": 227.07,
+  "referencia_total_base": 227.0,
+  "edge_total_vs_base": 0.07,
+  "edge_total_modelo_c_vs_base": -0.72,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-28T01:00:00+00:00",
+    "local": "Boston Celtics",
+    "visitante": "Atlanta Hawks",
+    "equipos": {
+      "Boston Celtics": {
+        "ensemble": 117.98,
+        "modelo_c": 116.11,
+        "referencia_base": 116.9,
+        "edge_vs_base": 1.08,
+        "partidos_previos": 92
+      },
+      "Atlanta Hawks": {
+        "ensemble": 109.09,
+        "modelo_c": 110.17,
+        "referencia_base": 110.1,
+        "edge_vs_base": -1.01,
+        "partidos_previos": 94
+      }
+    },
+    "total_modelo_c": 226.28,
+    "total_ensemble": 227.07,
+    "referencia_total_base": 227.0,
+    "edge_total_vs_base": 0.07,
+    "edge_total_modelo_c_vs_base": -0.72,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-26T08:39:38.903641+00:00",
+  "partido_id": "401909328",
+  "fecha_utc": "2026-11-28T00:30:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Indiana Pacers",
+  "visitante": "Philadelphia 76ers",
+  "proyeccion_local_ensemble": 110.27,
+  "proyeccion_visitante_ensemble": 113.9,
+  "total_modelo_c": 222.17,
+  "total_ensemble": 224.17,
+  "referencia_total_base": 222.55,
+  "edge_total_vs_base": 1.62,
+  "edge_total_modelo_c_vs_base": -0.38,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-28T00:30:00+00:00",
+    "local": "Indiana Pacers",
+    "visitante": "Philadelphia 76ers",
+    "equipos": {
+      "Indiana Pacers": {
+        "ensemble": 110.27,
+        "modelo_c": 108.73,
+        "referencia_base": 109.45,
+        "edge_vs_base": 0.82,
+        "partidos_previos": 93
+      },
+      "Philadelphia 76ers": {
+        "ensemble": 113.9,
+        "modelo_c": 113.44,
+        "referencia_base": 113.1,
+        "edge_vs_base": 0.8,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 222.17,
+    "total_ensemble": 224.17,
+    "referencia_total_base": 222.55,
+    "edge_total_vs_base": 1.62,
+    "edge_total_modelo_c_vs_base": -0.38,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
