@@ -1,11 +1,11 @@
 {
   "version": 1,
   "fuente": "ESPN scoreboard",
-  "generado_utc": "2026-11-25T21:50:40.057169+00:00",
+  "generado_utc": "2026-11-26T21:43:46.440133+00:00",
   "desde": "2025-10-21",
-  "hasta": "2026-11-25",
-  "partidos": 1654,
-  "sha256": "6e4a6bc9328fe3a9989c7cda51d86ad657b454915a10221e7292bcf00b443e18",
+  "hasta": "2026-11-26",
+  "partidos": 1663,
+  "sha256": "ad1cf3a39a295f4144d8c14ee3c489041525c4f0cf01236b774955e09ed1d477",
   "columnas": [
     "id",
     "fecha_utc",
