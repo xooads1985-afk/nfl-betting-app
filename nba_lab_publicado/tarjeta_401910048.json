@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-28T08:07:25.403309+00:00",
+  "partido_id": "401910048",
+  "fecha_utc": "2026-11-29T01:00:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Chicago Bulls",
+  "visitante": "Indiana Pacers",
+  "proyeccion_local_ensemble": 114.82,
+  "proyeccion_visitante_ensemble": 121.7,
+  "total_modelo_c": 234.92,
+  "total_ensemble": 236.52,
+  "referencia_total_base": 235.2,
+  "edge_total_vs_base": 1.32,
+  "edge_total_modelo_c_vs_base": -0.28,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-29T01:00:00+00:00",
+    "local": "Chicago Bulls",
+    "visitante": "Indiana Pacers",
+    "equipos": {
+      "Chicago Bulls": {
+        "ensemble": 114.82,
+        "modelo_c": 115.59,
+        "referencia_base": 114.45,
+        "edge_vs_base": 0.37,
+        "partidos_previos": 91
+      },
+      "Indiana Pacers": {
+        "ensemble": 121.7,
+        "modelo_c": 119.33,
+        "referencia_base": 120.75,
+        "edge_vs_base": 0.95,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 234.92,
+    "total_ensemble": 236.52,
+    "referencia_total_base": 235.2,
+    "edge_total_vs_base": 1.32,
+    "edge_total_modelo_c_vs_base": -0.28,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}

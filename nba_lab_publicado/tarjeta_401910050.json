@@ -1,0 +1,55 @@
+{
+  "esquema": "nba_tarjeta_futura_v1",
+  "generado_utc": "2026-11-28T08:07:55.412255+00:00",
+  "partido_id": "401910050",
+  "fecha_utc": "2026-11-29T01:30:00+00:00",
+  "estado": "experimental_prepartido",
+  "local": "Houston Rockets",
+  "visitante": "Philadelphia 76ers",
+  "proyeccion_local_ensemble": 111.84,
+  "proyeccion_visitante_ensemble": 109.27,
+  "total_modelo_c": 221.59,
+  "total_ensemble": 221.11,
+  "referencia_total_base": 220.2,
+  "edge_total_vs_base": 0.91,
+  "edge_total_modelo_c_vs_base": 1.39,
+  "pace_prepartido": null,
+  "detalle_motor": {
+    "fecha_utc": "2026-11-29T01:30:00+00:00",
+    "local": "Houston Rockets",
+    "visitante": "Philadelphia 76ers",
+    "equipos": {
+      "Houston Rockets": {
+        "ensemble": 111.84,
+        "modelo_c": 112.05,
+        "referencia_base": 111.45,
+        "edge_vs_base": 0.39,
+        "partidos_previos": 93
+      },
+      "Philadelphia 76ers": {
+        "ensemble": 109.27,
+        "modelo_c": 109.54,
+        "referencia_base": 108.75,
+        "edge_vs_base": 0.52,
+        "partidos_previos": 93
+      }
+    },
+    "total_modelo_c": 221.59,
+    "total_ensemble": 221.11,
+    "referencia_total_base": 220.2,
+    "edge_total_vs_base": 0.91,
+    "edge_total_modelo_c_vs_base": 1.39,
+    "pace_prepartido": null,
+    "entrenamiento_observaciones": 2674,
+    "historial_partidos": 1385,
+    "origen": "prepartido_experimental",
+    "nota": "Edge frente a Base es diferencia estadística; no representa cuotas. Pace sin datos se indica null."
+  },
+  "nota": "Estimación estadística experimental; no es un resultado garantizado.",
+  "auditoria_guardia": {
+    "historial_recibido": 1547,
+    "historial_regular_anterior": 1385,
+    "filtro": "temporada_regular_verificada_y_fecha_estrictamente_anterior",
+    "fuente_tipo": "tipo_competicion"
+  }
+}
